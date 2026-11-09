@@ -1,3 +1,4 @@
-build/
-js/sqlite/sqlite3.js
-js/sqlite/sqlite3.wasm
+node_modules/
+test-results/
+playwright-report/
+.site-stage/
