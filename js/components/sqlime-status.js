@@ -53,6 +53,9 @@ class SqlimeStatus extends HTMLElement {
     get value() {
         return this.el.innerText;
     }
+    // The message is HTML (the welcome text holds buttons). Callers must escape every
+    // string that comes from SQL, a database, a file name, a URL or an error
+    // with escapeHtml() from js/lab/html.js.
     set value(newValue) {
         this.el.innerHTML = newValue;
     }

@@ -1,0 +1,24 @@
+.share-link {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.share-link-field {
+    flex: 1 1 16rem;
+    min-width: 0;
+    height: 2rem;
+    padding: 0 0.5rem;
+    border: 1px solid var(--sqlime-blue);
+    border-radius: 0.125rem;
+    background: transparent;
+    color: inherit;
+    font-family: monospace;
+    font-size: 0.875rem;
+}
+
+.share-link-note {
+    display: block;
+}

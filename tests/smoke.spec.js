@@ -38,6 +38,7 @@ test("smoke: the engine needs no cross-origin isolation and fetches only its was
         /^js\/.+\.js$/,
         /^vendor\/sqlite3\.js$/,
         /^vendor\/sqlite3\.wasm$/,
+        /^vendor\/lz-string\.min\.js$/,
     ];
     const unexpected = net.paths.filter((p) => !allowed.some((re) => re.test(p)));
     expect(unexpected).toEqual([]);

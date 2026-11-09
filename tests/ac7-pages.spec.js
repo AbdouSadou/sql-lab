@@ -24,7 +24,7 @@ test("AC7 pages.yml deploys with the three official Pages actions on push to mai
     expect(yml).toMatch(/id-token:\s*write/);
     // No build step, and the dev-only directories are kept out of the artifact.
     expect(yml).not.toMatch(/\bmake\b|npm (ci|install|run)/);
-    for (const dir of ["/tests", "/node_modules", "/test", "/.git"]) {
+    for (const dir of ["/tests", "/node_modules", "/.git"]) {
         expect(yml).toContain(`--exclude='${dir}'`);
     }
     // upload-pages-artifact drops dotfiles unless told otherwise; .nojekyll must survive.
@@ -107,7 +107,7 @@ test("AC7 about page links and images resolve at the mount", async ({ page, net 
     await expect(page.locator("header img")).toHaveJSProperty("complete", true);
     expect(await page.locator("header img").evaluate((img) => img.naturalWidth)).toBeGreaterThan(0);
     // The inline link back to the app is relative to the mount, not to the origin root.
-    const href = await page.locator("main a", { hasText: "Sqlime" }).first().evaluate((a) => a.href);
+    const href = await page.locator('main a[href="./"]').first().evaluate((a) => a.href);
     expect(new URL(href).pathname).toBe(new URL(page.url()).pathname.replace(/about\.html$/, ""));
     net.expectNoSameOriginFailures();
 });

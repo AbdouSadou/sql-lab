@@ -2,18 +2,11 @@
 <html lang="en">
 
 <head>
-    <title>Sqlime - SQLite Playground</title>
+    <title data-page-title="">Loading</title>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta property="og:site_name" content="Sqlime" />
-    <meta property="og:title" content="Sqlime - Online SQLite playground" />
-    <meta name="description" content="Sqlime is an online SQLite playground for debugging and sharing SQL snippets.">
-    <meta property="og:description"
-        content="Sqlime is an online SQLite playground for debugging and sharing SQL snippets." />
-    <meta property="og:url" content="https://sqlime.org/" />
-    <meta property="og:image" content="https://sqlime.org/img/cover.png" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="description" content="A browser-only SQL workspace for learning and teaching. Everything runs in your browser and nothing is uploaded.">
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#181818" media="(prefers-color-scheme: dark)">
 
@@ -23,6 +16,7 @@
 
     <link rel="stylesheet" href="css/core.css">
     <link rel="stylesheet" href="css/layout.css">
+    <script type="module" src="js/lab/brand.js"></script>
 </head>
 
 <body>
@@ -33,9 +27,9 @@
         <header class="header">
             <h1>
                 <a id="reset" href="./" class="header-logo">
-                    <img src="img/favicon-64x64.png">
+                    <img src="img/favicon-64x64.png" alt="Start from scratch">
                 </a>
-                <span>SQLite Playground</span> &nbsp;//
+                <span data-app-name></span> &nbsp;//
                 <db-name id="db-name" class="db-name"></db-name>
             </h1>
             <tool-bar id="toolbar" class="toolbar hidden-mobile"></tool-bar>
@@ -44,19 +38,31 @@
         <link rel="stylesheet" href="css/editor.css">
         <link rel="stylesheet" href="css/commandbar.css">
         <section class="sqlime-editor-section">
-            <sqlime-editor id="editor" class="sqlime-editor"></sqlime-editor>
+            <sqlime-editor id="editor" class="sqlime-editor" aria-describedby="editor-hint"></sqlime-editor>
+            <p id="editor-hint" class="visually-hidden">Press Tab to indent. To leave the editor, press Escape, then Tab or Shift+Tab.</p>
             <command-bar id="commandbar" class="sqlime-commandbar sqlime-disabled"></command-bar>
         </section>
 
         <link rel="stylesheet" href="css/result.css">
         <link rel="stylesheet" href="css/status.css">
+        <link rel="stylesheet" href="css/share.css">
         <section class="sqlime-result-section">
             <sqlime-status id="status" class="sqlime-status"></sqlime-status>
             <sqlime-result id="result" class="sqlime-result"></sqlime-result>
         </section>
+
+        <link rel="stylesheet" href="css/footer.css">
+        <footer class="footer">
+            <span data-app-name></span>
+            <span class="footer-sep" aria-hidden="true">&middot;</span>
+            <span>Based on SQLime by Anton Zhiyanov</span>
+            <span class="footer-sep" aria-hidden="true">&middot;</span>
+            <a href="about.html">About</a>
+        </footer>
     </div>
 
     <script src="vendor/sqlite3.js"></script>
+    <script src="vendor/lz-string.min.js"></script>
     <script type="module" src="js/components/copy-link.js"></script>
     <script type="module" src="js/components/db-name.js"></script>
     <script type="module" src="js/components/toolbar.js"></script>

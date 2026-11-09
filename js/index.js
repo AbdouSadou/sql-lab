@@ -1,6 +1,5 @@
-// SQL Playground page
+// Page controller
 
-import github from "./github.js";
 import manager from "./sqlite/manager.js";
 import storage from "./storage.js";
 
@@ -8,13 +7,25 @@ import { actionButton } from "./components/action-button.js";
 import { ActionController } from "./controllers/actions.js";
 import { ShortcutController } from "./controllers/shortcuts.js";
 import { DatabasePath } from "./db-path.js";
-import { DEFAULT_NAME, MESSAGES, QUERIES } from "./sqlite/db.js";
+import { DEFAULT_NAME, MESSAGES } from "./sqlite/db.js";
+
+import { titleFor } from "./lab/brand.js";
+import {
+    BAD_LINK_MESSAGE,
+    OPEN_URL_DEFAULT,
+    OPEN_URL_PROMPT,
+    RESTORED_MESSAGE,
+    SHARED_MESSAGE,
+} from "./lab/config.js";
+import { createCopyLinkAction } from "./lab/copy-link.js";
+import { escapeHtml } from "./lab/html.js";
+import { resolveRoute } from "./lab/router.js";
+import { tableContentSql, tableInfoSql } from "./lab/sql.js";
 
 const ui = {
     buttons: {
         reset: document.querySelector("#reset"),
         execute: document.querySelector("#execute"),
-        save: document.querySelector("#save"),
         showTables: document.querySelector("#show-tables"),
     },
     name: document.querySelector("#db-name"),
@@ -28,7 +39,7 @@ const ui = {
 const actions = {
     executeCurrent: executeCurrent,
     loadDemo: loadDemo,
-    save: save,
+    copyLink: createCopyLinkAction(ui),
     showTables: showTables,
     showTable: showTable,
     visit: visit,
@@ -39,7 +50,6 @@ const shortcuts = {
         ui.toolbar.btnOpenFile.click();
     },
     u: openUrl,
-    s: save,
     "/": showTables,
 };
 
@@ -50,20 +60,25 @@ let database;
 // for testing purposes
 window.app = {
     actions: actions,
-    github: github,
     ui: ui,
 };
 
 // startFromCurrentUrl loads existing database or creates a new one
-// using current window location as database path
+// as the current window location says (js/lab/router.js): a database path, or a share
+// link, which gives an empty database with the shared SQL in the editor.
 async function startFromCurrentUrl() {
-    const path = new DatabasePath(window.location.hash.slice(1));
+    const route = resolveRoute(window.location);
+    const path = new DatabasePath(route.database);
     const name = path.extractName();
-    const success = await start(name, path);
+    const success = await start(name, path, route.sql);
     if (!success) {
         return;
     }
-    showStarted();
+    showStarted(route.sql !== null);
+    if (route.damaged) {
+        ui.status.error(escapeHtml(BAD_LINK_MESSAGE));
+        enableCommandBar();
+    }
 }
 
 // startFromUrl loads existing database
@@ -93,27 +108,33 @@ async function startFromFile(file, contents, fileType) {
 }
 
 // start loads existing database or creates a new one
-// using specified database path
-async function start(name, path) {
+// using specified database path.
+// sharedSql (from a share link) wins over the SQL saved in storage.
+async function start(name, path, sharedSql = null) {
     ui.result.clear();
     ui.status.info(MESSAGES.loading);
 
+    // The path and the exception text come from the URL, a file or the engine, so they
+    // are escaped before they reach the status area (which renders HTML).
     try {
-        const loadedDatabase = await manager.init(name, path);
+        // An unsupported address (for example #scheme:id) is refused here. manager.init
+        // would otherwise fall through to creating an empty database.
+        const loadedDatabase =
+            path.type == "unsupported" ? null : await manager.init(name, path);
         console.debug(loadedDatabase);
-        database = loadedDatabase;
         if (!loadedDatabase) {
-            ui.status.error(`Failed to load database from ${path}`);
+            ui.status.error(`Failed to load database from ${escapeHtml(path)}`);
             return false;
         }
+        database = loadedDatabase;
     } catch (exc) {
-        ui.status.error(`Failed to load database from ${path}: ${exc}`);
+        ui.status.error(`Failed to load database from ${escapeHtml(path)}: ${escapeHtml(exc)}`);
         return false;
     }
 
-    database.query = database.query || storage.get(database.name);
+    database.query = sharedSql ?? (database.query || storage.get(database.name));
 
-    document.title = database.meaningfulName || document.title;
+    document.title = titleFor(database.meaningfulName);
     ui.name.ready(database.name);
     ui.status.info(MESSAGES.invite);
     ui.editor.value = database.query;
@@ -129,9 +150,16 @@ function executeCurrent() {
 
 // execute runs SQL query on the database
 // and shows results
-function execute(sql) {
+// persist=false keeps the SQL out of storage (used for the built-in preview).
+function execute(sql, persist = true) {
+    if (!database) {
+        showError("No database is loaded.");
+        return Promise.reject();
+    }
     sql = sql.trim();
-    storage.set(database.name, sql);
+    if (persist) {
+        storage.set(database.name, sql);
+    }
     if (!sql) {
         ui.status.info(MESSAGES.invite);
         ui.result.clear();
@@ -155,37 +183,11 @@ function execute(sql) {
 
 // openUrl loads database from local or remote url
 function openUrl() {
-    const url = prompt("Enter database file URL:", "https://path/to/database");
+    const url = prompt(OPEN_URL_PROMPT, OPEN_URL_DEFAULT);
     if (!url) {
         return;
     }
     startFromUrl(url);
-}
-
-// save persists database state and current query
-// to remote storage
-async function save() {
-    const query = ui.editor.value.trim();
-    storage.set(database.name, query);
-    if (!github.hasCredentials()) {
-        return visit("settings");
-    }
-    ui.status.info("Saving...");
-    ui.result.clear();
-    try {
-        const savedDatabase = await manager.save(database, query);
-        if (!savedDatabase) {
-            ui.status.error(`Failed to save database to ${github.name}`);
-            return Promise.reject();
-        }
-        database = savedDatabase;
-    } catch (exc) {
-        showError(`Failed to save database to ${github.name}: ${exc}`);
-        return Promise.reject(exc);
-    }
-    changeName(database.name);
-    showSaved(database);
-    return Promise.resolve();
 }
 
 // changeName changes database name
@@ -193,17 +195,26 @@ function changeName(name) {
     if (name == ui.name.value && name == database.name) {
         return;
     }
+    // Move what is *saved* under the old name. database.query is not that: it can be the
+    // preview, or SQL from a share link that has not been run, and neither is the
+    // student's work (js/lab/share.js: shared SQL reaches storage only through a Run).
+    const saved = storage.get(database.name);
     storage.remove(database.name);
     database.name = name;
-    storage.set(name, database.query);
+    if (saved) {
+        storage.set(name, saved);
+    }
     ui.name.value = name;
-    document.title = name;
+    document.title = titleFor(name);
 }
 
 // showStarted shows the result of successful database load
-function showStarted() {
+function showStarted(shared = false) {
     if (database.query) {
-        execute(database.query);
+        // SQL restored from storage or from a share link goes in the editor (start()
+        // put it there) but is never run: a runaway query saved by an earlier session,
+        // or sent in a link, would hang the tab.
+        ui.status.info(shared ? SHARED_MESSAGE : RESTORED_MESSAGE);
         enableCommandBar();
     } else if (database.tables.length) {
         showTableContent(database.tables[0]);
@@ -227,18 +238,19 @@ function showTables() {
 
 // showTable shows specific database table
 function showTable(table) {
-    const result = database.getTableInfo(table);
+    const result = database.execute(tableInfoSql(table));
     const all = actionButton("showTables", "tables");
-    ui.status.info(`${all} / ${table}:`);
+    ui.status.info(`${all} / ${escapeHtml(table)}:`);
     ui.result.print(result);
     return Promise.resolve();
 }
 
 // showTableContent select data from specified table
 function showTableContent(table) {
-    const query = QUERIES.tableContent.replace("{}", table);
+    const query = tableContentSql(table);
     ui.editor.value = query;
-    execute(query);
+    // the preview is not the student's work, so it is not saved as their last query
+    execute(query, false).catch(ignoreRejection);
 }
 
 // loadDemo loads demo database
@@ -252,11 +264,7 @@ function showWelcome() {
     const demo = actionButton("loadDemo", "demo database");
     let message = `<p>${MESSAGES.invite}<br>or load the ${demo}.</p>`;
     message += `<p>Click the logo anytime to start from scratch.</p>`;
-    if (!github.hasCredentials()) {
-        const settings = actionButton("visit", "settings", "settings");
-        message += `<p>Visit ${settings} to enable sharing.</p>`;
-    }
-    const functions = `<a href="https://sqlite.org/lang_corefunc.html" class="sqlime-link" target="_blank">Functions</a>`;
+    const functions = `<a href="https://sqlite.org/lang_corefunc.html" class="sqlime-link" target="_blank" rel="noopener noreferrer">Functions</a>`;
     const about = actionButton("visit", "About", "about");
     message += `<p>${functions} • ${about}</p>`;
     ui.status.info(message);
@@ -277,22 +285,15 @@ function showResult(result, elapsed) {
 // showError shows an error occured
 // during SQL query execution
 function showError(exc) {
-    const err = exc.toString().split("\n")[0];
+    // SQLite error messages echo the user's own text (a table name, for example)
+    const err = String(exc).split("\n")[0];
     ui.result.clear();
-    ui.status.error(err);
+    ui.status.error(escapeHtml(err));
 }
 
-// showSaved shows saved database information
-function showSaved(database) {
-    history.pushState(database.id, null, database.path.toHash());
-    const shareUrl = `<copy-on-click href="${window.location}" class="button">
-        copy share link</copy-on-click>`;
-
-    const gistUrl = `<a href="${github.getUrl(database.id)}" target="_blank">gist</a>`;
-    let message = `<p>✓ Saved as ${gistUrl}</p>`;
-    message += `<p>${shareUrl}</p>`;
-    ui.status.info(message);
-}
+// ignoreRejection swallows the rejection of execute(): the error has already been
+// shown in the status area, so there is nothing left to report.
+function ignoreRejection() {}
 
 // enableCommandBar enables all buttons
 // in the command bar
@@ -316,7 +317,8 @@ ui.toolbar.addEventListener("open-file", (event) => {
     const reader = new FileReader();
     const fileType = file.name.endsWith(".sql") ? "sql" : "binary";
     reader.onload = function () {
-        event.target.value = "";
+        // forget the chosen file, so choosing the same file again fires a new change event
+        ui.toolbar.file.value = "";
         startFromFile(file, reader.result, fileType);
     };
     if (fileType == "sql") {
@@ -343,7 +345,7 @@ window.addEventListener("popstate", () => {
 
 // SQL editor 'execute' event
 ui.editor.addEventListener("execute", (event) => {
-    execute(event.detail);
+    execute(event.detail).catch(ignoreRejection);
 });
 
 // SQL editor 'started typing' event

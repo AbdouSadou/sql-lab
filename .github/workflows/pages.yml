@@ -37,7 +37,6 @@ jobs:
                       --exclude='/package.json' \
                       --exclude='/package-lock.json' \
                       --exclude='/playwright.config.js' \
-                      --exclude='/test' \
                       ./ .site-stage/
             # upload-pages-artifact drops dotfiles by default
             # (it tars with --exclude='.[^/]*'), which would drop .nojekyll.

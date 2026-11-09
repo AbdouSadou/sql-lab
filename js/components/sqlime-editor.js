@@ -1,4 +1,7 @@
 // SQL editor component
+import { escapeHtml } from "../lab/html.js";
+import { cancelLeave, leavesEditor } from "../lab/editor-keys.js";
+
 const TAB_WIDTH = 2;
 
 class SqlimeEditor extends HTMLElement {
@@ -13,11 +16,15 @@ class SqlimeEditor extends HTMLElement {
     render() {
         this.contentEditable = "true";
         this.spellcheck = false;
+        this.setAttribute("role", "textbox");
+        this.setAttribute("aria-multiline", "true");
+        this.setAttribute("aria-label", "SQL query");
     }
 
     listen() {
         // shortcuts
         this.addEventListener("keydown", this.onKeydown.bind(this));
+        this.addEventListener("blur", () => cancelLeave(this));
         // always paste as plain text
         this.addEventListener("paste", this.onPaste.bind(this));
         // first input event
@@ -41,6 +48,8 @@ class SqlimeEditor extends HTMLElement {
     }
 
     onKeydown(event) {
+        // Escape, then Tab leaves the editor (keyboard accessibility).
+        if (leavesEditor(this, event)) return;
         if (handleIndent(this, event)) return;
         if (handleExecute(this, event)) return;
     }
@@ -49,8 +58,8 @@ class SqlimeEditor extends HTMLElement {
         event.preventDefault();
         // get text representation of clipboard
         const text = event.clipboardData.getData("text/plain");
-        // insert text manually
-        document.execCommand("insertHTML", false, text);
+        // insert text manually; insertHTML parses its argument, so escape it first
+        document.execCommand("insertHTML", false, escapeHtml(text));
     }
 
     get value() {

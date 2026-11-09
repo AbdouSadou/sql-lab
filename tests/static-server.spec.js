@@ -57,7 +57,6 @@ test("harness: blocks path traversal and files that are not part of the site", a
         `${mount}tests/helpers.js`,
         `${mount}node_modules/`,
         `${mount}.git/HEAD`,
-        `${mount}test/suite.html`,
         `${mount}.gitignore`,
         `${mount}package.json`,
         `${mount}package-lock.json`,

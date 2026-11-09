@@ -1,12 +1,17 @@
 // Path to an SQLite database.
 
 // Could be one of the following:
-//   - local (../data.db),
+//   - local (../data.db, resolved against this page),
 //   - remote (https://domain.com/data.db)
 //   - binary (binary database content)
 //   - sql (sql script)
-//   - id (gist:02994fe7f2de0611726d61dbf26f46e4)
+//   - unsupported (any other address: scheme:id, data:..., //host/..., and so on)
 //   - empty
+//
+// There is deliberately no type for "scheme:id" addresses (the old id type). If such a
+// string were classified as local or left unclassified, loading would either fetch
+// something unexpected or silently fall through to an empty database, so start()
+// refuses "unsupported" paths with an error and never calls the loader for them.
 
 class DatabasePath {
     constructor(value, type = null) {
@@ -22,18 +27,15 @@ class DatabasePath {
         if (value instanceof ArrayBuffer) {
             return "binary";
         }
-        if (value.startsWith("http://") || value.startsWith("https://")) {
+        if (/^https?:\/\//i.test(value)) {
             return "remote";
         }
-        if (value.includes(":")) {
-            return "id";
-        }
-        return "local";
+        return isSameSite(value) ? "local" : "unsupported";
     }
 
     // extractName extracts the database name from the path.
     extractName() {
-        if (["binary", "sql", "id", "empty"].includes(this.type)) {
+        if (["binary", "sql", "unsupported", "empty"].includes(this.type)) {
             return "";
         }
         const parts = this.value.split("/");
@@ -42,11 +44,7 @@ class DatabasePath {
 
     // toHash returns the path as a window location hash string.
     toHash() {
-        if (
-            this.type == "local" ||
-            this.type == "remote" ||
-            this.type == "id"
-        ) {
+        if (this.type == "local" || this.type == "remote") {
             return `#${this.value}`;
         } else {
             return "";
@@ -54,6 +52,8 @@ class DatabasePath {
     }
 
     // toString returns the path as a string.
+    // The text can contain anything the user or a link supplied, so it must be
+    // escaped before it is shown as HTML.
     toString() {
         if (this.type == "local" || this.type == "remote") {
             return `URL ${this.value}`;
@@ -61,11 +61,24 @@ class DatabasePath {
             return "binary value";
         } else if (this.type == "sql") {
             return "sql script";
-        } else if (this.type == "id") {
-            return `ID ${this.value}`;
+        } else if (this.type == "unsupported") {
+            return `unsupported address ${this.value}`;
         } else {
             return "empty value";
         }
+    }
+}
+
+// isSameSite tells whether the browser would resolve the value to a location on this
+// site. The browser's own URL parser decides, because it also reads forms such as
+// "//host/x", "\\host\x" and "scheme:x" as something other than a relative path.
+function isSameSite(value) {
+    try {
+        const here = new URL(window.location.href);
+        const target = new URL(value, here);
+        return target.origin === here.origin;
+    } catch {
+        return false;
     }
 }
 

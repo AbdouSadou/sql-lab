@@ -1,39 +1,32 @@
-# Sqlime
+# SQL playground for teaching
 
-**[Sqlime](http://sqlime.org/)** is an online SQLite playground for debugging and sharing SQL snippets. Kinda like JSFiddle, but for SQL instead of JavaScript.
+A static, browser-only SQL playground for teaching. SQLite runs in your browser as WebAssembly: there is no server, no account and no analytics, and the queries and data you work with never leave the browser. The page is plain HTML, CSS and JavaScript with no build step.
 
-Here are some notable features:
+Based on SQLime by Anton Zhiyanov.
 
-**🔋 Full-blown database in the browser**
+The app name is defined once, in `js/lab/config.js` (`APP_NAME`); change it there to rename the app.
 
-Sqlime is backed by the latest version of SQLite, compiled to WebAssembly. It provides a full-featured SQL implementation, including indexes, triggers, views, transactions, CTEs, window functions and execution plans.
+## Features
 
-**🔌 Connect any data source**
+- Full SQLite (CTEs, window functions, views, triggers) in the browser.
+- Open a SQLite database file, a SQL script, or a database from a URL.
+- Share a query with the copy link button: the link holds the SQL, compressed, in the part of the address after `#`, which browsers never send to a server. Opening a link puts the SQL in the editor without running it. A link can be long for very large queries.
+- Phone-friendly layout.
+- The last query for each database is remembered in your browser's local storage, and put back in the editor (not run) when you return.
 
-Connect any local or remote SQLite database. Both files and URLs are supported. For example, try loading the [Employees database](http://sqlime.org/#https://raw.githubusercontent.com/nalgeon/sqliter/main/employees.en.db) from the GitHub repo.
+## Run it locally
 
-**🔗 Save and share with others**
+Serve the repository root with any static file server, for example `python3 -m http.server`, and open the printed address.
 
-Sqlime saves both the database and the queries to GitHub so that you can revisit them later or share them with a colleague. The database is stored as a plain text SQL dump, so it's easy to read the code or import data into PostgreSQL, MySQL, or other databases.
+## Tests
 
-For example, here is the [gist](https://gist.github.com/nalgeon/e012594111ce51f91590c4737e41a046) for the Employees database, and here is the [sharing link](https://sqlime.org/#gist:e012594111ce51f91590c4737e41a046) for it.
+The tests need Node and Playwright (development tools only; the site itself has no build step):
 
-**📱 Mobile friendly**
+```
+npm ci
+npm test
+```
 
-Most playgrounds are not meant for small screens. Sqlime was specifically designed and tested on mobile devices. No need to zoom or aim at tiny buttons — everything looks and works just fine.
+## Credits and licence
 
-**🔒 Secure and private**
-
-There is no server. Sqlime works completely in the browser. GitHub credentials are also stored locally. Queries are saved as private GitHub gists within your account. Your data is yours only.
-
-**⌨️ Dead simple**
-
-Sqlime has zero third-party dependencies other than SQLite. Good old HTML, CSS, and vanilla JS — that's all. No frameworks, no heavy editors, no obsolete and vulnerable libraries. Just some modular open-source code, which is easy to grasp and extend.
-
-## Contributing
-
-This project only accepts bug fixes.
-
-## License
-
-Created by [Anton Zhiyanov](https://antonz.org/). Released under the MIT License.
+Based on [SQLime](https://github.com/nalgeon/sqlime) by Anton Zhiyanov. Link compression uses [lz-string](https://github.com/pieroxy/lz-string) 1.5.0 (MIT, Copyright 2013 pieroxy), vendored in `vendor/` with its licence. Released under the MIT License; see `LICENSE`, which keeps the upstream copyright notice.

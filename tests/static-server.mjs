@@ -28,7 +28,6 @@ export const HIDDEN = new Set([
     ".gitignore",
     ".site-stage",
     "tests",
-    "test",
     "node_modules",
     "package.json",
     "package-lock.json",

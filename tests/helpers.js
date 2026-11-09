@@ -16,7 +16,15 @@ const { expect } = base;
 // Request schemes that never touch the network.
 const LOCAL_SCHEMES = new Set(["data:", "blob:", "about:"]);
 
-const READY_STATUS = /Run SQL query to see the results|\d+ rows?, took \d+ ms/;
+// "Run SQL query ..." is the empty-database welcome, "Press Run ..." is shown when saved
+// SQL was put back in the editor without being run.
+const READY_STATUS = /Run SQL query to see the results|Press Run to execute it|\d+ rows?, took \d+ ms/;
+
+// A payload that would create an element and run script if it ever reached innerHTML.
+// No quotes inside, so it can also sit in a SQL identifier or a URL.
+const PAYLOAD = "<img id=pwn src=x onerror=window.__pwned=1>";
+// Same idea, aimed at breaking out of a double-quoted attribute value.
+const ATTR_PAYLOAD = 'a"><img id=pwn src=x onerror=window.__pwned=1>';
 
 class NetworkLog {
     constructor(context, baseURL) {
@@ -192,10 +200,58 @@ class App {
         return this.read();
     }
 
+    // expectInert asserts that no markup from a payload was ever turned into an element
+    // and that no script from it ran. Call it after the page has shown the payload.
+    async expectInert() {
+        await expect(this.page.locator("#pwn")).toHaveCount(0);
+        await expect(this.page.locator("img[src=x]")).toHaveCount(0);
+        expect(await this.page.evaluate(() => window.__pwned)).toBeUndefined();
+    }
+
     // upload feeds a file (path or {name, mimeType, buffer}) to the "open file" input.
-    async upload(file) {
+    // Pass { ready: false } when the load is expected to fail.
+    async upload(file, { ready = true } = {}) {
         await this.page.locator("#toolbar input[type=file]").setInputFiles(file);
-        await this.waitReady();
+        if (ready) await this.waitReady();
+    }
+
+    // rename types a new database name in the header and presses Enter.
+    async rename(name) {
+        const field = this.page.locator("#db-name");
+        await field.click();
+        await this.page.keyboard.press("Control+A");
+        await this.page.keyboard.type(name);
+        await this.page.keyboard.press("Enter");
+        await expect(this.page).toHaveTitle(new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} - `));
+    }
+
+    // storedQueries returns the SQL the app saved in localStorage, as [key, sql] pairs.
+    storedQueries() {
+        return this.page.evaluate(() =>
+            Object.keys(localStorage)
+                .filter((k) => k.startsWith("sqlime.query."))
+                .sort()
+                .map((k) => [k, localStorage.getItem(k)])
+        );
+    }
+
+    // shareField is the read-only field that copy link fills in the status area.
+    get shareField() {
+        return this.status.locator("input.share-link-field");
+    }
+
+    // copyLink clicks the copy link button (or presses Enter on it with via "keyboard")
+    // and returns the URL shown in the field.
+    async copyLink({ via = "mouse" } = {}) {
+        const button = this.page.locator("#copy-link");
+        if (via === "keyboard") {
+            await button.focus();
+            await this.page.keyboard.press("Enter");
+        } else {
+            await button.click();
+        }
+        await expect(this.shareField).toHaveCount(1);
+        return this.shareField.inputValue();
     }
 
     // exportDatabase returns the current database as a Buffer. Needs the page
@@ -209,12 +265,36 @@ class App {
     }
 }
 
+// openFresh opens `link` (an absolute URL produced by copy link) in a brand-new browser
+// context with empty storage, which is what a recipient is. It checks that the link
+// lives under the site's base URL and then navigates by the relative remainder.
+// Returns {context, page, app, net}; the caller closes the context.
+async function openFresh(browser, baseURL, link) {
+    expect(link.startsWith(baseURL), `${link.slice(0, 80)} is under ${baseURL}`).toBe(true);
+    const context = await browser.newContext({ baseURL });
+    const net = new NetworkLog(context, baseURL);
+    const page = await context.newPage();
+    const errors = [];
+    page.on("pageerror", (err) => errors.push(String(err)));
+    await page.goto(link.slice(baseURL.length));
+    return { context, page, app: new App(page), net, errors };
+}
+
+// quoteIdent quotes a name as an SQL identifier (for building test SQL).
+const quoteIdent = (name) => `"${name.replaceAll('"', '""')}"`;
+
 const test = base.test.extend({
     net: async ({ context, baseURL }, use) => {
         await use(new NetworkLog(context, baseURL));
     },
     app: async ({ page }, use) => {
         await use(new App(page));
+    },
+    // pageErrors collects uncaught exceptions and unhandled rejections of the page.
+    pageErrors: async ({ page }, use) => {
+        const errors = [];
+        page.on("pageerror", (err) => errors.push(String(err)));
+        await use(errors);
     },
     // engine installs the export hook for every page of the test's context.
     engine: async ({ context }, use) => {
@@ -223,4 +303,4 @@ const test = base.test.extend({
     },
 });
 
-module.exports = { test, expect, NetworkLog, App };
+module.exports = { test, expect, NetworkLog, App, openFresh, PAYLOAD, ATTR_PAYLOAD, quoteIdent };

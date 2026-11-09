@@ -1,7 +1,5 @@
 // SQLite database manager.
 
-import dumper from "./dumper.js";
-import github from "../github.js";
 import { SQLite } from "./db.js";
 
 // global SQLite WASM API object.
@@ -43,9 +41,6 @@ async function init(name, path) {
     if (path.type == "sql") {
         console.debug("Loading database from SQL script...");
         return fromSql(name, path, path.value);
-    }
-    if (path.type == "id") {
-        return await loadGist(path);
     }
     // empty
     console.debug("Creating new database...");
@@ -108,62 +103,4 @@ async function fetchFile(url, method) {
     }
 }
 
-// loadGist loads a database from the gist with the specified id.
-async function loadGist(path) {
-    console.debug(`Loading database from gist ${path.value}...`);
-    const gist = await github.get(path.value);
-    if (!gist) {
-        return null;
-    }
-    const database = create(gist.name, path);
-    database.id = gist.id;
-    database.owner = gist.owner;
-    database.execute(gist.schema);
-    database.query = gist.query;
-    database.calcHashcode();
-    database.ensureName();
-    return database;
-}
-
-// save saves the database to a gist.
-async function save(database, query) {
-    console.debug(`Saving database to gist...`);
-    const schema = dumper.toSql(database);
-    database.query = query;
-    if (!schema && !query) {
-        return Promise.resolve(null);
-    }
-    const oldHashcode = database.hashcode;
-    database.gatherTables();
-    if (!database.tables.length && !query) {
-        return Promise.resolve(null);
-    }
-    database.calcHashcode();
-    database.ensureName();
-    let promise;
-    if (!database.id || database.owner != github.username) {
-        promise = github.create(database.name, schema, database.query);
-    } else {
-        // do not update gist if nothing has changed
-        if (database.hashcode == oldHashcode) {
-            return Promise.resolve(database);
-        }
-        promise = github.update(database.id, database.name, schema, database.query);
-    }
-    return promise.then((gist) => afterSave(database, gist));
-}
-
-// afterSave updates database attributes after a successful save.
-function afterSave(database, gist) {
-    if (!gist.id) {
-        return null;
-    }
-    database.id = gist.id;
-    database.owner = gist.owner;
-    database.path.type = "id";
-    database.path.value = `${github.prefix}:${database.id}`;
-    database.ensureName();
-    return database;
-}
-
-export default { init, save };
+export default { init };

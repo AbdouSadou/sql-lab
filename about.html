@@ -2,18 +2,11 @@
 <html lang="en">
 
 <head>
-    <title>Sqlime / About</title>
+    <title data-page-title="About">About</title>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta property="og:site_name" content="Sqlime" />
-    <meta property="og:title" content="Sqlime - Online SQLite playground" />
-    <meta name="description" content="Sqlime is an online SQLite playground for debugging and sharing SQL snippets.">
-    <meta property="og:description"
-        content="Sqlime is an online SQLite playground for debugging and sharing SQL snippets." />
-    <meta property="og:url" content="https://sqlime.org/about.html" />
-    <meta property="og:image" content="https://sqlime.org/img/cover.png" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="description" content="A browser-only SQL workspace for learning and teaching. Everything runs in your browser and nothing is uploaded.">
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#181818" media="(prefers-color-scheme: dark)">
 
@@ -22,80 +15,50 @@
     <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 
     <link rel="stylesheet" href="css/article.css">
+    <script type="module" src="js/lab/brand.js"></script>
 </head>
 
 <body>
     <header>
         <h3>
             <a class="logo" href="javascript:back()">
-                <img src="img/favicon-64x64.png">
-                sqlime
+                <img src="img/favicon-64x64.png" alt="">
+                <span data-app-name></span>
             </a>
         </h3>
-        <p>an online SQL playground</p>
+        <p>a browser-only SQL workspace for teaching</p>
     </header>
     <main>
         <article>
             <h1>About</h1>
             <p>
-                <strong><a href="./">Sqlime</a></strong> is an online SQLite playground
-                for debugging and sharing SQL snippets.
+                <strong><a href="./" data-app-name></a></strong> is a place to write and run SQL
+                for learning and teaching. It runs entirely in your browser:
+                the queries you write and the data you open are never sent anywhere.
             </p>
 
-            <p>Here are some notable features:</p>
-
-            <h5>🔋 Full-blown database in the browser</h5>
+            <h5>A full database in the browser</h5>
             <p>
-                Sqlime is backed by the latest version of SQLite, compiled to WebAssembly.
-                It provides a full-featured SQL implementation, including indexes, triggers,
-                views, transactions, CTEs, window functions and execution plans.
+                The database engine is SQLite, compiled to WebAssembly. It supports
+                indexes, triggers, views, transactions, CTEs, window functions
+                and execution plans. Each page you open starts with its own
+                in-memory database, so you can experiment freely: reloading the
+                page or clicking the logo gives you a clean slate.
             </p>
 
-            <h5>🔌 Connect any data source</h5>
+            <h5>Your own data stays with you</h5>
             <p>
-                Connect any local or remote SQLite database. Both files and URLs
-                are supported. For example, try loading the
-                <a href="./#https://raw.githubusercontent.com/nalgeon/sqlime/main/employees.db">Employees database</a>
-                from the GitHub repo.
+                Open a SQLite database file or a SQL script from your computer
+                and it is read by your browser only. There is no server, no account,
+                no analytics and no cookies. The only thing remembered between
+                visits is the last query you ran for each database, kept in your
+                browser's local storage on your own device.
             </p>
 
-            <h5>🔗 Save and share with others</h5>
+            <h5>Works on small screens</h5>
             <p>
-                Sqlime saves both the database and the queries to GitHub
-                so that you can revisit them later or share them with a colleague.
-                The database is stored as a plain text SQL dump, so it's easy to
-                read the code or import data into PostgreSQL, MySQL,
-                or other databases.
-            </p>
-            <p>
-                For example, here is the
-                <a href="https://gist.github.com/nalgeon/e012594111ce51f91590c4737e41a046">gist</a>
-                for the Employees database, and here is the
-                <a href="./#gist:e012594111ce51f91590c4737e41a046">sharing link</a> for it.
-            </p>
-
-            <h5>📱 Mobile friendly</h5>
-            <p>
-                Most playgrounds are not meant for small screens. Sqlime
-                was specifically designed and tested on mobile devices.
-            </p>
-
-            <h5>🔒 Secure and private</h5>
-            <p>
-                There is no server. Sqlime works completely in the browser.
-                GitHub credentials are also stored locally. Queries are
-                saved as private GitHub gists within your account.
-                Your data is yours only.
-            </p>
-
-            <h5>⌨️ Dead simple</h5>
-            <p>
-                Sqlime has zero third-party dependencies other than SQLite.
-                Good old HTML, CSS, and vanilla JS — that's all.
-                No frameworks, no heavy editors, no obsolete and vulnerable libraries.
-                Just some modular
-                <a href="https://github.com/nalgeon/sqlime">open-source code</a>,
-                which is easy to grasp and extend.
+                The layout adapts to phones and tablets. Everything needed to write a
+                query and read its result is available without a keyboard shortcut.
             </p>
 
             <h3>Keyboard shortcuts</h3>
@@ -122,22 +85,26 @@
                     <td>open url</td>
                 </tr>
                 <tr>
-                    <td><code>⌃S</code></td>
-                    <td><code>⌘S</code></td>
-                    <td>save and share</td>
-                </tr>
-                <tr>
                     <td><code>⌃/</code></td>
                     <td><code>⌘/</code></td>
                     <td>show tables</td>
                 </tr>
             </table>
+            <p>
+                In the editor, <code>Tab</code> indents. To move focus out of the
+                editor with the keyboard, press <code>Esc</code> and then
+                <code>Tab</code> (or <code>Shift</code>+<code>Tab</code> to go back).
+            </p>
+
+            <h3>Credits and licence</h3>
+            <p>Based on SQLime by Anton Zhiyanov</p>
+            <p>Released under the MIT License.</p>
 
             <p><a href="javascript:back()">← back</a></p>
         </article>
     </main>
     <footer>
-        SQL for the win!
+        <span data-app-name></span> &middot; Based on SQLime by Anton Zhiyanov
     </footer>
     <script>
         function back() {

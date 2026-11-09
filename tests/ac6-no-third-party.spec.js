@@ -1,7 +1,7 @@
 const { test, expect } = require("./helpers");
 
-// The full AC6 session is load, query, check, share. Only load and query exist at M1;
-// extend this test when check and share land.
+// The full AC6 session is load, query, check, share. Load and query are here; sharing is
+// in f3-share.spec.js (AC6); the check step arrives with the exercise mode.
 test("AC6 load and a query make zero requests to non-same-origin hosts", async ({ app, net }) => {
     await app.open();
     await app.query("SELECT 1 AS one, 'two' AS two;");

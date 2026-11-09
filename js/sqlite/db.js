@@ -24,20 +24,15 @@ const MESSAGES = {
 // SQLite database wrapper.
 // Wraps SQLite WASM API and calls it in the following methods:
 //   - execute()
-//   - each()
 //   - gatherTables()
-//   - calcHashcode()
 // The rest of the methods are WASM-agnostic.
 class SQLite {
     constructor(name, path, capi, db, query = "") {
-        this.id = null;
-        this.owner = null;
         this.name = name || DEFAULT_NAME;
         this.path = path;
         this.capi = capi;
         this.db = db;
         this.query = query;
-        this.hashcode = 0;
         this.tables = [];
     }
 
@@ -68,16 +63,6 @@ class SQLite {
         return result;
     }
 
-    // each runs the query and invokes the callback
-    // on each of the resulting rows.
-    each(sql, callback) {
-        this.db.exec({
-            sql: sql,
-            rowMode: "object",
-            callback: callback,
-        });
-    }
-
     // gatherTables fills the `.tables` attribute
     // with an array of database tables and returns it.
     gatherTables() {
@@ -101,20 +86,6 @@ class SQLite {
         return this.execute(sql);
     }
 
-    // calcHashcode fills the `.hashcode` attribute
-    // with the database hashcode and returns it.
-    calcHashcode() {
-        let dbHash = 0;
-        // sqlite api fails when trying to export an empty database
-        if (this.tables.length) {
-            const dbArr = this.capi.sqlite3_js_db_export(this.db.pointer);
-            dbHash = hash(dbArr);
-        }
-        const queryHash = hash(new TextEncoder().encode(this.query));
-        this.hashcode = (Math.imul(dbHash, 31) + queryHash) | 0;
-        return this.hashcode;
-    }
-
     // meaningfulName returns the database name
     // if it differs from default one.
     get meaningfulName() {
@@ -123,31 +94,6 @@ class SQLite {
         }
         return this.name;
     }
-
-    // ensureName changes the default name to something more meaningful.
-    ensureName() {
-        if (this.meaningfulName) {
-            return this.meaningfulName;
-        }
-        if (this.tables.length) {
-            this.name = this.tables[0] + ".db";
-            return this.name;
-        }
-        if (this.id) {
-            this.name = this.id.substr(0, 6) + ".db";
-            return this.name;
-        }
-        return this.name;
-    }
-}
-
-// hash calculates a simple 32-bit hashcode for the byte array.
-function hash(bytes) {
-    let h = 0;
-    for (const b of bytes) {
-        h = ((h << 5) - h + b) | 0;
-    }
-    return h;
 }
 
 export { DEFAULT_NAME, MESSAGES, QUERIES, SQLite };

@@ -18,9 +18,8 @@ test("AC8 a keyboard-only user can run a query and gets a real table", async ({ 
 });
 
 test("AC8 the Run button can be operated from the keyboard", async ({ page, app }) => {
-    // Upstream's editor swallows Tab (it inserts spaces), so a keyboard user cannot Tab
-    // from the editor to the Run button; Ctrl/Cmd+Enter is the keyboard route. This only
-    // checks that the button itself responds to Enter once focused.
+    // Focus is placed on Run directly here; tests/m2-editor-keys.spec.js covers getting
+    // there from the editor with Escape, Tab.
     await app.open();
     await page.keyboard.type("SELECT 'enter' AS via;");
     await page.locator("#execute").focus();
