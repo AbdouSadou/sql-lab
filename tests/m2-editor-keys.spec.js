@@ -1,7 +1,7 @@
 const { test, expect } = require("./helpers");
 
 test("editor keys: Tab alone still indents and keeps focus in the editor", async ({ page, app }) => {
-    await app.open();
+    await app.openEmpty();
     await app.editor.click();
     await page.keyboard.type("select");
     await page.keyboard.press("Tab");
@@ -12,7 +12,7 @@ test("editor keys: Tab alone still indents and keeps focus in the editor", async
 });
 
 test("editor keys: Escape then Tab leaves the editor and reaches Run", async ({ page, app }) => {
-    await app.open();
+    await app.openEmpty();
     await app.editor.click();
     await page.keyboard.type("SELECT 3 AS three;");
     await page.keyboard.press("Escape");
@@ -27,7 +27,7 @@ test("editor keys: Escape then Tab leaves the editor and reaches Run", async ({ 
 });
 
 test("editor keys: Escape then Shift+Tab leaves the editor backwards", async ({ page, app }) => {
-    await app.open();
+    await app.openEmpty();
     await app.editor.click();
     await page.keyboard.type("SELECT 1;");
     await page.keyboard.press("Escape");
@@ -38,7 +38,7 @@ test("editor keys: Escape then Shift+Tab leaves the editor backwards", async ({ 
 });
 
 test("editor keys: Escape does not stay armed after another key", async ({ page, app }) => {
-    await app.open();
+    await app.openEmpty();
     await app.editor.click();
     await page.keyboard.press("Escape");
     await page.keyboard.type("a");

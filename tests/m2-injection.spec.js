@@ -115,7 +115,7 @@ test("injection: markup in URL fragments and in the open-url prompt is shown as 
 });
 
 test("injection: pasting markup into the editor inserts text, not elements", async ({ app, page }) => {
-    await app.open();
+    await app.openEmpty();
     await app.editor.click();
     await app.editor.evaluate((el, text) => {
         // A plain event with a clipboardData stand-in: Firefox empties the clipboardData
@@ -135,7 +135,7 @@ test("injection: pasting markup into the editor inserts text, not elements", asy
 test("injection: saved SQL that holds markup is restored as text", async ({ app, page }) => {
     await page.addInitScript((p) => {
         try {
-            localStorage.setItem("sqlime.query.new.db", `SELECT '${p}' AS v`);
+            localStorage.setItem("sqlime.query.northlight_retail.db", `SELECT '${p}' AS v`);
         } catch {}
     }, PAYLOAD);
     await page.goto("./");

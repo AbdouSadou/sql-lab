@@ -16,8 +16,26 @@
     white-space: pre-wrap;
     font-family: var(--sqlime-monospace);
 }
+/* the editor has the focus when the page opens, so the focus must be visible */
 .sqlime-editor:focus {
-    outline: none;
+    outline: 2px solid var(--sqlime-blue);
+    outline-offset: -2px;
+}
+/* The key hint is for sighted keyboard users: Tab indents in the editor, so they need to
+   be told how to leave. It shows while the editor has the focus; its space is always kept,
+   so the page does not jump. (visibility:hidden text still counts for aria-describedby.) */
+.editor-hint {
+    margin: 0;
+    padding: 0.25rem 1rem 0;
+    min-height: 1.5rem;
+    visibility: hidden;
+    color: var(--sqlime-text);
+    opacity: 0.75;
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+}
+.sqlime-editor:focus + .editor-hint {
+    visibility: visible;
 }
 .sqlime-editor:empty::before {
     display: inline-block;
@@ -26,6 +44,15 @@
 }
 
 @media only screen and (min-width: 40rem) {
+    /* one line of fixed height: the command bar is positioned against it (css/commandbar.css) */
+    .editor-hint {
+        height: 1.5rem;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
     .sqlime-editor {
         min-height: 8rem;
         border-left: 1px solid var(--sqlime-gray);

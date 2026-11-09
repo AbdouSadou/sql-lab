@@ -8,6 +8,13 @@
     overflow-x: auto;
 }
 
+/* "Scroll sideways" note, shown by js/lab/result-scroll.js while a result is wider than its box */
+.result-scroll-note {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.8125rem;
+    opacity: 0.75;
+}
+
 .sqlime-result table {
     width: 100%;
     border: 1px solid var(--sqlime-gray);

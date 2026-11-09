@@ -8,9 +8,8 @@ const QUERIES = {
     view: "SELECT name, price FROM v_priced ORDER BY price;",
 };
 
-// Note: unmodified SQLime has no export action (CODEMAP 6e), so "export" here is
-// the engine's own serialization of the open database, taken through a test hook.
-test("AC3 uploading a .db file works", async ({ app, engine }) => {
+// Export is the toolbar's export button: a real click, a real download event.
+test("AC3 uploading a .db file works", async ({ app }) => {
     await app.open();
     await app.upload(FIXTURE);
 
@@ -23,7 +22,7 @@ test("AC3 uploading a .db file works", async ({ app, engine }) => {
     await expect(app.page.locator("#db-name")).toContainText("sample.db");
 });
 
-test("AC3 export then re-upload round-trips", async ({ page, app, engine }) => {
+test("AC3 export then re-upload round-trips", async ({ page, app }) => {
     await app.open();
     await app.upload(FIXTURE);
 
@@ -34,7 +33,8 @@ test("AC3 export then re-upload round-trips", async ({ page, app, engine }) => {
 
     // Change the database, so the export has to carry the edit and not just the fixture.
     await app.run("INSERT INTO fruit VALUES (5, 'elderberry', 6.5, 'edited'); DELETE FROM tags WHERE tag = 'green';");
-    const exported = await app.exportDatabase();
+    const { name, buffer: exported } = await app.exportFile();
+    expect(name).toBe("sample.db"); // named from the database
     expect(exported.subarray(0, 15).toString()).toBe("SQLite format 3");
 
     // Re-upload into a fresh page (fresh in-memory database).

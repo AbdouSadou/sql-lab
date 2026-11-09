@@ -9,6 +9,8 @@ test("AC8 a keyboard-only user can run a query and gets a real table", async ({ 
         await page.keyboard.press("Tab");
     }
     await expect(app.editor).toBeFocused();
+    // the editor holds the table preview of the default dataset: replace it
+    await page.keyboard.press("Control+A");
     await page.keyboard.type("SELECT 6 * 7 AS answer;");
     await page.keyboard.press("Control+Enter");
 
@@ -21,6 +23,7 @@ test("AC8 the Run button can be operated from the keyboard", async ({ page, app 
     // Focus is placed on Run directly here; tests/m2-editor-keys.spec.js covers getting
     // there from the editor with Escape, Tab.
     await app.open();
+    await page.keyboard.press("Control+A");
     await page.keyboard.type("SELECT 'enter' AS via;");
     await page.locator("#execute").focus();
     await page.keyboard.press("Enter");

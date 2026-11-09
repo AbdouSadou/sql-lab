@@ -24,32 +24,40 @@
         <link rel="stylesheet" href="css/header.css">
         <link rel="stylesheet" href="css/buttons.css">
         <link rel="stylesheet" href="css/toolbar.css">
+        <link rel="stylesheet" href="css/picker.css">
         <header class="header">
             <h1>
                 <a id="reset" href="./" class="header-logo">
-                    <img src="img/favicon-64x64.png" alt="Start from scratch">
+                    <img src="img/favicon-64x64.png" alt="Home: open the default dataset">
                 </a>
                 <span data-app-name></span> &nbsp;//
                 <db-name id="db-name" class="db-name"></db-name>
             </h1>
-            <tool-bar id="toolbar" class="toolbar hidden-mobile"></tool-bar>
+            <tool-bar id="toolbar" class="toolbar"></tool-bar>
         </header>
 
-        <link rel="stylesheet" href="css/editor.css">
-        <link rel="stylesheet" href="css/commandbar.css">
-        <section class="sqlime-editor-section">
-            <sqlime-editor id="editor" class="sqlime-editor" aria-describedby="editor-hint"></sqlime-editor>
-            <p id="editor-hint" class="visually-hidden">Press Tab to indent. To leave the editor, press Escape, then Tab or Shift+Tab.</p>
-            <command-bar id="commandbar" class="sqlime-commandbar sqlime-disabled"></command-bar>
-        </section>
+        <link rel="stylesheet" href="css/schema.css">
+        <div class="workspace">
+            <div class="workspace-main">
+                <link rel="stylesheet" href="css/editor.css">
+                <link rel="stylesheet" href="css/commandbar.css">
+                <section class="sqlime-editor-section">
+                    <sqlime-editor id="editor" class="sqlime-editor" aria-describedby="editor-hint"></sqlime-editor>
+                    <p id="editor-hint" class="editor-hint">Press Tab to indent. To leave the editor, press Escape, then Tab or Shift+Tab.</p>
+                    <command-bar id="commandbar" class="sqlime-commandbar sqlime-disabled"></command-bar>
+                </section>
 
-        <link rel="stylesheet" href="css/result.css">
-        <link rel="stylesheet" href="css/status.css">
-        <link rel="stylesheet" href="css/share.css">
-        <section class="sqlime-result-section">
-            <sqlime-status id="status" class="sqlime-status"></sqlime-status>
-            <sqlime-result id="result" class="sqlime-result"></sqlime-result>
-        </section>
+                <link rel="stylesheet" href="css/result.css">
+                <link rel="stylesheet" href="css/status.css">
+                <link rel="stylesheet" href="css/share.css">
+                <section class="sqlime-result-section">
+                    <sqlime-status id="status" class="sqlime-status" role="status"></sqlime-status>
+                    <sqlime-result id="result" class="sqlime-result"></sqlime-result>
+                    <p id="result-scroll-note" class="result-scroll-note" hidden></p>
+                </section>
+            </div>
+            <aside id="schema"></aside>
+        </div>
 
         <link rel="stylesheet" href="css/footer.css">
         <footer class="footer">

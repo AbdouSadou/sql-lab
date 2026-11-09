@@ -6,9 +6,10 @@ import {
     LINK_COPIED_MESSAGE,
     LINK_COPY_FAILED_MESSAGE,
     LINK_TOO_LONG_MESSAGE,
+    NOT_IN_LINK_MESSAGE,
 } from "./config.js";
 import { escapeHtml } from "./html.js";
-import { shareUrl } from "./share.js";
+import { getShareContext, shareUrl } from "./share.js";
 
 // createCopyLinkAction returns the handler for data-action="copyLink". It returns a
 // Promise, as ActionController requires. `ui` is the index.js handle object.
@@ -23,8 +24,16 @@ export function createCopyLinkAction(ui) {
         // Start the copy while the click's user activation is still fresh.
         const copied = navigator.clipboard ? writeClipboard(url) : null;
 
+        // An uploaded file or a URL is not in the link (only a built-in dataset's id is),
+        // so say so: the recipient would otherwise expect to see the same tables.
+        const builtIn = Boolean(getShareContext().dataset);
+        const warning = builtIn
+            ? ""
+            : `<span class="share-link-warning">${escapeHtml(NOT_IN_LINK_MESSAGE)}</span>`;
+
         ui.status.info(
-            `<label class="share-link"><span class="share-link-label">Link to this query</span>` +
+            warning +
+                `<label class="share-link"><span class="share-link-label">Link to this query</span>` +
                 `<input type="text" class="share-link-field" readonly spellcheck="false"` +
                 ` value="${escapeHtml(url)}"></label>` +
                 `<span class="share-link-note" role="status"></span>`

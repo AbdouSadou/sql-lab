@@ -22,3 +22,8 @@
 .share-link-note {
     display: block;
 }
+
+.share-link-warning {
+    display: block;
+    margin-bottom: 0.25rem;
+}

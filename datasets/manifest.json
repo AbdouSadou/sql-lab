@@ -1,0 +1,11 @@
+{
+  "datasets": [
+    {
+      "id": "northlight",
+      "name": "Northlight Retail",
+      "file": "datasets/northlight_retail.db",
+      "description": "Fictional Yorkshire retail chain: 5 stores, 20 products, 60 customers, 450 orders, Jan 2025 – Oct 2026. Ships a v_sales reporting view.",
+      "default": true
+    }
+  ]
+}

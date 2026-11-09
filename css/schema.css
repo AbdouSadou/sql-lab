@@ -1,0 +1,254 @@
+/* The schema sidebar (js/lab/schema.js) and the workspace layout around it.
+   The sidebar comes after the editor and results in the markup, so the Tab order reaches the
+   editor and Run first instead of walking through every table name.
+   Phone and narrow screens: one column, the sidebar shown above the editor (order: -1),
+   closed until opened. From 40rem up: the sidebar on the right, beside the editor and
+   results, sticky, scrolling on its own. */
+
+.workspace {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.workspace-main {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.schema {
+    order: -1;
+    padding: 0 1rem 0.5rem 1rem;
+    min-width: 0;
+}
+
+.schema-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2rem;
+    padding: 0 0.5rem;
+    border: 1px solid var(--sqlime-blue);
+    border-radius: 0.125rem;
+    background: transparent;
+    color: var(--sqlime-blue);
+    font: inherit;
+    cursor: pointer;
+}
+
+.schema-toggle::before {
+    content: "\25B8";
+    display: inline-block;
+    transition: transform 0.1s;
+}
+
+.schema-toggle[aria-expanded="true"]::before {
+    transform: rotate(90deg);
+}
+
+.schema-toggle:hover {
+    background: var(--sqlime-blue);
+    color: var(--sqlime-white);
+}
+
+.schema-panel {
+    display: flex;
+    flex-direction: column;
+    max-height: 50vh;
+    min-height: 0;
+    margin-top: 0.5rem;
+    border: 1px solid var(--sqlime-gray);
+    background: var(--sqlime-surface);
+}
+
+.schema-panel[hidden],
+.schema [hidden] {
+    display: none;
+}
+
+.schema-dataset {
+    flex: none;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--sqlime-gray);
+    font-size: 90%;
+    overflow-wrap: anywhere;
+}
+
+.schema-dataset p {
+    margin: 0;
+}
+
+.schema-dataset-name {
+    font-weight: 600;
+}
+
+.schema-dataset-description {
+    margin-top: 0.25rem;
+    opacity: 0.75;
+}
+
+.schema-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 0.25rem;
+}
+
+.schema-message {
+    margin: 0.25rem;
+    opacity: 0.75;
+}
+
+.schema-list,
+.schema-columns {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.schema-row,
+.schema-column {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.schema-expand {
+    flex: none;
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    border-radius: 0.125rem;
+    background: transparent;
+    color: var(--sqlime-text);
+    font: inherit;
+    cursor: pointer;
+}
+
+.schema-expand::before {
+    content: "\25B8";
+    display: inline-block;
+    transition: transform 0.1s;
+}
+
+.schema-expand[aria-expanded="true"]::before {
+    transform: rotate(90deg);
+}
+
+.schema-insert {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 2rem;
+    padding: 0 0.25rem;
+    border: 0;
+    border-radius: 0.125rem;
+    background: transparent;
+    color: var(--sqlime-text);
+    font-family: var(--sqlime-monospace);
+    font-size: 90%;
+    text-align: left;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+
+.schema-insert:hover,
+.schema-expand:hover {
+    background: var(--sqlime-blue);
+    color: var(--sqlime-white);
+}
+
+.schema-toggle:focus-visible,
+.schema-expand:focus-visible,
+.schema-insert:focus-visible {
+    outline: 2px solid var(--sqlime-blue);
+    outline-offset: 1px;
+}
+
+.schema-kind,
+.schema-type,
+.schema-pk,
+.schema-count {
+    flex: none;
+    font-size: 80%;
+    opacity: 0.75;
+}
+
+.schema-kind {
+    padding: 0 0.25rem;
+    border: 1px solid var(--sqlime-gray);
+    border-radius: 0.125rem;
+}
+
+.schema-count {
+    font-variant-numeric: tabular-nums;
+}
+
+.schema-columns {
+    margin: 0 0 0.25rem 2.25rem;
+}
+
+.schema-column {
+    min-height: 1.75rem;
+}
+
+.schema-column .schema-insert {
+    min-height: 1.75rem;
+}
+
+.schema-type {
+    font-family: var(--sqlime-monospace);
+    text-transform: uppercase;
+}
+
+.schema-unavailable {
+    padding-left: 0.25rem;
+    opacity: 0.75;
+}
+
+@media only screen and (min-width: 40rem) {
+    .workspace {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .schema {
+        order: 0;
+        position: sticky;
+        top: 1rem;
+        display: flex;
+        flex: 0 0 16rem;
+        flex-direction: column;
+        width: 16rem;
+        max-height: calc(100vh - 2rem);
+        padding: 0;
+    }
+
+    .schema--collapsed {
+        flex-basis: auto;
+        width: auto;
+    }
+
+    .schema-panel {
+        max-height: none;
+    }
+
+    .schema-toggle,
+    .schema-expand,
+    .schema-insert {
+        min-height: 1.75rem;
+    }
+
+    .schema-expand {
+        width: 1.75rem;
+        height: 1.75rem;
+    }
+
+    /* a wide result scrolls inside its own column instead of pushing the page sideways */
+    .workspace-main .sqlime-result {
+        overflow-x: auto;
+    }
+}

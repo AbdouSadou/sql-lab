@@ -37,7 +37,9 @@
 @media only screen and (min-width: 40rem) {
     .sqlime-commandbar {
         position: absolute;
-        bottom: 0.5rem;
+        /* sits over the bottom of the editor: above the key hint (1.5rem) and the 0.5rem
+           padding under it (css/editor.css) */
+        bottom: 2rem;
     }
 
     .sqlime-commandbar > button {

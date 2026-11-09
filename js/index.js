@@ -7,20 +7,32 @@ import { actionButton } from "./components/action-button.js";
 import { ActionController } from "./controllers/actions.js";
 import { ShortcutController } from "./controllers/shortcuts.js";
 import { DatabasePath } from "./db-path.js";
-import { DEFAULT_NAME, MESSAGES } from "./sqlite/db.js";
+import { MESSAGES } from "./sqlite/db.js";
 
 import { titleFor } from "./lab/brand.js";
+import { caretToEnd } from "./lab/caret.js";
 import {
     BAD_LINK_MESSAGE,
+    DATASET_PARAM,
+    LOADING_BUSY_MESSAGE,
+    NO_DATABASE_MESSAGE,
     OPEN_URL_DEFAULT,
     OPEN_URL_PROMPT,
     RESTORED_MESSAGE,
     SHARED_MESSAGE,
+    datasetSwitchFailedMessage,
+    datasetUnavailableMessage,
 } from "./lab/config.js";
 import { createCopyLinkAction } from "./lab/copy-link.js";
+import { clearPristine, datasetFileName, fetchDataset, keepPristine } from "./lab/datasets.js";
+import { createExportAction } from "./lab/export.js";
 import { escapeHtml } from "./lab/html.js";
 import { resolveRoute } from "./lab/router.js";
+import { mountResultScroll } from "./lab/result-scroll.js";
+import { mountSchema } from "./lab/schema.js";
+import { setShareContext } from "./lab/share.js";
 import { tableContentSql, tableInfoSql } from "./lab/sql.js";
+import { mountToolbar } from "./lab/toolbar-extras.js";
 
 const ui = {
     buttons: {
@@ -38,8 +50,8 @@ const ui = {
 
 const actions = {
     executeCurrent: executeCurrent,
-    loadDemo: loadDemo,
     copyLink: createCopyLinkAction(ui),
+    exportDatabase: createExportAction(ui, () => database),
     showTables: showTables,
     showTable: showTable,
     visit: visit,
@@ -50,43 +62,204 @@ const shortcuts = {
         ui.toolbar.btnOpenFile.click();
     },
     u: openUrl,
-    "/": showTables,
+    // a rejection means the message is already on the screen (an empty or missing database)
+    "/": () => showTables().catch(ignoreRejection),
 };
-
-const DEMO_URL = "#demo.db";
 
 let database;
 
-// for testing purposes
+// Counts loads. Every way of opening a database takes a ticket when it begins; a load whose
+// ticket is no longer the latest by the time it has fetched or built its database is
+// stale (the student has asked for something else since) and is thrown away, so the last
+// request always wins however the fetches are ordered.
+let latestLoad = 0;
+
+// True from the moment a load begins until the latest load has opened a database or given
+// up. While it is true the open database is about to be replaced, so Run is refused: a
+// query would run on the old database and its result would vanish with it.
+let loading = false;
+
+// beginLoad takes a ticket for a new load.
+function beginLoad() {
+    loading = true;
+    return ++latestLoad;
+}
+
+// endLoad ends a load. Only the latest load counts: an older one that finishes late must
+// not end the newer one. A load that ended without opening a database (opened=false) puts
+// the picker back on the database that is open, because the student's choice was not
+// carried out and choosing the same dataset again fires no change event.
+function endLoad(ticket, opened) {
+    if (ticket !== latestLoad) {
+        return;
+    }
+    loading = false;
+    if (!opened) {
+        picker.sync();
+    }
+}
+
+// for testing purposes, and for the lab modules (js/lab/) that need the open database
 window.app = {
     actions: actions,
     ui: ui,
+    get database() {
+        return database;
+    },
 };
 
-// startFromCurrentUrl loads existing database or creates a new one
-// as the current window location says (js/lab/router.js): a database path, or a share
-// link, which gives an empty database with the shared SQL in the editor.
+// The dataset picker and the export button live in the toolbar (js/lab/toolbar-extras.js).
+const picker = mountToolbar(ui.toolbar, {
+    onSelect: startFromDataset,
+    onExport: () => actions.exportDatabase(),
+});
+
+// The schema sidebar (js/lab/schema.js) follows the page through the events below.
+mountSchema({ aside: document.querySelector("#schema"), editor: ui.editor });
+
+// The "scroll sideways" note under a result that is wider than its box (js/lab/result-scroll.js).
+mountResultScroll({ result: ui.result, note: document.querySelector("#result-scroll-note") });
+
+// announce tells the rest of the page (and the lab modules) what just happened:
+//   lab:database-loaded  detail {database, dataset}: a database is open; dataset is the
+//                        manifest entry, or null for an upload, a URL or the empty database
+//   lab:run-finished     detail {database, sql, ok, rows, error, preview}: after every run,
+//                        failed ones too (statements before the error stay applied);
+//                        preview is true for the table preview the app runs on its own
+function announce(type, detail) {
+    document.dispatchEvent(new CustomEvent(type, { detail }));
+}
+
+// startFromCurrentUrl opens what the current window location asks for (js/lab/router.js):
+// a share link (its dataset and SQL), a database path in the fragment, ?db=<dataset id>,
+// or the default dataset. If a dataset cannot be had, it starts on an empty database, or
+// keeps the database that is already open (a back/forward step must not wipe the
+// student's work).
 async function startFromCurrentUrl() {
-    const route = resolveRoute(window.location);
-    const path = new DatabasePath(route.database);
-    const name = path.extractName();
-    const success = await start(name, path, route.sql);
+    const ticket = beginLoad();
+    let started = null;
+    try {
+        started = await openCurrentUrl(ticket);
+    } finally {
+        endLoad(ticket, started !== null);
+    }
+    if (started === null) {
+        return;
+    }
+    showStarted({ shared: started.shared, notice: started.notice });
+    if (started.errors.length) {
+        ui.status.error(escapeHtml(started.errors.join(" ")));
+        enableCommandBar();
+    }
+}
+
+// openCurrentUrl does the loading for startFromCurrentUrl. Returns what showStarted and
+// the error message need, or null when no database was opened (a newer load took over, or
+// the open database was kept).
+async function openCurrentUrl(ticket) {
+    const route = await resolveRoute(window.location);
+    // the list of datasets is true whichever load wins, and the picker needs it
+    picker.setManifest(route.manifest);
+    if (ticket !== latestLoad) {
+        return null;
+    }
+
+    // A dataset is fetched here, so that its bytes can be kept pristine.
+    let path = new DatabasePath(route.database);
+    let name = path.extractName();
+    let pristine = null;
+    let dataset = route.dataset;
+    let problem = route.problem;
+    if (dataset) {
+        const fetched = await fetchDataset(dataset);
+        if (ticket !== latestLoad) {
+            return null;
+        }
+        if (fetched.ok) {
+            pristine = fetched.buffer;
+            ({ path, name } = datasetSource(dataset, pristine));
+        } else if (database) {
+            ui.status.error(escapeHtml(datasetSwitchFailedMessage(dataset.name)));
+            return null;
+        } else {
+            problem = datasetUnavailableMessage(dataset.name);
+            dataset = null;
+        }
+    }
+
+    let success = await start(name, path, { sql: route.sql, dataset, pristine, ticket });
+    if (!success && dataset && !database && ticket === latestLoad) {
+        // The file is a SQLite file by its header but the engine cannot open it, and no
+        // database is open yet: start on an empty one, as for a dataset that cannot be fetched.
+        problem = datasetUnavailableMessage(dataset.name);
+        dataset = null;
+        const empty = new DatabasePath("");
+        success = await start(empty.extractName(), empty, { sql: route.sql, ticket });
+    }
+    if (!success) {
+        return null;
+    }
+    return {
+        shared: route.sql !== null,
+        notice: route.notice,
+        errors: [route.damaged ? BAD_LINK_MESSAGE : null, problem].filter(Boolean),
+    };
+}
+
+// datasetSource gives start() what it needs to open a fetched dataset. The engine gets
+// its own copy of the bytes: manager.init edits the buffer it is given (WAL header
+// flags), and the fetched buffer is kept as the pristine record.
+function datasetSource(dataset, buffer) {
+    const path = new DatabasePath(buffer.slice(0), "binary");
+    const name = datasetFileName(dataset);
+    return { path, name };
+}
+
+// startFromDataset opens a built-in dataset picked in the toolbar and puts ?db=<id> in the
+// address (no fragment), so a reload keeps the dataset and back/forward step between them.
+// If anything fails the previous database stays open and the picker goes back to it.
+async function startFromDataset(dataset) {
+    const ticket = beginLoad();
+    ui.status.info(MESSAGES.loading);
+    let success = false;
+    try {
+        const fetched = await fetchDataset(dataset);
+        if (ticket !== latestLoad) {
+            return;
+        }
+        if (fetched.ok) {
+            const { path, name } = datasetSource(dataset, fetched.buffer);
+            success = await start(name, path, {
+                dataset,
+                pristine: fetched.buffer,
+                ticket,
+                keepFocus: true,
+            });
+        } else {
+            ui.status.error(escapeHtml(datasetSwitchFailedMessage(dataset.name)));
+        }
+    } finally {
+        endLoad(ticket, success);
+    }
     if (!success) {
         return;
     }
-    showStarted(route.sql !== null);
-    if (route.damaged) {
-        ui.status.error(escapeHtml(BAD_LINK_MESSAGE));
-        enableCommandBar();
-    }
+    history.pushState(database.name, null, `?${DATASET_PARAM}=${encodeURIComponent(dataset.id)}`);
+    showStarted({ focus: false });
 }
 
 // startFromUrl loads existing database
 // from specified url
 async function startFromUrl(url) {
+    const ticket = beginLoad();
     const path = new DatabasePath(url);
     const name = path.extractName();
-    const success = await start(name, path);
+    let success = false;
+    try {
+        success = await start(name, path, { ticket });
+    } finally {
+        endLoad(ticket, success);
+    }
     if (!success) {
         return;
     }
@@ -97,9 +270,15 @@ async function startFromUrl(url) {
 // startFromFile loads existing database
 // from binary or sql file
 async function startFromFile(file, contents, fileType) {
+    const ticket = beginLoad();
     const path = new DatabasePath(contents, fileType);
     const name = file.name;
-    const success = await start(name, path);
+    let success = false;
+    try {
+        success = await start(name, path, { ticket });
+    } finally {
+        endLoad(ticket, success);
+    }
     if (!success) {
         return;
     }
@@ -109,8 +288,16 @@ async function startFromFile(file, contents, fileType) {
 
 // start loads existing database or creates a new one
 // using specified database path.
-// sharedSql (from a share link) wins over the SQL saved in storage.
-async function start(name, path, sharedSql = null) {
+// ticket comes from beginLoad. sql (from a share link) wins over the SQL saved in storage.
+// dataset is the manifest entry being opened, or null; pristine is its bytes as fetched.
+// keepFocus leaves the keyboard focus where it is (the picker), instead of moving it to
+// the editor.
+// A load that is no longer the latest (its ticket is old) is dropped without a trace.
+async function start(
+    name,
+    path,
+    { sql = null, dataset = null, pristine = null, ticket, keepFocus = false } = {}
+) {
     ui.result.clear();
     ui.status.info(MESSAGES.loading);
 
@@ -122,25 +309,54 @@ async function start(name, path, sharedSql = null) {
         const loadedDatabase =
             path.type == "unsupported" ? null : await manager.init(name, path);
         console.debug(loadedDatabase);
+        if (ticket !== latestLoad) {
+            closeDatabase(loadedDatabase);
+            return false;
+        }
         if (!loadedDatabase) {
             ui.status.error(`Failed to load database from ${escapeHtml(path)}`);
             return false;
         }
+        const previous = database;
         database = loadedDatabase;
+        // the previous connection is not needed any more; closing it frees its memory
+        closeDatabase(previous);
     } catch (exc) {
-        ui.status.error(`Failed to load database from ${escapeHtml(path)}: ${escapeHtml(exc)}`);
+        if (ticket === latestLoad) {
+            ui.status.error(`Failed to load database from ${escapeHtml(path)}: ${escapeHtml(exc)}`);
+        }
         return false;
     }
 
-    database.query = sharedSql ?? (database.query || storage.get(database.name));
+    // the dataset id goes into share links; an upload or a URL clears it
+    if (dataset) {
+        keepPristine(dataset.id, pristine);
+    } else {
+        clearPristine();
+    }
+    setShareContext({ dataset: dataset ? dataset.id : null });
+
+    database.query = sql ?? (database.query || storage.get(database.name));
 
     document.title = titleFor(database.meaningfulName);
     ui.name.ready(database.name);
     ui.status.info(MESSAGES.invite);
     ui.editor.value = database.query;
-    ui.editor.focus();
+    if (!keepFocus) {
+        ui.editor.focus();
+    }
 
+    announce("lab:database-loaded", { database, dataset });
     return true;
+}
+
+// closeDatabase closes a connection that is no longer used. It never throws.
+function closeDatabase(old) {
+    try {
+        old?.db.close();
+    } catch (exc) {
+        console.debug("closing a database failed", exc);
+    }
 }
 
 // executeCurrent runs the current SQL query
@@ -152,8 +368,13 @@ function executeCurrent() {
 // and shows results
 // persist=false keeps the SQL out of storage (used for the built-in preview).
 function execute(sql, persist = true) {
+    if (loading) {
+        // nothing is run and nothing is saved: the database it would run on is going away
+        ui.status.info(escapeHtml(LOADING_BUSY_MESSAGE));
+        return Promise.reject();
+    }
     if (!database) {
-        showError("No database is loaded.");
+        showError(NO_DATABASE_MESSAGE);
         return Promise.reject();
     }
     sql = sql.trim();
@@ -165,19 +386,25 @@ function execute(sql, persist = true) {
         ui.result.clear();
         return Promise.resolve();
     }
+    const run = database;
+    let outcome;
     try {
         ui.status.fadeOut();
         ui.status.info(MESSAGES.executing);
         const started = performance.now();
-        const result = database.execute(sql);
+        const result = run.execute(sql);
         const elapsed = Math.round(performance.now() - started);
+        outcome = { ok: true, rows: result ? result.values.length : 0 };
         showResult(result, elapsed);
         return Promise.resolve();
     } catch (exc) {
+        outcome = { ok: false, error: String(exc) };
         showError(exc);
         return Promise.reject(exc);
     } finally {
         ui.status.fadeIn();
+        // after every run, failed ones too: statements before the error stay applied
+        announce("lab:run-finished", { database: run, sql, preview: !persist, ...outcome });
     }
 }
 
@@ -206,26 +433,42 @@ function changeName(name) {
     }
     ui.name.value = name;
     document.title = titleFor(name);
+    picker.rename(name);
 }
 
 // showStarted shows the result of successful database load
-function showStarted(shared = false) {
+// notice is plain text from the router (a link named an unknown dataset, say) that goes
+// with the normal message. focus=false (a pick in the dataset picker) leaves the focus on
+// the picker, so a keyboard user can keep choosing; otherwise the caret ends up at the end
+// of the editor text, after the table preview has replaced that text.
+function showStarted({ shared = false, notice = null, focus = true } = {}) {
+    const prefix = notice ? `${notice} ` : "";
     if (database.query) {
         // SQL restored from storage or from a share link goes in the editor (start()
         // put it there) but is never run: a runaway query saved by an earlier session,
         // or sent in a link, would hang the tab.
-        ui.status.info(shared ? SHARED_MESSAGE : RESTORED_MESSAGE);
+        ui.status.info(escapeHtml(prefix + (shared ? SHARED_MESSAGE : RESTORED_MESSAGE)));
         enableCommandBar();
     } else if (database.tables.length) {
         showTableContent(database.tables[0]);
         enableCommandBar();
+        if (notice) {
+            ui.status.info(escapeHtml(notice));
+        }
     } else {
-        showWelcome();
+        showWelcome(notice);
+    }
+    if (focus) {
+        caretToEnd(ui.editor);
     }
 }
 
 // showTables shows all database tables
 function showTables() {
+    if (!database) {
+        showError(NO_DATABASE_MESSAGE);
+        return Promise.reject();
+    }
     const tables = database.gatherTables();
     if (!tables.length) {
         ui.status.info("Database is empty");
@@ -238,6 +481,10 @@ function showTables() {
 
 // showTable shows specific database table
 function showTable(table) {
+    if (!database) {
+        showError(NO_DATABASE_MESSAGE);
+        return Promise.reject();
+    }
     const result = database.execute(tableInfoSql(table));
     const all = actionButton("showTables", "tables");
     ui.status.info(`${all} / ${escapeHtml(table)}:`);
@@ -253,17 +500,9 @@ function showTableContent(table) {
     execute(query, false).catch(ignoreRejection);
 }
 
-// loadDemo loads demo database
-function loadDemo() {
-    window.location.assign(DEMO_URL);
-    return Promise.resolve();
-}
-
-// showWelcome show the welcome message
-function showWelcome() {
-    const demo = actionButton("loadDemo", "demo database");
-    let message = `<p>${MESSAGES.invite}<br>or load the ${demo}.</p>`;
-    message += `<p>Click the logo anytime to start from scratch.</p>`;
+// showWelcome shows the message for an empty database
+function showWelcome(notice = null) {
+    let message = `<p>${notice ? `${escapeHtml(notice)}<br>` : ""}${MESSAGES.invite}</p>`;
     const functions = `<a href="https://sqlite.org/lang_corefunc.html" class="sqlime-link" target="_blank" rel="noopener noreferrer">Functions</a>`;
     const about = actionButton("visit", "About", "about");
     message += `<p>${functions} • ${about}</p>`;
@@ -331,11 +570,6 @@ ui.toolbar.addEventListener("open-file", (event) => {
 // Toolbar 'open url' button click
 ui.toolbar.addEventListener("open-url", () => {
     openUrl();
-});
-
-// Toolbar 'reset' button click
-ui.buttons.reset.addEventListener("click", () => {
-    storage.remove(DEFAULT_NAME);
 });
 
 // Navigate back to previous database

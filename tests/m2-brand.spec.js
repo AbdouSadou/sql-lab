@@ -46,7 +46,7 @@ test("brand: the app name is written in js/lab/config.js and nowhere else", () =
 
 test("brand: the default name shows in the title, header and footer of index and About", async ({ page, app }) => {
     await app.open();
-    await expect(page).toHaveTitle("SQL Lab");
+    await expect(page).toHaveTitle("northlight_retail.db - SQL Lab");
     await expect(page.locator("header h1")).toContainText("SQL Lab");
     await expect(page.locator("footer")).toContainText("SQL Lab");
 
@@ -63,7 +63,7 @@ test("brand: renaming through a copy of js/lab/config.js changes title, header a
     await renameApp(page, "Renamed Workbench");
 
     await app.open();
-    await expect(page).toHaveTitle("Renamed Workbench");
+    await expect(page).toHaveTitle("northlight_retail.db - Renamed Workbench");
     await expect(page.locator("header h1")).toContainText("Renamed Workbench");
     await expect(page.locator("footer")).toContainText("Renamed Workbench");
 

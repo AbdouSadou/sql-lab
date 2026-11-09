@@ -24,7 +24,7 @@ test("restore: saved SQL comes back in the editor on reload and is not run", asy
 test("restore: a runaway query saved by an earlier session does not hang the page", async ({ page, app }) => {
     await page.addInitScript((sql) => {
         try {
-            localStorage.setItem("sqlime.query.new.db", sql);
+            localStorage.setItem("sqlime.query.northlight_retail.db", sql);
         } catch {}
     }, RUNAWAY);
     await page.goto("./");

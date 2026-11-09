@@ -111,7 +111,7 @@ test.describe("AC4 (share link, the part that exists now)", () => {
         }
     });
 
-    test("AC4 an empty editor gives a link that opens a plain empty start", async ({ app, browser, baseURL }) => {
+    test("AC4 an empty editor gives a link that opens the dataset with no shared SQL", async ({ app, browser, baseURL }) => {
         await app.open();
         await app.editor.fill("x");
         await app.editor.fill("");
@@ -119,7 +119,9 @@ test.describe("AC4 (share link, the part that exists now)", () => {
         const fresh = await openFresh(browser, baseURL, link);
         try {
             await fresh.app.waitReady();
-            expect((await editorText(fresh.app)).trim()).toBe("");
+            // the dataset opens as for any visit: its table preview, not shared SQL
+            await expect(fresh.app.status).not.toContainText("A shared query");
+            expect((await editorText(fresh.app)).trim()).toBe('select * from "stores" limit 10');
         } finally {
             await fresh.context.close();
         }
@@ -337,14 +339,15 @@ test.describe("shared SQL and storage", () => {
                 (hash) => JSON.parse(LZString.decompressFromEncodedURIComponent(hash.slice("#s=".length))),
                 new URL(link).hash
             );
-            expect(json).toEqual({ v: 1 });
+            // the dataset id is there, the SQL is not
+            expect(json).toEqual({ v: 1, d: "northlight" });
         }
     });
 
     test("a link whose SQL is only whitespace restores the recipient's own saved SQL", async ({ page, app }) => {
         await page.addInitScript(() => {
             try {
-                localStorage.setItem("sqlime.query.new.db", "SELECT 'RECIPIENT_OWN';");
+                localStorage.setItem("sqlime.query.northlight_retail.db", "SELECT 'RECIPIENT_OWN';");
             } catch {}
         });
         await app.open();
@@ -361,9 +364,11 @@ test.describe("shared SQL and storage", () => {
         }
     });
 
-    test("a link whose SQL is only whitespace and no saved SQL opens as a plain empty start", async ({ page, app }) => {
+    test("a link whose SQL is only whitespace and no saved SQL opens as a plain start", async ({ page, app }) => {
         await app.open();
-        const payload = await page.evaluate(() => LZString.compressToEncodedURIComponent(JSON.stringify({ v: 1, q: "\n" })));
+        const payload = await page.evaluate(() =>
+            LZString.compressToEncodedURIComponent(JSON.stringify({ v: 1, d: "northlight", q: "\n" }))
+        );
         await page.goto("about:blank");
         await page.goto(`./#s=${payload}`);
         await app.waitReady();
@@ -421,7 +426,8 @@ test.describe("damaged links", () => {
             await page.goto("about:blank");
             await page.goto("./" + fragment);
             await expect(app.status, name).toContainText("This link is damaged or incomplete");
-            await expect(app.table, name).toHaveCount(0);
+            // the default dataset is open (nothing in the link could be trusted)
+            await expect(app.picker, name).toHaveValue("northlight");
             // the app still works
             expect(await app.query("SELECT 5 AS five;"), name).toEqual({ columns: ["five"], rows: [["5"]] });
         }
@@ -514,8 +520,10 @@ test.describe("opening a link in an open tab", () => {
     });
 
     test("a database path in the address still loads as before", async ({ page, app }) => {
-        await page.goto("./demo.db".replace("./", "./#"));
+        await page.goto("./#datasets/northlight_retail.db");
         await expect(app.status).toContainText(/rows?, took|Press Run/);
+        // a file path, not a dataset: the picker names the file instead
+        expect(await app.pickedText()).toBe("northlight_retail.db");
     });
 });
 
@@ -594,6 +602,7 @@ test.describe("the copy link button", () => {
     test("it works with the keyboard alone", async ({ page, app, browser, baseURL }) => {
         await app.open();
         await expect(app.editor).toBeFocused();
+        await page.keyboard.press("Control+A"); // replace the table preview
         await page.keyboard.type("SELECT 'keys' AS k;");
         // out of the editor and along the command bar: Escape, Tab, then Tab to the button
         await page.keyboard.press("Escape");
