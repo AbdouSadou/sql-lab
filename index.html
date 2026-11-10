@@ -7,24 +7,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="A browser-only SQL workspace for learning and teaching. Everything runs in your browser and nothing is uploaded.">
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#181818" media="(prefers-color-scheme: dark)">
+    <!-- the page's background in each scheme (--desk or --paper of css/tokens.css), for the
+         browser's own chrome; a pinned theme switches their media (js/lab/theme-boot.js) -->
+    <meta name="theme-color" content="#EEF1F0" media="(prefers-color-scheme: light)" data-scheme="light">
+    <meta name="theme-color" content="#10141B" media="(prefers-color-scheme: dark)" data-scheme="dark">
+    <script src="js/lab/theme-boot.js"></script>
 
     <link rel="icon" href="img/favicon.ico" sizes="any">
     <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
     <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 
+    <link rel="stylesheet" href="css/tokens.css">
+    <link rel="stylesheet" href="css/fonts.css">
     <link rel="stylesheet" href="css/core.css">
     <link rel="stylesheet" href="css/layout.css">
     <script type="module" src="js/lab/brand.js"></script>
 </head>
 
 <body>
+    <!-- icons:begin -->
+    <!-- Lucide icons (lucide-static 1.61.0, ISC licence: vendor/lucide.LICENSE.txt), written by tools/build-icons.mjs -->
+    <svg xmlns="http://www.w3.org/2000/svg" class="icon-sprite" aria-hidden="true">
+        <symbol id="icon-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+        <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></symbol>
+        <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+    </svg>
+    <!-- icons:end -->
     <div class="grid">
         <link rel="stylesheet" href="css/header.css">
         <link rel="stylesheet" href="css/buttons.css">
         <link rel="stylesheet" href="css/toolbar.css">
         <link rel="stylesheet" href="css/picker.css">
+        <link rel="stylesheet" href="css/menu.css">
         <header class="header">
             <h1>
                 <a id="reset" href="./" class="header-logo">
@@ -80,7 +94,8 @@
         <footer class="footer">
             <span data-app-name></span>&nbsp;<span class="footer-sep" aria-hidden="true">&middot;</span>
             <span>Made by Abdou Sadou, based on SQLime by Anton Zhiyanov</span>&nbsp;<span class="footer-sep" aria-hidden="true">&middot;</span>
-            <a href="about.html">About</a>
+            <a href="about.html">About</a>&nbsp;<span class="footer-sep" aria-hidden="true">&middot;</span>
+            <span class="footer-theme"></span>
         </footer>
     </div>
 

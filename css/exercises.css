@@ -2,27 +2,6 @@
    verdict above the status line. Light and dark both come from the custom properties below;
    state is never shown by colour alone (a mark and words go with it). */
 
-:root {
-    --lab-pass: #0b6b2e;
-    --lab-pass-bg: #e6f5ec;
-    --lab-fail: #a8001c;
-    --lab-fail-bg: #fdecef;
-    --lab-info: #1c3f66;
-    --lab-info-bg: #e8f1fb;
-    --lab-panel-bg: var(--sqlime-surface);
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --lab-pass: #7ee2a0;
-        --lab-pass-bg: #12301f;
-        --lab-fail: #ff9fab;
-        --lab-fail-bg: #3b1820;
-        --lab-info: #a9cdf5;
-        --lab-info-bg: #16283a;
-    }
-}
-
 .exercise-panel[hidden],
 .exercise-feedback[hidden],
 .exercise-hints[hidden],
@@ -33,9 +12,9 @@
 .exercise-panel {
     margin: 0 0 0.75rem 0;
     padding: 0.75rem 1rem;
-    border: 1px solid var(--sqlime-gray);
+    border: 1px solid var(--rule);
     border-radius: 0.25rem;
-    background: var(--lab-panel-bg);
+    background: var(--paper);
 }
 
 .exercise-head {
@@ -55,7 +34,7 @@
 
 .exercise-progress {
     margin: 0;
-    font-weight: bold;
+    font-weight: 600;
 }
 
 .exercise-panel .button--small {
@@ -88,24 +67,24 @@
     min-width: 2.75rem;
     min-height: 2.75rem;
     padding: 0 0.625rem;
-    border: 1px solid var(--sqlime-blue);
+    border: 1px solid var(--accent);
     border-radius: 0.25rem;
     background: transparent;
-    color: var(--sqlime-text);
+    color: var(--ink);
     font: inherit;
-    font-weight: bold;
+    font-weight: 600;
     cursor: pointer;
 }
 
 .exercise-item:hover {
-    background: var(--lab-info-bg);
+    background: var(--accent-subtle);
 }
 
 /* passed: a filled box and a check mark (the mark is also in the accessible name) */
 .exercise-item--passed {
-    border-color: var(--lab-pass);
-    background: var(--lab-pass-bg);
-    color: var(--lab-pass);
+    border-color: var(--success);
+    background: var(--success-subtle);
+    color: var(--success);
 }
 
 .exercise-item-mark {
@@ -124,7 +103,7 @@
 #exercise-check:focus-visible,
 .exercise-panel .button:focus-visible,
 .exercise-hint:focus-visible {
-    outline: 3px solid var(--sqlime-blue);
+    outline: 3px solid var(--accent);
     outline-offset: 2px;
 }
 
@@ -195,18 +174,18 @@
 }
 
 .verdict--pass {
-    background: var(--lab-pass-bg);
-    color: var(--lab-pass);
+    background: var(--success-subtle);
+    color: var(--success);
 }
 
 .verdict--fail {
-    background: var(--lab-fail-bg);
-    color: var(--lab-fail);
+    background: var(--danger-subtle);
+    color: var(--danger);
 }
 
 .verdict--info {
-    background: var(--lab-info-bg);
-    color: var(--lab-info);
+    background: var(--accent-subtle);
+    color: var(--ink);
 }
 
 .verdict-head {
@@ -221,12 +200,12 @@
 }
 
 .verdict-mark {
-    font-weight: bold;
+    font-weight: 600;
 }
 
 .verdict-message,
 .verdict-note {
-    color: var(--sqlime-text);
+    color: var(--ink);
     overflow-wrap: anywhere;
 }
 
@@ -248,7 +227,7 @@
 /* a box that overflows is a keyboard stop (js/lab/exercise-panel.js sets its tabindex) */
 .verdict-scroll:focus-visible,
 .verdict-next:focus-visible {
-    outline: 3px solid var(--sqlime-blue);
+    outline: 3px solid var(--accent);
     outline-offset: 2px;
 }
 
@@ -261,25 +240,25 @@
 }
 
 .verdict-table {
-    border: 1px solid var(--sqlime-gray);
+    border: 1px solid var(--rule);
     border-collapse: collapse;
-    background: var(--sqlime-surface);
-    color: var(--sqlime-text);
-    font-family: var(--sqlime-monospace);
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-mono);
     font-size: 0.8125rem;
 }
 
 .verdict-table caption {
     padding: 0.125rem 0;
-    font-family: var(--sqlime-sans);
-    font-weight: bold;
+    font-family: var(--font-ui);
+    font-weight: 600;
     text-align: left;
 }
 
 .verdict-table th,
 .verdict-table td {
     padding: 0.125rem 0.5rem;
-    border: 1px solid var(--sqlime-gray);
+    border: 1px solid var(--rule);
     text-align: left;
     white-space: pre;
 }

@@ -7,13 +7,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Check a student's evidence file in your browser. The file is read on this device and never uploaded.">
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#181818" media="(prefers-color-scheme: dark)">
+    <!-- the page's background in each scheme (--desk or --paper of css/tokens.css), for the
+         browser's own chrome; a pinned theme switches their media (js/lab/theme-boot.js) -->
+    <meta name="theme-color" content="#FCFDFC" media="(prefers-color-scheme: light)" data-scheme="light">
+    <meta name="theme-color" content="#171C25" media="(prefers-color-scheme: dark)" data-scheme="dark">
+    <script src="js/lab/theme-boot.js"></script>
 
     <link rel="icon" href="img/favicon.ico" sizes="any">
     <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
     <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 
+    <link rel="stylesheet" href="css/tokens.css">
+    <link rel="stylesheet" href="css/fonts.css">
     <link rel="stylesheet" href="css/article.css">
     <link rel="stylesheet" href="css/verify.css">
     <script type="module" src="js/lab/brand.js"></script>

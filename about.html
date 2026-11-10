@@ -7,13 +7,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="A browser-only SQL workspace for learning and teaching. Everything runs in your browser and nothing is uploaded.">
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#181818" media="(prefers-color-scheme: dark)">
+    <!-- the page's background in each scheme (--desk or --paper of css/tokens.css), for the
+         browser's own chrome; a pinned theme switches their media (js/lab/theme-boot.js) -->
+    <meta name="theme-color" content="#FCFDFC" media="(prefers-color-scheme: light)" data-scheme="light">
+    <meta name="theme-color" content="#171C25" media="(prefers-color-scheme: dark)" data-scheme="dark">
+    <script src="js/lab/theme-boot.js"></script>
 
     <link rel="icon" href="img/favicon.ico" sizes="any">
     <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
     <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 
+    <link rel="stylesheet" href="css/tokens.css">
+    <link rel="stylesheet" href="css/fonts.css">
     <link rel="stylesheet" href="css/article.css">
     <script type="module" src="js/lab/brand.js"></script>
 </head>
@@ -102,8 +107,8 @@
                 Some things are remembered between visits, in your browser's local
                 storage on your own device and nowhere else: the last query you ran
                 for each database, which exercises you have passed, the SQL you last
-                wrote for each exercise, and your run log (up to 200 queries for each
-                dataset, fewer if they are very long). If your browser has no room left, the page says so, and
+                wrote for each exercise, your run log (up to 200 queries for each
+                dataset, fewer if they are very long), and the theme you chose. If your browser has no room left, the page says so, and
                 whatever could not be saved is lost when you close it.
                 The Reset progress button in an exercise set clears that
                 set's passes and saved SQL. Clearing your browser's site data clears

@@ -65,7 +65,10 @@ test.describe("the page", () => {
         await page.waitForLoadState("networkidle");
         const paths = net.paths;
         expect(paths.some((p) => /sqlite3|datasets\/|lz-string/.test(p)), paths.join(", ")).toBe(false);
-        expect(await net.bytes()).toBeLessThan(100_000);
+        // the page itself is small; the two typefaces it uses (latin subsets of vendor/fonts/) add
+        // about 52 KB
+        expect(await net.bytes({ exclude: /^vendor\/fonts\// })).toBeLessThan(100_000);
+        expect(await net.bytes()).toBeLessThan(200_000);
     });
 
     test("it has a labelled box, a real file input with a visible label, and a Verify button", async ({ page }) => {
@@ -369,7 +372,8 @@ test.describe("layout and colour", () => {
                     expect(contrast(m.word, ground)).toBeGreaterThanOrEqual(4.5);
                 }
                 expect(valid.word).not.toBe(edited.word);
-                expect(valid.htmlBg).toBe(colorScheme === "dark" ? "rgb(24, 24, 24)" : "rgb(255, 255, 255)");
+                // the --paper token of the scheme (css/tokens.css)
+                expect(valid.htmlBg).toBe(colorScheme === "dark" ? "rgb(23, 28, 37)" : "rgb(252, 253, 252)");
             });
         }
     }

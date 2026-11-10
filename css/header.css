@@ -33,13 +33,13 @@
     outline: none;
     border: 1px solid transparent;
     padding: 0.25rem;
-    font-weight: bold;
+    font-weight: 600;
 }
 .db-name.ready:hover {
     cursor: pointer;
 }
 .db-name.ready:focus {
-    border-color: var(--sqlime-dark-gray);
+    border-color: var(--rule-strong);
 }
 .db-name.ready::after {
     content: " ✎";

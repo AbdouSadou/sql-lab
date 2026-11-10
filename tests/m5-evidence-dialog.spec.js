@@ -303,7 +303,8 @@ test.describe("the dialog", () => {
                 return [style.backgroundColor, style.color];
             });
             expect(colours[0]).not.toBe(colours[1]);
-            expect(colours[0]).toBe(colorScheme === "dark" ? "rgb(34, 34, 34)" : "rgb(255, 255, 255)");
+            // the --paper token of the scheme (css/tokens.css)
+            expect(colours[0]).toBe(colorScheme === "dark" ? "rgb(23, 28, 37)" : "rgb(252, 253, 252)");
             await page.keyboard.press("Escape");
         }
     });

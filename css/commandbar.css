@@ -17,18 +17,18 @@
     margin: 0 0.125rem;
     height: 2rem;
     padding: 0 0.5rem;
-    border: 1px solid var(--sqlime-blue);
+    border: 1px solid var(--accent);
     border-radius: 0.125rem;
     background: transparent;
-    color: var(--sqlime-blue);
+    color: var(--accent);
     line-height: 1rem;
     font-size: 1rem;
 }
 
 .sqlime-commandbar > button:first-child {
     flex-grow: 4;
-    background: var(--sqlime-blue);
-    color: var(--sqlime-white);
+    background: var(--accent);
+    color: var(--on-accent);
 }
 
 .sqlime-commandbar > button:disabled {
@@ -58,13 +58,13 @@
         border: none;
     }
     .sqlime-commandbar > button:hover {
-        background: var(--sqlime-blue) !important;
-        color: var(--sqlime-white) !important;
+        background: var(--accent) !important;
+        color: var(--on-accent) !important;
     }
 
     .sqlime-commandbar > button:first-child {
         flex-grow: 0;
         background: transparent;
-        color: var(--sqlime-blue);
+        color: var(--accent);
     }
 }

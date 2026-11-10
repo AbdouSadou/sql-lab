@@ -48,9 +48,14 @@ test("brand: the app name is written in js/lab/config.js and nowhere else", () =
     // student's saved progress.
     expect(hits.map((h) => h.replace(/:\d+:/, ":"))).toEqual([
         'js/lab/config.js: export const APP_NAME = "SQL Lab";',
+        // and the theme choice (UI plan, Phase 1); the boot script that applies it before the
+        // first paint cannot import config.js, so it repeats the key (tests/ui1-tokens.spec.js
+        // checks that the two agree)
+        'js/lab/config.js: export const THEME_STORAGE_KEY = "sqllab.theme";',
         'js/lab/config.js: export const PROGRESS_PREFIX = "sqllab.progress.";',
         // and the run log's (F6), for the same reason
         'js/lab/config.js: export const RUN_LOG_PREFIX = "sqllab.log.";',
+        'js/lab/theme-boot.js: choice = window.localStorage.getItem("sqllab.theme");',
     ]);
 });
 

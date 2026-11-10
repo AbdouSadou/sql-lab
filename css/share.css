@@ -11,11 +11,11 @@
     min-width: 0;
     height: 2rem;
     padding: 0 0.5rem;
-    border: 1px solid var(--sqlime-blue);
+    border: 1px solid var(--accent);
     border-radius: 0.125rem;
     background: transparent;
     color: inherit;
-    font-family: monospace;
+    font-family: var(--font-mono);
     font-size: 0.875rem;
 }
 

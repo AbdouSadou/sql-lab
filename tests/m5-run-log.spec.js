@@ -682,7 +682,7 @@ test.describe("the popup fits the screen", () => {
                 // eleven entries do not all fit: the list scrolls inside itself rather than growing off screen
                 expect(m.scrollable).toBe(true);
                 // colours follow the scheme and are readable
-                expect(m.list.bg).toBe(colorScheme === "dark" ? "rgb(34, 34, 34)" : "rgb(255, 255, 255)");
+                expect(m.list.bg).toBe(colorScheme === "dark" ? "rgb(23, 28, 37)" : "rgb(252, 253, 252)"); // --paper
                 for (const colour of [m.sql, m.error, m.outcome, m.time]) {
                     expect(contrast(colour, m.list.bg)).toBeGreaterThanOrEqual(4.5);
                 }

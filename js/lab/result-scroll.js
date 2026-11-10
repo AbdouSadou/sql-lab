@@ -7,17 +7,28 @@
 //
 // The check runs when the result's content changes (a new table, a cleared result) and when
 // its box changes size (the window, the schema sidebar opening or closing).
+//
+// The box is a named region, and while it scrolls sideways it is also a Tab stop: arrow keys
+// scroll it, so the keyboard reaches the columns a mouse would scroll to (WCAG 2.1.1).
 
-import { RESULT_SCROLL_NOTE } from "./config.js";
+import { RESULT_REGION_LABEL, RESULT_SCROLL_NOTE } from "./config.js";
 
 export function mountResultScroll({ result, note }) {
     note.textContent = RESULT_SCROLL_NOTE;
+    result.setAttribute("role", "region");
+    result.setAttribute("aria-label", RESULT_REGION_LABEL);
 
     let pending = false;
     function update() {
         pending = false;
         // 1 px of slack for sub-pixel widths
-        note.hidden = !(result.scrollWidth > result.clientWidth + 1);
+        const wide = result.scrollWidth > result.clientWidth + 1;
+        note.hidden = !wide;
+        if (wide) {
+            result.tabIndex = 0;
+        } else {
+            result.removeAttribute("tabindex");
+        }
     }
     // measured on the next frame, when the browser has laid the new content out
     function schedule() {

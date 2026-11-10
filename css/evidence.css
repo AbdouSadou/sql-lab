@@ -5,14 +5,14 @@
     width: min(28rem, calc(100vw - 2rem));
     max-width: calc(100vw - 2rem);
     padding: 1rem;
-    border: 1px solid var(--sqlime-blue);
+    border: 1px solid var(--accent);
     border-radius: 0.25rem;
-    background: var(--sqlime-surface);
-    color: var(--sqlime-text);
+    background: var(--paper);
+    color: var(--ink);
 }
 
 .evidence-dialog::backdrop {
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--scrim);
 }
 
 .evidence-title {
@@ -37,15 +37,15 @@
     width: 100%;
     height: 2.25rem;
     padding: 0 0.5rem;
-    border: 1px solid var(--sqlime-blue);
+    border: 1px solid var(--accent);
     border-radius: 0.125rem;
-    background: var(--sqlime-surface);
+    background: var(--paper);
     color: inherit;
     font: inherit;
 }
 
 .evidence-dialog input[aria-invalid="true"] {
-    border-color: var(--sqlime-red);
+    border-color: var(--danger);
     border-width: 2px;
 }
 
@@ -57,7 +57,7 @@
 
 .evidence-error {
     margin: 0.5rem 0 0;
-    color: var(--sqlime-red);
+    color: var(--danger);
     font-size: 0.875rem;
     font-weight: 600;
 }
@@ -77,15 +77,15 @@
 .evidence-actions button {
     min-height: 2.25rem;
     padding: 0 1rem;
-    border: 1px solid var(--sqlime-blue);
+    border: 1px solid var(--accent);
     border-radius: 0.125rem;
     background: transparent;
-    color: var(--sqlime-blue);
+    color: var(--accent);
     font: inherit;
     cursor: pointer;
 }
 
 .evidence-actions .evidence-submit {
-    background: var(--sqlime-blue);
-    color: var(--sqlime-white);
+    background: var(--accent);
+    color: var(--on-accent);
 }

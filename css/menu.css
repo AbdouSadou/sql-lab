@@ -1,0 +1,92 @@
+/* Menus (js/lab/menu.js): a popover in the top layer, placed under or over its button by script
+   (top/left or right/bottom), so here only its look. Menus are one of the three things that cast a
+   shadow (with dialogs and toasts); they fade in, and reduced motion removes the fade. */
+
+.menu[popover] {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    box-sizing: border-box;
+    min-width: 12rem;
+    max-width: min(24rem, calc(100vw - 16px));
+    overflow: auto;
+    padding: var(--space-1);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-float);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-float);
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    line-height: var(--leading-ui);
+}
+
+.menu[popover]:popover-open {
+    animation: menu-fade var(--motion-fade) ease-out;
+}
+
+@keyframes menu-fade {
+    from {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .menu[popover]:popover-open {
+        animation: none;
+    }
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: var(--control-height);
+    padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-control);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.menu-item:hover,
+.menu-item:focus-visible {
+    background: var(--accent-subtle);
+}
+
+.menu-item:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: calc(-1 * var(--focus-offset));
+}
+
+.menu-item[aria-disabled="true"] {
+    color: var(--graphite);
+    cursor: default;
+}
+
+.menu-item[aria-disabled="true"]:hover {
+    background: transparent;
+}
+
+/* the tick of a radio item shows only on the chosen one, and keeps its room on the others */
+.menu-item[role="menuitemradio"][aria-checked="false"] .menu-check {
+    visibility: hidden;
+}
+
+.menu-separator {
+    height: 1px;
+    margin: var(--space-1) 0;
+    background: var(--rule);
+}
+
+/* A browser without the popover attribute (before Safari 17, Firefox 125, Chrome 114) would draw a
+   closed menu in the page; there the menu is hidden, and js/lab/menu.js hides its button. */
+@supports not selector(:popover-open) {
+    .menu {
+        display: none;
+    }
+}

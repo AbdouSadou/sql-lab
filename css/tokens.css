@@ -1,0 +1,142 @@
+/* Design tokens: the only place a colour is written. Every other stylesheet and script uses these
+   custom properties (tests/ui1-tokens.spec.js fails on a raw colour anywhere else in the site's CSS
+   or JS). Values are those of the UI plan, section 3 (docs/design).
+
+   Themes. The light palette is on :root; the dark one applies on a dark device unless the student
+   pinned Light, and whenever they pinned Dark: js/lab/theme.js puts data-theme="light" or "dark" on
+   <html> (js/lab/theme-boot.js does it before the first paint from the stored choice). Plain values,
+   not light-dark(), so the colours hold in every browser with custom properties. The two dark blocks
+   must stay identical; a test compares them. */
+
+:root {
+    color-scheme: light;
+
+    /* Surfaces and text */
+    --desk: #EEF1F0;
+    --paper: #FCFDFC;
+    --sunken: #F3F6F5;
+    --rule: #D5DCDD;
+    --rule-strong: #7C8891;
+    --ink: #14213D;
+    --graphite: #55606E;
+
+    /* Accent: primary button, links, focus ring */
+    --accent: #2647C8;
+    --accent-hover: #1D3AA8;
+    --accent-subtle: #E6ECFB;
+    --on-accent: #FFFFFF;
+    /* the shortcut hint inside a filled primary button (the mockup's "Ctrl Enter") */
+    --on-accent-muted: #DCE4FB;
+
+    /* Outcomes: green and red are reserved for correct and wrong */
+    --success: #1B7A43;
+    --success-subtle: #E4F3E9;
+    --danger: #B42318;
+    --danger-subtle: #FBE9E7;
+    --warning: #8A5A00;
+    --warning-subtle: #FBF1D9;
+
+    /* Syntax, each at least 4.5:1 on --paper */
+    --syntax-keyword: #2647C8;
+    --syntax-string: #1B6B4A;
+    --syntax-number: #9A3412;
+    --syntax-function: #6D3FC0;
+    --syntax-comment: #5F6B78;
+
+    /* Shadow, for menus, dialogs and toasts only (never panes), and the veil behind a dialog */
+    --shadow-float: 0 8px 24px #14213D29, 0 1px 3px #14213D1F;
+    --scrim: #14213D80;
+
+    /* Type */
+    --font-ui: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+    --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, monospace;
+    --text-xs: 12px;
+    --text-sm: 14px;
+    --text-md: 16px;
+    --text-lg: 20px;
+    --leading-ui: 1.45;
+    --leading-code: 1.6;
+
+    /* Shape and space */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --radius-control: 6px;
+    --radius-float: 10px;
+    --control-height: 32px;
+    --icon-size: 16px;
+    --focus-ring: 2px solid var(--accent);
+    --focus-offset: 2px;
+    --motion-fade: 120ms;
+}
+
+@media (pointer: coarse) {
+    :root {
+        --control-height: 44px;
+    }
+}
+
+/* dark: a dark device, unless the student pinned Light */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --desk: #10141B;
+        --paper: #171C25;
+        --sunken: #1C222D;
+        --rule: #2C3542;
+        --rule-strong: #6B7889;
+        --ink: #E7EAF0;
+        --graphite: #A0AAB8;
+        --accent: #8FAEFF;
+        --accent-hover: #A9C1FF;
+        --accent-subtle: #1E2B4D;
+        --on-accent: #0E1630;
+        --on-accent-muted: #22315F;
+        --success: #5BC98B;
+        --success-subtle: #15301F;
+        --danger: #FF8A80;
+        --danger-subtle: #3A1A18;
+        --warning: #E8B84A;
+        --warning-subtle: #33280F;
+        --syntax-keyword: #9DB8FF;
+        --syntax-string: #7DD6AC;
+        --syntax-number: #F0A677;
+        --syntax-function: #C9A8FF;
+        --syntax-comment: #8793A3;
+        --shadow-float: 0 8px 24px #00000080, 0 1px 3px #00000066;
+        --scrim: #000000A6;
+    }
+}
+
+/* dark: pinned by the student, whatever the device */
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --desk: #10141B;
+    --paper: #171C25;
+    --sunken: #1C222D;
+    --rule: #2C3542;
+    --rule-strong: #6B7889;
+    --ink: #E7EAF0;
+    --graphite: #A0AAB8;
+    --accent: #8FAEFF;
+    --accent-hover: #A9C1FF;
+    --accent-subtle: #1E2B4D;
+    --on-accent: #0E1630;
+    --on-accent-muted: #22315F;
+    --success: #5BC98B;
+    --success-subtle: #15301F;
+    --danger: #FF8A80;
+    --danger-subtle: #3A1A18;
+    --warning: #E8B84A;
+    --warning-subtle: #33280F;
+    --syntax-keyword: #9DB8FF;
+    --syntax-string: #7DD6AC;
+    --syntax-number: #F0A677;
+    --syntax-function: #C9A8FF;
+    --syntax-comment: #8793A3;
+    --shadow-float: 0 8px 24px #00000080, 0 1px 3px #00000066;
+    --scrim: #000000A6;
+}

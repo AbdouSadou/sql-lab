@@ -35,6 +35,8 @@ export const HIDDEN = new Set([
     "package.json",
     "package-lock.json",
     "playwright.config.js",
+    "docs",
+    "tools",
 ]);
 
 // The folder page for exercises/: one link per .json file, in code-unit order. For ordinary file

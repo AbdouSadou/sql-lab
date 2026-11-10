@@ -38,15 +38,16 @@ class SqlimeStatus extends HTMLElement {
         this.value = message;
     }
 
-    // fadeOut slightly fades out the element.
+    // fadeOut marks the message as stale: secondary text colour, which keeps 4.5:1 (an opacity of
+    // 0.4 left the text at 2.4:1).
     fadeOut() {
-        this.style.opacity = 0.4;
+        this.classList.add("sqlime-status--stale");
     }
 
-    // fadeIn fades the element back in.
+    // fadeIn brings the message back to the text colour.
     fadeIn() {
         setTimeout(() => {
-            this.style.opacity = "";
+            this.classList.remove("sqlime-status--stale");
         }, 100);
     }
 

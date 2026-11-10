@@ -27,7 +27,9 @@ Based on SQLime by Anton Zhiyanov (https://github.com/nalgeon/sqlime).
 - A run log: every Run is kept (the last 200 per dataset, fewer if the queries are very long, in that browser on that device) and the history button puts an earlier query back in the editor; its times are UTC. When the browser has no room left to keep the log or the exercise progress, a line under the status says so.
 - Evidence export: the evidence button saves the run log as a `.txt` file with the student's number and a checksum, to attach to assessed work; `verify.html` checks such a file. The file holds the log of the open dataset only (an uploaded file has a log of its own), so a student who worked on two datasets exports once for each dataset. The log lives in one browser profile: on a shared lab PC whose profile is wiped at log-off, or in a private window, it is gone, so students should export before they log off. `about.html` tells them this, and tells markers about `verify.html`.
 - Phone-friendly layout.
-- Kept in the student's own browser (`localStorage`) and nowhere else: the last query for each database, exercise progress, the SQL last written for each exercise, and the run log.
+- Browsers: current Chrome, Edge, Firefox and Safari. The menus use the `popover` attribute, so they need Safari 17, Firefox 125 or Chrome 114 or later; an older browser shows the page without them.
+- Kept in the student's own browser (`localStorage`) and nowhere else: the last query for each database, exercise progress, the SQL last written for each exercise, the run log, and the theme the student chose.
+- Light and dark themes: the page follows the device until the student picks Light, Dark or Match device in the Theme menu.
 
 ## Adding a dataset
 

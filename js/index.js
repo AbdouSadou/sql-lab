@@ -47,6 +47,7 @@ import { setShareContext } from "./lab/share.js";
 import { mountPlainText } from "./lab/plain-text.js";
 import { mountStorageNotice } from "./lab/storage-notice.js";
 import { tableContentSql, tableInfoSql } from "./lab/sql.js";
+import { mountThemeMenu } from "./lab/theme.js";
 import { mountToolbar } from "./lab/toolbar-extras.js";
 
 const ui = {
@@ -129,6 +130,11 @@ const picker = mountToolbar(ui.toolbar, {
     onSelect: startFromDataset,
     onExport: () => actions.exportDatabase(),
 });
+
+// The theme menu (js/lab/theme.js), at the end of the footer for now: the header row is full
+// at 768 and 1200 px (the toolbar keeps one row next to the title). Phase 2 of the UI plan moves
+// it into the top bar.
+mountThemeMenu(document.querySelector(".footer-theme"), { buttonClass: "footer-button" });
 
 // Exercise mode: the set picker, the panel and the Check button (js/lab/exercise-panel.js).
 // It follows the page through the events below; the callbacks are how it asks for a load.

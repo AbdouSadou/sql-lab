@@ -37,6 +37,8 @@ jobs:
                       --exclude='/package.json' \
                       --exclude='/package-lock.json' \
                       --exclude='/playwright.config.js' \
+                      --exclude='/docs' \
+                      --exclude='/tools' \
                       ./ .site-stage/
             # GitHub Pages cannot list a folder, and the app finds the exercise sets by
             # reading the folder page (listSets in js/lab/exercises.js; python3 -m http.server

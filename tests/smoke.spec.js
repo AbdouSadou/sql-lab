@@ -39,6 +39,8 @@ test("smoke: the engine needs no cross-origin isolation and fetches only its was
         /^vendor\/sqlite3\.js$/,
         /^vendor\/sqlite3\.wasm$/,
         /^vendor\/lz-string\.min\.js$/,
+        // the typefaces (UI plan, Phase 1), only the subsets the page uses
+        /^vendor\/fonts\/atkinson-hyperlegible-(next|mono)-latin(-ext)?-wght-(normal|italic)\.woff2$/,
         /^datasets\/manifest\.json$/,
         /^datasets\/northlight_retail\.db$/,
         // the exercise sets, found through the folder page the Pages workflow writes

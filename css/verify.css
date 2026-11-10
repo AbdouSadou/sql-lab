@@ -1,33 +1,15 @@
 /* verify.html (js/lab/verify-page.js). Builds on css/article.css, which sets the page
    colours for both colour schemes; the verdict colours are added here. */
 
-:root {
-    --verify-valid: #0a7a2f;
-    --verify-edited: #c2261b;
-    --verify-note: #666;
-    --verify-zone: #aaa;
-    --verify-zone-active: #0064c1;
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --verify-valid: #5fd38d;
-        --verify-edited: #ff7a70;
-        --verify-note: #aaa;
-        --verify-zone: #666;
-        --verify-zone-active: #4da3ff;
-    }
-}
-
 .drop-zone {
     padding: 0.5rem 1rem 1rem;
-    border: 2px dashed var(--verify-zone);
+    border: 2px dashed var(--rule-strong);
     border-radius: 0.5rem;
 }
 
 .drop-zone--active {
-    border-color: var(--verify-zone-active);
-    background: color-mix(in srgb, var(--verify-zone-active) 10%, transparent);
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .drop-zone textarea {
@@ -37,11 +19,11 @@
     max-width: 100%;
     min-height: 10rem;
     padding: 0.5rem;
-    border: 1px solid var(--article-muted);
+    border: 1px solid var(--graphite);
     border-radius: 2px;
-    background: var(--article-background);
-    color: var(--article-text);
-    font-family: Consolas, "Lucida Console", Monaco, monospace;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-mono);
     font-size: 0.8rem;
     resize: vertical;
 }
@@ -58,10 +40,10 @@
     margin-top: 0.75rem;
     min-height: 2.5rem;
     padding: 0 1.5rem;
-    border: 1px solid var(--article-link);
+    border: 1px solid var(--accent);
     border-radius: 2px;
-    background: var(--article-link);
-    color: var(--article-background);
+    background: var(--accent);
+    color: var(--on-accent);
     font: inherit;
     cursor: pointer;
 }
@@ -69,7 +51,7 @@
 .drop-hint {
     margin: 0.75rem 0 0;
     font-size: 0.85em;
-    color: var(--verify-note);
+    color: var(--graphite);
 }
 
 .verify-result {
@@ -91,23 +73,22 @@
 }
 
 .verdict--valid {
-    color: var(--verify-valid);
+    color: var(--success);
 }
 
 .verdict--edited {
-    color: var(--verify-edited);
+    color: var(--danger);
 }
 
 .verdict--unavailable {
-    color: var(--article-text);
+    color: var(--ink);
     border-style: dashed;
 }
 
 .verdict-word {
     margin: 0;
     font-size: 2.75em;
-    font-weight: 800;
-    letter-spacing: 0.04em;
+    font-weight: 600;
     line-height: 1.1;
 }
 
@@ -115,12 +96,12 @@
 .verdict-note,
 .verdict-message {
     margin: 0.5rem 0 0;
-    color: var(--article-text);
+    color: var(--ink);
 }
 
 .verdict-note {
     font-size: 0.85em;
-    color: var(--verify-note);
+    color: var(--graphite);
 }
 
 .verdict-details {
@@ -128,7 +109,7 @@
     grid-template-columns: max-content minmax(0, 1fr);
     gap: 0.25rem 1rem;
     margin: 1rem 0 0;
-    color: var(--article-text);
+    color: var(--ink);
 }
 
 .verdict-details dt {

@@ -1,37 +1,53 @@
-:root {
-    --sqlime-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica,
-        Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-        "Segoe UI Symbol";
-    --sqlime-monospace: "SFMono-Regular", Consolas, "Liberation Mono", Menlo,
-        Courier, monospace;
-    /* blue and red are text colours too (buttons, errors): both are 4.5:1 or better on the light
-       surfaces, and white on the blue is 5.8:1 */
-    --sqlime-blue: #0066b8;
-    --sqlime-dark-gray: #aaa;
-    --sqlime-gray: #ccc;
-    --sqlime-red: #b00020;
-    --sqlime-white: #fff;
-    --sqlime-text: #000;
-    --sqlime-background: #fafafa;
-    --sqlime-surface: #fff;
-    color-scheme: light dark;
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --sqlime-blue: #008bf5;
-        --sqlime-dark-gray: #888;
-        --sqlime-gray: #444;
-        --sqlime-red: #ff5c5c;
-        --sqlime-text: #e6e6e6;
-        --sqlime-background: #181818;
-        --sqlime-surface: #222;
-    }
-}
 *,
 *::before,
 *::after {
     box-sizing: border-box;
+}
+
+/* Weights 400 and 600 only (UI plan, section 3): what browsers draw bold is 600. */
+b,
+strong,
+th,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-weight: 600;
+}
+
+/* Form controls take the interface typeface (browsers give them their own); only the family, so
+   no size changes with it. */
+button,
+input,
+select,
+textarea {
+    font-family: inherit;
+}
+
+/* Icons (js/lab/icons.js): Lucide symbols from the sprite in index.html, 16 px with a 1.5 px stroke
+   (2.25 in the 24-unit drawing) in the colour of the text beside them. */
+.icon {
+    flex: none;
+    width: var(--icon-size);
+    height: var(--icon-size);
+    vertical-align: -0.1875em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.25;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.icon--filled {
+    fill: currentColor;
+    stroke: none;
+}
+
+/* the sprite itself (tools/build-icons.mjs) draws nothing; <use> still reaches its symbols */
+.icon-sprite {
+    display: none;
 }
 
 .sqlime-disabled {

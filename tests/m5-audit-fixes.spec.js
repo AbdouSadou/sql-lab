@@ -326,10 +326,20 @@ test.describe("text colours reach 4.5:1", () => {
     test("white on the blue of the filled buttons is 4.5:1 in the light scheme", async ({ page, app }) => {
         await page.emulateMedia({ colorScheme: "light" });
         await app.open();
-        const fill = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--sqlime-blue").trim());
-        expect(fill).toMatch(/^#[0-9a-f]{6}$/i);
-        const blue = [1, 3, 5].map((i) => parseInt(fill.slice(i, i + 2), 16));
-        expect(contrast([255, 255, 255], blue)).toBeGreaterThanOrEqual(4.5);
+        // the fill is the --accent token and the text on it --on-accent (css/tokens.css)
+        const [fill, text] = await page.evaluate(() => {
+            const probe = document.createElement("span");
+            probe.style.background = "var(--accent)";
+            probe.style.color = "var(--on-accent)";
+            document.body.append(probe);
+            const style = getComputedStyle(probe);
+            const colours = [style.backgroundColor, style.color];
+            probe.remove();
+            return colours;
+        });
+        const channels = (rgb) => rgb.match(/\d+/g).slice(0, 3).map(Number);
+        expect(channels(text)).toEqual([255, 255, 255]);
+        expect(contrast(channels(text), channels(fill))).toBeGreaterThanOrEqual(4.5);
     });
 });
 

@@ -38,6 +38,9 @@ export const LINK_TOO_LONG_MESSAGE =
 
 // Shown under a result that is wider than its box (js/lab/result-scroll.js).
 export const RESULT_SCROLL_NOTE = "This result is wider than the screen. Scroll sideways to see the other columns.";
+// The result box is a named region; while it scrolls sideways it is also a Tab stop, so the
+// keyboard can scroll it (js/lab/result-scroll.js).
+export const RESULT_REGION_LABEL = "Query result";
 
 // VACUUM INTO a file would leave the file in the engine's memory for the life of the page
 // (js/lab/runner.js, "The guard"). Files cannot be saved from the browser anyway; the export
@@ -71,6 +74,17 @@ export const PICKER_LOADING = "Loading datasets...";
 export const EXPORT_BUTTON_TEXT = "export";
 export const HELP_LABEL = "About this app";
 export const EXPORT_BUTTON_TITLE = "Download the open database, with your changes, as a file";
+
+// The theme (js/lab/theme.js). The stored value is "light" or "dark"; nothing stored means "match
+// the device". js/lab/theme-boot.js reads the same key before the first paint, so it repeats it.
+export const THEME_STORAGE_KEY = "sqllab.theme";
+export const THEME_BUTTON_TEXT = "Theme";
+export const THEME_MENU_LABEL = "Theme";
+export const THEME_OPTIONS = [
+    { value: "light", label: "Light" },
+    { value: "dark", label: "Dark" },
+    { value: "device", label: "Match device" },
+];
 
 // Messages about datasets (plain text; index.js escapes them, and some carry names from
 // the manifest or the address). Manifest problems are worded for the instructor who

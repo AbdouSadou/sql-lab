@@ -30,10 +30,10 @@
     gap: 0.5rem;
     min-height: 2rem;
     padding: 0 0.5rem;
-    border: 1px solid var(--sqlime-blue);
+    border: 1px solid var(--accent);
     border-radius: 0.125rem;
     background: transparent;
-    color: var(--sqlime-blue);
+    color: var(--accent);
     font: inherit;
     cursor: pointer;
 }
@@ -49,8 +49,8 @@
 }
 
 .schema-toggle:hover {
-    background: var(--sqlime-blue);
-    color: var(--sqlime-white);
+    background: var(--accent);
+    color: var(--on-accent);
 }
 
 .schema-panel {
@@ -59,8 +59,8 @@
     max-height: 50vh;
     min-height: 0;
     margin-top: 0.5rem;
-    border: 1px solid var(--sqlime-gray);
-    background: var(--sqlime-surface);
+    border: 1px solid var(--rule);
+    background: var(--paper);
 }
 
 .schema-panel[hidden],
@@ -71,7 +71,7 @@
 .schema-dataset {
     flex: none;
     padding: 0.5rem;
-    border-bottom: 1px solid var(--sqlime-gray);
+    border-bottom: 1px solid var(--rule);
     font-size: 90%;
     overflow-wrap: anywhere;
 }
@@ -123,7 +123,7 @@
     border: 0;
     border-radius: 0.125rem;
     background: transparent;
-    color: var(--sqlime-text);
+    color: var(--ink);
     font: inherit;
     cursor: pointer;
 }
@@ -146,8 +146,8 @@
     border: 0;
     border-radius: 0.125rem;
     background: transparent;
-    color: var(--sqlime-text);
-    font-family: var(--sqlime-monospace);
+    color: var(--ink);
+    font-family: var(--font-mono);
     font-size: 90%;
     text-align: left;
     overflow-wrap: anywhere;
@@ -156,14 +156,14 @@
 
 .schema-insert:hover,
 .schema-expand:hover {
-    background: var(--sqlime-blue);
-    color: var(--sqlime-white);
+    background: var(--accent);
+    color: var(--on-accent);
 }
 
 .schema-toggle:focus-visible,
 .schema-expand:focus-visible,
 .schema-insert:focus-visible {
-    outline: 2px solid var(--sqlime-blue);
+    outline: 2px solid var(--accent);
     outline-offset: 1px;
 }
 
@@ -178,7 +178,7 @@
 
 .schema-kind {
     padding: 0 0.25rem;
-    border: 1px solid var(--sqlime-gray);
+    border: 1px solid var(--rule);
     border-radius: 0.125rem;
 }
 
@@ -199,7 +199,7 @@
 }
 
 .schema-type {
-    font-family: var(--sqlime-monospace);
+    font-family: var(--font-mono);
     text-transform: uppercase;
 }
 

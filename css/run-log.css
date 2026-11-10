@@ -2,19 +2,6 @@
    #run-history-list. It hangs under the command bar (which is a positioned box: css/commandbar.css) and is as wide as the screen allows, so it
    is never wider than the viewport; long SQL is cut with an ellipsis, not wrapped. */
 
-:root {
-    /* text on the popup's surface needs 4.5:1; the shared red and blue are too light for it in the light scheme */
-    --run-history-error: #b00020;
-    --run-history-active: #0b5cad;
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --run-history-error: var(--sqlime-red);
-        --run-history-active: #1a5fa8;
-    }
-}
-
 .run-history-list {
     position: absolute;
     top: 100%;
@@ -27,11 +14,11 @@
     overflow-y: auto;
     margin-top: 0.25rem;
     padding: 0.25rem;
-    border: 1px solid var(--sqlime-blue);
+    border: 1px solid var(--accent);
     border-radius: 0.25rem;
-    background: var(--sqlime-surface);
-    color: var(--sqlime-text);
-    box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.25);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-float);
     font-size: 0.875rem;
 }
 
@@ -66,8 +53,8 @@
 
 .run-history-entry:hover,
 .run-history-entry:focus-visible {
-    background: var(--run-history-active);
-    color: var(--sqlime-white);
+    background: var(--accent);
+    color: var(--on-accent);
     outline: none;
 }
 
@@ -81,7 +68,7 @@
 }
 
 .run-history-outcome--error {
-    color: var(--run-history-error);
+    color: var(--danger);
     font-weight: 600;
 }
 
@@ -94,7 +81,7 @@
     flex: 1 1 100%;
     min-width: 0;
     overflow: hidden;
-    font-family: var(--sqlime-monospace);
+    font-family: var(--font-mono);
     font-size: 0.8125rem;
     text-overflow: ellipsis;
     white-space: nowrap;
