@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SQL Lab, query result (light)</title>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:ital,wght@0,400;0,600;1,400&amp;family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,600;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2647C8}a:hover{color:#1D3AA8}
+</style>
+</head>
+<body>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: #EEF1F0; color: #14213D; font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; font-size: 14px; line-height: 1.45">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-height: 48px; box-sizing: border-box; padding: 8px 16px; border-bottom: 1px solid #D5DCDD">
+<div style="display: flex; align-items: center; gap: 8px">
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" style="flex: none"><rect width="24" height="24" rx="6" style="fill: #2647C8"></rect><ellipse cx="12" cy="8" rx="5.5" ry="2" style="fill: none; stroke: #FFFFFF; stroke-width: 1.5"></ellipse><path d="M6.5 8v8c0 1.1 2.46 2 5.5 2s5.5-.9 5.5-2V8" style="fill: none; stroke: #FFFFFF; stroke-width: 1.5"></path><path d="M6.5 12c0 1.1 2.46 2 5.5 2s5.5-.9 5.5-2" style="fill: none; stroke: #FFFFFF; stroke-width: 1.5"></path></svg>
+<span style="font-size: 16px; font-weight: 600">SQL Lab</span>
+</div>
+<button type="button" aria-haspopup="menu" style="display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 1px solid #7C8891; border-radius: 6px; background: #FCFDFC; color: #14213D; font: inherit; cursor: pointer">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" style="flex: none; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"></path><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"></path></svg>
+<span>Northlight Retail</span>
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" style="flex: none; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round"><path d="m6 9 6 6 6-6"></path></svg>
+</button>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-left: auto">
+<button type="button" style="display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: #14213D; font: inherit; cursor: pointer">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" style="flex: none; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+<span>Copy link</span>
+</button>
+<button type="button" aria-haspopup="menu" style="display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: #14213D; font: inherit; cursor: pointer">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" style="flex: none; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m7 10 5 5 5-5"></path><path d="M12 15V3"></path></svg>
+<span>Export</span>
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" style="flex: none; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round"><path d="m6 9 6 6 6-6"></path></svg>
+</button>
+<button type="button" aria-haspopup="menu" style="display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: #14213D; font: inherit; cursor: pointer">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" style="flex: none; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>
+<span>Theme</span>
+</button>
+<button type="button" aria-haspopup="dialog" style="display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: #14213D; font: inherit; cursor: pointer">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" style="flex: none; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg>
+<span>Help</span>
+</button>
+</div>
+</header>
+
+<div style="flex: 1 1 auto; display: flex; flex-wrap: wrap; min-height: 0">
+
+<nav aria-label="Schema, exercises and history" style="flex: 1 1 280px; box-sizing: border-box; display: flex; flex-direction: column; border-right: 1px solid #D5DCDD">
+<div style="display: flex; gap: 4px; padding: 0 12px; border-bottom: 1px solid #D5DCDD">
+<button type="button" aria-current="true" style="height: 40px; padding: 0 8px; border: 0; border-bottom: 2px solid #2647C8; background: transparent; color: #14213D; font: inherit; font-weight: 600; cursor: pointer">Schema</button>
+<button type="button" style="height: 40px; padding: 0 8px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #55606E; font: inherit; cursor: pointer">Exercises</button>
+<button type="button" style="height: 40px; padding: 0 8px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #55606E; font: inherit; cursor: pointer">History</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 12px; padding: 16px 12px">
+<p style="margin: 0; padding: 0 8px; font-size: 12px; line-height: 1.5; color: #55606E">Fictional Yorkshire retail chain: 5 stores, 20 products, 60 customers and 450 orders, January 2025 to October 2026.</p>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="padding: 0 8px; font-size: 12px; color: #55606E">Tables</div>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column">
+<li>
+<button type="button" aria-expanded="false" style="display: flex; align-items: center; gap: 6px; width: 100%; height: 32px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: #14213D; font: inherit; text-align: left; cursor: pointer">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" style="flex: none; fill: none; stroke: #55606E; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round"><path d="m9 18 6-6-6-6"></path></svg>
+<span style="flex-grow: 1; font-family: 'Atkinson Hyperlegible Mono', ui-monospace, monospace">customers</span>
+<span style="font-size: 12px; color: #55606E; font-variant-numeric: tabular-nums">60</span>
+</button>
+</li>
+<li>
+<button type="button" aria-expanded="false" style="display: flex; align-items: center; gap: 6px; width: 100%; height: 32px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: #14213D; font: inherit; text-align: left; cursor: pointer">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" style="flex: none; fill: none; stroke: #55606E; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round"><path d="m9 18 6-6-6-6"></path></svg>
+<span style="flex-grow: 1; font-family: 'Atkinson Hyperlegible Mono', ui-monospace, monospace">order_items</span>
+<span style="font-size: 12px; color: #55606E; font-variant-numeric: tabular-nums">906</span>
+</button>
+</li>
+<li>
+<button type="button" aria-expanded="false" style="display: flex; align-items: center; gap: 6px; width: 100%; height: 32px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: #14213D; font: inherit; text-align: left; cursor: pointer">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" style="flex: none; fill: none; stroke: #55606E; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round"><path d="m9 18 6-6-6-6"></path></svg>
+<span style="flex-grow: 1; font-family: 'Atkinson Hyperlegible Mono', ui-monospace, monospace">orders</span>
+<span style="font-size: 12px; color: #55606E; font-variant-numeric: tabular-nums">450</span>
+</button>
+</li>
+<li>
+<button type="button" aria-expanded="true" style="display: flex; align-items: center; gap: 6px; width: 100%; height: 32px; padding: 0 8px; border: 0; border-radius: 6px; background: #E6ECFB; color: #14213D; font: inherit; text-align: left; cursor: pointer">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" style="flex: none; fill: none; stroke: #55606E; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round"><path d="m6 9 6 6 6-6"></path></svg>
+<span style="flex-grow: 1; font-family: 'Atkinson Hyperlegible Mono', ui-monospace, monospace">products</span>
+<span style="font-size: 12px; color: #55606E; font-variant-numeric: tabular-nums">20</span>
+</button>
+<ul style="list-style: none; margin: 0; padding: 0 8px 4px 30px; display: flex; flex-direction: column">
+<li style="display: flex; align-items: center; gap: 8px; height: 28px">
+<span style="flex-grow: 1; font-family: 'Atkinson Hyperlegible Mono', ui-monospace, monospace">product_id</span>
+<svg role="img" aria-label="Primary key" width="14" height="14" viewBox="0 0 24 24" style="flex: none; fill: none; stroke: #55606E; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"></path><path d="m21 2-9.6 9.6"></path><circle cx="7.5" cy="15.5" r="5.5"></circle></svg>
+<span style="font-size: 12px; color: #55606E">INTEGER</span>
+</li>
+<li style="display: flex; align-items: center; gap: 8px; height: 28px">
+<span style="flex-grow: 1; font-family: 'Atkinson Hyperlegible Mono', ui-monospace, monospace">product_name</span>
+<span style="font-size: 12px; color: #55606E">TEXT</span>
+</li>
+<li style="display: flex; align-items: center; gap: 8px; height: 28px">
+<span style="flex-grow: 1; font-family: 'Atkinson Hyperlegible Mono', ui-monospace, monospace">category</span>
+<span style="font-size: 12px; color: #55606E">TEXT</span>
+</li>
+<li style="display: flex; align-items: center; gap: 8px; height: 28px">
+<span style="flex-grow: 1; font-family: 'Atkinson Hyperlegible Mono', ui-monospace, monospace">unit_price</span>
+<span style="font-size: 12px; color: #55606E">REAL</span>
+</li>
+<li style="display: flex; align-items: center; gap: 8px; height: 28px">
+<span style="flex-grow: 1; font-family: 'Atkinson Hyperlegible Mono', ui-monospace, monospace">unit_cost</span>
+<span style="font-size: 12px; color: #55606E">REAL</span>
+</li>
+</ul>
+</li>
+<li>
+<button type="button" aria-expanded="false" style="display: flex; align-items: center; gap: 6px; width: 100%; height: 32px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: #14213D; font: inherit; text-align: left; cursor: pointer">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" style="flex: none; fill: none; stroke: #55606E; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round"><path d="m9 18 6-6-6-6"></path></svg>
+<span style="flex-grow: 1; font-family: 'Atkinson Hyperlegible Mono', ui-monospace, monospace">stores</span>
+<span style="font-size: 12px; color: #55606E; font-variant-numeric: tabular-nums">5</span>
+</button>
+</li>
+</ul>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="padding: 0 8px; font-size: 12px; color: #55606E">Views</div>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column">
+<li>
+<button type="button" aria-expanded="false" style="display: flex; align-items: center; gap: 6px; width: 100%; height: 32px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: #14213D; font: inherit; text-align: left; cursor: pointer">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" style="flex: none; fill: none; stroke: #55606E; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round"><path d="m9 18 6-6-6-6"></path></svg>
+<span style="flex-grow: 1; font-family: 'Atkinson Hyperlegible Mono', ui-monospace, monospace">v_sales</span>
+<span style="font-size: 12px; color: #55606E; font-variant-numeric: tabular-nums">906</span>
+</button>
+</li>
+</ul>
+</div>
+</div>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; background: #FCFDFC">
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 16px; border-bottom: 1px solid #D5DCDD">
+<button type="button" style="display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border: 0; border-radius: 6px; background: #2647C8; color: #FFFFFF; font: inherit; font-weight: 600; cursor: pointer">
+<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" style="flex: none; fill: currentColor"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+<span>Run</span>
+<span style="font-size: 12px; font-weight: 400; color: #DCE4FB">Ctrl Enter</span>
+</button>
+<div style="display: flex; align-items: center; gap: 4px; margin-left: auto">
+<button type="button" aria-label="Smaller text" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 1px solid #7C8891; border-radius: 6px; background: #FCFDFC; color: #14213D; font: inherit; font-size: 12px; cursor: pointer">A−</button>
+<button type="button" aria-label="Larger text" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 1px solid #7C8891; border-radius: 6px; background: #FCFDFC; color: #14213D; font: inherit; font-size: 16px; cursor: pointer">A+</button>
+</div>
+</div>
+
+<section aria-label="SQL editor" style="display: flex; padding: 12px 0; overflow-x: auto; font-family: 'Atkinson Hyperlegible Mono', ui-monospace, monospace; font-size: 14px; line-height: 1.6">
+<div aria-hidden="true" style="flex: none; display: flex; flex-direction: column; width: 48px; box-sizing: border-box; padding-right: 12px; text-align: right; color: #55606E">
+<span>1</span>
+<span>2</span>
+<span>3</span>
+<span>4</span>
+<span>5</span>
+<span>6</span>
+<span>7</span>
+<span>8</span>
+<span>9</span>
+<span>10</span>
+<span>11</span>
+<span>12</span>
+<span>13</span>
+</div>
+<div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; padding-right: 16px">
+<div style="white-space: pre; color: #5F6B78; font-style: italic">-- Revenue share by category</div>
+<div style="white-space: pre"><span style="color: #2647C8; font-weight: 600">WITH</span> category_revenue <span style="color: #2647C8; font-weight: 600">AS</span> (</div>
+<div style="white-space: pre; padding-left: 2ch"><span style="color: #2647C8; font-weight: 600">SELECT</span> p.category,</div>
+<div style="white-space: pre; padding-left: 9ch"><span style="color: #6D3FC0">SUM</span>(oi.quantity * p.unit_price * (<span style="color: #9A3412">1</span> - oi.discount)) <span style="color: #2647C8; font-weight: 600">AS</span> revenue</div>
+<div style="white-space: pre; padding-left: 2ch"><span style="color: #2647C8; font-weight: 600">FROM</span> orders o</div>
+<div style="white-space: pre; padding-left: 2ch"><span style="color: #2647C8; font-weight: 600">JOIN</span> order_items oi <span style="color: #2647C8; font-weight: 600">ON</span> o.order_id = oi.order_id</div>
+<div style="white-space: pre; padding-left: 2ch"><span style="color: #2647C8; font-weight: 600">JOIN</span> products p <span style="color: #2647C8; font-weight: 600">ON</span> oi.product_id = p.product_id</div>
+<div style="white-space: pre; padding-left: 2ch"><span style="color: #2647C8; font-weight: 600">GROUP BY</span> p.category</div>
+<div style="white-space: pre">)</div>
+<div style="white-space: pre"><span style="color: #2647C8; font-weight: 600">SELECT</span> category, <span style="color: #6D3FC0">ROUND</span>(revenue, <span style="color: #9A3412">2</span>) <span style="color: #2647C8; font-weight: 600">AS</span> revenue,</div>
+<div style="white-space: pre; padding-left: 7ch"><span style="color: #6D3FC0">ROUND</span>(<span style="color: #9A3412">100.0</span> * revenue / <span style="color: #6D3FC0">SUM</span>(revenue) <span style="color: #2647C8; font-weight: 600">OVER</span> (), <span style="color: #9A3412">1</span>) <span style="color: #2647C8; font-weight: 600">AS</span> contribution_pct</div>
+<div style="white-space: pre"><span style="color: #2647C8; font-weight: 600">FROM</span> category_revenue</div>
+<div style="white-space: pre"><span style="color: #2647C8; font-weight: 600">ORDER BY</span> revenue <span style="color: #2647C8; font-weight: 600">DESC</span>;</div>
+</div>
+</section>
+
+<div aria-hidden="true" style="display: flex; align-items: center; justify-content: center; height: 8px; background: #EEF1F0; border-top: 1px solid #D5DCDD; border-bottom: 1px solid #D5DCDD">
+<div style="width: 32px; height: 3px; border-radius: 2px; background: #7C8891"></div>
+</div>
+
+<section aria-label="Result" style="flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: 44px; box-sizing: border-box; padding: 6px 16px 6px 24px">
+<span style="color: #55606E">5 rows in 3 ms</span>
+<button type="button" style="display: flex; align-items: center; gap: 6px; height: 32px; margin-left: auto; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: #14213D; font: inherit; cursor: pointer">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" style="flex: none; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m7 10 5 5 5-5"></path><path d="M12 15V3"></path></svg>
+<span>Download CSV</span>
+</button>
+</div>
+<div style="padding: 4px 24px 24px; overflow-x: auto">
+<table style="border-collapse: collapse; border-top: 2px solid #14213D; border-bottom: 2px solid #14213D; font-family: 'Atkinson Hyperlegible Mono', ui-monospace, monospace; font-size: 14px; line-height: 1.6; font-variant-numeric: tabular-nums">
+<thead>
+<tr>
+<th scope="col" style="padding: 8px 40px 8px 4px; border-bottom: 1px solid #14213D; text-align: left; font-weight: 600">category</th>
+<th scope="col" style="padding: 8px 4px 8px 40px; border-bottom: 1px solid #14213D; text-align: right; font-weight: 600">revenue</th>
+<th scope="col" style="padding: 8px 4px 8px 40px; border-bottom: 1px solid #14213D; text-align: right; font-weight: 600">contribution_pct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding: 6px 40px 6px 4px; border-bottom: 1px solid #D5DCDD">Electronics</td>
+<td style="padding: 6px 4px 6px 40px; border-bottom: 1px solid #D5DCDD; text-align: right">39253.44</td>
+<td style="padding: 6px 4px 6px 40px; border-bottom: 1px solid #D5DCDD; text-align: right">57.5</td>
+</tr>
+<tr>
+<td style="padding: 6px 40px 6px 4px; border-bottom: 1px solid #D5DCDD">Home &amp; Kitchen</td>
+<td style="padding: 6px 4px 6px 40px; border-bottom: 1px solid #D5DCDD; text-align: right">12889.22</td>
+<td style="padding: 6px 4px 6px 40px; border-bottom: 1px solid #D5DCDD; text-align: right">18.9</td>
+</tr>
+<tr>
+<td style="padding: 6px 40px 6px 4px; border-bottom: 1px solid #D5DCDD">Clothing</td>
+<td style="padding: 6px 4px 6px 40px; border-bottom: 1px solid #D5DCDD; text-align: right">10970.02</td>
+<td style="padding: 6px 4px 6px 40px; border-bottom: 1px solid #D5DCDD; text-align: right">16.1</td>
+</tr>
+<tr>
+<td style="padding: 6px 40px 6px 4px; border-bottom: 1px solid #D5DCDD">Food &amp; Drink</td>
+<td style="padding: 6px 4px 6px 40px; border-bottom: 1px solid #D5DCDD; text-align: right">2944.17</td>
+<td style="padding: 6px 4px 6px 40px; border-bottom: 1px solid #D5DCDD; text-align: right">4.3</td>
+</tr>
+<tr>
+<td style="padding: 6px 40px 6px 4px">Stationery</td>
+<td style="padding: 6px 4px 6px 40px; text-align: right">2266.5</td>
+<td style="padding: 6px 4px 6px 40px; text-align: right">3.3</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+
+</main>
+</div>
+
+<footer style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; min-height: 28px; box-sizing: border-box; padding: 4px 16px; border-top: 1px solid #D5DCDD; font-size: 12px; color: #55606E">
+<span>Northlight Retail</span>
+<span>5 rows in 3 ms</span>
+<span style="margin-left: auto">SQLite 3.54.1</span>
+<a href="#about" style="color: #55606E">Made by Abdou Sadou, based on SQLime</a>
+</footer>
+
+</div>
+</body>
+</html>

@@ -3,6 +3,8 @@ const path = require("node:path");
 const { test, expect } = require("./helpers");
 
 const ROOT = path.resolve(__dirname, "..");
+// the credit in the footer of every page, and the upstream credit the About page also gives in its text
+const FOOTER_CREDIT = "Made by Abdou Sadou, based on SQLime by Anton Zhiyanov";
 const CREDIT = "Based on SQLime by Anton Zhiyanov";
 const SAMPLE = path.join(__dirname, "fixtures", "sample.db");
 
@@ -116,16 +118,17 @@ test("brand: renaming a database keeps the app name in the title", async ({ page
 
 test("brand: the credit is on index and About", async ({ page, app }) => {
     await app.open();
-    await expect(page.locator("footer")).toContainText(CREDIT);
+    await expect(page.locator("footer")).toContainText(FOOTER_CREDIT);
     await page.goto("about.html");
-    await expect(page.locator("body > footer")).toContainText(CREDIT);
+    await expect(page.locator("body > footer")).toContainText(FOOTER_CREDIT);
     await expect(page.locator("main")).toContainText(CREDIT);
     await page.goto("verify.html");
-    await expect(page.locator("body > footer")).toContainText(CREDIT);
+    await expect(page.locator("body > footer")).toContainText(FOOTER_CREDIT);
 });
 
 test("brand: 'sqlime' appears in visible text only inside the credit", async ({ page, app }) => {
-    const visible = async () => (await page.locator("body").innerText()).split(CREDIT).join("");
+    const visible = async () =>
+        (await page.locator("body").innerText()).split(FOOTER_CREDIT).join("").split(CREDIT).join("");
 
     await app.open(); // welcome message state
     expect(await visible()).not.toMatch(/sqlime/i);
@@ -193,7 +196,7 @@ test("brand: the footer is visible, inside the screen, and links to About at pho
     await app.open();
     const footer = page.locator("footer");
     await expect(footer).toBeVisible();
-    await expect(footer).toContainText(CREDIT);
+    await expect(footer).toContainText(FOOTER_CREDIT);
     await footer.scrollIntoViewIfNeeded();
     await expect(footer).toBeInViewport();
     const box = await footer.boundingBox();

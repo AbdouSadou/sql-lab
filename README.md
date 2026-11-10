@@ -92,7 +92,7 @@ Both are in `js/lab/config.js`:
 
 ## Run it locally
 
-Serve the repository root with any static file server and open the printed address: from the repository root, `python3 -m http.server` (then http://localhost:8000/) or `make serve` (`make serve PORT=9000` for another port). Opening `index.html` from the disk does not work: the page loads ES modules and fetches the datasets. There is nothing to build; edit a file and reload.
+Serve the repository root with any static file server: from the repository root, `python3 -m http.server 8000 --bind 127.0.0.1` or `make serve` (`make serve PORT=9000` for another port). Then open http://localhost:8000/ (or your port). Do not open the address that `make serve` and a plain `python3 -m http.server` print, such as `http://0.0.0.0:8000/`: browsers do not treat it as a secure address, so the evidence export and `verify.html` cannot compute their checksum there. Opening `index.html` from the disk does not work either: the page loads ES modules and fetches the datasets. There is nothing to build; edit a file and reload.
 
 `CODEMAP.md` is a map of the code: what each module does, how a database opens and a query runs, what is stored where, and how to extend it. Read it before changing code.
 

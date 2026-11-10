@@ -45,7 +45,7 @@ test.describe("the page", () => {
         await expect(page).toHaveTitle("Check evidence - SQL Lab");
         await expect(page.locator("header [data-app-name]")).toHaveText("SQL Lab");
         await expect(page.locator("footer")).toContainText("SQL Lab");
-        await expect(page.locator("footer")).toContainText("Based on SQLime by Anton Zhiyanov");
+        await expect(page.locator("footer")).toContainText("Made by Abdou Sadou, based on SQLime by Anton Zhiyanov");
         await expect(page.locator("header img")).toHaveJSProperty("complete", true);
         expect(await page.locator("header img").evaluate((img) => img.naturalWidth)).toBeGreaterThan(0);
         // the stylesheets applied
