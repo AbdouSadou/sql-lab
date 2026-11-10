@@ -168,6 +168,53 @@ async function withSampleDataset(target) {
     await routeSampleDataset(target);
 }
 
+// ---- exercise sets (M4) -----------------------------------------------------------------
+//
+// exercises/<id>.json is served by the test server like any file. A test routes its own set
+// (or a listing of the folder) with routeSet / routeListing; `target` is a page or a context.
+
+const setUrl = (id) => new RegExp(`/exercises/${id}\\.json(\\?.*)?$`);
+const LISTING_URL = /\/exercises\/(index\.html)?(\?.*)?$/;
+
+// the set the site ships
+const realSet = (id = "retail-basics") =>
+    JSON.parse(fs.readFileSync(path.join(__dirname, "..", "exercises", `${id}.json`), "utf8"));
+
+// routeSet answers the request for exercises/<id>.json with `body` (an object, or a string
+// for invalid JSON) and the given status, or aborts it with status "abort".
+async function routeSet(target, id, body, { status = 200 } = {}) {
+    await target.route(setUrl(id), (route) => {
+        if (status === "abort") return route.abort();
+        return route.fulfill({
+            status,
+            contentType: "application/json",
+            body: typeof body === "string" ? body : JSON.stringify(body),
+        });
+    });
+}
+
+// listingHtml is a folder listing page with one link per href, the way python3 -m http.server
+// writes it (the hrefs are escaped for the attribute, the browser decodes them again).
+const listingHtml = (hrefs, extra = "") =>
+    `<!DOCTYPE HTML><html><head><title>Directory listing</title></head><body><h1>Listing</h1><ul>` +
+    hrefs
+        .map((h) => `<li><a href="${h.replaceAll("&", "&amp;").replaceAll('"', "&quot;")}">link</a></li>`)
+        .join("") +
+    `</ul>${extra}</body></html>`;
+
+// routeListing answers the folder URL exercises/ with `html`, a status, or an abort.
+async function routeListing(target, html, { status = 200 } = {}) {
+    await target.route(LISTING_URL, (route) => {
+        if (status === "abort") return route.abort();
+        return route.fulfill({ status, contentType: "text/html", body: html });
+    });
+}
+
+// the model query of an exercise of the shipped set (tests type it as the "right answer"; the
+// app must never show it)
+const modelQuery = (exerciseId, setId = "retail-basics") =>
+    realSet(setId).exercises.find((e) => e.id === exerciseId).model_query;
+
 class App {
     constructor(page) {
         this.page = page;
@@ -281,6 +328,98 @@ class App {
         }
         await expect(this.shareField).toHaveCount(1);
         return this.shareField.inputValue();
+    }
+
+    // ---- exercise mode on screen (js/lab/exercise-panel.js). Ids are the stable ones of the panel.
+    get exercisePanel() {
+        return this.page.locator("#exercise-panel");
+    }
+
+    get setPicker() {
+        return this.page.locator("#exercise-set-picker");
+    }
+
+    get checkButton() {
+        return this.page.locator("#exercise-check");
+    }
+
+    get feedback() {
+        return this.page.locator("#exercise-feedback");
+    }
+
+    get progress() {
+        return this.page.locator("#exercise-progress");
+    }
+
+    get prompt() {
+        return this.page.locator("#exercise-prompt");
+    }
+
+    get hintButton() {
+        return this.page.locator("#exercise-hint-button");
+    }
+
+    get hints() {
+        return this.page.locator("#exercise-hints");
+    }
+
+    // exerciseButton(n) is the n-th button (1-based) of the exercise list.
+    exerciseButton(n) {
+        return this.page.locator("#exercise-list > li > button").nth(n - 1);
+    }
+
+    // openSet opens an exercise set by its address (?set=<id>[&ex=<id>]) and waits for the panel
+    // and the database.
+    async openSet(id = "retail-basics", { ex = null } = {}) {
+        await this.page.goto(`./?set=${id}${ex ? `&ex=${ex}` : ""}`);
+        await expect(this.exercisePanel).toBeVisible();
+        await expect(this.page.locator("#exercise-list button").first()).toBeVisible();
+        await this.waitReady();
+    }
+
+    // ---- the checker (js/lab/checker.js), driven in the page.
+    //
+    // check(exerciseId, sql, {set}) runs one check with the page's own checker (made on first
+    // use, so its model cache lasts as long as the page) and returns the outcome. `set` is a
+    // set object (default: the shipped retail-basics, loaded with loadSet); exerciseId picks
+    // an exercise of it, or pass {exercise} for one that is not in the set.
+    check(exerciseId, sql, { set = null, exercise = null } = {}) {
+        return this.page.evaluate(
+            async ({ exerciseId, sql, set, exercise }) => {
+                if (!window.__checker) {
+                    const { createChecker } = await import("./js/lab/checker.js");
+                    window.__checker = createChecker();
+                }
+                if (!set) {
+                    const { loadSet } = await import("./js/lab/exercises.js");
+                    set = (await loadSet("retail-basics")).set;
+                }
+                const picked = exercise ?? set.exercises.find((e) => e.id === exerciseId);
+                return window.__checker.check(set, picked, sql);
+            },
+            { exerciseId, sql, set, exercise }
+        );
+    }
+
+    // trackConnections wraps manager.init so that every connection opened from now on is
+    // recorded; connections() lists them as [{name, open}] in the order they were opened.
+    async trackConnections() {
+        await this.page.evaluate(async () => {
+            const manager = (await import("./js/sqlite/manager.js")).default;
+            window.__opened = [];
+            const original = manager.init;
+            manager.init = async function (name, path) {
+                const database = await original.call(this, name, path);
+                window.__opened.push({ name, database });
+                return database;
+            };
+        });
+    }
+
+    connections() {
+        return this.page.evaluate(() =>
+            window.__opened.map(({ name, database }) => ({ name, open: database ? database.db.isOpen() : null }))
+        );
     }
 
     // ---- the schema sidebar (js/lab/schema.js). Names are the accessible names of its buttons.
@@ -424,4 +563,9 @@ module.exports = {
     routeManifest,
     routeSampleDataset,
     withSampleDataset,
+    realSet,
+    modelQuery,
+    routeSet,
+    routeListing,
+    listingHtml,
 };

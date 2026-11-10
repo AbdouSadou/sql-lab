@@ -1,0 +1,136 @@
+{
+  "id": "retail-basics",
+  "title": "Northlight Retail — SQL basics",
+  "dataset": "northlight",
+  "exercises": [
+    {
+      "id": "e01",
+      "title": "Electronics by price",
+      "prompt": "List the name and unit price of every product in the Electronics category, most expensive first.",
+      "hints": [
+        "Filter with WHERE.",
+        "Sort with ORDER BY ... DESC."
+      ],
+      "model_query": "SELECT product_name, unit_price FROM products WHERE category = 'Electronics' ORDER BY unit_price DESC;",
+      "order_matters": true,
+      "check_column_names": false
+    },
+    {
+      "id": "e02",
+      "title": "Newest customers",
+      "prompt": "Using the customers table, list the first name, last name and signup date of the 5 customers who signed up most recently, newest first.",
+      "hints": [
+        "Sort the customers by signup_date. Dates are stored as text like 2026-05-31, so they sort correctly.",
+        "ORDER BY signup_date DESC puts the newest dates at the top.",
+        "LIMIT keeps only the first rows of a sorted result. It goes at the very end of the query."
+      ],
+      "model_query": "SELECT first_name, last_name, signup_date FROM customers ORDER BY signup_date DESC LIMIT 5;",
+      "order_matters": true,
+      "check_column_names": false
+    },
+    {
+      "id": "e03",
+      "title": "Products per category",
+      "prompt": "Using the products table, show one row for each product category with the number of products in it and their average unit price, rounded to 2 decimal places. Use the exact column names category, product_count and avg_price.",
+      "hints": [
+        "Group the products by category with GROUP BY.",
+        "COUNT(*) counts the rows in each group and AVG(unit_price) averages their prices. ROUND(x, 2) rounds x to 2 decimal places.",
+        "Rename a column with AS, for example COUNT(*) AS product_count. This exercise checks your column names."
+      ],
+      "model_query": "SELECT category, COUNT(*) AS product_count, ROUND(AVG(unit_price), 2) AS avg_price FROM products GROUP BY category;",
+      "order_matters": false,
+      "check_column_names": true
+    },
+    {
+      "id": "e04",
+      "title": "Our busiest customers",
+      "prompt": "Using the orders table, find every customer who has placed at least 12 orders. Show two columns: customer_id, then the number of orders that customer has placed.",
+      "hints": [
+        "Count the orders for each customer with GROUP BY customer_id.",
+        "WHERE filters individual rows before they are grouped, so it cannot test a count. To filter on a count, use HAVING.",
+        "HAVING goes after GROUP BY and can use an aggregate, for example HAVING COUNT(*) compared with 12."
+      ],
+      "model_query": "SELECT customer_id, COUNT(*) AS order_count FROM orders GROUP BY customer_id HAVING COUNT(*) >= 12;",
+      "order_matters": false,
+      "check_column_names": false
+    },
+    {
+      "id": "e05",
+      "title": "Online sales by category",
+      "prompt": "Using the orders, order_items and products tables, work out the revenue for each product category from orders whose payment_method is 'Online'. The revenue of a line is quantity * unit_price * (1 - discount). Add the lines up for each category, then round that total to 2 decimal places. Show two columns: category, then revenue. Put the category with the highest revenue first.",
+      "hints": [
+        "Revenue needs the quantity and discount from order_items and the price and category from products. payment_method lives in orders.",
+        "Join orders to order_items on order_id, then order_items to products on product_id. Filter with WHERE before you GROUP BY category.",
+        "Do the multiplication inside SUM(...), and put ROUND(..., 2) around the whole SUM. Sort by the revenue column with DESC."
+      ],
+      "model_query": "SELECT p.category, ROUND(SUM(oi.quantity * p.unit_price * (1 - oi.discount)), 2) AS revenue FROM orders o JOIN order_items oi ON oi.order_id = o.order_id JOIN products p ON p.product_id = oi.product_id WHERE o.payment_method = 'Online' GROUP BY p.category ORDER BY revenue DESC;",
+      "order_matters": true,
+      "check_column_names": false
+    },
+    {
+      "id": "e06",
+      "title": "Customers with no orders",
+      "prompt": "Find every customer who has never placed an order. Show customer_id, first_name and last_name.",
+      "hints": [
+        "You need customers on one side and orders on the other, and the customers you want are the ones with no match in orders.",
+        "An INNER JOIN drops customers with no orders. A LEFT JOIN from customers keeps them, and fills the orders columns with NULL.",
+        "After the LEFT JOIN, keep only the rows where a column from orders IS NULL."
+      ],
+      "model_query": "SELECT c.customer_id, c.first_name, c.last_name FROM customers c LEFT JOIN orders o ON o.customer_id = c.customer_id WHERE o.order_id IS NULL;",
+      "order_matters": false,
+      "check_column_names": false
+    },
+    {
+      "id": "e07",
+      "title": "Products that never sold",
+      "prompt": "Find every product that has never been sold, meaning it does not appear on any line of order_items. Show product_id and product_name.",
+      "hints": [
+        "Compare products with order_items. You want the products that have no matching line.",
+        "LEFT JOIN order_items from products, so every product is kept, with NULLs where there is no match.",
+        "Keep only the rows where a column from order_items IS NULL."
+      ],
+      "model_query": "SELECT p.product_id, p.product_name FROM products p LEFT JOIN order_items oi ON oi.product_id = p.product_id WHERE oi.order_id IS NULL;",
+      "order_matters": false,
+      "check_column_names": false
+    },
+    {
+      "id": "e08",
+      "title": "Monthly sales",
+      "prompt": "Using the v_sales view, show one row for each month that has sales. Use three columns: month (the text YYYY-MM, for example 2026-03), order_count (the number of different orders in that month) and revenue (the sum of line_revenue for that month, rounded to 2 decimal places). Put the earliest month first.",
+      "hints": [
+        "order_date is text such as 2026-03-15. strftime('%Y-%m', order_date) turns it into a month label such as 2026-03.",
+        "GROUP BY that month label. An order can have several lines in v_sales, so COUNT(*) counts lines. COUNT(DISTINCT ...) counts different orders.",
+        "Add SUM(line_revenue) inside ROUND(..., 2), name the three columns with AS, and finish with ORDER BY on the month. GROUP BY does not promise any order, so the ORDER BY is what guarantees the earliest month comes first."
+      ],
+      "model_query": "SELECT strftime('%Y-%m', order_date) AS month, COUNT(DISTINCT order_id) AS order_count, ROUND(SUM(line_revenue), 2) AS revenue FROM v_sales GROUP BY month ORDER BY month;",
+      "order_matters": true,
+      "check_column_names": true
+    },
+    {
+      "id": "e09",
+      "title": "Best sellers in each category",
+      "prompt": "Using the v_sales view, work out the total revenue of each product (the sum of line_revenue, rounded to 2 decimal places), then rank the products within their own category, where 1 is the highest revenue. Show four columns in this order: category, product_name, revenue, category_rank.",
+      "hints": [
+        "First write a query that gives one row per product with its total revenue. Put it in a CTE, a WITH name AS (...) block placed before the main SELECT.",
+        "Then SELECT from the CTE and add a window function: RANK() OVER (...) gives each row a rank without collapsing the rows.",
+        "Inside OVER you need two parts: one that restarts the ranking for each category, and one that orders the products by revenue so that the highest gets rank 1."
+      ],
+      "model_query": "WITH product_revenue AS (SELECT category, product_name, ROUND(SUM(line_revenue), 2) AS revenue FROM v_sales GROUP BY category, product_name) SELECT category, product_name, revenue, RANK() OVER (PARTITION BY category ORDER BY revenue DESC) AS category_rank FROM product_revenue;",
+      "order_matters": false,
+      "check_column_names": false
+    },
+    {
+      "id": "e10",
+      "title": "Customer tiers",
+      "prompt": "Put every customer into a tier by the number of orders they have placed, counting customers with no orders too: 'No orders' for 0, 'Occasional' for 1 to 5, 'Regular' for 6 to 9 and 'Frequent' for 10 or more. Show one row for each tier with two columns: the tier name, then the number of customers in that tier. Use the tier names exactly as written here.",
+      "hints": [
+        "First get one row per customer with their number of orders. Customers with no orders must stay in, so start from customers and use a LEFT JOIN to orders.",
+        "After a LEFT JOIN, COUNT(*) counts an empty match as 1. COUNT(o.order_id) counts only real orders, so it gives 0. Put this step in a CTE or a subquery.",
+        "Turn each count into a tier name with CASE WHEN ... THEN '...' ... END, then GROUP BY the tier and count the customers in each."
+      ],
+      "model_query": "WITH customer_orders AS (SELECT c.customer_id, COUNT(o.order_id) AS n FROM customers c LEFT JOIN orders o ON o.customer_id = c.customer_id GROUP BY c.customer_id) SELECT CASE WHEN n = 0 THEN 'No orders' WHEN n <= 5 THEN 'Occasional' WHEN n <= 9 THEN 'Regular' ELSE 'Frequent' END AS tier, COUNT(*) AS customer_count FROM customer_orders GROUP BY tier;",
+      "order_matters": false,
+      "check_column_names": false
+    }
+  ]
+}

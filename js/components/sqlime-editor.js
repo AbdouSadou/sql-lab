@@ -69,9 +69,27 @@ class SqlimeEditor extends HTMLElement {
         this.innerText = newValue;
     }
 
+    // query is the selected text if the selection lies inside the editor, else all of it.
+    // The selection is page-wide, so text selected elsewhere (an exercise prompt, a result
+    // cell) must not be taken for SQL.
     get query() {
-        const selectedQuery = window.getSelection().toString().trim();
+        const selectedQuery = this.selectedText().trim();
         return selectedQuery || this.innerText;
+    }
+
+    // selectedText returns the page selection's text only if all of it is inside the editor.
+    selectedText() {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+            return "";
+        }
+        for (let i = 0; i < selection.rangeCount; i++) {
+            const range = selection.getRangeAt(i);
+            if (!this.contains(range.startContainer) || !this.contains(range.endContainer)) {
+                return "";
+            }
+        }
+        return selection.toString();
     }
 }
 

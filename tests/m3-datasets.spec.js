@@ -885,8 +885,8 @@ test("the picker works from the keyboard: Tab to it, arrow keys change the datas
     await expect(app.picker).toBeFocused();
 
     // and on to the editor with Tab, and Run
-    // (open file, open url, export and the help link come first)
-    for (let i = 0; i < 5; i++) {
+    // (the exercise picker, open file, open url, export and the help link come first)
+    for (let i = 0; i < 6; i++) {
         await page.keyboard.press("Tab");
     }
     await expect(app.editor).toBeFocused();

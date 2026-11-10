@@ -38,6 +38,26 @@ jobs:
                       --exclude='/package-lock.json' \
                       --exclude='/playwright.config.js' \
                       ./ .site-stage/
+            # GitHub Pages cannot list a folder, and the app finds the exercise sets by
+            # reading the folder page (listSets in js/lab/exercises.js; python3 -m http.server
+            # writes such a page by itself). So write one here, at deploy time: adding a set
+            # stays "commit exercises/<id>.json and nothing else". nullglob makes an empty
+            # folder give a page with no links instead of a link to the pattern itself.
+            # tests/static-server.mjs answers exercises/ with the same output.
+            - name: List exercise sets
+              run: |
+                  export LC_ALL=C
+                  shopt -s nullglob
+                  mkdir -p .site-stage/exercises
+                  cd .site-stage/exercises
+                  {
+                      printf '<!doctype html>\n<meta charset="utf-8">\n<title>Exercise sets</title>\n'
+                      for file in *.json; do
+                          [ -f "$file" ] || continue
+                          name=$(printf '%s' "$file" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g')
+                          printf '<a href="%s">%s</a>\n' "$name" "$name"
+                      done
+                  } > index.html
             # upload-pages-artifact drops dotfiles by default
             # (it tars with --exclude='.[^/]*'), which would drop .nojekyll.
             # include-hidden-files keeps it; .git and .github stay excluded

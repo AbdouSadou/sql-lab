@@ -19,17 +19,26 @@ import {
     OPEN_URL_DEFAULT,
     OPEN_URL_PROMPT,
     RESTORED_MESSAGE,
+    SET_PARAM,
     SHARED_MESSAGE,
     datasetSwitchFailedMessage,
     datasetUnavailableMessage,
 } from "./lab/config.js";
 import { createCopyLinkAction } from "./lab/copy-link.js";
-import { clearPristine, datasetFileName, fetchDataset, keepPristine } from "./lab/datasets.js";
+import {
+    clearPristine,
+    datasetFileName,
+    fetchDataset,
+    keepPristine,
+} from "./lab/datasets.js";
+import { mountExercises } from "./lab/exercise-panel.js";
 import { createExportAction } from "./lab/export.js";
 import { escapeHtml } from "./lab/html.js";
 import { resolveRoute } from "./lab/router.js";
+import { runSql } from "./lab/runner.js";
 import { mountResultScroll } from "./lab/result-scroll.js";
 import { mountSchema } from "./lab/schema.js";
+import { createSetActions } from "./lab/set-actions.js";
 import { setShareContext } from "./lab/share.js";
 import { tableContentSql, tableInfoSql } from "./lab/sql.js";
 import { mountToolbar } from "./lab/toolbar-extras.js";
@@ -96,6 +105,7 @@ function endLoad(ticket, opened) {
     loading = false;
     if (!opened) {
         picker.sync();
+        lab.syncPicker();
     }
 }
 
@@ -114,6 +124,30 @@ const picker = mountToolbar(ui.toolbar, {
     onExport: () => actions.exportDatabase(),
 });
 
+// Exercise mode: the set picker, the panel and the Check button (js/lab/exercise-panel.js).
+// It follows the page through the events below; the callbacks are how it asks for a load.
+const lab = mountExercises({
+    toolbar: ui.toolbar,
+    ui: ui,
+    execute: (sql) => execute(sql),
+    isLoading: () => loading,
+    openSet: (set) => setActions.openSet(set),
+    closeSet: () => setActions.closeSet(),
+});
+
+// What choosing a set (or "None") does is decided in js/lab/set-actions.js; these are the
+// primitives it needs from the page.
+const setActions = createSetActions({
+    lab: () => lab,
+    hasDatabase: () => Boolean(database),
+    isLoading: () => loading,
+    cancelLoad: () => endLoad(beginLoad(), false),
+    loadDataset: startFromDataset,
+    pushUrl: (search) => history.pushState(database.name, null, search),
+    showError: (message) => ui.status.error(escapeHtml(message)),
+    showInvite: () => ui.status.info(MESSAGES.invite),
+});
+
 // The schema sidebar (js/lab/schema.js) follows the page through the events below.
 mountSchema({ aside: document.querySelector("#schema"), editor: ui.editor });
 
@@ -121,8 +155,10 @@ mountSchema({ aside: document.querySelector("#schema"), editor: ui.editor });
 mountResultScroll({ result: ui.result, note: document.querySelector("#result-scroll-note") });
 
 // announce tells the rest of the page (and the lab modules) what just happened:
-//   lab:database-loaded  detail {database, dataset}: a database is open; dataset is the
-//                        manifest entry, or null for an upload, a URL or the empty database
+//   lab:database-loaded  detail {database, dataset, exercise}: a database is open; dataset is
+//                        the manifest entry, or null for an upload, a URL or the empty
+//                        database; exercise is {set, exerciseId} when an exercise set was
+//                        opened with it, else null (the exercise panel closes)
 //   lab:run-finished     detail {database, sql, ok, rows, error, preview}: after every run,
 //                        failed ones too (statements before the error stay applied);
 //                        preview is true for the table preview the app runs on its own
@@ -146,7 +182,7 @@ async function startFromCurrentUrl() {
     if (started === null) {
         return;
     }
-    showStarted({ shared: started.shared, notice: started.notice });
+    showStarted({ shared: started.shared, notice: started.notice, exercise: started.exercise });
     if (started.errors.length) {
         ui.status.error(escapeHtml(started.errors.join(" ")));
         enableCommandBar();
@@ -187,12 +223,15 @@ async function openCurrentUrl(ticket) {
         }
     }
 
-    let success = await start(name, path, { sql: route.sql, dataset, pristine, ticket });
+    // an exercise set opens only over its own dataset
+    let exercise = dataset ? route.exercise : null;
+    let success = await start(name, path, { sql: route.sql, dataset, pristine, ticket, exercise });
     if (!success && dataset && !database && ticket === latestLoad) {
         // The file is a SQLite file by its header but the engine cannot open it, and no
         // database is open yet: start on an empty one, as for a dataset that cannot be fetched.
         problem = datasetUnavailableMessage(dataset.name);
         dataset = null;
+        exercise = null;
         const empty = new DatabasePath("");
         success = await start(empty.extractName(), empty, { sql: route.sql, ticket });
     }
@@ -202,6 +241,7 @@ async function openCurrentUrl(ticket) {
     return {
         shared: route.sql !== null,
         notice: route.notice,
+        exercise,
         errors: [route.damaged ? BAD_LINK_MESSAGE : null, problem].filter(Boolean),
     };
 }
@@ -218,7 +258,8 @@ function datasetSource(dataset, buffer) {
 // startFromDataset opens a built-in dataset picked in the toolbar and puts ?db=<id> in the
 // address (no fragment), so a reload keeps the dataset and back/forward step between them.
 // If anything fails the previous database stays open and the picker goes back to it.
-async function startFromDataset(dataset) {
+// exercise ({set, exerciseId}) opens an exercise set with the dataset: ?set=<id> instead.
+async function startFromDataset(dataset, exercise = null) {
     const ticket = beginLoad();
     ui.status.info(MESSAGES.loading);
     let success = false;
@@ -234,6 +275,7 @@ async function startFromDataset(dataset) {
                 pristine: fetched.buffer,
                 ticket,
                 keepFocus: true,
+                exercise,
             });
         } else {
             ui.status.error(escapeHtml(datasetSwitchFailedMessage(dataset.name)));
@@ -244,8 +286,11 @@ async function startFromDataset(dataset) {
     if (!success) {
         return;
     }
-    history.pushState(database.name, null, `?${DATASET_PARAM}=${encodeURIComponent(dataset.id)}`);
-    showStarted({ focus: false });
+    const query = exercise
+        ? `${SET_PARAM}=${encodeURIComponent(exercise.set.id)}`
+        : `${DATASET_PARAM}=${encodeURIComponent(dataset.id)}`;
+    history.pushState(database.name, null, `?${query}`);
+    showStarted({ focus: false, exercise });
 }
 
 // startFromUrl loads existing database
@@ -296,7 +341,7 @@ async function startFromFile(file, contents, fileType) {
 async function start(
     name,
     path,
-    { sql = null, dataset = null, pristine = null, ticket, keepFocus = false } = {}
+    { sql = null, dataset = null, pristine = null, ticket, keepFocus = false, exercise = null } = {}
 ) {
     ui.result.clear();
     ui.status.info(MESSAGES.loading);
@@ -336,7 +381,11 @@ async function start(
     }
     setShareContext({ dataset: dataset ? dataset.id : null });
 
-    database.query = sql ?? (database.query || storage.get(database.name));
+    // in exercise mode the editor holds the link's SQL or the exercise's draft, never the
+    // SQL saved for the dataset
+    database.query = exercise
+        ? lab.editorSql(exercise, sql)
+        : sql ?? (database.query || storage.get(database.name));
 
     document.title = titleFor(database.meaningfulName);
     ui.name.ready(database.name);
@@ -346,7 +395,7 @@ async function start(
         ui.editor.focus();
     }
 
-    announce("lab:database-loaded", { database, dataset });
+    announce("lab:database-loaded", { database, dataset, exercise });
     return true;
 }
 
@@ -392,7 +441,8 @@ function execute(sql, persist = true) {
         ui.status.fadeOut();
         ui.status.info(MESSAGES.executing);
         const started = performance.now();
-        const result = run.execute(sql);
+        // runSql (js/lab/runner.js) is the one way user SQL runs; the exercise checker uses it too
+        const result = runSql(run, sql);
         const elapsed = Math.round(performance.now() - started);
         outcome = { ok: true, rows: result ? result.values.length : 0 };
         showResult(result, elapsed);
@@ -441,9 +491,14 @@ function changeName(name) {
 // with the normal message. focus=false (a pick in the dataset picker) leaves the focus on
 // the picker, so a keyboard user can keep choosing; otherwise the caret ends up at the end
 // of the editor text, after the table preview has replaced that text.
-function showStarted({ shared = false, notice = null, focus = true } = {}) {
+function showStarted({ shared = false, notice = null, focus = true, exercise = null } = {}) {
     const prefix = notice ? `${notice} ` : "";
-    if (database.query) {
+    if (exercise) {
+        // no table preview in exercise mode: the editor holds the link's SQL, a draft or nothing
+        const message = database.query ? (shared ? SHARED_MESSAGE : RESTORED_MESSAGE) : MESSAGES.invite;
+        ui.status.info(escapeHtml(prefix + message));
+        enableCommandBar();
+    } else if (database.query) {
         // SQL restored from storage or from a share link goes in the editor (start()
         // put it there) but is never run: a runaway query saved by an earlier session,
         // or sent in a link, would hang the tab.

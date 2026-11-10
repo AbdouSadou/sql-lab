@@ -10,11 +10,14 @@
 //     /img/favicon.ico really fails on the subpath run;
 //   - no COOP/COEP (or any other special) headers;
 //   - no compression, so response sizes on the wire are the file sizes;
-//   - files that are not part of the deployed site (see HIDDEN) answer 404.
+//   - files that are not part of the deployed site (see HIDDEN) answer 404;
+//   - exercises/ answers with the folder page the Pages workflow writes at deploy time (the
+//     "List exercise sets" step of .github/workflows/pages.yml), because Pages cannot list a
+//     folder and the app finds the exercise sets by reading that page.
 
 import { createServer } from "node:http";
 import { createReadStream, realpathSync } from "node:fs";
-import { stat } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -33,6 +36,31 @@ export const HIDDEN = new Set([
     "package-lock.json",
     "playwright.config.js",
 ]);
+
+// The folder page for exercises/: one link per .json file, in code-unit order. The workflow step
+// writes exactly this text (tests/m4-listing.spec.js runs the step and compares).
+export function exercisesIndexHtml(names) {
+    const escape = (text) =>
+        text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+    return (
+        '<!doctype html>\n<meta charset="utf-8">\n<title>Exercise sets</title>\n' +
+        names.map((name) => `<a href="${escape(name)}">${escape(name)}</a>\n`).join("")
+    );
+}
+
+async function exercisesListing() {
+    let entries = [];
+    try {
+        entries = await readdir(path.join(ROOT, "exercises"), { withFileTypes: true });
+    } catch {
+        // no folder: the page lists nothing, as the workflow's page does
+    }
+    const names = entries
+        .filter((e) => e.isFile() && e.name.endsWith(".json"))
+        .map((e) => e.name)
+        .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    return exercisesIndexHtml(names);
+}
 
 const MIME = {
     ".html": "text/html; charset=utf-8",
@@ -124,6 +152,19 @@ export function createStaticServer(mountArg) {
         }
         if (!pathname.startsWith(mount)) {
             return reply(res, 404, "not found");
+        }
+        const relative = pathname.slice(mount.length);
+        if (relative === "exercises") {
+            return reply(res, 301, "", { Location: `${mount}exercises/` });
+        }
+        if (relative === "exercises/" || relative === "exercises/index.html") {
+            const body = await exercisesListing();
+            res.writeHead(200, {
+                "Content-Type": MIME[".html"],
+                "Content-Length": Buffer.byteLength(body),
+                "Cache-Control": "no-cache",
+            });
+            return res.end(req.method === "HEAD" ? undefined : body);
         }
         const found = await resolve(mount, pathname);
         if (!found) {

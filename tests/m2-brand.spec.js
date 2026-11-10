@@ -41,7 +41,13 @@ test("brand: the app name is written in js/lab/config.js and nowhere else", () =
                 if (/sql[ _\- ]*lab/i.test(line)) hits.push(`${file}:${i + 1}: ${line.trim()}`);
             });
     }
-    expect(hits.map((h) => h.replace(/:\d+:/, ":"))).toEqual(['js/lab/config.js: export const APP_NAME = "SQL Lab";']);
+    // The one other hit is the localStorage key namespace of the exercise progress. It is a
+    // storage key, not branding, and must NOT follow a rename: changing it would orphan every
+    // student's saved progress.
+    expect(hits.map((h) => h.replace(/:\d+:/, ":"))).toEqual([
+        'js/lab/config.js: export const APP_NAME = "SQL Lab";',
+        'js/lab/config.js: export const PROGRESS_PREFIX = "sqllab.progress.";',
+    ]);
 });
 
 test("brand: the default name shows in the title, header and footer of index and About", async ({ page, app }) => {

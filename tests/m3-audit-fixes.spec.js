@@ -511,11 +511,12 @@ test("the editor shows a visible focus ring and the Escape-then-Tab hint while i
     expect((await page.locator("#commandbar").boundingBox()).y).toBe(before.y);
 });
 
-test("'open file' is a button in the Tab order, right after the picker", async ({ page, app }) => {
+test("'open file' is a button in the Tab order, right after the pickers", async ({ page, app }) => {
     await app.open();
     const openFile = page.getByRole("button", { name: "open file" });
     await expect(openFile).toHaveCount(1);
-    await app.picker.focus();
+    // the exercise set picker sits between the dataset picker and "open file"
+    await page.locator("#exercise-set-picker").focus();
     await page.keyboard.press("Tab");
     await expect(openFile).toBeFocused();
     // and it still works with a file chosen, as before
@@ -534,7 +535,7 @@ for (const [name, key] of [
         const opened = new Promise((resolve) => page.once("filechooser", resolve));
         await app.open();
         const openFile = page.getByRole("button", { name: "open file" });
-        await app.picker.focus();
+        await page.locator("#exercise-set-picker").focus();
         await page.keyboard.press("Tab");
         await expect(openFile).toBeFocused();
         await page.keyboard.press(key);

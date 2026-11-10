@@ -71,3 +71,22 @@
         content: "sqlite 3.54.1";
     }
 }
+
+/* On a phone the editor and the command bar get the same 1rem side gutter as the exercise
+   panel and the result, instead of running edge to edge. */
+@media only screen and (max-width: 39.99rem) {
+    .sqlime-editor {
+        box-sizing: border-box;
+        width: auto;
+        margin: 0 1rem;
+        border: 1px solid var(--sqlime-gray);
+        padding: 0.5rem;
+    }
+    .editor-hint {
+        margin: 0 1rem;
+        padding: 0.25rem 0 0 0;
+    }
+    .sqlime-commandbar {
+        margin: 0 1rem;
+    }
+}

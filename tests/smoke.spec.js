@@ -41,6 +41,9 @@ test("smoke: the engine needs no cross-origin isolation and fetches only its was
         /^vendor\/lz-string\.min\.js$/,
         /^datasets\/manifest\.json$/,
         /^datasets\/northlight_retail\.db$/,
+        // the exercise sets, found through the folder page the Pages workflow writes
+        /^exercises\/$/,
+        /^exercises\/retail-basics\.json$/,
     ];
     const unexpected = net.paths.filter((p) => !allowed.some((re) => re.test(p)));
     expect(unexpected).toEqual([]);

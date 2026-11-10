@@ -37,8 +37,22 @@
         </header>
 
         <link rel="stylesheet" href="css/schema.css">
+        <link rel="stylesheet" href="css/exercises.css">
         <div class="workspace">
             <div class="workspace-main">
+                <!-- Exercise mode (js/lab/exercise-panel.js fills this; hidden while no set is open) -->
+                <section id="exercise-panel" class="exercise-panel" aria-labelledby="exercise-set-title" hidden>
+                    <div class="exercise-head">
+                        <h2 id="exercise-set-title" class="exercise-set-title"></h2>
+                        <p id="exercise-progress" class="exercise-progress"></p>
+                        <button id="exercise-reset" type="button" class="button button--small"></button>
+                    </div>
+                    <ol id="exercise-list" class="exercise-list" role="list"></ol>
+                    <div id="exercise-prompt" class="exercise-prompt"></div>
+                    <button id="exercise-hint-button" type="button" class="button button--small" hidden></button>
+                    <ol id="exercise-hints" class="exercise-hints" hidden></ol>
+                    <p id="exercise-announce" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
+                </section>
                 <link rel="stylesheet" href="css/editor.css">
                 <link rel="stylesheet" href="css/commandbar.css">
                 <section class="sqlime-editor-section">
@@ -51,6 +65,7 @@
                 <link rel="stylesheet" href="css/status.css">
                 <link rel="stylesheet" href="css/share.css">
                 <section class="sqlime-result-section">
+                    <div id="exercise-feedback" class="exercise-feedback" role="status" aria-atomic="true" hidden></div>
                     <sqlime-status id="status" class="sqlime-status" role="status"></sqlime-status>
                     <sqlime-result id="result" class="sqlime-result"></sqlime-result>
                     <p id="result-scroll-note" class="result-scroll-note" hidden></p>
@@ -69,6 +84,7 @@
         </footer>
     </div>
 
+    <script src="js/lab/storage-guard.js"></script>
     <script src="vendor/sqlite3.js"></script>
     <script src="vendor/lz-string.min.js"></script>
     <script type="module" src="js/components/copy-link.js"></script>
