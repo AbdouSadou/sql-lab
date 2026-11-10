@@ -106,6 +106,35 @@ test("names are escaped, so an odd file name cannot add markup to the page", () 
     expect(html).toContain("x&amp;y.json");
 });
 
+test("a percent sign in a file name reaches the app as that name: no other name, no request", async ({ page, app }) => {
+    // The app percent-decodes every href, so the step has to write "%" as "%25". Written plainly,
+    // "a%41.json" reads as a set "aA" and is fetched, and "100%.json" cannot be decoded at all.
+    const { html } = runStep({ "a%41.json": "{}", "100%.json": "{}", "a%2Fb.json": "{}", "x%00.json": "{}", "week 3.json": "{}" });
+    const { exercisesIndexHtml } = await import("./static-server.mjs");
+    expect(html).toBe(exercisesIndexHtml(["100%.json", "a%2Fb.json", "a%41.json", "week 3.json", "x%00.json"]));
+    const fetched = [];
+    page.on("request", (request) => {
+        if (/\/exercises\/[^/]+$/.test(new URL(request.url()).pathname)) fetched.push(request.url());
+    });
+    const { listed } = await listFromPage(page, app, html, {});
+    expect(listed).toEqual([
+        { id: "100%", ok: false },
+        { id: "a%2Fb", ok: false },
+        { id: "a%41", ok: false },
+        { id: "week 3", ok: false },
+        { id: "x%00", ok: false },
+    ]);
+    await expect(app.setPicker.locator("option")).toHaveText([
+        "None",
+        "100%.json (not valid)",
+        "a%2Fb.json (not valid)",
+        "a%41.json (not valid)",
+        "week 3.json (not valid)",
+        "x%00.json (not valid)",
+    ]);
+    expect(fetched).toEqual([]);
+});
+
 test("the test server answers exercises/ with the same output as the step", async ({ baseURL }) => {
     const { exercisesIndexHtml } = await import("./static-server.mjs");
     const names = fs.readdirSync(path.join(ROOT, "exercises")).filter((n) => n.endsWith(".json"));

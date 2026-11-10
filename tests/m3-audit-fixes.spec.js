@@ -561,7 +561,7 @@ test("results and errors land in a live region", async ({ page, app }) => {
     const status = page.locator("#status");
     await expect(status).toHaveAttribute("role", "status");
     await app.query("SELECT 1 AS one;");
-    await expect(page.getByRole("status").filter({ hasText: "1 rows, took" })).toHaveCount(1);
+    await expect(page.getByRole("status").filter({ hasText: "1 row, took" })).toHaveCount(1);
     await app.run("SELEC nonsense");
     await expect(page.getByRole("status").filter({ hasText: "syntax error" })).toHaveCount(1);
 });

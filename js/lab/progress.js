@@ -19,15 +19,34 @@
 // Robustness: stored JSON that is corrupt or of another shape counts as empty (and is
 // replaced at the next write). A storage exception (private mode, quota, blocked site
 // data) never reaches the caller: the set's progress then lives in memory for the rest of
-// the session. Reads go to storage every time (another tab may have written), unless a
-// write to storage failed earlier for that set, in which case memory is the truth.
+// the session, and the page says so (storage-notice.js). Reads go to storage every time
+// (another tab may have written), unless a write to storage failed earlier for that set, in
+// which case memory is the truth. A read that throws answers with an empty state marked
+// unread, which says nothing about what is stored, so a write made from it merges what is
+// stored first, and if storage still cannot be read the set stays in memory; what could not be
+// read is never written over. Every write tries storage first, so a set that failed goes
+// back to storage (and the notice goes) as soon as there is room again; resetSet does the same.
+// That first successful write merges what is stored into the set held in memory (passes are
+// sticky, so another tab's passes are not overwritten, and a pass held here comes back even if
+// another tab reset the set meanwhile; a stored draft is added only for an exercise whose draft
+// this page did not empty meanwhile), see write(). The exception is a set whose reset storage
+// refused: the copy still stored is the very one being reset, so that write replaces it without
+// merging it back (pendingResets), and the replacement is what completes the reset.
 
 import { PROGRESS_PREFIX, PROGRESS_VERSION, SHARE_ID_PATTERN } from "./config.js";
+import { reportStorage } from "./storage-notice.js";
 
 const isId = (value) => typeof value === "string" && SHARE_ID_PATTERN.test(value);
 
 // set id -> state, for sets whose storage is unusable
 const inMemory = new Map();
+// set id -> ids of drafts the student emptied while the set was held in memory. The merge at the
+// first successful write must not bring those back from what is stored (the stored copy is older
+// than the deletion). Gone at that write, and at resetSet.
+const emptiedDrafts = new Map();
+// ids of sets whose reset storage refused. The copy still stored is the old one, so the merge at
+// the next successful write must not read it; that write overwrites it, which finishes the reset.
+const pendingResets = new Set();
 
 function emptyState() {
     return { passed: new Set(), drafts: new Map() };
@@ -79,20 +98,46 @@ function read(setId) {
         const text = localStorage.getItem(PROGRESS_PREFIX + setId);
         return text === null ? emptyState() : parse(text);
     } catch {
-        return emptyState();
+        // not what is stored, only nothing known about it: see write()
+        return { ...emptyState(), unread: true };
     }
 }
 
 function write(setId, state) {
-    if (inMemory.has(setId)) {
-        inMemory.set(setId, state);
-        return;
-    }
+    // storage is tried every time, also for a set that failed before: when there is room again,
+    // the set goes back to storage and the notice goes away
     try {
+        if ((inMemory.has(setId) && !pendingResets.has(setId)) || state.unread) {
+            // This page held the set back while storage was unusable, or could not read it a
+            // moment ago, and another tab may have stored passes since: passing is sticky, so
+            // what is stored is merged in first (the union of passes; a stored draft only for an
+            // exercise this page has no draft for). A getItem that throws lands in the catch:
+            // unread storage is not written over.
+            const text = localStorage.getItem(PROGRESS_PREFIX + setId);
+            if (text !== null && text !== undefined) {
+                const theirs = parse(text);
+                for (const id of theirs.passed) {
+                    state.passed.add(id);
+                }
+                const emptied = emptiedDrafts.get(setId);
+                for (const [id, sql] of theirs.drafts) {
+                    if (!state.drafts.has(id) && !emptied?.has(id)) {
+                        state.drafts.set(id, sql);
+                    }
+                }
+            }
+        }
         localStorage.setItem(PROGRESS_PREFIX + setId, serialize(state));
+        inMemory.delete(setId);
+        emptiedDrafts.delete(setId);
+        pendingResets.delete(setId);
+        // another set may still be only in memory: the notice stays until none is
+        reportStorage("progress", inMemory.size === 0);
     } catch {
-        // storage is unusable (private mode, quota): keep this set's progress in memory
+        // storage is unusable (private mode, quota): keep this set's progress in memory, and
+        // say so (js/lab/storage-notice.js)
         inMemory.set(setId, state);
+        reportStorage("progress", false);
     }
 }
 
@@ -131,12 +176,22 @@ export function saveDraft(setId, exerciseId, sql) {
         return;
     }
     const state = read(setId);
-    if (sql.trim() === "") {
-        if (!state.drafts.delete(exerciseId)) {
-            return;
-        }
+    const empty = sql.trim() === "";
+    // Nothing to remove, unless the state says nothing about what is stored: the draft may be
+    // there, and the merge in write() has to know that it was emptied.
+    if (empty && !state.drafts.has(exerciseId) && !state.unread) {
+        return;
+    }
+    // Noted before the write, which is what merges (and forgets these marks when it succeeds): the
+    // very write that finds storage usable again must not bring back the draft it is removing.
+    const emptied = emptiedDrafts.get(setId) ?? new Set();
+    emptiedDrafts.set(setId, emptied);
+    if (empty) {
+        state.drafts.delete(exerciseId);
+        emptied.add(exerciseId);
     } else {
         state.drafts.set(exerciseId, sql);
+        emptied.delete(exerciseId);
     }
     write(setId, state);
 }
@@ -145,12 +200,18 @@ export function resetSet(setId) {
     if (!isId(setId)) {
         return;
     }
-    if (inMemory.has(setId)) {
-        inMemory.set(setId, emptyState());
-    }
+    const wasInMemory = inMemory.has(setId);
+    emptiedDrafts.delete(setId);
     try {
         localStorage.removeItem(PROGRESS_PREFIX + setId);
+        inMemory.delete(setId);
+        pendingResets.delete(setId);
+        if (wasInMemory) {
+            reportStorage("progress", inMemory.size === 0);
+        }
     } catch {
         inMemory.set(setId, emptyState());
+        pendingResets.add(setId);
+        reportStorage("progress", false);
     }
 }

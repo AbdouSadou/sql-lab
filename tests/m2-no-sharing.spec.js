@@ -47,7 +47,7 @@ test("no sharing: the toolbar, command bar and welcome text carry no settings, g
     await app.open();
     await expect(page.locator("#save")).toHaveCount(0);
     await expect(page.locator("a[href='settings.html']")).toHaveCount(0);
-    await expect(page.locator("#commandbar button")).toHaveText([/run/, /tables/, /copy link/]);
+    await expect(page.locator("#commandbar button")).toHaveText([/run/, /tables/, /copy link/, /history/, /download csv/]);
     const text = (await page.locator("body").innerText()).toLowerCase();
     for (const word of ["settings", "sharing", "share", "gist", "token"]) {
         expect(text, word).not.toContain(word);

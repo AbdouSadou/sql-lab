@@ -25,6 +25,7 @@ const titleOf = (n) => SET.exercises[n - 1].title;
 // rows of each model query on Northlight (counted with the sqlite3 command-line tool)
 const MODEL_ROWS = { e01: 5, e02: 5, e03: 5, e04: 8, e05: 5, e06: 5, e07: 1, e08: 22, e09: 19, e10: 4 };
 const PROGRESS_KEY = "sqllab.progress.retail-basics";
+const rowsTook = (n) => `${n} ${n === 1 ? "row" : "rows"}, took`;
 
 const readStore = (page) => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? "null"), PROGRESS_KEY);
 
@@ -174,11 +175,11 @@ test("every model query in the shipped set passes its own check, with the expect
         await app.exerciseButton(i + 1).click();
         await app.editor.fill(modelQuery(id));
         await app.page.locator("#execute").click();
-        await expect(app.status).toContainText(`${MODEL_ROWS[id]} rows, took`);
+        await expect(app.status).toContainText(rowsTook(MODEL_ROWS[id]));
         await app.checkButton.click();
         await expect(app.feedback.locator(".verdict--pass")).toBeVisible();
         // Check ran the query visibly as well: the same count is still on screen
-        await expect(app.status).toContainText(`${MODEL_ROWS[id]} rows, took`);
+        await expect(app.status).toContainText(rowsTook(MODEL_ROWS[id]));
     }
     await expect(app.progress).toHaveText("10/10 complete");
 });
@@ -305,7 +306,7 @@ test("a query that ran on the changed working copy but fails on the original dat
     await expect(app.status).toContainText("rows, took");
     await app.editor.fill("SELECT x FROM mine;");
     await app.checkButton.click();
-    await expect(app.status).toContainText("1 rows, took"); // it ran on the student's copy
+    await expect(app.status).toContainText("1 row, took"); // it ran on the student's copy
     const verdict = app.feedback.locator(".verdict--fail");
     await expect(verdict.locator(".verdict-message")).toHaveText("no such table: mine");
     await expect(verdict.locator(".verdict-note")).toContainText("working copy");
@@ -507,7 +508,7 @@ test("every Run in exercise mode saves the full editor text as the draft, even w
         getSelection().addRange(range);
     });
     await page.locator("#execute").click();
-    await expect(app.status).toContainText("1 rows");
+    await expect(app.status).toContainText("1 row");
     expect((await readStore(page)).drafts.e03).toBe("SELECT 1 AS a; SELECT 2 AS b;");
 });
 
@@ -651,6 +652,46 @@ test("a set that failed validation is a disabled option naming its file, with th
     await expect(options.nth(2)).toBeEnabled();
 });
 
+test("a file whose name cannot be an id is a disabled option that no way of choosing opens", async ({ page, app, net }) => {
+    const names = ["Week 3", "week1.v2", "<img src=x onerror=alert(1)>", "x\"y'z", ""];
+    await routeListing(page, listingHtml(["retail-basics.json", ...names.map((n) => `${encodeURIComponent(n)}.json`)]));
+    await app.open();
+    const options = page.locator("#exercise-set-picker option");
+    await expect(options).toHaveCount(2 + names.length);
+    await expect(options.nth(0)).toHaveText("None");
+    // sorted with the others, by code unit; the name is text, with the problem as its tooltip
+    await expect(options.nth(1)).toHaveText(".json (not valid)");
+    await expect(options.nth(2)).toHaveText("<img src=x onerror=alert(1)>.json (not valid)");
+    await expect(options.nth(3)).toHaveText("Week 3.json (not valid)");
+    await expect(options.nth(4)).toHaveText(SET.title);
+    await expect(options.nth(5)).toHaveText("week1.v2.json (not valid)");
+    await expect(options.nth(6)).toHaveText(`x"y'z.json (not valid)`);
+    for (const index of [1, 2, 3, 5, 6]) {
+        await expect(options.nth(index)).toBeDisabled();
+        await expect(options.nth(index)).toHaveAttribute("title", /^The file name may use only 1 to 64 letters, digits, "_" or "-"/);
+    }
+    await expect(options.nth(4)).toBeEnabled();
+    await expect(page.locator("#exercise-set-picker img")).toHaveCount(0);
+    // a change event for one of them (a script, a browser that lets a disabled option through)
+    // opens nothing and puts the picker back
+    const statusBefore = await app.status.textContent();
+    await app.setPicker.evaluate((select) => {
+        select.value = "Week 3";
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await expect(app.exercisePanel).toBeHidden();
+    expect(new URL(page.url()).search).toBe("");
+    expect(await app.setPicker.inputValue()).toBe("");
+    // and the status line is as it was: the file name is not handed to the code that opens a set,
+    // which would name it in an error
+    expect(await app.status.textContent()).toBe(statusBefore);
+    expect(await app.status.textContent()).not.toContain("Week 3");
+    // the good one opens; nothing was requested for the others, only the folder and that set
+    await app.setPicker.selectOption(SET.id);
+    await expect(app.exercisePanel).toBeVisible();
+    expect([...new Set(net.paths.filter((p) => p.startsWith("exercises/")))].sort()).toEqual(["exercises/", "exercises/retail-basics.json"]);
+});
+
 test("listing the sets does not delay opening the database", async ({ page, app }) => {
     let release;
     const held = new Promise((resolve) => (release = resolve));
@@ -745,7 +786,7 @@ test("None closes the panel, keeps the database open and pushes ?db=<id>", async
     await app.openSet();
     await app.editor.fill("CREATE TABLE keep (x); SELECT 1;");
     await page.locator("#execute").click();
-    await expect(app.status).toContainText("rows, took");
+    await expect(app.status).toContainText(/rows?, took/);
     const database = await page.evaluateHandle(() => window.app.database);
     const before = await page.evaluate(() => history.length);
     await app.setPicker.selectOption("");
@@ -821,7 +862,7 @@ test("Ctrl+Shift+Enter with no set open behaves as it does today: the editor run
     await app.open();
     await app.editor.fill("SELECT 42 AS answer;");
     await app.editor.press("Control+Shift+Enter");
-    await expect(app.status).toContainText("1 rows, took");
+    await expect(app.status).toContainText("1 row, took");
     expect(await app.read()).toEqual({ columns: ["answer"], rows: [["42"]] });
     await expect(app.feedback).toBeHidden();
     await expect(page.locator("#exercise-check")).toHaveCount(0);
@@ -1016,7 +1057,8 @@ test("hostile ids and a routed set with markup in ids are refused without creati
     await routeListing(page, listingHtml(["evil.json", "evil2.json", `${PAYLOAD}.json`]));
     await app.open();
     const broken = app.setPicker.locator("option:disabled");
-    await expect(broken).toHaveCount(2);
+    // the two sets that fail validation, and the file named like markup (not an id): shown as text
+    await expect(broken).toHaveCount(3);
     await expect(broken.first()).toHaveText(/\.json \(not valid\)$/);
     // routed by address: the set id and the exercise id are text, never markup
     await page.goto(`./?set=${encodeURIComponent(PAYLOAD)}&ex=${encodeURIComponent(PAYLOAD)}`);

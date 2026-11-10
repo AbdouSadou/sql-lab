@@ -1,0 +1,150 @@
+/* verify.html (js/lab/verify-page.js). Builds on css/article.css, which sets the page
+   colours for both colour schemes; the verdict colours are added here. */
+
+:root {
+    --verify-valid: #0a7a2f;
+    --verify-edited: #c2261b;
+    --verify-note: #666;
+    --verify-zone: #aaa;
+    --verify-zone-active: #0064c1;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --verify-valid: #5fd38d;
+        --verify-edited: #ff7a70;
+        --verify-note: #aaa;
+        --verify-zone: #666;
+        --verify-zone-active: #4da3ff;
+    }
+}
+
+.drop-zone {
+    padding: 0.5rem 1rem 1rem;
+    border: 2px dashed var(--verify-zone);
+    border-radius: 0.5rem;
+}
+
+.drop-zone--active {
+    border-color: var(--verify-zone-active);
+    background: color-mix(in srgb, var(--verify-zone-active) 10%, transparent);
+}
+
+.drop-zone textarea {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-height: 10rem;
+    padding: 0.5rem;
+    border: 1px solid var(--article-muted);
+    border-radius: 2px;
+    background: var(--article-background);
+    color: var(--article-text);
+    font-family: Consolas, "Lucida Console", Monaco, monospace;
+    font-size: 0.8rem;
+    resize: vertical;
+}
+
+.drop-zone input[type="file"] {
+    display: block;
+    max-width: 100%;
+    margin-top: 0.25rem;
+    font: inherit;
+    color: inherit;
+}
+
+#verify-button {
+    margin-top: 0.75rem;
+    min-height: 2.5rem;
+    padding: 0 1.5rem;
+    border: 1px solid var(--article-link);
+    border-radius: 2px;
+    background: var(--article-link);
+    color: var(--article-background);
+    font: inherit;
+    cursor: pointer;
+}
+
+.drop-hint {
+    margin: 0.75rem 0 0;
+    font-size: 0.85em;
+    color: var(--verify-note);
+}
+
+.verify-result {
+    margin: 1.5rem 0;
+    /* scrollIntoView (js/lab/verify-page.js) leaves a little room around the verdict */
+    scroll-margin: 1rem 0;
+}
+
+/* never display:none, so that screen readers announce what appears in it */
+.verify-result:empty {
+    margin: 0;
+}
+
+.verdict {
+    padding: 1rem;
+    border: 3px solid currentColor;
+    border-radius: 0.5rem;
+    overflow-wrap: anywhere;
+}
+
+.verdict--valid {
+    color: var(--verify-valid);
+}
+
+.verdict--edited {
+    color: var(--verify-edited);
+}
+
+.verdict--unavailable {
+    color: var(--article-text);
+    border-style: dashed;
+}
+
+.verdict-word {
+    margin: 0;
+    font-size: 2.75em;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    line-height: 1.1;
+}
+
+.verdict-reason,
+.verdict-note,
+.verdict-message {
+    margin: 0.5rem 0 0;
+    color: var(--article-text);
+}
+
+.verdict-note {
+    font-size: 0.85em;
+    color: var(--verify-note);
+}
+
+.verdict-details {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.25rem 1rem;
+    margin: 1rem 0 0;
+    color: var(--article-text);
+}
+
+.verdict-details dt {
+    font-weight: 600;
+}
+
+.verdict-details dd {
+    margin: 0;
+}
+
+@media (max-width: 24rem) {
+    .verdict-details {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+    }
+    .verdict-details dd {
+        margin-bottom: 0.5rem;
+    }
+}

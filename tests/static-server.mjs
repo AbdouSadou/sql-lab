@@ -37,14 +37,15 @@ export const HIDDEN = new Set([
     "playwright.config.js",
 ]);
 
-// The folder page for exercises/: one link per .json file, in code-unit order. The workflow step
-// writes exactly this text (tests/m4-listing.spec.js runs the step and compares).
+// The folder page for exercises/: one link per .json file, in code-unit order. For ordinary file
+// names the workflow step writes exactly this text (tests/m4-listing.spec.js runs the step and
+// compares); the two can differ on dotfiles, symbolic links and names that are not valid UTF-8.
 export function exercisesIndexHtml(names) {
     const escape = (text) =>
         text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
     return (
         '<!doctype html>\n<meta charset="utf-8">\n<title>Exercise sets</title>\n' +
-        names.map((name) => `<a href="${escape(name)}">${escape(name)}</a>\n`).join("")
+        names.map((name) => `<a href="${escape(name).replaceAll("%", "%25")}">${escape(name)}</a>\n`).join("")
     );
 }
 

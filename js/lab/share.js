@@ -31,8 +31,8 @@ const SHARE_START = new RegExp(`^#?(?:\\s|%20)*\\??${SHARE_PARAM}(?:=|%3d)`, "i"
 // form encoder; lz-string maps it back).
 const PAYLOAD_ALPHABET = /^[A-Za-z0-9+\-$ ]*$/;
 
-// The state the page outside the editor contributes. Later milestones call
-// setShareContext (dataset picker, exercise panel); nothing does yet.
+// The state the page outside the editor contributes. js/index.js (the open dataset) and
+// js/lab/exercise-panel.js (the open exercise) keep it current through setShareContext.
 let context = { dataset: undefined, set: undefined, exercise: undefined };
 
 // setShareContext sets the dataset, exercise set and exercise ids that copy-link

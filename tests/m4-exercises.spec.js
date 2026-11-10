@@ -257,6 +257,64 @@ test.describe("loadSet", () => {
 
 // ---- listSets ---------------------------------------------------------------------------------
 
+test.describe("badNamesInListing", () => {
+    const names = (page, html) =>
+        page.evaluate(async (html) => (await import("./js/lab/exercises.js")).badNamesInListing(html), html);
+
+    test.beforeEach(async ({ app }) => {
+        await app.open();
+    });
+
+    test("plain .json file names that cannot be ids, decoded and sorted; nothing else", async ({ page }) => {
+        const html = listingHtml([
+            "week1.v2.json",
+            "Week%203.json",
+            "retail-basics.json", // an id
+            "a.json", // an id
+            "week1.v2.json", // twice
+            "%C3%A9t%C3%A9.json",
+            "has+plus.json",
+            "[x].json",
+            "https://evil.example/x.json", // not a file of this folder
+            "//evil.example/y.json",
+            "sub/z.json",
+            "..%2Fq.json",
+            "w%5Cx.json",
+            "w\\y.json",
+            "v%zz.json", // malformed percent-encoding
+            "notes.txt",
+            "l.JSON",
+            "k.json?x=1",
+            "k2.json#f",
+            "dir/",
+            "",
+            "#",
+        ]);
+        expect(await names(page, html)).toEqual(["Week 3", "[x]", "has+plus", "week1.v2", "été"]);
+    });
+
+    test("each name is cut to 80 characters; names that are the same after the cut count once", async ({ page }) => {
+        const long = "n".repeat(100);
+        const emoji = "\u{1F600}".repeat(90);
+        const html = listingHtml([`${long}a.json`, `${long}b.json`, `${emoji}.json`, `${"x".repeat(80)}.json`, `${"x".repeat(81)}.json`]);
+        const out = await names(page, html);
+        expect(out).toEqual(["n".repeat(80), "x".repeat(80), "\u{1F600}".repeat(80)].sort());
+        expect(out.every((name) => [...name].length <= 80)).toBe(true);
+    });
+
+    test("not a listing: nothing", async ({ page }) => {
+        for (const html of ["", "{}", "<<<>>><a href", "\u0000"]) {
+            expect(await names(page, html)).toEqual([]);
+        }
+    });
+
+    test("idsInListing is as it was: the file names that cannot be ids are not ids", async ({ page }) => {
+        const html = listingHtml(["Week%203.json", "week1.v2.json", "ok.json"]);
+        const ids = await page.evaluate(async (html) => (await import("./js/lab/exercises.js")).idsInListing(html), html);
+        expect(ids).toEqual(["ok"]);
+    });
+});
+
 test.describe("listSets", () => {
     const list = (page) =>
         page.evaluate(async () => {
@@ -376,10 +434,79 @@ test.describe("listSets", () => {
         await routeSet(page, "b", { ...good(), id: "b" });
         net.clear();
         const entries = await list(page);
-        expect(entries.map((e) => e.id)).toEqual(["a", "b"]);
+        // the valid ids, and the plain file names of this folder that end in .json but cannot be
+        // ids (listed as problems, below); everything else in the list above is no entry at all
+        expect(entries.map((e) => e.id)).toEqual(["", " n", "a", "b", "bad id", "u\u0000", "x".repeat(65)]);
+        expect(entries.filter((e) => !e.ok).map((e) => e.id)).toEqual(["", " n", "bad id", "u\u0000", "x".repeat(65)]);
         // the page asked for the folder and the two sets, and for nothing else at all
         expect(net.entries.map((e) => net.relative(e.url)).sort()).toEqual(["exercises/", "exercises/a.json", "exercises/b.json"]);
         expect(net.external()).toEqual([]);
+    });
+
+    test("a file whose name cannot be an id is listed as a problem, sorted with the others, and asks for nothing", async ({ page, app, net }) => {
+        await app.open();
+        await routeListing(page, listingHtml(["Week 3.json", "week1.v2.json", "retail-basics.json", "zz.json", "A+B.json"]));
+        await routeSet(page, "zz", { ...good(), id: "zz" });
+        net.clear();
+        const entries = await list(page);
+        // one order for all of them, by code unit
+        expect(entries.map((e) => e.id)).toEqual(["A+B", "Week 3", "retail-basics", "week1.v2", "zz"]);
+        const bad = entries.filter((e) => !e.ok);
+        expect(bad.map((e) => e.id)).toEqual(["A+B", "Week 3", "week1.v2"]);
+        for (const entry of bad) {
+            expect(entry.problem).toBe(
+                'The file name may use only 1 to 64 letters, digits, "_" or "-" before ".json", so the file cannot be opened. Rename it.'
+            );
+        }
+        // no request for the files that cannot be ids, not even a failing one
+        expect(net.entries.map((e) => net.relative(e.url)).sort()).toEqual([
+            "exercises/",
+            "exercises/retail-basics.json",
+            "exercises/zz.json",
+        ]);
+    });
+
+    test("the file names that cannot be ids count against the same limit, after the sets", async ({ page, app }) => {
+        const hrefs = [
+            ...Array.from({ length: 150 }, (_, i) => `ok${String(i).padStart(3, "0")}.json`),
+            ...Array.from({ length: 150 }, (_, i) => `no ok ${String(i).padStart(3, "0")}.json`),
+        ];
+        await routeListing(page, listingHtml(hrefs));
+        await page.route(/\/exercises\/ok\d+\.json(\?.*)?$/, (route) => route.fulfill({ status: 404, body: "" }));
+        await app.open();
+        const entries = await list(page);
+        expect(entries).toHaveLength(200);
+        // all 150 ids; the names fill the 50 places left, the first 50 by code unit. One order for all.
+        expect(entries.filter((e) => /^ok\d+$/.test(e.id))).toHaveLength(150);
+        expect(entries[0].id).toBe("no ok 000");
+        expect(entries[49].id).toBe("no ok 049");
+        expect(entries[50].id).toBe("ok000");
+        expect(entries[199].id).toBe("ok149");
+    });
+
+    test("more badly named files than the limit cannot push the sets that work out of the list", async ({ page, app, net }) => {
+        // capitals and spaces sort before lowercase ids, so by name alone these 205 come first
+        const hrefs = [
+            ...Array.from({ length: 205 }, (_, i) => `Bad%20${String(i).padStart(3, "0")}.json`),
+            "retail-basics.json",
+            "zeta-good.json",
+        ];
+        await routeListing(page, listingHtml(hrefs));
+        await routeSet(page, "zeta-good", { ...good(), id: "zeta-good" });
+        await app.open();
+        const entries = await list(page);
+        expect(entries).toHaveLength(200);
+        expect(entries.filter((e) => e.ok || e.id === "retail-basics" || e.id === "zeta-good").map((e) => e.id)).toEqual([
+            "retail-basics",
+            "zeta-good",
+        ]);
+        expect(entries.filter((e) => e.id.startsWith("Bad "))).toHaveLength(198);
+        // the cut names are not requested, nor are the others
+        expect([...new Set(net.entries.map((e) => net.relative(e.url)).filter((p) => p.startsWith("exercises/")))].sort()).toEqual([
+            "exercises/",
+            "exercises/retail-basics.json",
+            "exercises/zeta-good.json",
+        ]);
     });
 
     test("an unreadable listing means no sets, quietly", async ({ page, app, pageErrors }) => {

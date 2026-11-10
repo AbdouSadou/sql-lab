@@ -80,3 +80,16 @@
         padding-top: 0.125rem;
     }
 }
+
+/* On a mid-sized window the two pickers and five buttons are a little too wide for one row, which
+   left the last button and the About icon alone on a second row. A long set title gives way
+   (a select cuts it with an ellipsis; the whole text is in the list). */
+@media only screen and (min-width: 40rem) and (max-width: 64rem) {
+    .toolbar {
+        column-gap: 0.25rem;
+    }
+
+    .dataset-picker select {
+        max-width: 10rem;
+    }
+}

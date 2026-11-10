@@ -248,6 +248,18 @@ function disconnect(database) {
 // what modelResult gives when no connection could be opened (not the exercise's fault)
 const NO_CONNECTION = Symbol("no connection");
 
+// The engine's message with every quoted piece (a string, or a name in double quotes) replaced by
+// "…". SQLite echoes a double-quoted word it cannot find as a column, and a model query that is
+// one long double-quoted string would come back whole. Quotes are not the only form of a name,
+// though: SQLite echoes an identifier without its quotes whatever form it had, so a [bracketed
+// name] or a double-quoted table name comes back whole, and one name of a broken model query can
+// reach the console that way. That is accepted: the whole query is readable in the JSON file the
+// browser fetches anyway (the spec accepts it), and the message is for the instructor. An
+// unclosed quote takes the rest of the message.
+function withoutQuotedText(message) {
+    return message.replace(/"(?:[^"]|"")*(?:"|$)|'(?:[^']|'')*(?:'|$)/g, '"…"');
+}
+
 export function createChecker() {
     // "<set>/<exercise>" -> {query, dataset, promise of a model result or null}
     const cache = new Map();
@@ -268,10 +280,16 @@ export function createChecker() {
             }
             try {
                 // a model query with no result columns is an authoring bug too (null)
-                return runSql(database, query);
-            } catch {
-                // an authoring bug; what the engine says about it is not reported
-                console.warn(`exercise "${key}" cannot be checked: its model query fails`);
+                const result = runSql(database, query);
+                if (result === null) {
+                    console.warn(`exercise "${key}" cannot be checked: its model query returns no result set`);
+                }
+                return result;
+            } catch (exc) {
+                // An authoring bug. The student is told only that the exercise cannot be checked;
+                // the console tells the instructor why, in the engine's own words. Never the
+                // query text, nor the exception's statementText (the model query is not shown).
+                console.warn(`exercise "${key}" cannot be checked: its model query fails: ${withoutQuotedText(engineMessage(exc))}`);
                 return null;
             } finally {
                 disconnect(database);

@@ -3,6 +3,7 @@
 // Everything that reaches the HTML string comes from SQL or from the database
 // (column names, values, table names), so all of it is escaped.
 
+import { cellText } from "./lab/cell-text.js";
 import { escapeHtml } from "./lab/html.js";
 
 // printResult converts SQL query results to an HTML table.
@@ -46,9 +47,10 @@ function join(values, tagName) {
     return open + values.join(close + open) + close;
 }
 
-// sanitize turns a cell value into safe HTML. Line breaks become <br>, as before.
+// sanitize turns a cell value into safe HTML. Line breaks become <br>, as before. A BLOB is
+// shown as x'<hex>', as in the CSV (cellText).
 function sanitize(value) {
-    return escapeHtml(value).replace(/\r\n|\r|\n/g, "<br>");
+    return escapeHtml(cellText(value)).replace(/\r\n|\r|\n/g, "<br>");
 }
 
 const printer = { printResult, printTables };

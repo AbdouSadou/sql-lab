@@ -555,6 +555,54 @@ test.describe("check() on the Northlight dataset", () => {
         expect(connections.every((c) => c.open === false)).toBe(true);
     });
 
+    test("the console tells the instructor why a model query cannot run, in the engine's words and not the query's", async ({ page, app }) => {
+        const warnings = [];
+        const everything = [];
+        page.on("console", (message) => {
+            everything.push(message.text());
+            if (message.type() === "warning") {
+                warnings.push(message.text());
+            }
+        });
+        const bad = (model_query) => ({ id: "b", title: "B", prompt: "B", hints: [], model_query, order_matters: false, check_column_names: false });
+        const warningFor = async (query) => {
+            const before = warnings.length;
+            const exercise = bad(query);
+            const outcome = await app.check(null, "select 1", { set: miniSet(exercise), exercise });
+            expect(outcome.status).toBe("unavailable");
+            expect(outcome.message).toMatch(/cannot be checked/);
+            return warnings.slice(before).filter((text) => text.includes('exercise "mini/b"'));
+        };
+        const missing = await warningFor("SELECT secret_marker_col FROM nonexistent_table_xyz");
+        expect(missing).toHaveLength(1);
+        expect(missing[0]).toContain("its model query fails: no such table: nonexistent_table_xyz");
+        const typo = await warningFor("SELEC 1");
+        expect(typo).toHaveLength(1);
+        expect(typo[0]).toContain("syntax error");
+        const noResult = await warningFor("CREATE TABLE secret_marker_col(a)");
+        expect(noResult).toHaveLength(1);
+        expect(noResult[0]).toContain("its model query returns no result set");
+        // never the query text, the failing statement, or the wrapper's prefix
+        for (const text of [...missing, ...typo, ...noResult]) {
+            expect(text).not.toMatch(/SELECT secret_marker_col|CREATE TABLE|SELEC 1|SQLITE_|result code/);
+        }
+        // A failure that comes while the statement runs, not when it is prepared: the engine itself
+        // warns with the statement then. And a message that echoes a double-quoted word, which a
+        // model query can be as a whole.
+        const atRun = await warningFor(`SELECT json_extract('{"a":', '$.secret_runtime_value')`);
+        expect(atRun).toHaveLength(1);
+        expect(atRun[0]).toContain("its model query fails:");
+        const quoted = await warningFor(`SELECT "this entire model answer text should never be shown FROM products WHERE x = 1"`);
+        expect(quoted).toHaveLength(1);
+        expect(quoted[0]).toContain('its model query fails: no such column: "…"');
+        // nothing in the console, from the app or from the engine, holds any model query's words
+        for (const text of everything) {
+            expect(text).not.toMatch(/secret_runtime_value|secret_marker_col|entire model answer|json_extract|SQL =/);
+        }
+        // the engine still says that a statement failed, by its code
+        expect(everything.some((text) => /sqlite3_step\(\) rc= 1 SQLITE_ERROR/.test(text))).toBe(true);
+    });
+
     test("a model query that failed once is run again, so a fixed file is picked up", async ({ page, app }) => {
         const out = await page.evaluate(async () => {
             const { createChecker } = await import("./js/lab/checker.js");

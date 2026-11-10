@@ -1,6 +1,7 @@
 // SQLite database manager.
 
 import { SQLite } from "./db.js";
+import { runSql } from "../lab/runner.js";
 
 // global SQLite WASM API object.
 let sqlite3;
@@ -83,7 +84,7 @@ function fromSql(name, path, sql) {
         return null;
     }
     const database = create(name, path);
-    database.execute(sql);
+    runSql(database, sql);
     database.gatherTables();
     database.query = "";
     return database;

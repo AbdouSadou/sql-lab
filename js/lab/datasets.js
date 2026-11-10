@@ -6,7 +6,7 @@
 // callers still escape or use textContent), and every problem becomes a specific message
 // instead of an exception, so the app can start on an empty database and say why.
 //
-// The bytes of the open dataset are kept as fetched. The exercise checker (M4) opens fresh
+// The bytes of the open dataset are kept as fetched. The exercise checker opens fresh
 // connections from them, so earlier student changes cannot reach a check:
 // getPristineBytes() hands out a copy every time. The copy the engine loads must be a
 // separate one again, because manager.init's fromBytes edits the header bytes of the

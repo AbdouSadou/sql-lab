@@ -55,7 +55,9 @@ jobs:
                       for file in *.json; do
                           [ -f "$file" ] || continue
                           name=$(printf '%s' "$file" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g')
-                          printf '<a href="%s">%s</a>\n' "$name" "$name"
+                          # the app percent-decodes every href, so a % in a name is written %25
+                          href=$(printf '%s' "$name" | sed -e 's/%/%25/g')
+                          printf '<a href="%s">%s</a>\n' "$href" "$name"
                       done
                   } > index.html
             # upload-pages-artifact drops dotfiles by default

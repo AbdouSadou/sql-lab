@@ -37,6 +37,52 @@
                 the queries you write and the data you open are never sent anywhere.
             </p>
 
+            <h5>What you can do here</h5>
+            <ul>
+                <li>
+                    <strong>Practise on built-in datasets.</strong> Pick one from the
+                    Dataset menu and start writing queries. A sidebar lists its tables
+                    and columns, and a click puts a name in your query.
+                </li>
+                <li>
+                    <strong>Work through exercises that check themselves.</strong> Choose
+                    an exercise set from the Exercises menu, write your query and press
+                    Check. You are told whether your result matches, and if not, what
+                    differs. Hints appear one at a time when you ask for them.
+                </li>
+                <li>
+                    <strong>Share a query.</strong> The copy link button makes a link
+                    that opens the same dataset (and exercise) with your query in the
+                    editor. The query travels inside the link itself; nothing is stored
+                    on a server.
+                </li>
+                <li>
+                    <strong>Keep evidence of your work.</strong> Every query you run is
+                    written to a run log, and the history button puts an earlier query
+                    back in the editor. The evidence button saves the log as a text file
+                    with your student number and a checksum, so you can attach it to
+                    assessed work and a marker can see it has not been edited. The file
+                    covers the dataset that is open, so export once for each dataset you
+                    worked on. The log is kept in this browser on this device, so on a
+                    shared computer export it before you log off, and note that a private
+                    window starts with an empty log. Times in the history list are UTC.
+                </li>
+                <li>
+                    <strong>Use your own data.</strong> Open a SQLite database file or
+                    a SQL script, and save the database, with your changes, as a file.
+                </li>
+            </ul>
+
+            <h5>For markers</h5>
+            <p>
+                To check an evidence file, open the <a href="verify.html">check page</a>
+                and paste the file or drop it on the page. It says VALID or EDITED
+                without uploading anything. A file lists the queries run on one dataset
+                only (its <code>dataset:</code> line), so ask a student who worked on
+                two datasets for two files. The checksum shows the file was not changed
+                after it was exported; it does not prove who ran the queries.
+            </p>
+
             <h5>A full database in the browser</h5>
             <p>
                 The database engine is SQLite, compiled to WebAssembly. It supports
@@ -50,9 +96,19 @@
             <p>
                 Open a SQLite database file or a SQL script from your computer
                 and it is read by your browser only. There is no server, no account,
-                no analytics and no cookies. The only thing remembered between
-                visits is the last query you ran for each database, kept in your
-                browser's local storage on your own device.
+                no analytics and no cookies.
+            </p>
+            <p>
+                Some things are remembered between visits, in your browser's local
+                storage on your own device and nowhere else: the last query you ran
+                for each database, which exercises you have passed, the SQL you last
+                wrote for each exercise, and your run log (up to 200 queries for each
+                dataset, fewer if they are very long). If your browser has no room left, the page says so, and
+                whatever could not be saved is lost when you close it.
+                The Reset progress button in an exercise set clears that
+                set's passes and saved SQL. Clearing your browser's site data clears
+                everything. Your student number is used only to write the evidence
+                file; it is never stored.
             </p>
 
             <h5>Works on small screens</h5>
@@ -72,7 +128,12 @@
                 <tr>
                     <td><code>⌃↵</code></td>
                     <td><code>⌘↵</code></td>
-                    <td>run query</td>
+                    <td>run query (only while the cursor is in the editor)</td>
+                </tr>
+                <tr>
+                    <td><code>⌃⇧↵</code></td>
+                    <td><code>⌘⇧↵</code></td>
+                    <td>check your answer (when an exercise is open)</td>
                 </tr>
                 <tr>
                     <td><code>⌃O</code></td>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title data-page-title="Check evidence">Check evidence</title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Check a student's evidence file in your browser. The file is read on this device and never uploaded.">
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#181818" media="(prefers-color-scheme: dark)">
+
+    <link rel="icon" href="img/favicon.ico" sizes="any">
+    <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+    <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+
+    <link rel="stylesheet" href="css/article.css">
+    <link rel="stylesheet" href="css/verify.css">
+    <script type="module" src="js/lab/brand.js"></script>
+    <script type="module" src="js/lab/verify-page.js"></script>
+</head>
+
+<body>
+    <header>
+        <h3>
+            <a class="logo" href="./">
+                <img src="img/favicon-64x64.png" alt="">
+                <span data-app-name></span>
+            </a>
+        </h3>
+        <p>check a student's evidence file</p>
+    </header>
+    <main>
+        <h1>Check an evidence file</h1>
+        <p>
+            Paste the text of an evidence file, drop the file on the box, or choose it.
+            The checksum is worked out in your browser and the file is not uploaded anywhere.
+        </p>
+
+        <div id="drop-zone" class="drop-zone">
+            <label for="evidence-text">Evidence file text</label>
+            <textarea id="evidence-text" rows="10" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off"></textarea>
+            <button id="verify-button" type="button">Verify</button>
+
+            <label for="evidence-file">Or choose an evidence file (.txt)</label>
+            <input id="evidence-file" type="file" accept=".txt,text/plain">
+            <p class="drop-hint">You can also drop the file anywhere on this page.</p>
+        </div>
+
+        <div id="verify-result" class="verify-result" role="status" aria-live="polite" aria-atomic="true"></div>
+
+        <p><a href="./">&larr; back to the app</a></p>
+    </main>
+    <footer>
+        <span data-app-name></span> &middot; Based on SQLime by Anton Zhiyanov
+    </footer>
+</body>
+
+</html>

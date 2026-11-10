@@ -52,7 +52,7 @@ test("injection: markup in table names is shown as text in the list, the schema 
     await app.open();
     await app.upload(sqlFile("evil.sql", sql));
     // the built-in preview of the first table ran, with the name quoted
-    await expect(app.status).toContainText("1 rows, took");
+    await expect(app.status).toContainText("1 row, took");
     await app.expectInert();
 
     await page.locator("#show-tables").click();

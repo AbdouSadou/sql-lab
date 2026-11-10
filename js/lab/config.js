@@ -45,6 +45,12 @@ export const RESULT_SCROLL_NOTE = "This result is wider than the screen. Scroll 
 export const VACUUM_INTO_MESSAGE =
     "VACUUM INTO a file is not available here, because files cannot be saved from the browser. Use the export button to save the database.";
 
+// SQL that holds a NUL character (U+0000). The engine reads SQL text only up to the first one, so
+// the statements after it would not run, and nothing would say so; SQLite itself (in other
+// drivers) reports "embedded null character".
+export const SQL_NUL_MESSAGE =
+    "The SQL contains a NUL character (U+0000), which SQLite does not accept in a statement, so nothing was run. Remove it and run again (pasting from a document or a web page is the usual way it gets in).";
+
 // Run while a database is still loading, and with no database at all.
 export const LOADING_BUSY_MESSAGE =
     "A database is still loading, so nothing was run. Press Run again once it has opened.";
@@ -146,8 +152,15 @@ export const MAX_LISTED_SETS = 200;
 export const PROGRESS_PREFIX = "sqllab.progress.";
 export const PROGRESS_VERSION = 1;
 
+// A listing shows at most this many characters of a file name that cannot be an id.
+export const LISTED_NAME_MAX_CHARS = 80;
+
 // Messages about exercise sets. They are worded for the instructor who edits the file;
-// plain text, and the only untrusted text in them is an id that matched SHARE_ID_PATTERN.
+// plain text, and the only untrusted text in them is an id that matched SHARE_ID_PATTERN. The
+// one other place text from a listing is shown is the label of a file whose name did not match
+// (setPickerBrokenLabel): the name, cut to LISTED_NAME_MAX_CHARS, set as text and as the option's
+// value (compared with the picker's value, never used to look up or open a set). The problem
+// shown with it is the constant below, with no part of the name in it.
 export const setInvalidMessage = (id, problem) =>
     `The exercise set "${id}" (exercises/${id}.json) is not valid: ${problem}`;
 export const setUnreachableMessage = (id) =>
@@ -155,6 +168,9 @@ export const setUnreachableMessage = (id) =>
 export const SET_BAD_ID_MESSAGE =
     "The exercise set name is not valid (1 to 64 letters, digits, \"_\" or \"-\").";
 export const SET_NOT_JSON_MESSAGE = "it is not valid JSON.";
+// the problem of a file in exercises/ whose name cannot be a set id; no request is made for it
+export const SET_BAD_FILE_NAME_MESSAGE =
+    'The file name may use only 1 to 64 letters, digits, "_" or "-" before ".json", so the file cannot be opened. Rename it.';
 // route notices (js/lab/router.js); `id` is null when it did not match the id pattern
 export const setNoticeMessage = (id, reason) =>
     (id ? `The exercise set "${id}"` : "The exercise set in the address") +
@@ -195,7 +211,8 @@ export const CHECK_NO_DATASET_MESSAGE =
 export const SET_PICKER_LABEL = "Exercises";
 export const SET_PICKER_NONE = "None";
 export const SET_PICKER_LOADING = "Loading exercises...";
-// a set that failed validation: a disabled option naming its file, the problem as its title
+// a set that failed validation, or a file whose name is unusable: a disabled option naming its
+// file, the problem as its title
 export const setPickerBrokenLabel = (id) => `${id}.json (not valid)`;
 
 // Panel texts.
@@ -240,3 +257,124 @@ export const CHECK_COPY_NOTE =
 // opened over it) and when the set's dataset is not in the manifest.
 export const setOpenFailedMessage = (id, reason) =>
     `The exercise set "${id}" could not be opened. ${reason}`;
+
+// ---- F5 results (js/lab/results.js) ----
+
+// The result table shows at most this many rows. The full result is kept for the CSV and
+// for the checker, and every row count the page shows or announces is the full count.
+export const ROW_LIMIT = 500;
+
+// "5 rows, took 3 ms", "1 row, ...", or "showing 500 of 906 rows, took 3 ms" when capped.
+export const resultStatusMessage = (total, shown, ms) =>
+    total > shown
+        ? `showing ${shown} of ${total} rows, took ${ms} ms`
+        : `${total} ${total === 1 ? "row" : "rows"}, took ${ms} ms`;
+
+// The failing statement is named after the engine's message, cut to about this many characters.
+export const STATEMENT_PREVIEW_CHARS = 120;
+export const STATEMENT_ELLIPSIS = "…";
+// "no such column: pric (statement 2 of 3: SELECT pric FROM t;)". `statement` is the text,
+// already on one line and cut; position and count are null for a failure that is not in a
+// statement of the run.
+export const failedStatementMessage = (message, position, count, statement) =>
+    `${message} (${count > 1 ? `statement ${position} of ${count}` : "statement"}: ${statement})`;
+
+// Download CSV: the button in the command bar, the file and what a failure says.
+export const CSV_BUTTON_TEXT = "download csv";
+export const CSV_BUTTON_TITLE = "Download the whole result on screen as a CSV file";
+export const CSV_FILE_SUFFIX = "-result.csv";
+export const CSV_FAILED_MESSAGE = "The CSV file could not be saved.";
+
+// The custom property js/lab/command-bar-fit.js sets on the editor and css/editor.css reads: the
+// height the editor leaves free at its bottom for the command bar.
+export const COMMANDBAR_CLEARANCE_PROPERTY = "--commandbar-clearance";
+
+// ---- F6 run log (js/lab/run-log.js) ----
+
+// localStorage: one key per log, RUN_LOG_PREFIX + the log key (js/lab/run-log.js logKey). The
+// prefix is a storage namespace and, like PROGRESS_PREFIX, does not follow APP_NAME.
+export const RUN_LOG_PREFIX = "sqllab.log.";
+export const RUN_LOG_VERSION = 1;
+// A log keeps its newest entries only.
+export const RUN_LOG_MAX_ENTRIES = 200;
+// ... and at most this much SQL and error text, counted in UTF-8 bytes (what the evidence file
+// holds; characters would let 200 entries of 24,000 CJK characters, 14 MB of text and 33 MB of
+// bytes, through). A log kept only in memory has no quota, and a file of 200 big entries would
+// pass EVIDENCE_MAX_BYTES, which verify.html refuses. The links the exporter adds to an entry
+// are at most 100,000 characters (SHARE_MAX_PAYLOAD_CHARS), so a file stays well under that limit.
+export const RUN_LOG_MAX_BYTES = 5_000_000;
+// The log key of anything that is not a built-in dataset is this prefix plus the database name.
+export const RUN_LOG_FILE_PREFIX = "file:";
+
+// Storage that cannot keep the run log or the exercise progress: js/lab/storage-notice.js
+// shows one line while it is so. The event carries {what: "log" | "progress", ok: boolean}.
+export const STORAGE_STATE_EVENT = "lab:storage-state";
+export const STORAGE_NOTICE_LOG =
+    "Your browser has no room left to keep your query history, so older queries may be missing from it. " +
+    "Export your evidence before you close this page.";
+export const STORAGE_NOTICE_PROGRESS =
+    "Your browser has no room left to keep your exercise progress, so it will be lost when you close this page.";
+
+// The history popup in the command bar.
+export const HISTORY_BUTTON_TEXT = "history";
+export const HISTORY_BUTTON_TITLE = "Put one of your earlier queries back in the editor";
+export const HISTORY_LIST_LABEL = "Earlier queries, newest first. Times are UTC.";
+export const HISTORY_EMPTY_MESSAGE = "Nothing yet. The queries you run will be listed here.";
+export const HISTORY_RESTORED_MESSAGE = "An earlier query is in the editor. Press Run to execute it.";
+export const HISTORY_ERROR_WORD = "error";
+// shown after the time of every entry (the log keeps UTC, whatever the clock on the wall says)
+export const HISTORY_TIME_ZONE = "UTC";
+// the start of the SQL shown on an entry's button, in characters
+export const HISTORY_SQL_PREVIEW_CHARS = 80;
+export const historyRowsText = (count) => `${count} ${count === 1 ? "row" : "rows"}`;
+
+// ---- F11 evidence export (js/lab/evidence.js, evidence-dialog.js, verify-page.js) ----
+
+// The student number typed at export time must match this. One constant, used by the dialog
+// only: the verify page never applies it, so changing it does not invalidate older files.
+export const STUDENT_ID_PATTERN = /^[A-Za-z0-9]{6,12}$/;
+// The first line of a file is "<APP_NAME> evidence export v1".
+export const EVIDENCE_TITLE_SUFFIX = "evidence export v1";
+export const EVIDENCE_MIDDLE_DOT = "\u00b7";
+// A line of SQL that looks like an entry header ("[4] 2026-11-09T13:58:12Z · 1 row") is written
+// with this in front of it, so that the lines which look like headers in a file are the real
+// ones and the verify page's query count cannot be inflated by the SQL.
+export const EVIDENCE_SQL_ESCAPE = "\\";
+// The verify page refuses a file larger than this.
+export const EVIDENCE_MAX_BYTES = 20 * 1024 * 1024;
+
+export const EVIDENCE_BUTTON_TEXT = "evidence";
+export const EVIDENCE_BUTTON_TITLE = "Save your run log as a file to attach to your work";
+export const EVIDENCE_EMPTY_MESSAGE = "Nothing to export yet. Run a query first, then export your evidence.";
+export const EVIDENCE_NO_CRYPTO_MESSAGE =
+    "This page cannot make the checksum, because the browser withholds it on an address that is not secure. " +
+    "Open the site over https.";
+export const EVIDENCE_FAILED_MESSAGE = "The evidence file could not be saved.";
+export const evidenceSavedMessage = (filename, count) =>
+    `Saved ${filename} with ${count} ${count === 1 ? "query" : "queries"}.`;
+export const EVIDENCE_DIALOG_TITLE = "Export your evidence";
+export const EVIDENCE_DIALOG_TEXT =
+    "The file lists the queries you ran on this dataset, with your student number and a checksum, " +
+    "so a marker can check it was not edited. Your number goes in the file only.";
+export const EVIDENCE_LABEL = "Student number";
+export const EVIDENCE_HINT = "6 to 12 letters or digits, no spaces.";
+export const EVIDENCE_INVALID_MESSAGE =
+    "That is not a valid student number. Use 6 to 12 letters or digits, with no spaces or punctuation.";
+export const EVIDENCE_SUBMIT_TEXT = "Export";
+export const EVIDENCE_CANCEL_TEXT = "Cancel";
+
+// verify.html
+export const VERIFY_VALID_WORD = "VALID";
+export const VERIFY_EDITED_WORD = "EDITED";
+export const VERIFY_TOO_LARGE_REASON = "The file is too large to be an evidence file (over 20 MB).";
+export const VERIFY_NO_CRYPTO_MESSAGE =
+    "This page cannot check files here, because the browser withholds the checksum function on an address " +
+    "that is not secure. Open this page over https (or on localhost). No result was reached.";
+export const VERIFY_READ_FAILED_REASON = "The file could not be read as text.";
+// The file is a valid evidence file followed by nothing but line breaks. Still EDITED (any change
+// to the file is reported), but it reads as a stray newline, not as tampering.
+export const VERIFY_EXTRA_BLANK_LINES_REASON = "Extra blank lines were added after the checksum line.";
+
+// js/lab/plain-text.js: what a line break becomes when text is pasted or dropped into a
+// one-line field (the database name).
+export const ONE_LINE_SEPARATOR = " ";

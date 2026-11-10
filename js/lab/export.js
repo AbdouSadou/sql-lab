@@ -15,18 +15,22 @@ import { escapeHtml } from "./html.js";
 
 const DB_EXTENSION = /\.(db|sqlite|sqlite3)$/i;
 
-// exportFileName derives the download name from the database name: no path characters,
-// no script suffix (an uploaded .sql script is saved as a database), always a database
-// extension.
-export function exportFileName(name) {
-    let base = String(name ?? "")
+// safeBaseName derives a file name's base from the database name: no path characters, no
+// script suffix (an uploaded .sql script is saved as a database), never empty. The database
+// export and the CSV download (js/lab/results.js) both name their files from it.
+export function safeBaseName(name) {
+    const base = String(name ?? "")
         .replace(/\.sql$/i, "")
         .replace(/[\u0000-\u001f\u007f\\/:*?"<>|]+/g, "_")
         .replace(/^[\s.]+|[\s.]+$/g, "")
         .slice(0, 100);
-    if (!base || /^_+$/.test(base)) {
-        base = EXPORT_FALLBACK_NAME;
-    }
+    return !base || /^_+$/.test(base) ? EXPORT_FALLBACK_NAME : base;
+}
+
+// exportFileName derives the download name from the database name: always a database
+// extension.
+export function exportFileName(name) {
+    const base = safeBaseName(name);
     return DB_EXTENSION.test(base) ? base : `${base}.db`;
 }
 
@@ -51,9 +55,9 @@ export function serializeDatabase(database) {
     }
 }
 
-// download hands the bytes to the browser as a file save.
-function download(bytes, filename) {
-    const blob = new Blob([bytes], { type: "application/vnd.sqlite3" });
+// saveFile hands data (a string or bytes) to the browser as a file save.
+export function saveFile(data, filename, type) {
+    const blob = new Blob([data], { type });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -81,7 +85,7 @@ export function createExportAction(ui, getDatabase) {
             return Promise.resolve();
         }
         try {
-            download(result.bytes, result.filename);
+            saveFile(result.bytes, result.filename, "application/vnd.sqlite3");
         } catch {
             ui.status.error(escapeHtml(EXPORT_FAILED_MESSAGE));
             return Promise.resolve();

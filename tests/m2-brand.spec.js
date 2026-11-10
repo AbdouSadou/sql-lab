@@ -47,6 +47,8 @@ test("brand: the app name is written in js/lab/config.js and nowhere else", () =
     expect(hits.map((h) => h.replace(/:\d+:/, ":"))).toEqual([
         'js/lab/config.js: export const APP_NAME = "SQL Lab";',
         'js/lab/config.js: export const PROGRESS_PREFIX = "sqllab.progress.";',
+        // and the run log's (F6), for the same reason
+        'js/lab/config.js: export const RUN_LOG_PREFIX = "sqllab.log.";',
     ]);
 });
 
@@ -58,6 +60,11 @@ test("brand: the default name shows in the title, header and footer of index and
 
     await page.goto("about.html");
     await expect(page).toHaveTitle("About - SQL Lab");
+    await expect(page.locator("body > header")).toContainText("SQL Lab");
+    await expect(page.locator("body > footer")).toContainText("SQL Lab");
+
+    await page.goto("verify.html");
+    await expect(page).toHaveTitle("Check evidence - SQL Lab");
     await expect(page.locator("body > header")).toContainText("SQL Lab");
     await expect(page.locator("body > footer")).toContainText("SQL Lab");
 });
@@ -85,7 +92,12 @@ test("brand: renaming through a copy of js/lab/config.js changes title, header a
     await expect(page.locator("main")).toContainText("Renamed Workbench");
     await expect(page.locator("body > footer")).toContainText("Renamed Workbench");
 
-    for (const url of ["./", "about.html"]) {
+    await page.goto("verify.html");
+    await expect(page).toHaveTitle("Check evidence - Renamed Workbench");
+    await expect(page.locator("body > header")).toContainText("Renamed Workbench");
+    await expect(page.locator("body > footer")).toContainText("Renamed Workbench");
+
+    for (const url of ["./", "about.html", "verify.html"]) {
         await page.goto(url);
         await expect(page.locator("body")).not.toContainText("SQL Lab");
         expect(await page.title()).not.toContain("SQL Lab");
@@ -108,6 +120,8 @@ test("brand: the credit is on index and About", async ({ page, app }) => {
     await page.goto("about.html");
     await expect(page.locator("body > footer")).toContainText(CREDIT);
     await expect(page.locator("main")).toContainText(CREDIT);
+    await page.goto("verify.html");
+    await expect(page.locator("body > footer")).toContainText(CREDIT);
 });
 
 test("brand: 'sqlime' appears in visible text only inside the credit", async ({ page, app }) => {
@@ -121,9 +135,11 @@ test("brand: 'sqlime' appears in visible text only inside the credit", async ({ 
     await page.locator("#show-tables").click();
     expect(await visible()).not.toMatch(/sqlime/i);
 
-    await page.goto("about.html");
-    expect(await visible()).not.toMatch(/sqlime/i);
-    expect(await page.title()).not.toMatch(/sqlime/i);
+    for (const url of ["about.html", "verify.html"]) {
+        await page.goto(url);
+        expect(await visible()).not.toMatch(/sqlime/i);
+        expect(await page.title()).not.toMatch(/sqlime/i);
+    }
 });
 
 test("brand: About describes this app and has no gist, token or third-party content", async ({ page, net }) => {
@@ -141,7 +157,7 @@ test("brand: About describes this app and has no gist, token or third-party cont
 });
 
 test("brand: the page metadata is neutral and names no third party", () => {
-    for (const file of ["index.html", "about.html"]) {
+    for (const file of ["index.html", "about.html", "verify.html"]) {
         const html = fs.readFileSync(path.join(ROOT, file), "utf8");
         for (const tag of ["og:url", "og:image", "og:title", "og:site_name", "og:description"]) {
             expect(html, `${file} ${tag}`).not.toContain(tag);

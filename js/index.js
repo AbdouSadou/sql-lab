@@ -33,13 +33,19 @@ import {
 } from "./lab/datasets.js";
 import { mountExercises } from "./lab/exercise-panel.js";
 import { createExportAction } from "./lab/export.js";
+import { mountEvidence } from "./lab/evidence-dialog.js";
 import { escapeHtml } from "./lab/html.js";
+import { errorText, mountResults } from "./lab/results.js";
 import { resolveRoute } from "./lab/router.js";
+import { mountRunLog } from "./lab/run-log.js";
 import { runSql } from "./lab/runner.js";
 import { mountResultScroll } from "./lab/result-scroll.js";
+import { mountCommandBarFit } from "./lab/command-bar-fit.js";
 import { mountSchema } from "./lab/schema.js";
 import { createSetActions } from "./lab/set-actions.js";
 import { setShareContext } from "./lab/share.js";
+import { mountPlainText } from "./lab/plain-text.js";
+import { mountStorageNotice } from "./lab/storage-notice.js";
 import { tableContentSql, tableInfoSql } from "./lab/sql.js";
 import { mountToolbar } from "./lab/toolbar-extras.js";
 
@@ -154,13 +160,32 @@ mountSchema({ aside: document.querySelector("#schema"), editor: ui.editor });
 // The "scroll sideways" note under a result that is wider than its box (js/lab/result-scroll.js).
 mountResultScroll({ result: ui.result, note: document.querySelector("#result-scroll-note") });
 
+// The room the editor leaves for the command bar follows the bar's height (js/lab/command-bar-fit.js).
+mountCommandBarFit({ editor: ui.editor, bar: ui.commandbar });
+
+// F5: the row cap, timing, the failing statement and Download CSV (js/lab/results.js);
+// showResult and showError below delegate to it.
+const results = mountResults({ ui, getDatabase: () => database });
+
+// F6 run log and its history popup (js/lab/run-log.js), and F11 evidence export
+// (js/lab/evidence-dialog.js); both follow the page through the events below.
+const runLog = mountRunLog({ ui });
+mountEvidence({ toolbar: ui.toolbar, ui, runLog });
+// one line of notice while the browser cannot keep the run log or the progress
+mountStorageNotice({ ui });
+
+// Only text/plain may be pasted or dropped into the editable areas (js/lab/plain-text.js).
+mountPlainText(ui.editor);
+mountPlainText(ui.name, { singleLine: true });
+
 // announce tells the rest of the page (and the lab modules) what just happened:
 //   lab:database-loaded  detail {database, dataset, exercise}: a database is open; dataset is
 //                        the manifest entry, or null for an upload, a URL or the empty
 //                        database; exercise is {set, exerciseId} when an exercise set was
 //                        opened with it, else null (the exercise panel closes)
 //   lab:run-finished     detail {database, sql, ok, rows, error, preview}: after every run,
-//                        failed ones too (statements before the error stay applied);
+//                        failed ones too (statements before the error stay applied); rows is
+//                        the full row count, error the engine's message alone on one line;
 //                        preview is true for the table preview the app runs on its own
 function announce(type, detail) {
     document.dispatchEvent(new CustomEvent(type, { detail }));
@@ -448,7 +473,7 @@ function execute(sql, persist = true) {
         showResult(result, elapsed);
         return Promise.resolve();
     } catch (exc) {
-        outcome = { ok: false, error: String(exc) };
+        outcome = { ok: false, error: errorText(exc) };
         showError(exc);
         return Promise.reject(exc);
     } finally {
@@ -567,22 +592,13 @@ function showWelcome(notice = null) {
 // showResult shows results and timing
 // of the SQL query execution
 function showResult(result, elapsed) {
-    if (result && result.values.length) {
-        ui.status.success(`${result.values.length} rows, took ${elapsed} ms`);
-        ui.result.print(result);
-    } else {
-        ui.status.success(`0 rows, took ${elapsed} ms`);
-        ui.result.print("");
-    }
+    results.showResult(result, elapsed);
 }
 
 // showError shows an error occured
 // during SQL query execution
 function showError(exc) {
-    // SQLite error messages echo the user's own text (a table name, for example)
-    const err = String(exc).split("\n")[0];
-    ui.result.clear();
-    ui.status.error(escapeHtml(err));
+    results.showError(exc);
 }
 
 // ignoreRejection swallows the rejection of execute(): the error has already been

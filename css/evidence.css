@@ -1,0 +1,91 @@
+/* The evidence export dialog (js/lab/evidence-dialog.js). */
+
+.evidence-dialog {
+    box-sizing: border-box;
+    width: min(28rem, calc(100vw - 2rem));
+    max-width: calc(100vw - 2rem);
+    padding: 1rem;
+    border: 1px solid var(--sqlime-blue);
+    border-radius: 0.25rem;
+    background: var(--sqlime-surface);
+    color: var(--sqlime-text);
+}
+
+.evidence-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.evidence-title {
+    margin: 0 0 0.5rem;
+    font-size: 1.125rem;
+}
+
+.evidence-text {
+    margin: 0 0 0.75rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.evidence-label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+}
+
+.evidence-dialog input[type="text"] {
+    box-sizing: border-box;
+    width: 100%;
+    height: 2.25rem;
+    padding: 0 0.5rem;
+    border: 1px solid var(--sqlime-blue);
+    border-radius: 0.125rem;
+    background: var(--sqlime-surface);
+    color: inherit;
+    font: inherit;
+}
+
+.evidence-dialog input[aria-invalid="true"] {
+    border-color: var(--sqlime-red);
+    border-width: 2px;
+}
+
+.evidence-hint {
+    margin: 0.25rem 0 0;
+    font-size: 0.8125rem;
+    opacity: 0.8;
+}
+
+.evidence-error {
+    margin: 0.5rem 0 0;
+    color: var(--sqlime-red);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.evidence-error[hidden] {
+    display: none;
+}
+
+.evidence-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.evidence-actions button {
+    min-height: 2.25rem;
+    padding: 0 1rem;
+    border: 1px solid var(--sqlime-blue);
+    border-radius: 0.125rem;
+    background: transparent;
+    color: var(--sqlime-blue);
+    font: inherit;
+    cursor: pointer;
+}
+
+.evidence-actions .evidence-submit {
+    background: var(--sqlime-blue);
+    color: var(--sqlime-white);
+}

@@ -55,8 +55,10 @@
                 </section>
                 <link rel="stylesheet" href="css/editor.css">
                 <link rel="stylesheet" href="css/commandbar.css">
+                <link rel="stylesheet" href="css/run-log.css">
+                <link rel="stylesheet" href="css/evidence.css">
                 <section class="sqlime-editor-section">
-                    <sqlime-editor id="editor" class="sqlime-editor" aria-describedby="editor-hint"></sqlime-editor>
+                    <sqlime-editor id="editor" class="sqlime-editor" autocorrect="off" autocapitalize="off" aria-describedby="editor-hint"></sqlime-editor>
                     <p id="editor-hint" class="editor-hint">Press Tab to indent. To leave the editor, press Escape, then Tab or Shift+Tab.</p>
                     <command-bar id="commandbar" class="sqlime-commandbar sqlime-disabled"></command-bar>
                 </section>
@@ -85,6 +87,7 @@
     </div>
 
     <script src="js/lab/storage-guard.js"></script>
+    <script src="js/lab/engine-guard.js"></script>
     <script src="vendor/sqlite3.js"></script>
     <script src="vendor/lz-string.min.js"></script>
     <script type="module" src="js/components/copy-link.js"></script>

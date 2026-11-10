@@ -6,7 +6,9 @@
 // Everything in it is untrusted text (an instructor's typo or a bad merge is the likeliest
 // source, but callers still use textContent), and every problem becomes a message instead
 // of an exception. Messages are worded for the instructor who edits the file and only ever
-// echo an id that matched SHARE_ID_PATTERN.
+// echo an id that matched SHARE_ID_PATTERN. (The one other name that is shown is the file
+// name of a listing entry that did not match; it is never put in a message or a request. See
+// badNamesInListing.)
 //
 // Exports:
 //   validateSet(data, expectedId) -> {ok: true, set} | {ok: false, message}
@@ -21,21 +23,29 @@
 //       failure is not, so the next call tries again.
 //   listSets() -> Promise<Array<{id, ok: true, set} | {id, ok: false, problem}>>
 //       Discovers the sets by fetching the folder URL exercises/ and reading its links (see
-//       listing below), sorted by id, each one loaded with loadSet. Never throws; no
-//       listing means [] and is not an error (?set=<id> and share links still work, they
-//       fetch the file directly). `problem` is plain text for the instructor; escape it or
-//       use textContent.
+//       listing below), sorted by id, each one loaded with loadSet. A .json file whose name
+//       cannot be an id ("Week 3.json") is an entry too, {id: <its name>, ok: false, problem},
+//       sorted among the others and counted against the same limit (the sets first: the names
+//       only fill the room the sets leave); no request is made for it, and its `id` is only a
+//       name to show, not an id: it must never go into a URL, a selector or a lookup of a set.
+//       Never throws; no listing means [] and is not an error (?set=<id> and share links still
+//       work, they fetch the file directly). `problem` is plain text for the instructor; escape
+//       it or use textContent.
 //
 // The listing. A static host cannot list a folder, and adding exercises must be "commit one
 // JSON file", so the folder page is read: python3 -m http.server serves a listing by
 // itself and the Pages deploy step writes exercises/index.html. Only an href whose entire
 // value, after percent-decoding, is "<id>.json" with an id that matches SHARE_ID_PATTERN
 // counts. The URL that is fetched is rebuilt from the id, never taken from the href, so a
-// listing can not make the page request anything outside exercises/.
+// listing can not make the page request anything outside exercises/. The other plain .json
+// names of the folder are reported (badNamesInListing) so that the Exercises menu can show the
+// instructor that a file was committed under a name that cannot work; they are not fetched.
 
 import {
     EXERCISES_DIR,
+    LISTED_NAME_MAX_CHARS,
     MAX_LISTED_SETS,
+    SET_BAD_FILE_NAME_MESSAGE,
     SET_BAD_ID_MESSAGE,
     SET_NOT_JSON_MESSAGE,
     SHARE_ID_PATTERN,
@@ -169,36 +179,54 @@ async function fetchSet(id) {
 
 // ---- discovery -------------------------------------------------------------------------
 
-// idsInListing reads the set ids out of an HTML listing. Returns a sorted array of ids.
-export function idsInListing(html) {
-    const ids = new Set();
-    let doc;
+// hrefsInListing is the href of every link of an HTML listing, or [] when it cannot be read.
+function hrefsInListing(html) {
     try {
-        doc = new DOMParser().parseFromString(html, "text/html");
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        return [...doc.querySelectorAll("a[href]")].map((link) => link.getAttribute("href"));
     } catch {
         return [];
     }
-    for (const link of doc.querySelectorAll("a[href]")) {
-        const id = idFromHref(link.getAttribute("href"));
-        if (id) {
-            ids.add(id);
+}
+
+// idsInListing reads the set ids out of an HTML listing. Returns a sorted array of ids.
+export function idsInListing(html) {
+    const ids = new Set();
+    for (const href of hrefsInListing(html)) {
+        const name = jsonNameFromHref(href);
+        if (isId(name)) {
+            ids.add(name);
         }
     }
     return [...ids].sort(compareCodeUnits);
 }
 
-function idFromHref(href) {
+// badNamesInListing reads out of an HTML listing the files that look like sets but cannot be:
+// links that end in ".json", are plain file names of this folder (no "/" or "\" once
+// decoded, so nothing that points elsewhere), and are not an id ("Week 3.json",
+// "week1.v2.json"). Returns the names without ".json", sorted and each cut to
+// LISTED_NAME_MAX_CHARS characters (by code point, so no character is torn in two) for display.
+export function badNamesInListing(html) {
+    const names = new Set();
+    for (const href of hrefsInListing(html)) {
+        const name = jsonNameFromHref(href);
+        if (name !== null && !isId(name) && !/[\\/]/.test(name)) {
+            names.add(Array.from(name).slice(0, LISTED_NAME_MAX_CHARS).join(""));
+        }
+    }
+    return [...names].sort(compareCodeUnits);
+}
+
+// The decoded href without its ".json", or null when it does not end in ".json" or its
+// percent-encoding is malformed.
+function jsonNameFromHref(href) {
     let decoded;
     try {
         decoded = decodeURIComponent(href);
     } catch {
         return null;
     }
-    if (!decoded.endsWith(".json")) {
-        return null;
-    }
-    const id = decoded.slice(0, -".json".length);
-    return isId(id) ? id : null;
+    return decoded.endsWith(".json") ? decoded.slice(0, -".json".length) : null;
 }
 
 const compareCodeUnits = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
@@ -214,9 +242,22 @@ export async function listSets() {
     } catch {
         return [];
     }
+    // ids and unusable names are different things (an id matches the pattern, a bad name never
+    // does, so no name is in both lists). Both count against MAX_LISTED_SETS, but the sets come
+    // first: the names fill the room the sets leave, so a folder of badly named files cannot push
+    // the sets that work out of the menu. The two are then sorted as one list.
     const ids = idsInListing(html).slice(0, MAX_LISTED_SETS);
+    const found = [
+        ...ids.map((id) => ({ id, bad: false })),
+        ...badNamesInListing(html)
+            .slice(0, MAX_LISTED_SETS - ids.length)
+            .map((id) => ({ id, bad: true })),
+    ].sort((a, b) => compareCodeUnits(a.id, b.id));
     return Promise.all(
-        ids.map(async (id) => {
+        found.map(async ({ id, bad }) => {
+            if (bad) {
+                return { id, ok: false, problem: SET_BAD_FILE_NAME_MESSAGE };
+            }
             const result = await loadSet(id);
             return result.ok ? { id, ok: true, set: result.set } : { id, ok: false, problem: result.message };
         })

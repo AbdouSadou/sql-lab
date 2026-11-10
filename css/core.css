@@ -4,10 +4,12 @@
         "Segoe UI Symbol";
     --sqlime-monospace: "SFMono-Regular", Consolas, "Liberation Mono", Menlo,
         Courier, monospace;
-    --sqlime-blue: #008bf5;
+    /* blue and red are text colours too (buttons, errors): both are 4.5:1 or better on the light
+       surfaces, and white on the blue is 5.8:1 */
+    --sqlime-blue: #0066b8;
     --sqlime-dark-gray: #aaa;
     --sqlime-gray: #ccc;
-    --sqlime-red: red;
+    --sqlime-red: #b00020;
     --sqlime-white: #fff;
     --sqlime-text: #000;
     --sqlime-background: #fafafa;
@@ -17,6 +19,7 @@
 
 @media (prefers-color-scheme: dark) {
     :root {
+        --sqlime-blue: #008bf5;
         --sqlime-dark-gray: #888;
         --sqlime-gray: #444;
         --sqlime-red: #ff5c5c;

@@ -14,7 +14,9 @@
 //   test("AC1 ...", async ({ page, net, app }) => { ... });
 
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 const base = require("@playwright/test");
 const { expect } = base;
 
@@ -215,6 +217,30 @@ async function routeListing(target, html, { status = 200 } = {}) {
 const modelQuery = (exerciseId, setId = "retail-basics") =>
     realSet(setId).exercises.find((e) => e.id === exerciseId).model_query;
 
+// ---- evidence files (F11) ---------------------------------------------------------------
+//
+// evidenceFile builds an evidence file the way spec section 5a lays it out, independently of
+// js/lab/evidence.js (so the app is checked against a second implementation, not itself).
+// entries: [{t, outcome: "12 rows" | "error: msg", sql, link?}]. `hex` overrides the checksum
+// (to make a file whose checksum is wrong on purpose).
+function evidenceFile({
+    appName = "SQL Lab",
+    dataset = "northlight",
+    exported = "2026-11-09T14:32:08Z",
+    student = "U2034567",
+    entries,
+    hex = null,
+}) {
+    const crypto = require("node:crypto");
+    let body = `${appName} evidence export v1\ndataset: ${dataset}\nexported: ${exported}\n\n`;
+    entries.forEach((e, i) => {
+        body += `[${i + 1}] ${e.t} \u00b7 ${e.outcome}\n${e.sql}\n${e.link ? `link: ${e.link}\n` : ""}\n`;
+    });
+    body += `student: ${student}\n`;
+    const digest = hex ?? crypto.createHash("sha256").update(Buffer.from(body, "utf8")).digest("hex");
+    return `${body}sha256: ${digest}\n`;
+}
+
 class App {
     constructor(page) {
         this.page = page;
@@ -328,6 +354,100 @@ class App {
         }
         await expect(this.shareField).toHaveCount(1);
         return this.shareField.inputValue();
+    }
+
+    // ---- F5 results (js/lab/results.js)
+    get csvButton() {
+        return this.page.locator("#download-csv");
+    }
+
+    // downloadCsv presses the download csv button (a real click, or Enter on the focused
+    // button with via "keyboard") and returns the saved file as {name, buffer, text}. text
+    // is the UTF-8 decoding with a byte order mark, if any, kept as U+FEFF.
+    async downloadCsv({ via = "mouse" } = {}) {
+        const [download] = await Promise.all([
+            this.page.waitForEvent("download"),
+            via === "keyboard"
+                ? (async () => {
+                      await this.csvButton.focus();
+                      await this.page.keyboard.press("Enter");
+                  })()
+                : this.csvButton.click(),
+        ]);
+        const stream = await download.createReadStream();
+        const chunks = [];
+        for await (const chunk of stream) chunks.push(chunk);
+        const buffer = Buffer.concat(chunks);
+        return { name: download.suggestedFilename(), buffer, text: buffer.toString("utf8") };
+    }
+
+    // ---- F6 run log and F11 evidence export (js/lab/run-log.js, evidence-dialog.js)
+    get historyButton() {
+        return this.page.locator("#run-history");
+    }
+
+    get historyList() {
+        return this.page.locator("#run-history-list");
+    }
+
+    get historyEntries() {
+        return this.page.locator("#run-history-list button");
+    }
+
+    get evidenceButton() {
+        return this.page.locator("#export-evidence");
+    }
+
+    get evidenceDialog() {
+        return this.page.locator("#evidence-dialog");
+    }
+
+    get evidenceInput() {
+        return this.page.locator("#evidence-student");
+    }
+
+    get evidenceError() {
+        return this.page.locator("#evidence-error");
+    }
+
+    // readLog returns the stored run log of a log key (the entries array), or null when none is stored.
+    // A Run stores its entry before its result is on screen, so nothing needs waiting for.
+    readLog(key) {
+        return this.page.evaluate((k) => {
+            const text = localStorage.getItem(`sqllab.log.${k}`);
+            return text === null ? null : JSON.parse(text).entries;
+        }, key);
+    }
+
+    // seedLog stores a run log (an array of entries, or raw text) the way the app does.
+    seedLog(key, entries) {
+        return this.page.evaluate(
+            ([k, value]) => {
+                localStorage.setItem(
+                    `sqllab.log.${k}`,
+                    typeof value === "string" ? value : JSON.stringify({ v: 1, entries: value })
+                );
+            },
+            [key, entries]
+        );
+    }
+
+    // exportEvidence drives the real dialog: the button, the student number, Export. Returns the
+    // downloaded file as {name, buffer, text}.
+    async exportEvidence(student = "U2034567") {
+        await this.evidenceButton.click();
+        await expect(this.evidenceDialog).toBeVisible();
+        await this.evidenceInput.fill(student);
+        const [download] = await Promise.all([
+            this.page.waitForEvent("download"),
+            this.evidenceDialog.locator("button[type=submit]").click(),
+        ]);
+        const stream = await download.createReadStream();
+        const chunks = [];
+        for await (const chunk of stream) chunks.push(chunk);
+        const buffer = Buffer.concat(chunks);
+        await expect(this.evidenceDialog).toBeHidden();
+        return { name: download.suggestedFilename(), buffer, text: buffer.toString("utf8") };
     }
 
     // ---- exercise mode on screen (js/lab/exercise-panel.js). Ids are the stable ones of the panel.
@@ -548,6 +668,127 @@ const test = base.test.extend({
     },
 });
 
+// ---- storage that fails
+//
+// failStorage(target, {methods, prefix, minLength, on}) makes Storage methods throw while the page's
+// window.__storageFails is true (`on` is its first value; setStorageFailing(page, bool) changes
+// it later). `target` is a page, or a context to cover every page it opens. Only keys that start
+// with `prefix` fail; with minLength, only a setItem whose value is longer than that (a quota).
+// Methods are "setItem" and "getItem" (the others are left alone).
+async function failStorage(target, { methods = ["setItem"], prefix = "", minLength = 0, on = true } = {}) {
+    await target.addInitScript(
+        ([methods, prefix, minLength, on]) => {
+            window.__storageFails = on;
+            for (const method of methods) {
+                const original = Storage.prototype[method];
+                Storage.prototype[method] = function (key, value) {
+                    const long = method !== "setItem" || String(value).length > minLength;
+                    if (window.__storageFails && String(key).startsWith(prefix) && long) {
+                        throw new DOMException("storage fails", method === "setItem" ? "QuotaExceededError" : "SecurityError");
+                    }
+                    return original.apply(this, arguments);
+                };
+            }
+        },
+        [methods, prefix, minLength, on]
+    );
+}
+
+function setStorageFailing(page, on) {
+    return page.evaluate((value) => (window.__storageFails = value), on);
+}
+
+// serveRepoAt(target, origin) answers every request to `origin` (a made-up one, nothing real is
+// contacted) with the file of the repo that the path names after its leading slashes are cut:
+// "//", "///" and "//index.html" all give index.html. That is how a root-hosted site behaves
+// when its server maps a doubled slash to the same file; the test server answers those with 404.
+// Returns the list of requested paths.
+function serveRepoAt(target, origin) {
+    const types = {
+        ".html": "text/html",
+        ".js": "text/javascript",
+        ".css": "text/css",
+        ".json": "application/json",
+        ".wasm": "application/wasm",
+        ".svg": "image/svg+xml",
+        ".db": "application/octet-stream",
+    };
+    const root = path.join(__dirname, "..");
+    const requested = [];
+    target.route(new RegExp(`^${origin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/`), async (route) => {
+        const { pathname } = new URL(route.request().url());
+        requested.push(pathname);
+        const relative = pathname.replace(/^\/+/, "") || "index.html";
+        const file = path.resolve(root, relative);
+        if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
+            return route.fulfill({ status: 404, body: "not found" });
+        }
+        return route.fulfill({ status: 200, contentType: types[path.extname(file)] || "text/plain", body: fs.readFileSync(file) });
+    });
+    return requested;
+}
+
+// fakeStorage is a localStorage for the modules that run in Node. Set `full` or `unreadable` to
+// make setItem or getItem throw, and `limit` to refuse values longer than that.
+function fakeStorage() {
+    const data = new Map();
+    const store = {
+        data,
+        full: false,
+        unreadable: false,
+        limit: Infinity,
+        getItem(key) {
+            if (store.unreadable) {
+                throw new Error("unreadable");
+            }
+            return data.has(key) ? data.get(key) : null;
+        },
+        setItem(key, value) {
+            if (store.full || String(value).length > store.limit) {
+                throw new Error("full");
+            }
+            data.set(key, String(value));
+        },
+        removeItem(key) {
+            data.delete(key);
+        },
+    };
+    return store;
+}
+
+// inNode(storage, fn) runs fn with `storage` as the global localStorage and a `document` that
+// collects the page's lab:storage-state events. Both are removed afterwards. fn gets (events,
+// tab): tab() returns a private copy of js/lab/ with its own module state (the run log's memory,
+// the progress in memory), which is what one more browser tab is; tab().load("run-log.js")
+// imports a module of that copy. The copies are deleted afterwards. (A query string on the URL
+// would not do: the test runner's loader drops it, and every import would be the same module.)
+async function inNode(storage, fn) {
+    const events = [];
+    const dirs = [];
+    const tab = () => {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lab-tab-"));
+        dirs.push(dir);
+        const from = path.join(__dirname, "..", "js", "lab");
+        for (const name of fs.readdirSync(from).filter((n) => n.endsWith(".js"))) {
+            fs.copyFileSync(path.join(from, name), path.join(dir, name));
+        }
+        return { load: (file) => import(pathToFileURL(path.join(dir, file)).href) };
+    };
+    const target = new EventTarget();
+    target.addEventListener("lab:storage-state", (event) => events.push(event.detail));
+    Object.defineProperty(globalThis, "localStorage", { value: storage, configurable: true, writable: true });
+    Object.defineProperty(globalThis, "document", { value: target, configurable: true, writable: true });
+    try {
+        return await fn(events, tab);
+    } finally {
+        delete globalThis.localStorage;
+        delete globalThis.document;
+        for (const dir of dirs) {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    }
+}
+
 module.exports = {
     test,
     expect,
@@ -568,4 +809,10 @@ module.exports = {
     routeSet,
     routeListing,
     listingHtml,
+    evidenceFile,
+    failStorage,
+    setStorageFailing,
+    fakeStorage,
+    serveRepoAt,
+    inNode,
 };

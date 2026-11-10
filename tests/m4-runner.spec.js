@@ -60,10 +60,35 @@ test.describe("splitStatements", () => {
         expect(await split(page, `${withCase} select 1`)).toEqual([withCase, "select 1"]);
     });
 
-    test("a trailing comment is a final statement of its own", async ({ page }) => {
-        expect(await split(page, "select 1; -- done")).toEqual(["select 1;", "-- done"]);
-        expect(await split(page, "select 1; /* unfinished")).toEqual(["select 1;", "/* unfinished"]);
-        expect(await split(page, "-- only a comment")).toEqual(["-- only a comment"]);
+    test("a comment after the last statement is not a statement, and a comment in front of one is part of it", async ({ page }) => {
+        expect(await split(page, "select 1; -- done")).toEqual(["select 1;"]);
+        expect(await split(page, "select 1; /* unfinished")).toEqual(["select 1;"]);
+        expect(await split(page, "select 1;\n-- one\n/* two */ ; -- three")).toEqual(["select 1;"]);
+        expect(await split(page, "-- only a comment")).toEqual([]);
+        // a closed comment in front of SQL does not swallow it, and an unterminated one after it is dropped
+        expect(await split(page, "/* note */ select 2")).toEqual(["/* note */ select 2"]);
+        expect(await split(page, "/* a */ /* b */ select 2; /* open")).toEqual(["/* a */ /* b */ select 2;"]);
+        expect(await split(page, "select 1; /* a */ select 2")).toEqual(["select 1;", "/* a */ select 2"]);
+        expect(await split(page, "/* a */ -- b\n  ;  ")).toEqual([]);
+        expect(await split(page, "select 1; -- note\nselect 2; -- done")).toEqual(["select 1;", "-- note\nselect 2;"]);
+        // a comment inside a statement, or text that only looks like a comment start, is kept
+        expect(await split(page, "select 1 -- why\n")).toEqual(["select 1 -- why"]);
+        expect(await split(page, "select '-- not a comment'; select 2")).toEqual(["select '-- not a comment';", "select 2"]);
+    });
+
+    test("a long run of blanks and comments after the last statement is dropped at once", async ({ page }) => {
+        const ms = await page.evaluate(async () => {
+            const { splitStatements } = await import("./js/lab/runner.js");
+            const capi = window.app.database.capi;
+            const started = performance.now();
+            const a = splitStatements(capi, `select 1;${" ".repeat(5000)}${"\n-- c".repeat(2000)}`);
+            // text that is not blank ends the run of blanks with something that is not noise
+            const b = splitStatements(capi, `;${" \n".repeat(5000)}x`);
+            return { took: performance.now() - started, a, b: b.length };
+        });
+        expect(ms.a).toEqual(["select 1;"]);
+        expect(ms.b).toBe(1);
+        expect(ms.took).toBeLessThan(1000);
     });
 
     test("a long script is not re-scanned from its start", async ({ page }) => {
@@ -85,6 +110,148 @@ test.describe("splitStatements", () => {
         // each character is looked at about once, not once per statement before it
         expect(info.scanned).toBeLessThan(info.length * 1.5);
     });
+
+    // splitStatements with a capi that counts the calls to sqlite3_complete (no timing: a count
+    // does not depend on the machine)
+    const splitCounting = (page, sql) =>
+        page.evaluate(async (sql) => {
+            const { splitStatements } = await import("./js/lab/runner.js");
+            const real = window.app.database.capi;
+            let calls = 0;
+            const capi = {
+                sqlite3_complete(text) {
+                    calls++;
+                    return real.sqlite3_complete(text);
+                },
+            };
+            const statements = splitStatements(capi, sql);
+            return { calls, statements };
+        }, sql);
+
+    // A semicolon that cannot end a statement (it is inside a string, a name or a comment) is
+    // not even asked about: a script with a long text value full of semicolons used to cost one
+    // call, over the whole text so far, for each of them.
+    const MANY = 100_000;
+    const HIDDEN = [
+        ["a string", `select '${";".repeat(MANY)}' as x; select 2;`],
+        ["a block comment", `select 1 /* ${";".repeat(MANY)} */; select 2;`],
+        ["a line comment", `select 1 -- ${";".repeat(MANY)}\n; select 2;`],
+        ["a double-quoted name", `select 1 as "${";".repeat(MANY)}"; select 2;`],
+        ["a backtick name", `select 1 as \`${";".repeat(MANY)}\`; select 2;`],
+        ["a bracket name", `select 1 as [${";".repeat(MANY)}]; select 2;`],
+    ];
+    for (const [where, sql] of HIDDEN) {
+        test(`${MANY} semicolons inside ${where} cost no calls to sqlite3_complete`, async ({ page }) => {
+            const { calls, statements } = await splitCounting(page, sql);
+            expect(statements).toHaveLength(2);
+            expect(statements[1]).toBe("select 2;");
+            expect(statements[0].length).toBe(sql.length - " select 2;".length);
+            // one for each real end of a statement
+            expect(calls).toBe(2);
+        });
+    }
+
+    test("a text value of 300000 semicolons runs through runSql, as a .sql upload does", async ({ page }) => {
+        const length = await page.evaluate(async () => {
+            const { runSql } = await import("./js/lab/runner.js");
+            const result = runSql(window.app.database, `select '${";".repeat(300_000)}' as x;`);
+            return result.values[0][0].length;
+        });
+        expect(length).toBe(300_000);
+    });
+
+    test("unclosed text takes every semicolon after it, again without asking", async ({ page }) => {
+        for (const open of ["'", '"', "`", "[", "/*", "--"]) {
+            const sql = `select 1; select ${open}${";".repeat(MANY)}`;
+            const { calls, statements } = await splitCounting(page, sql);
+            expect(statements, open).toEqual(["select 1;", `select ${open}${";".repeat(MANY)}`]);
+            expect(calls, open).toBe(1);
+        }
+    });
+
+    test("a trigger body still splits as one statement, sqlite3_complete being the judge of each semicolon", async ({ page }) => {
+        const trigger =
+            "CREATE TRIGGER t_ai AFTER INSERT ON t BEGIN INSERT INTO log VALUES ('a;b'); UPDATE t SET a = a; END;";
+        const { calls, statements } = await splitCounting(page, `${trigger} select 1;`);
+        expect(statements).toEqual([trigger, "select 1;"]);
+        // the semicolons outside quotes: three in the trigger, one after it
+        expect(calls).toBe(4);
+    });
+
+    // Each input and what it splits into. The rules are those of sqlite3_complete: a quote runs
+    // to the next one of its kind (a doubled quote closes and opens again), "[" to the next "]",
+    // "--" to the next LF only (a CR does not end it), and after "/*" the search for "*/" starts
+    // right behind it, so "/*/" does not close.
+    const TRICKY = [
+        ["a string", "select 'a;b'; select 2", ["select 'a;b';", "select 2"]],
+        ["a doubled quote", "select 'it''s;'; select 2;", ["select 'it''s;';", "select 2;"]],
+        ["a doubled quote right before the end", "select 'a'';'; select 2", ["select 'a'';';", "select 2"]],
+        ["an empty string", "select ''; select ';'", ["select '';", "select ';'"]],
+        ["a double-quoted name", 'select "a;b" from t; select 2', ['select "a;b" from t;', "select 2"]],
+        ["an apostrophe in a double-quoted name", `select "it's;" from t; select 2`, [`select "it's;" from t;`, "select 2"]],
+        ["a backtick name", "select `a;b` from t; select 2", ["select `a;b` from t;", "select 2"]],
+        ["a bracket name", "select [a;b] from t; select 2", ["select [a;b] from t;", "select 2"]],
+        ["a quote inside a bracket name", "select [a'b;] from t; select 'c;'", ["select [a'b;] from t;", "select 'c;'"]],
+        ["a bracket inside a string", "select '[;'; select 2", ["select '[;';", "select 2"]],
+        ["a bracket that never closes", "select 1; select [a;b; select 2", ["select 1;", "select [a;b; select 2"]],
+        ["a string that never closes", "select 1; select 'a;b; select 2", ["select 1;", "select 'a;b; select 2"]],
+        ["a comment start inside a string", "select '--'; select '/*'; select 2", ["select '--';", "select '/*';", "select 2"]],
+        ["a quote inside a line comment", "select 1 -- it's\n; select 2", ["select 1 -- it's\n;", "select 2"]],
+        ["a quote inside a block comment", "select 1 /* it's [ */; select 2", ["select 1 /* it's [ */;", "select 2"]],
+        ["a line comment with semicolons", "select 1 -- a;b;\n; select 2", ["select 1 -- a;b;\n;", "select 2"]],
+        ["a CR does not end a line comment", "select 1 -- a\r; b\n; select 2", ["select 1 -- a\r; b\n;", "select 2"]],
+        ["a line comment to the end", "select 1 -- a;b", ["select 1 -- a;b"]],
+        ["a line comment to the end, after a statement", "select 1; select 2 -- a;b;", ["select 1;", "select 2 -- a;b;"]],
+        ["a block comment", "select 1 /* ; ; */; select 2", ["select 1 /* ; ; */;", "select 2"]],
+        ["/*/ does not close", "select 1 /*/ ; */ ; select 2", ["select 1 /*/ ; */ ;", "select 2"]],
+        ["/**/ closes", "select 1 /**/ ; select 2", ["select 1 /**/ ;", "select 2"]],
+        ["a block comment that never closes", "select 1; select 2 /* ; select 3;", ["select 1;", "select 2 /* ; select 3;"]],
+        ["a block comment that only looks closed", "select 1; select 2 /*/ ; select 3;", ["select 1;", "select 2 /*/ ; select 3;"]],
+        ["a minus and a slash alone", "select 4 - -1 / 2; select 2", ["select 4 - -1 / 2;", "select 2"]],
+        ["a star after a slash with a gap", "select 4 / * 2; select 2", ["select 4 / * 2;", "select 2"]],
+        ["a semicolon right after a name", 'select "a";select [b];select `c`;select \'d\'', ['select "a";', "select [b];", "select `c`;", "select 'd'"]],
+        ["empty statements around", ";; select 1;;; select 2 ;", ["select 1;", "select 2 ;"]],
+        [
+            "a trigger with a string and a comment holding semicolons",
+            "create trigger g after insert on t begin select 'x;y'; select 1 -- z;\n; end; select 2",
+            ["create trigger g after insert on t begin select 'x;y'; select 1 -- z;\n; end;", "select 2"],
+        ],
+        [
+            "a semicolon after a comment inside a trigger",
+            "create trigger g after insert on t begin /* ; */ select 1; end;select 2;",
+            ["create trigger g after insert on t begin /* ; */ select 1; end;", "select 2;"],
+        ],
+        [
+            "text after a hidden semicolon cannot hide a vacuum",
+            "select 'a;b'; vacuum into 'x'",
+            ["select 'a;b';", "vacuum into 'x'"],
+        ],
+    ];
+    for (const [name, sql, expected] of TRICKY) {
+        test(`splits ${name}`, async ({ page }) => {
+            expect(await split(page, sql)).toEqual(expected);
+        });
+    }
+
+    // The statements alone cannot tell the scan's rules from a scan that is too eager: a semicolon
+    // wrongly offered to sqlite3_complete is answered "no", and the result is the same. So these
+    // count the calls too (one for each real end of a statement).
+    const COUNTED = [
+        // a CR does not end a line comment: the semicolons up to the LF are still in it
+        ["a CR does not end a line comment", "select 1 -- a\r;;;;\n; select 2;", ["select 1 -- a\r;;;;\n;", "select 2;"], 2],
+        // "/*/" does not close: the semicolons up to the real "*/" are still in the comment
+        ["/*/ does not close", "select 1 /*/ ;;;; */ ; select 2;", ["select 1 /*/ ;;;; */ ;", "select 2;"], 2],
+        // a "*" right behind a closing "*/" is a star, not the start of a new comment (the closer's
+        // "/" must be stepped over): the first semicolon must be offered
+        ["a star right after a closed comment", "select 2 /* c */* 3; select 4", ["select 2 /* c */* 3;", "select 4"], 1],
+    ];
+    for (const [name, sql, expected, expectedCalls] of COUNTED) {
+        test(`splits ${name}, asking only at the real ends`, async ({ page }) => {
+            const { calls, statements } = await splitCounting(page, sql);
+            expect(statements).toEqual(expected);
+            expect(calls).toBe(expectedCalls);
+        });
+    }
 });
 
 test.describe("runSql", () => {
@@ -102,6 +269,25 @@ test.describe("runSql", () => {
                 return { error: String(exc), message: engineMessage(exc) };
             }
         }, sql);
+
+    test("a lone surrogate cannot make the engine read other statements than the splitter cut", async ({ page }) => {
+        // The engine's conversion swallows the character after a lone surrogate, which the scan and
+        // sqlite3_complete read as U+FFFD. The quote after it was then invisible to the engine but
+        // not to the scan: this text was ONE statement for both, the engine ran a VACUUM INTO
+        // inside it that the VACUUM check never saw (only the authorizer's "authorization
+        // denied" stood in the way). Now every side reads the same text.
+        const hidden = await run(page, "select 'a'\ude00';\nVacuum INTO 'FILE'||''");
+        expect(hidden.message).toContain("syntax error");
+        expect(hidden.message).not.toContain("authorization denied");
+        // and where the scan does cut at the semicolon, the VACUUM INTO is its own statement
+        const cut = await run(page, "select 'a\ude00'; Vacuum INTO 'FILE'");
+        expect(cut.message).toContain("VACUUM INTO a file is not available");
+        // a lone surrogate in an ordinary value is a replacement character, not a lost quote
+        const value = await run(page, "select 'a\ud83d' || 'b' as s, 'c\ude00' || 'd' as t");
+        expect(value.result).toEqual({ columns: ["s", "t"], values: [["a\ufffdb", "c\ufffdd"]] });
+        // a well-formed pair is left alone
+        expect((await run(page, "select '\ud83d\ude00' as s")).result.values).toEqual([["\ud83d\ude00"]]);
+    });
 
     test("duplicate column names and the SELECT's column order are kept", async ({ page }) => {
         expect((await run(page, "select 1 as a, 2 as a, 3 as b")).result).toEqual({
@@ -163,6 +349,22 @@ test.describe("runSql", () => {
         const later = await run(page, "select nope from u; create table never(a)");
         expect(later.message).toBe("no such column: nope");
         expect((await run(page, "select count(*) from sqlite_master where name = 'never'")).result.values).toEqual([[0]]);
+    });
+
+    test("SQL with a NUL character is refused whole, so no statement after it is dropped silently", async ({ page, app }) => {
+        const nul = await run(page, "create table nul_t(a); insert into nul_t values (1);\u0000insert into nul_t values (2);");
+        expect(nul.result).toBeUndefined();
+        expect(nul.message).toMatch(/NUL character/);
+        // nothing ran, not even the statements in front of the NUL
+        expect((await run(page, "select count(*) from sqlite_master where name = 'nul_t'")).result.values).toEqual([[0]]);
+        // a NUL alone, and one inside a string literal, are refused the same way
+        expect((await run(page, "\u0000")).message).toMatch(/NUL character/);
+        expect((await run(page, "select '\u0000'")).message).toMatch(/NUL character/);
+        // the Run button shows the message and the database stays usable
+        await app.editor.evaluate((el) => (el.textContent = "select 1;\u0000select 2"));
+        await app.editor.press("Control+Enter");
+        await expect(app.status).toContainText("NUL character");
+        expect((await app.query("select 5 as five")).rows).toEqual([["5"]]);
     });
 
     test("values keep their types: BigInt, BLOB, NULL, REAL", async ({ page }) => {
@@ -238,10 +440,11 @@ test.describe("Run uses runSql (the seam in index.js)", () => {
         await expect(app.table).toHaveCount(0);
     });
 
-    test("an error still shows the engine's text in the status area, unchanged in wording", async ({ app }) => {
+    test("an error shows the engine's message and the failing statement in the status area (F5)", async ({ app }) => {
         await app.open();
         await app.run("select pric from products");
-        await expect(app.status).toContainText("SQLite3Error: SQLITE_ERROR: sqlite3 result code 1: no such column: pric");
+        await expect(app.status).toContainText("no such column: pric (statement: select pric from products)");
+        await expect(app.status).not.toContainText("SQLite3Error");
     });
 
     test("a script with a trigger and a semicolon in a string runs", async ({ app }) => {

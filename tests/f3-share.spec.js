@@ -618,7 +618,13 @@ test.describe("the copy link button", () => {
         const link = await app.shareField.inputValue();
         expect(link).toContain("#s=");
         // the field is selected: Ctrl+C would copy it. Escape-free way back: Shift+Tab
-        // reaches the button, and Space activates it too.
+        // reaches the button, and Space activates it too. The table preview is still on
+        // screen, so the download csv button (M5) and the history button (M5 part 2) sit between
+        // the field and copy link.
+        await page.keyboard.press("Shift+Tab");
+        await expect(page.locator("#download-csv")).toBeFocused();
+        await page.keyboard.press("Shift+Tab");
+        await expect(page.locator("#run-history")).toBeFocused();
         await page.keyboard.press("Shift+Tab");
         await expect(page.locator("#copy-link")).toBeFocused();
         await page.keyboard.press("Space");
