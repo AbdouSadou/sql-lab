@@ -1,5 +1,5 @@
 const fs = require("node:fs");
-const { test, expect, evidenceFile, openFresh, modelQuery, SAMPLE_FILE } = require("./helpers");
+const { test, expect, evidenceFile, openFresh, modelQuery, SAMPLE_FILE, EDITOR_INPUT, editorValue } = require("./helpers");
 
 // F11, the page side: the Export menu's "Evidence (.txt)…" item, the dialog, what the file holds for
 // each kind of log, and that the student number goes nowhere but the file.
@@ -31,7 +31,7 @@ test.describe("the dialog", () => {
         await expect(app.evidenceInput).toHaveAttribute("autocomplete", "off");
         expect(await app.evidenceInput.evaluate((i) => i.hasAttribute("name"))).toBe(false);
         // the page behind it cannot be reached
-        expect(await page.evaluate(() => document.querySelector("#editor").matches(":focus"))).toBe(false);
+        expect(await page.evaluate((sel) => document.querySelector(sel).matches(":focus"), EDITOR_INPUT)).toBe(false);
     });
 
     test("an invalid number shows an inline error tied to the input, and the dialog stays open", async ({ page, app }) => {
@@ -100,13 +100,15 @@ test.describe("the dialog", () => {
         await app.openEvidence();
         await expect(app.evidenceDialog).toBeVisible();
         // Cancel and move the focus in one task, so that the close event arrives after both
-        const stayed = await page.evaluate(async () => {
-            const editor = document.querySelector("#editor");
+        // (the editor's focus() puts the focus on its typing surface, so that is what is compared)
+        const stayed = await page.evaluate(async (sel) => {
+            const host = document.querySelector("#editor");
+            const input = document.querySelector(sel);
             document.querySelector("#evidence-dialog .evidence-cancel").click();
-            editor.focus();
+            host.focus();
             await new Promise((resolve) => setTimeout(resolve, 100));
-            return document.activeElement === editor;
-        });
+            return document.activeElement === input;
+        }, EDITOR_INPUT);
         expect(stayed).toBe(true);
     });
 
@@ -471,7 +473,7 @@ test.describe("what the file holds", () => {
         // and the link really opens that query in a fresh browser
         const fresh = await openFresh(browser, baseURL, links[0].slice("link: ".length));
         await fresh.app.waitReady();
-        await expect(fresh.page.locator("#editor")).toHaveText(ok1);
+        await expect.poll(() => editorValue(fresh.page)).toBe(ok1);
         await fresh.context.close();
     });
 

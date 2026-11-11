@@ -40,6 +40,9 @@ const WRONG_SQL = CORRECT_SQL.replace("ORDER BY revenue DESC;", "ORDER BY revenu
 
 const READY = /Run SQL query to see the results|Press Run to execute it|\d+ rows?, took \d+ ms/;
 const DONE = /\d+ rows?, took \d+ ms/;
+// the editor's typing surface: CodeMirror's content (Phase 3), or the editable #editor itself
+// (before Phase 3, and whenever CodeMirror does not load); tests/helpers.js has the same
+const EDITOR_INPUT = '#editor .cm-content, #editor[contenteditable="true"]';
 
 // The interface before the redesign; Phase 1 changes no layout, so it uses these too.
 const legacy = {
@@ -48,8 +51,8 @@ const legacy = {
         await page.locator("#status").filter({ hasText: READY }).waitFor();
     },
     async run(page, sql, done = DONE) {
-        await page.locator("#editor").fill(sql);
-        await page.locator("#editor").press("Control+Enter");
+        await page.locator(EDITOR_INPUT).fill(sql);
+        await page.locator(EDITOR_INPUT).press("Control+Enter");
         await page.locator("#status").filter({ hasText: done }).waitFor();
     },
     async openSchema(page) {
@@ -114,13 +117,13 @@ legacy.states = {
     },
     "exercise-correct": async (page) => {
         await legacy.states["exercise-prompt"](page);
-        await page.locator("#editor").fill(CORRECT_SQL);
+        await page.locator(EDITOR_INPUT).fill(CORRECT_SQL);
         await page.locator("#exercise-check").click();
         await page.locator("#exercise-feedback").filter({ hasText: "Passed" }).waitFor();
     },
     "exercise-wrong": async (page) => {
         await legacy.states["exercise-prompt"](page);
-        await page.locator("#editor").fill(WRONG_SQL);
+        await page.locator(EDITOR_INPUT).fill(WRONG_SQL);
         await page.locator("#exercise-check").click();
         await page.locator("#exercise-feedback table").first().waitFor();
     },
@@ -169,6 +172,14 @@ shell.states = {
     "menu-exercise-set": async (page) => {
         await shell.open(page, `./?set=${EXERCISE.set}&ex=${EXERCISE.ex}`);
         await shell.menu(page, "#exercise-set-picker", "#exercise-set-menu");
+    },
+    // From Phase 3: the editor's list of names, open as a student types a table's name
+    "menu-completion": async (page) => {
+        await shell.open(page);
+        await page.locator(EDITOR_INPUT).fill("");
+        await page.locator(EDITOR_INPUT).focus();
+        await page.keyboard.type("SELECT * FROM pro");
+        await page.getByRole("listbox").waitFor({ state: "visible" });
     },
     history: async (page) => {
         await shell.open(page);

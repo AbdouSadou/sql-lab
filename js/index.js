@@ -33,6 +33,7 @@ import {
     keepPristine,
 } from "./lab/datasets.js";
 import { mountDatabaseSwitcher } from "./lab/database-switcher.js";
+import { mountEditorSchema } from "./lab/editor-schema.js";
 import { mountExercises } from "./lab/exercise-panel.js";
 import { createExportAction, exportProblem } from "./lab/export.js";
 import { mountExportDialog } from "./lab/export-dialog.js";
@@ -189,8 +190,10 @@ const setActions = createSetActions({
     showInvite: () => ui.status.info(MESSAGES.invite),
 });
 
-// The Schema tab (js/lab/schema.js) follows the page through the events below.
+// The Schema tab (js/lab/schema.js) follows the page through the events below, and so do the
+// names the editor completes (js/lab/editor-schema.js).
 mountSchema({ container: document.querySelector("#schema"), editor: ui.editor });
+mountEditorSchema({ editor: ui.editor });
 
 // The "scroll sideways" note under a result that is wider than its box (js/lab/result-scroll.js).
 mountResultScroll({ result: ui.result, note: document.querySelector("#result-scroll-note") });
@@ -459,9 +462,11 @@ async function start(
     // are escaped before they reach the status area (which renders HTML).
     try {
         // An unsupported address (for example #scheme:id) is refused here. manager.init
-        // would otherwise fall through to creating an empty database.
-        const loadedDatabase =
-            path.type == "unsupported" ? null : await manager.init(name, path);
+        // would otherwise fall through to creating an empty database. The editor is given its
+        // text once it is drawn (CodeMirror, or the plain box if that did not load in time),
+        // so the text and the caret are not carried from one to the other.
+        // (An unsupported address opens nothing, so its error is shown without waiting.)
+        const [loadedDatabase] = path.type == "unsupported" ? [null] : await Promise.all([manager.init(name, path), ui.editor.ready]);
         console.debug(loadedDatabase);
         if (ticket !== latestLoad) {
             closeDatabase(loadedDatabase);

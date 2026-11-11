@@ -11,30 +11,15 @@ const {
     withSampleDataset,
     expectSchemaIconsOnly,
     tabTo,
+    editorSelect,
+    expectEditorTextOnly,
 } = require("./helpers");
 
 const sqlFile = App.sqlFile;
 const NBSP = " ";
 
 // editorText is the SQL in the editor, as the Run button would read it.
-const editorText = (page) => page.locator("#editor").evaluate((el) => el.innerText);
-
-// caretAt puts the caret in the editor after `offset` characters of its (single text node) text.
-async function caretAt(page, offset, length = 0) {
-    await page.locator("#editor").evaluate(
-        (el, [start, len]) => {
-            HTMLElement.prototype.focus.call(el);
-            const node = el.firstChild;
-            const range = document.createRange();
-            range.setStart(node, start);
-            range.setEnd(node, start + len);
-            const selection = getSelection();
-            selection.removeAllRanges();
-            selection.addRange(range);
-        },
-        [offset, length]
-    );
-}
+const editorText = (page) => page.locator("#editor").evaluate((el) => el.value);
 
 // the selection recorded by the sidebar arrives with the selectionchange event
 const settle = (page) => page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 50)));
@@ -141,7 +126,7 @@ test.describe("schema sidebar: inserting", () => {
     test("a click inserts at the caret, focus returns to the editor with the caret after the name", async ({ app, page }) => {
         await app.open();
         await app.editor.fill("SELECT  FROM stores");
-        await caretAt(page, 7);
+        await editorSelect(page, 7);
         await settle(page);
         await app.schemaExpand("stores").click();
         await app.schemaColumn("stores", "store_name").click();
@@ -156,7 +141,7 @@ test.describe("schema sidebar: inserting", () => {
     test("a space is added only where the neighbouring text needs one", async ({ app, page }) => {
         await app.open();
         await app.editor.fill("SELECT FROM stores");
-        await caretAt(page, 7);
+        await editorSelect(page, 7);
         await settle(page);
         await app.schemaExpand("stores").click();
         await app.schemaColumn("stores", "city").click();
@@ -167,12 +152,12 @@ test.describe("schema sidebar: inserting", () => {
 
         // after a dot or an opening bracket no space is added
         await app.editor.fill("SELECT s. FROM stores s");
-        await caretAt(page, 9);
+        await editorSelect(page, 9);
         await settle(page);
         await app.schemaColumn("stores", "region").click();
         expect(await editorText(page)).toBe("SELECT s.region FROM stores s");
         await app.editor.fill("SELECT COUNT() FROM stores");
-        await caretAt(page, 13);
+        await editorSelect(page, 13);
         await settle(page);
         await app.schemaColumn("stores", "city").click();
         expect(await editorText(page)).toBe("SELECT COUNT(city) FROM stores");
@@ -181,7 +166,7 @@ test.describe("schema sidebar: inserting", () => {
     test("a selection is replaced", async ({ app, page }) => {
         await app.open();
         await app.editor.fill("SELECT * FROM stores");
-        await caretAt(page, 7, 1);
+        await editorSelect(page, 7, 8);
         await settle(page);
         await app.schemaExpand("stores").click();
         await app.schemaColumn("stores", "city").click();
@@ -192,7 +177,7 @@ test.describe("schema sidebar: inserting", () => {
     test("an insertion is one undo step", async ({ app, page }) => {
         await app.open();
         await app.editor.fill("SELECT  FROM stores");
-        await caretAt(page, 7);
+        await editorSelect(page, 7);
         await settle(page);
         await app.schemaInsert("orders").click();
         expect(await editorText(page)).toBe("SELECT orders FROM stores");
@@ -203,7 +188,7 @@ test.describe("schema sidebar: inserting", () => {
     test("it works after the click moved the focus away from the editor", async ({ app, page }) => {
         await app.open();
         await app.editor.fill("SELECT  FROM stores");
-        await caretAt(page, 7);
+        await editorSelect(page, 7);
         await settle(page);
         // the student clicks elsewhere on the page, then on text in the sidebar, then on a name there
         await page.locator("#status").click();
@@ -294,7 +279,7 @@ test.describe("schema sidebar: inserting", () => {
     test("the keyboard path: focus, expand, insert", async ({ app, page }) => {
         await app.open();
         await app.editor.fill("SELECT  FROM stores");
-        await caretAt(page, 7);
+        await editorSelect(page, 7);
         await settle(page);
         // The sidebar comes before the editor in the page (skip link, top bar, sidebar, Run, editor).
         // Escape, then Shift+Tab leaves the editor and walks back through Run to the sidebar.
@@ -506,7 +491,7 @@ test.describe("schema sidebar: hostile names", () => {
         await app.editor.fill("");
         await app.schemaInsert(PAYLOAD).click();
         expect(await editorText(page)).toBe(quoteIdent(PAYLOAD));
-        await expect(page.locator("#editor *")).toHaveCount(0);
+        await expectEditorTextOnly(page);
         await app.expectInert();
         await app.editor.press("Control+Enter");
         await app.expectInert();

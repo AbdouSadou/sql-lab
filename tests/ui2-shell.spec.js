@@ -522,7 +522,8 @@ test.describe("Help", () => {
         await expect(popover).toHaveAccessibleName("Help");
         await expect(popover).toBeFocused();
         await expect(popover).toContainText("Runs entirely in your browser. Your data and queries never leave this device.");
-        await expect(popover.locator(".help-keys dt")).toHaveText([/Ctrl\s+Enter/, /Ctrl\s+Shift\s+Enter/, /Ctrl\s+O/, /Ctrl\s+U/, /Tab/, /Esc\s+then\s+Tab/]);
+        // (Phase 3 added the editor's Ctrl+/ and Ctrl+Space)
+        await expect(popover.locator(".help-keys dt")).toHaveText([/Ctrl\s+Enter/, /Ctrl\s+Shift\s+Enter/, /Ctrl\s+\//, /Ctrl\s+Space/, /Ctrl\s+O/, /Ctrl\s+U/, /Tab/, /Esc\s+then\s+Tab/]);
         await expect(popover.getByRole("link", { name: "About SQL Lab" })).toHaveAttribute("href", "about.html");
         // the SQLite function reference: a link to another site, opened apart, never fetched
         const functions = popover.getByRole("link", { name: "SQLite functions" });

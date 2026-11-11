@@ -1,6 +1,6 @@
 // M4 part 1: js/lab/runner.js (splitStatements, runSql, engineMessage), the Run seam in
 // index.js that uses it, and the editor's selection rule.
-const { test, expect } = require("./helpers");
+const { test, expect, editorSelect, editorValue } = require("./helpers");
 
 test.describe("splitStatements", () => {
     // run splits `sql` with the open database's own capi
@@ -361,7 +361,7 @@ test.describe("runSql", () => {
         expect((await run(page, "\u0000")).message).toMatch(/NUL character/);
         expect((await run(page, "select '\u0000'")).message).toMatch(/NUL character/);
         // the Run button shows the message and the database stays usable
-        await app.editor.evaluate((el) => (el.textContent = "select 1;\u0000select 2"));
+        await app.editorHost.evaluate((el) => (el.value = "select 1;\u0000select 2"));
         await app.editor.press("Control+Enter");
         await expect(app.status).toContainText("NUL character");
         expect((await app.query("select 5 as five")).rows).toEqual([["5"]]);
@@ -459,24 +459,22 @@ test.describe("Run uses runSql (the seam in index.js)", () => {
 });
 
 test.describe("the editor takes the selection only from inside itself", () => {
-    // selectOutside selects all the text of the element `selector`, outside the editor
-    const selectOutside = (page, selector) =>
-        page.evaluate((selector) => {
-            const range = document.createRange();
-            range.selectNodeContents(document.querySelector(selector));
-            const selection = getSelection();
-            selection.removeAllRanges();
-            selection.addRange(range);
-            return selection.toString();
-        }, selector);
+    // selectOutside selects the text of the element `selector`, outside the editor, the way a
+    // student does: a triple-click on it. The mousedown takes the focus from the editor, which is
+    // why the selection stays outside it (CodeMirror takes back a selection made elsewhere
+    // programmatically while it has the focus). It returns what the page selection holds.
+    const selectOutside = async (page, selector) => {
+        await page.locator(selector).first().click({ clickCount: 3 });
+        return page.evaluate(() => getSelection().toString());
+    };
 
     test("text selected elsewhere is not the query", async ({ page, app }) => {
         await app.open();
         await app.editor.fill("SELECT 42 AS answer");
-        expect((await selectOutside(page, "footer")).length).toBeGreaterThan(5);
-        expect(await app.editor.evaluate((el) => el.query)).toBe("SELECT 42 AS answer");
+        expect((await selectOutside(page, "#status-run")).length).toBeGreaterThan(5);
+        expect(await app.editorHost.evaluate((el) => el.query)).toBe("SELECT 42 AS answer");
         // the same through a real Run from the keyboard (the page selection is still outside)
-        await selectOutside(page, "footer");
+        await selectOutside(page, "#status-run");
         await page.locator("#execute").focus();
         await page.keyboard.press("Enter");
         expect(await app.read()).toEqual({ columns: ["answer"], rows: [["42"]] });
@@ -486,24 +484,15 @@ test.describe("the editor takes the selection only from inside itself", () => {
         await app.open();
         await app.query("select 'selected cell' as c");
         expect(await selectOutside(page, "#result td")).toBe("selected cell");
-        expect(await app.editor.evaluate((el) => el.query)).toBe("select 'selected cell' as c");
+        expect(await app.editorHost.evaluate((el) => el.query)).toBe("select 'selected cell' as c");
     });
 
     test("a selection inside the editor is still the query", async ({ page, app }) => {
         await app.open();
-        await app.editor.evaluate((el) => (el.value = "SELECT 1 AS one; SELECT 2 AS two"));
-        const selected = await app.editor.evaluate((el) => {
-            const text = el.firstChild;
-            const start = text.data.indexOf("SELECT 2");
-            const range = document.createRange();
-            range.setStart(text, start);
-            range.setEnd(text, text.data.length);
-            const selection = getSelection();
-            selection.removeAllRanges();
-            selection.addRange(range);
-            return el.query;
-        });
-        expect(selected).toBe("SELECT 2 AS two");
+        await app.editorHost.evaluate((el) => (el.value = "SELECT 1 AS one; SELECT 2 AS two"));
+        const text = await editorValue(page);
+        await editorSelect(page, text.indexOf("SELECT 2"), text.length);
+        expect(await app.editorHost.evaluate((el) => el.query)).toBe("SELECT 2 AS two");
         await page.locator("#execute").focus();
         await page.keyboard.press("Enter");
         expect(await app.read()).toEqual({ columns: ["two"], rows: [["2"]] });
@@ -511,17 +500,23 @@ test.describe("the editor takes the selection only from inside itself", () => {
 
     test("a selection that starts in the editor and ends outside it is not used", async ({ page, app }) => {
         await app.open();
-        await app.editor.evaluate((el) => (el.value = "SELECT 7 AS seven"));
-        const query = await page.evaluate(() => {
+        await app.editorHost.evaluate((el) => (el.value = "SELECT 7 AS seven"));
+        // With CodeMirror a mouse drag from the text to the status bar stays inside the editor (it
+        // selects to the end of the text), so the mixed selection is made in script, after the
+        // focus has left the editor: CodeMirror takes back a selection made elsewhere while it
+        // has the focus.
+        await editorSelect(page, 3);
+        await page.locator("#execute").focus();
+        await page.evaluate(() => {
             const editor = document.querySelector("#editor");
+            const first = document.createTreeWalker(editor.querySelector(".cm-content") || editor, NodeFilter.SHOW_TEXT).nextNode();
             const range = document.createRange();
-            range.setStart(editor.firstChild, 3);
+            range.setStart(first, 3);
             range.setEnd(document.querySelector("footer"), 1);
             const selection = getSelection();
             selection.removeAllRanges();
             selection.addRange(range);
-            return editor.query;
         });
-        expect(query).toBe("SELECT 7 AS seven");
+        expect(await app.editorHost.evaluate((el) => el.query)).toBe("SELECT 7 AS seven");
     });
 });

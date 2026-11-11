@@ -13,6 +13,8 @@ const {
     PAYLOAD,
     ATTR_PAYLOAD,
     SAMPLE_FILE,
+    editorValue,
+    editorSelect,
 } = require("./helpers");
 
 // F2 and F7 on screen (M4 part 2): the exercise set picker (a menu button in the sidebar's
@@ -70,7 +72,7 @@ test("AC4 a link restores SQL, dataset, set and exercise in a fresh context with
         await expectSetPicked(f, SET.title);
         await expect(f.status).toContainText("A shared query is in the editor");
         expect(await f.pickedText()).toBe("Northlight Retail");
-        expect((await f.editor.evaluate((e) => e.innerText)).trim()).toBe(sql);
+        expect((await editorValue(fresh.page)).trim()).toBe(sql);
         // the dataset really is open, and nothing was run or checked
         expect(await fresh.page.evaluate(() => window.app.database.name)).toBe("northlight_retail.db");
         await expect(f.table).toHaveCount(0);
@@ -516,15 +518,15 @@ test("progress and drafts persist across a reload", async ({ page, app }) => {
     await app.exerciseButton(5).click();
     await app.editor.fill(draft);
     await app.exerciseButton(6).click(); // moving on saves what was typed
-    await expect(app.editor).toHaveText(""); // and shows the other exercise's text: nothing yet
+    await expect.poll(() => editorValue(page)).toBe(""); // and shows the other exercise's text: nothing yet
     await page.reload();
     await expect(app.progress).toHaveText("2 of 10 complete");
     // the place is kept: the last exercise opened
     await expect(app.exerciseButton(6)).toHaveAttribute("aria-current", "true");
     await app.exerciseButton(5).click();
-    expect((await app.editor.evaluate((e) => e.innerText)).trim()).toBe(draft);
+    expect((await editorValue(page)).trim()).toBe(draft);
     await app.exerciseButton(2).click();
-    expect((await app.editor.evaluate((e) => e.innerText)).trim()).toBe(modelQuery("e02"));
+    expect((await editorValue(page)).trim()).toBe(modelQuery("e02"));
     // the storage holds only ids and the student's own SQL
     const stored = await readStore(page);
     expect(Object.keys(stored.passed).sort()).toEqual(["e01", "e02"]);
@@ -535,13 +537,7 @@ test("every Run in exercise mode saves the full editor text as the draft, even w
     await app.openSet();
     await app.exerciseButton(3).click();
     await app.editor.fill("SELECT 1 AS a; SELECT 2 AS b;");
-    await app.editor.evaluate((el) => {
-        const range = document.createRange();
-        range.setStart(el.firstChild, 0);
-        range.setEnd(el.firstChild, 14);
-        getSelection().removeAllRanges();
-        getSelection().addRange(range);
-    });
+    await editorSelect(page, 0, 14);
     await page.locator("#execute").click();
     await expect(app.status).toContainText("1 row");
     expect((await readStore(page)).drafts.e03).toBe("SELECT 1 AS a; SELECT 2 AS b;");
@@ -553,7 +549,7 @@ test("in exercise mode the editor never shows the dataset's free-query SQL and n
     await page.goto("./?set=retail-basics");
     await expect(app.exercisePanel).toBeVisible();
     await app.waitReady();
-    expect((await app.editor.evaluate((e) => e.innerText)).trim()).toBe("");
+    expect((await editorValue(page)).trim()).toBe("");
     await expect(app.table).toHaveCount(0);
     await expect(app.status).toContainText("Run SQL query to see the results");
     // the query toolbar is enabled from the start
@@ -563,7 +559,7 @@ test("in exercise mode the editor never shows the dataset's free-query SQL and n
     await app.waitReady();
     await app.pickSet(SET.title);
     await expect(app.exercisePanel).toBeVisible();
-    expect((await app.editor.evaluate((e) => e.innerText)).trim()).toBe("");
+    expect((await editorValue(page)).trim()).toBe("");
 });
 
 test("hints reveal one at a time, in order, from one button that counts what is left and goes away", async ({ page, app }) => {
@@ -623,11 +619,11 @@ test("reset forgets passes and drafts after a confirm; the editor text stays; di
     await expect(app.progress).toHaveText("0 of 10 complete");
     await expect(passedMark(app.exerciseButton(1))).toBeHidden();
     await expect(app.exerciseButton(1)).toHaveAttribute("aria-label", /not passed$/);
-    expect((await app.editor.evaluate((e) => e.innerText)).trim()).toBe("SELECT 2 -- keep me on screen");
+    expect((await editorValue(page)).trim()).toBe("SELECT 2 -- keep me on screen");
     expect(await readStore(page)).toBeNull();
     await page.reload();
     await expect(app.progress).toHaveText("0 of 10 complete");
-    expect((await app.editor.evaluate((e) => e.innerText)).trim()).toBe("");
+    expect((await editorValue(page)).trim()).toBe("");
 });
 
 test("only this set's progress is reset", async ({ page, app }) => {
@@ -653,14 +649,14 @@ test("moving between exercises saves and restores the text, clears the verdict a
     await app.exerciseButton(2).click();
     await expect(app.feedback).toBeEmpty();
     await expect(app.table).toHaveCount(0);
-    expect((await app.editor.evaluate((e) => e.innerText)).trim()).toBe("");
+    expect((await editorValue(page)).trim()).toBe("");
     // replaceState: no new history entry, ?set=<id>&ex=<id>, no fragment
     expect(await page.evaluate(() => history.length)).toBe(before);
     const url = new URL(page.url());
     expect(url.search).toBe("?set=retail-basics&ex=e02");
     expect(url.hash).toBe("");
     await app.exerciseButton(1).click();
-    expect((await app.editor.evaluate((e) => e.innerText)).trim()).toBe("SELECT 1 AS first;");
+    expect((await editorValue(page)).trim()).toBe("SELECT 1 AS first;");
     // the share link follows the exercise
     await app.exerciseButton(4).click();
     const link = await app.copyLink();

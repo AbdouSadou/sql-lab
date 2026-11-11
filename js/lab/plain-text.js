@@ -10,11 +10,13 @@
 // mountPlainText(element) -> unmount()
 //   paste   Cancelled; the clipboard's text/plain goes in at the caret. Skipped when the
 //           element's own paste handler has already dealt with the event (the SQL editor's
-//           does, and its behaviour is unchanged).
+//           does, and its behaviour is unchanged; so does CodeMirror once it draws the editor:
+//           it pastes the text/plain only).
 //   drop    Cancelled. A drop that carries files inserts nothing and does not let the browser
 //           open the file in the tab. Otherwise the text/plain goes in at the drop point
 //           (caretRangeFromPoint, or caretPositionFromPoint in Firefox), the end of the
-//           element when the point is not inside it.
+//           element when the point is not inside it. A drop CodeMirror has already dealt with
+//           is skipped the same way (it inserts text only; js/lab/code-editor.js refuses files).
 //   drag that starts inside the same element: left alone, so the browser moves the text as
 //           usual (that content is plain text already). The mark for it ends with the drag
 //           (dragend or any drop), and also at the first pointer movement, press or key press
@@ -102,7 +104,8 @@ export function mountPlainText(element) {
         }
     };
     const onDrop = (event) => {
-        if (draggingInside) {
+        if (draggingInside || event.defaultPrevented) {
+            // a drag inside the element, or a drop CodeMirror (drawn inside the SQL editor) took
             draggingInside = false;
             return;
         }

@@ -1,4 +1,4 @@
-const { test, expect, App, SAMPLE_FILE, realSet, failStorage, setStorageFailing, fakeStorage, inNode } = require("./helpers");
+const { test, expect, App, SAMPLE_FILE, realSet, failStorage, setStorageFailing, fakeStorage, inNode, EDITOR_INPUT, editorValue } = require("./helpers");
 
 // M5 durability and layout fixes found by the independent verifiers: the run log and the
 // progress when storage fills, frees up or cannot be read; a log held only in memory; the
@@ -813,13 +813,15 @@ test.describe("the editor toolbar over a long query", () => {
                 await app.query(lines(8));
                 await expect(page.locator("#download-csv")).toBeVisible();
                 // the toolbar is a row of its own above the editor, so it cannot cover the query:
-                // measure its box against the editor's text (the 8th line is the last one)
-                const m = await page.evaluate(() => {
+                // measure its box against the editor's text (the 8th line is the last one): the
+                // typing surface (.cm-content; the plain box itself) holds the lines
+                const m = await page.evaluate((input) => {
                     const editor = document.querySelector("#editor");
+                    const surface = document.querySelector(input);
                     const bar = document.querySelector("#editor-toolbar").getBoundingClientRect();
                     const pane = document.querySelector("#editor-pane").getBoundingClientRect();
                     const range = document.createRange();
-                    range.selectNodeContents(editor);
+                    range.selectNodeContents(surface);
                     const rects = [...range.getClientRects()].filter((r) => r.width > 0 && r.height > 0);
                     const rows = new Set([...document.querySelectorAll("#editor-toolbar > button")].filter((b) => b.getClientRects().length).map((b) => Math.round(b.getBoundingClientRect().top)));
                     return {
@@ -831,10 +833,12 @@ test.describe("the editor toolbar over a long query", () => {
                         paneBottom: pane.bottom,
                         editorBottom: editor.getBoundingClientRect().bottom,
                         barRows: rows.size,
-                        lines: editor.innerText.trim().split("\n").length,
+                        // rendered lines of the typing surface (CodeMirror: one div.cm-line each)
+                        lines: surface.querySelectorAll(".cm-line").length || surface.innerText.trim().split("\n").length,
                     };
-                });
+                }, EDITOR_INPUT);
                 expect(m.lines).toBe(8);
+                expect((await editorValue(page)).trim().split("\n").length).toBe(8);
                 // the query starts below the toolbar, and no line of it is under the toolbar
                 expect(m.firstLineTop).toBeGreaterThanOrEqual(m.barBottom - 1);
                 expect(m.lastLineBottom).toBeGreaterThan(m.firstLineTop);
@@ -852,10 +856,11 @@ test.describe("the editor toolbar over a long query", () => {
         await page.setViewportSize({ width: 1280, height: 900 });
         await app.open();
         // the toolbar is not over the editor any more: the bottom padding is the top padding
-        const padding = await page.evaluate(() => {
-            const style = getComputedStyle(document.querySelector("#editor"));
+        const padding = await page.evaluate((input) => {
+            // the paddings are on the typing surface now (.cm-content; the plain box itself)
+            const style = getComputedStyle(document.querySelector(input));
             return [style.paddingTop, style.paddingBottom];
-        });
+        }, EDITOR_INPUT);
         expect(padding[1]).toBe(padding[0]);
         await page.setViewportSize({ width: 700, height: 900 });
         await app.query(lines(8));
@@ -873,13 +878,21 @@ test.describe("a long word in the editor", () => {
                 await app.editor.fill(sql);
                 const m = await page.evaluate(() => {
                     const editor = document.querySelector("#editor");
+                    const scroller = editor.querySelector(".cm-scroller");
                     return {
                         page: document.documentElement.scrollWidth - window.innerWidth,
                         editor: editor.scrollWidth - editor.clientWidth,
+                        scrolls: scroller.scrollWidth - scroller.clientWidth,
+                        scrollerRight: scroller.getBoundingClientRect().right,
                     };
                 });
                 expect(m.page).toBeLessThanOrEqual(0);
+                // the code editor scrolls a long line sideways inside its own scroller (.cm-scroller),
+                // so the host box itself never overflows (the plain box wrapped it instead): the line
+                // is wider than the scroller, and the scroller ends inside the window
                 expect(m.editor).toBeLessThanOrEqual(1);
+                expect(m.scrolls).toBeGreaterThan(0);
+                expect(m.scrollerRight).toBeLessThanOrEqual(width);
             }
         });
     }

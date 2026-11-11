@@ -1,4 +1,4 @@
-const { test, expect } = require("./helpers");
+const { test, expect, editorValue } = require("./helpers");
 
 const sqlFile = (name, sql) => ({ name, mimeType: "text/plain", buffer: Buffer.from(sql) });
 
@@ -12,12 +12,12 @@ CREATE TABLE "it's $& $1 a ""b"" table" (code TEXT, qty INTEGER, note TEXT);
 INSERT INTO "it's $& $1 a ""b"" table" VALUES ('x', 3, NULL);
 `;
 
-test("table names: a table named with spaces and quotes previews correctly", async ({ app }) => {
+test("table names: a table named with spaces and quotes previews correctly", async ({ app, page }) => {
     await app.open();
     await app.upload(sqlFile("names.sql", SQL));
 
     await expect(app.status).toContainText("2 rows, took");
-    expect((await app.editor.innerText()).trim()).toBe('select * from "my ""quoted"" table" limit 10');
+    expect((await editorValue(page)).trim()).toBe('select * from "my ""quoted"" table" limit 10');
     expect(await app.read()).toEqual({ columns: ["id", "label"], rows: [["1", "one"], ["2", "two"]] });
 });
 
@@ -47,12 +47,12 @@ test("table names: the Schema tab lists tables with awkward names, shows their c
     // the name button puts the quoted name in the editor ("$&" and "$1" are not replacement patterns)
     await app.editor.fill("");
     await app.schemaInsert(SPACED).click();
-    expect((await app.editor.innerText()).trim()).toBe('"my ""quoted"" table"');
+    expect((await editorValue(page)).trim()).toBe('"my ""quoted"" table"');
     await app.editor.fill("");
     await app.schemaInsert(TRICKY).click();
-    expect((await app.editor.innerText()).trim()).toBe('"it\'s $& $1 a ""b"" table"');
+    expect((await editorValue(page)).trim()).toBe('"it\'s $& $1 a ""b"" table"');
     await app.schemaColumn(TRICKY, "qty").click();
-    expect((await app.editor.innerText()).trim()).toBe('"it\'s $& $1 a ""b"" table" qty');
+    expect((await editorValue(page)).trim()).toBe('"it\'s $& $1 a ""b"" table" qty');
 
     // nothing ran: the status and the result are what the upload's preview left
     await expect(app.status).toHaveText(statusBefore);

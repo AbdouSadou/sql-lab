@@ -5,7 +5,8 @@
 //
 //   const tracker = trackEditorSelection(editor);
 //   tracker.insert("orders");   // replaces the remembered selection, or appends at the end
-//   tracker.forget();           // the editor's text was replaced by the app
+//   tracker.forget();           // the editor's text was replaced by the app (also done on the
+//                               // editor's "replace" event, which value = fires)
 //
 // The app replaces the editor's text itself (the table preview after a database opens), and
 // the browser then parks the caret at the start. That must not look like a caret the student
@@ -13,6 +14,12 @@
 // student acts in the editor (keys, pointer, typing) or inserts something. Until then the text
 // is appended at the end. A remembered selection is also dropped if the editor's text is no
 // longer what it was when the selection was recorded.
+//
+// Once CodeMirror draws the editor (editor.view is set), its own selection is the one used: it
+// is kept while the focus is elsewhere and follows every change. The same two rules hold: nothing
+// counts until the student acts in the editor, and the caret is trusted only while the text is
+// what it was when the student last acted (the app may have replaced it since, with an exercise's
+// draft or a History entry, and CodeMirror then parks the caret at the start).
 
 import { caretToEnd } from "./caret.js";
 
@@ -23,12 +30,13 @@ const NO_SPACE_AFTER = /[\s),.;]/;
 export function trackEditorSelection(editor) {
     let saved = null; // {range, text}
     let acted = false; // the student has used the editor since the app last set its text
+    let seen = null; // CodeMirror: the text when the student last acted in the editor
 
     // fromEvent is "selectionchange" or "blur". Chromium delivers selectionchange late (after
     // the click that took the focus away), when the selection may already have moved, so
     // the blur event, which comes before the selection moves, records it as well.
     function remember(fromEvent) {
-        if (!acted) {
+        if (!acted || editor.view) {
             return;
         }
         const selection = document.getSelection();
@@ -82,19 +90,45 @@ export function trackEditorSelection(editor) {
 
     document.addEventListener("selectionchange", remember);
     editor.addEventListener("blur", remember);
+    // (CodeMirror's "input" comes after its change, so the text seen then is the changed one)
     for (const type of ["keydown", "pointerdown", "input"]) {
-        editor.addEventListener(type, () => (acted = true), true);
+        editor.addEventListener(
+            type,
+            () => {
+                acted = true;
+                if (editor.view) {
+                    seen = editor.value;
+                }
+            },
+            true
+        );
     }
 
+    function forget() {
+        saved = null;
+        acted = false;
+        seen = null;
+    }
+
+    // the app put text in the editor (an exercise's draft, a History entry, the table preview):
+    // where the browser or CodeMirror parks the caret then is not a place the student chose
+    editor.addEventListener("replace", forget);
+
     return {
-        forget() {
-            saved = null;
-            acted = false;
-        },
+        forget,
 
         // insert puts text at the caret, replacing a selection, as one undo step. A space
         // is added on either side where the neighbouring text would otherwise run into it.
         insert(text) {
+            if (editor.view) {
+                // (seen is null when the student acted in the plain box and CodeMirror took over
+                // since, carrying that caret: no replace came in between, so it is theirs)
+                const atCaret = acted && (seen === null || seen === editor.value);
+                editor.code.insert(text, { atCaret, spaceBefore: NO_SPACE_BEFORE, spaceAfter: NO_SPACE_AFTER });
+                acted = true;
+                seen = editor.value;
+                return;
+            }
             restore();
             const range = document.getSelection().getRangeAt(0);
             const before = textBefore(range).slice(-1);

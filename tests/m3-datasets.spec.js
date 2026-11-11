@@ -14,6 +14,7 @@ const {
     SAMPLE_FILE,
     SAMPLE_ENTRY,
     PAYLOAD,
+    EDITOR_INPUT,
 } = require("./helpers");
 
 const ROOT = path.resolve(__dirname, "..");
@@ -41,7 +42,7 @@ function gate() {
 }
 
 async function editorText(app) {
-    return app.editor.evaluate((el) => el.innerText);
+    return app.editorHost.evaluate((el) => el.value);
 }
 
 // ---- the database switcher ------------------------------------------------------------
@@ -100,8 +101,8 @@ test("AC1 the first visit is the same with no storage at all", async ({ browser,
         const page = await context.newPage();
         await page.goto("./");
         await expect(page.locator("#status")).toContainText(/\d+ rows?, took/);
-        await page.locator("#editor").fill("SELECT COUNT(*) AS n FROM orders;");
-        await page.locator("#editor").press("Control+Enter");
+        await page.locator(EDITOR_INPUT).fill("SELECT COUNT(*) AS n FROM orders;");
+        await page.locator(EDITOR_INPUT).press("Control+Enter");
         await expect(page.locator("#result td")).toHaveText("450");
     } finally {
         await context.close();
@@ -992,7 +993,7 @@ test("the switcher works from the keyboard: Tab to it, Enter and arrows choose a
     let reached = false;
     for (let i = 0; i < 80 && !reached; i++) {
         await page.keyboard.press("Tab");
-        reached = await page.evaluate(() => document.activeElement?.id === "editor");
+        reached = await page.evaluate((selector) => !!document.activeElement?.matches(selector), EDITOR_INPUT);
     }
     expect(reached, "the editor is reachable with Tab").toBe(true);
 });

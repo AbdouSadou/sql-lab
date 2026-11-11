@@ -1,51 +1,255 @@
-/* The editor pane (js/components/sqlime-editor.js; CodeMirror replaces the editor in Phase 3 of
-   the UI plan). The pane is the box: the editor fills it and the pane scrolls. */
+/* The SQL editor (js/components/sqlime-editor.js). CodeMirror draws it (js/lab/code-editor.js),
+   as the mockup does: a 48 px column of line numbers in graphite, then the SQL in the code face
+   with the five syntax colours; the line with the caret is tinted while the editor has the focus.
+   If CodeMirror does not load, the element stays a plain editable box (data-editor="plain").
+   The rules for CodeMirror's parts start with #editor: CodeMirror's own base styles come later
+   in the page (it adds them when it starts) with selectors of up to five classes. */
 
-/* the editor grows into the room the hint leaves; longer SQL makes the pane scroll */
+/* the editor fills the pane; longer SQL scrolls inside it */
 .sqlime-editor {
     flex: 1 0 auto;
     display: block;
     box-sizing: border-box;
     min-height: 0;
-    padding: var(--space-3) var(--space-4);
     background: var(--paper);
     color: var(--ink);
     font-family: var(--font-mono);
     font-size: var(--text-sm);
     line-height: var(--leading-code);
+}
+
+/* ---- the plain box (before CodeMirror arrives, or for good if it does not) ---------------- */
+
+.sqlime-editor:not([data-editor="code"]) {
+    padding: var(--space-3) var(--space-4);
     white-space: pre-wrap;
     /* a long word with no space (a string literal, a list of numbers) breaks instead of widening the pane */
     overflow-wrap: anywhere;
 }
 
 /* the editor has the focus when the page opens, so the focus must be visible */
-.sqlime-editor:focus {
+.sqlime-editor:not([data-editor="code"]):focus {
     outline: 2px solid var(--accent);
     outline-offset: -2px;
 }
 
-.sqlime-editor:empty::before {
+/* the placeholder, once it is clear that CodeMirror (which draws its own) is not coming */
+.sqlime-editor[data-editor="plain"]:empty::before {
     display: inline-block;
-    content: "Write SQL here, then press Run.";
+    content: attr(data-placeholder);
+    color: var(--graphite);
+}
+
+/* ---- CodeMirror --------------------------------------------------------------------------- */
+
+.sqlime-editor[data-editor="code"] {
+    display: flex;
+    flex: 1 1 auto;
+}
+
+#editor .cm-editor {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    background: var(--paper);
+    color: var(--ink);
+}
+
+/* The focus ring is drawn over the editor rather than as its outline: the line numbers stay put
+   while the SQL scrolls sideways (CodeMirror stacks them above the rest), so they would cover the
+   ring's left side. It follows :focus-within, which changes with the focus itself (CodeMirror's
+   cm-focused class follows a moment later). */
+#editor .cm-editor.cm-focused {
+    outline: 0;
+}
+
+#editor .cm-editor:focus-within::after {
+    content: "";
+    position: absolute;
+    z-index: 300;
+    inset: 0;
+    border: 2px solid var(--accent);
+    pointer-events: none;
+}
+
+#editor .cm-scroller {
+    font-family: var(--font-mono);
+    line-height: var(--leading-code);
+}
+
+#editor .cm-content {
+    padding: var(--space-3) 0;
+    caret-color: var(--ink);
+}
+
+#editor .cm-line {
+    padding: 0 var(--space-4) 0 0;
+}
+
+#editor .cm-placeholder {
+    color: var(--graphite);
+}
+
+/* the line numbers: 48 px with the number 12 px from the SQL, as in the mockup */
+#editor .cm-gutters {
+    border: 0;
+    background: var(--paper);
+    color: var(--graphite);
+}
+
+#editor .cm-lineNumbers .cm-gutterElement {
+    box-sizing: border-box;
+    min-width: 48px;
+    padding: 0 var(--space-3) 0 var(--space-2);
+}
+
+/* the caret's line, while the editor has the focus; not while text is selected (sql-selecting,
+   js/lab/code-editor.js): CodeMirror draws the selection under the text, so the tint would hide it */
+#editor .cm-activeLine,
+#editor .cm-activeLineGutter {
+    background: transparent;
+}
+
+#editor .cm-editor:focus-within:not(.sql-selecting) .cm-activeLine,
+#editor .cm-editor:focus-within .cm-activeLineGutter {
+    background: var(--sunken);
+}
+
+#editor .cm-editor:focus-within .cm-activeLineGutter {
+    color: var(--ink);
+}
+
+#editor .cm-cursor,
+#editor .cm-dropCursor {
+    border-left: 2px solid var(--ink);
+    margin-left: -1px;
+}
+
+/* the caret does not blink when the student asks for less motion (UI plan, section 3) */
+@media (prefers-reduced-motion: reduce) {
+    #editor .cm-cursorLayer {
+        animation: none !important;
+    }
+}
+
+#editor .cm-selectionBackground,
+#editor .cm-editor:focus-within .cm-selectionBackground {
+    background: var(--accent-subtle);
+}
+
+#editor .cm-matchingBracket {
+    background: var(--accent-subtle);
+    color: inherit;
+    outline: 1px solid var(--rule-strong);
+}
+
+#editor .cm-nonmatchingBracket {
+    background: var(--warning-subtle);
+    color: var(--warning);
+}
+
+/* the five syntax roles (UI plan, section 3) */
+#editor .sql-keyword {
+    color: var(--syntax-keyword);
+    font-weight: 600;
+}
+
+#editor .sql-function {
+    color: var(--syntax-function);
+}
+
+#editor .sql-string {
+    color: var(--syntax-string);
+}
+
+#editor .sql-number {
+    color: var(--syntax-number);
+}
+
+#editor .sql-comment {
+    color: var(--syntax-comment);
+    font-style: italic;
+}
+
+/* the completion list: a menu, as the top bar's menus look */
+#editor .cm-tooltip {
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-float);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-float);
+    overflow: hidden;
+}
+
+#editor .cm-tooltip.cm-tooltip-autocomplete > ul {
+    max-height: calc(8 * 32px + 2 * var(--space-1));
+    min-width: 16rem;
+    padding: var(--space-1);
+    font-family: var(--font-mono);
+}
+
+/* rows as the menus' items (css/menu.css): 32 px, rounded, inside the list's padding */
+#editor .cm-tooltip.cm-tooltip-autocomplete > ul > li {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    box-sizing: border-box;
+    min-height: var(--control-height);
+    padding: 6px var(--space-3) 6px var(--space-2);
+    border-radius: var(--radius-control);
+    line-height: var(--leading-ui);
+}
+
+#editor .cm-tooltip-autocomplete ul li:hover,
+#editor .cm-tooltip-autocomplete ul li[aria-selected] {
+    background: var(--accent-subtle);
+    color: var(--ink);
+}
+
+#editor .cm-completionLabel {
+    flex: none;
+}
+
+#editor .cm-completionMatchedText {
+    text-decoration: none;
+    font-weight: 600;
+}
+
+#editor .cm-completionDetail {
+    margin: 0 0 0 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
     color: var(--graphite);
     font-family: var(--font-ui);
-}
-
-/* The key hint is for sighted keyboard users: Tab indents in the editor, so they need to be told
-   how to leave. It shows while the editor has the focus; its room is always kept, so nothing moves.
-   (visibility: hidden text still counts for aria-describedby.) Phase 3 moves it into Help. */
-.editor-hint {
-    flex: none;
-    margin: 0;
-    padding: var(--space-1) var(--space-4);
-    min-height: 1.5rem;
-    box-sizing: border-box;
-    visibility: hidden;
-    color: var(--graphite);
     font-size: var(--text-xs);
-    line-height: 1.25rem;
+    font-style: normal;
 }
 
-.sqlime-editor:focus + .editor-hint {
-    visibility: visible;
+/* Windows high contrast and other forced colours: the user's colours replace the backgrounds that
+   mark the picked name and the selection, so both are outlined in the system's highlight colour
+   instead (the selected text keeps the user's text colour on their background) */
+@media (forced-colors: active) {
+    #editor .cm-tooltip-autocomplete ul li[aria-selected] {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+    }
+
+    #editor .cm-selectionBackground,
+    #editor .cm-editor:focus-within .cm-selectionBackground {
+        forced-color-adjust: none;
+        background: transparent;
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+    }
+}
+
+@media (pointer: coarse) {
+    #editor .cm-tooltip.cm-tooltip-autocomplete > ul {
+        max-height: calc(6 * 44px + 2 * var(--space-1));
+    }
+
+    #editor .cm-tooltip.cm-tooltip-autocomplete > ul > li {
+        min-height: 44px;
+        padding-block: 12px;
+    }
 }

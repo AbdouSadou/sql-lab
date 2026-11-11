@@ -120,6 +120,23 @@ export const SPLITTER_STEP = 16;
 export const sidebarWidthText = (width) => (width ? `${width} pixels wide` : "hidden");
 export const editorHeightText = (height) => `${height} pixels high`;
 
+// The SQL editor (js/components/sqlime-editor.js, js/lab/code-editor.js).
+export const EDITOR_LABEL = "SQL query";
+export const EDITOR_PLACEHOLDER = "Write SQL here, then press Run.";
+// the id of the sentence (in the Help popover) that describes the editor to a screen reader
+export const EDITOR_HINT_ID = "editor-hint";
+// how long the page waits for CodeMirror (vendor/editor.js) before it shows the plain editor; a
+// late CodeMirror still takes over, with the text, the caret and the focus
+export const EDITOR_UPGRADE_WAIT_MS = 3000;
+// the detail shown beside a completion (a column shows its type, or the tables that have it)
+export const COMPLETION_TABLE = "table";
+export const COMPLETION_VIEW = "view";
+export const COMPLETION_FUNCTION = "function";
+export const COMPLETION_TYPE = "type";
+// said by a screen reader when the list of names opens (nothing is picked yet)
+export const completionsOpenedText = (count) =>
+    `${count} ${count === 1 ? "suggestion" : "suggestions"}. Press the down arrow to pick one, then Enter.`;
+
 // The status bar (js/lab/status-bar.js).
 export const STATUS_NO_RUN = "No query run yet";
 export const STATUS_RUN_FAILED = "Last run failed";

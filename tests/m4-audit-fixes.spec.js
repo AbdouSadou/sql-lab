@@ -382,30 +382,40 @@ test("on a phone the editor and the editor toolbar have the same side gutter as 
     await page.setViewportSize({ width: 390, height: 844 });
     await app.openSet();
     // Each of the three is a full-width pane that pads its own content, so the gutter is the edge of
-    // its content box (the box less its side padding), measured from the window's edge.
+    // its content box (the box less its side padding), measured from the window's edge. The editor's
+    // content is a line of SQL (CodeMirror's line, less its padding); its left side holds the 48 px
+    // of line numbers the mockup draws, so its text starts at the prompt's gutter or further in.
     const boxes = await page.evaluate(() => {
-        const box = (selector) => {
-            const el = document.querySelector(selector);
+        const box = (el) => {
             const r = el.getBoundingClientRect();
             const style = getComputedStyle(el);
             return {
                 left: Math.round(r.left + parseFloat(style.paddingLeft)),
                 right: Math.round(r.right - parseFloat(style.paddingRight)),
+                outerLeft: Math.round(r.left),
+                outerRight: Math.round(r.right),
             };
         };
         return {
-            panel: box("#exercise-panel"),
-            editor: box("#editor"),
-            bar: box("#editor-toolbar"),
+            panel: box(document.querySelector("#exercise-panel")),
+            editor: box(document.querySelector("#editor .cm-line")),
+            editorBox: box(document.querySelector("#editor")),
+            bar: box(document.querySelector("#editor-toolbar")),
             noScroll: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
         };
     });
     expect(boxes.noScroll).toBe(true);
-    for (const name of ["editor", "bar"]) {
-        expect(boxes[name].left, `${name} left`).toBe(boxes.panel.left);
-        expect(boxes[name].right, `${name} right`).toBe(boxes.panel.right);
-        expect(boxes[name].left).toBeGreaterThanOrEqual(16);
-    }
+    expect(boxes.bar.left, "bar left").toBe(boxes.panel.left);
+    expect(boxes.bar.right, "bar right").toBe(boxes.panel.right);
+    expect(boxes.bar.left).toBeGreaterThanOrEqual(16);
+    expect(boxes.editor.left, "editor left").toBeGreaterThanOrEqual(boxes.panel.left);
+    // exactly: the SQL starts right after the 48 px column of line numbers at the editor's edge
+    expect(boxes.editor.left, "editor text after the line numbers").toBe(boxes.editorBox.outerLeft + 48);
+    expect(boxes.editor.right, "editor right").toBe(boxes.panel.right);
+    expect(boxes.editor.left).toBeGreaterThanOrEqual(16);
+    // the editor itself is a full-width pane, edge to edge like the other two
+    expect(boxes.editorBox.outerLeft).toBe(boxes.panel.outerLeft);
+    expect(boxes.editorBox.outerRight).toBe(boxes.panel.outerRight);
 });
 
 // ---- the shipped hints ---------------------------------------------------------------------------

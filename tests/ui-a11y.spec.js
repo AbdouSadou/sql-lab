@@ -4,7 +4,7 @@
 // completes one exercise.
 
 const AxeBuilder = require("@axe-core/playwright").default;
-const { test, expect, withSampleDataset, modelQuery, tabTo } = require("./helpers");
+const { test, expect, withSampleDataset, modelQuery, tabTo, EDITOR_INPUT } = require("./helpers");
 const { RECIPES } = require("./ui-states.js");
 
 const STATES = RECIPES.shell.states;
@@ -65,7 +65,7 @@ test("keyboard only: load the page, open a database, run a query, complete one e
     await app.waitReady();
 
     // run a query on it
-    expect(await tabTo(page, "#editor"), "Tab reaches #editor").toBe(true);
+    expect(await tabTo(page, EDITOR_INPUT), "Tab reaches #editor").toBe(true);
     await page.keyboard.press("Control+A");
     await page.keyboard.type("SELECT count(*) AS n FROM fruit;");
     await page.keyboard.press("Control+Enter");
@@ -86,7 +86,7 @@ test("keyboard only: load the page, open a database, run a query, complete one e
     await page.keyboard.press("Enter");
     await expect(app.exercisePanel).toBeVisible();
     await app.waitReady();
-    expect(await tabTo(page, "#editor"), "Tab reaches #editor").toBe(true);
+    expect(await tabTo(page, EDITOR_INPUT), "Tab reaches #editor").toBe(true);
     await page.keyboard.press("Control+A");
     await page.keyboard.type(modelQuery("e01"));
     await page.keyboard.press("Control+Shift+Enter");

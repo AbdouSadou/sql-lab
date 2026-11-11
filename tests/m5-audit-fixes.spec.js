@@ -355,6 +355,10 @@ test.describe("text colours reach 4.5:1", () => {
 
 // ---- layout at 768 ---------------------------------------------------------------------------
 
+// The editor hint is no longer a line under the editor (UI plan, section 2, Phase 3): the Help
+// popover states it (Tab indents; Esc then Tab leaves) and the editor keeps the sentence as its
+// description, in a visually hidden element. What these tests pinned for the line now holds for
+// Help's statement: whole, never cut, wrapping rather than overflowing on a narrow window.
 test.describe("the editor hint, the editor toolbar and the top bar", () => {
     for (const url of ["./", "./?set=retail-basics"]) {
         for (const width of [768, 1024, 1280]) {
@@ -362,22 +366,36 @@ test.describe("the editor hint, the editor toolbar and the top bar", () => {
                 await page.setViewportSize({ width, height: 900 });
                 await app.open(url);
                 await app.editor.focus();
+                await page.locator("#help-button").click();
+                await expect(page.locator("#help-popover")).toBeVisible();
                 const m = await page.evaluate(() => {
                     const rect = (s) => document.querySelector(s).getBoundingClientRect();
                     const hint = document.querySelector("#editor-hint");
-                    const style = getComputedStyle(hint);
-                    const range = document.createRange();
-                    range.selectNodeContents(hint);
-                    const text = range.getBoundingClientRect();
+                    // Help's two rows on the editor's keys: Tab indents, Esc then Tab leaves
+                    const rows = [...document.querySelectorAll("#help-popover .help-keys dd")].filter((dd) => /editor/.test(dd.textContent));
+                    const whole = rows.map((dd) => {
+                        const style = getComputedStyle(dd);
+                        const range = document.createRange();
+                        range.selectNodeContents(dd);
+                        const text = range.getBoundingClientRect();
+                        const box = dd.getBoundingClientRect();
+                        return {
+                            overflowX: dd.scrollWidth > dd.clientWidth + 1,
+                            overflowY: dd.scrollHeight > dd.clientHeight + 1,
+                            ellipsis: style.textOverflow === "ellipsis",
+                            textInside: text.left >= box.left - 1 && text.right <= box.right + 1 && text.bottom <= box.bottom + 1,
+                        };
+                    });
                     // the vertical centre of every item of the top bar
                     const items = ["#reset", "#database-button", "#copy-link", "#export-button", "#theme-button", "#help-button"].map((s) => document.querySelector(s));
                     const centres = items.map((c) => c.getBoundingClientRect().top + c.getBoundingClientRect().height / 2);
                     return {
                         hint: hint.textContent.trim(),
-                        overflowX: hint.scrollWidth > hint.clientWidth + 1,
-                        overflowY: hint.scrollHeight > hint.clientHeight + 1,
-                        ellipsis: style.textOverflow === "ellipsis",
-                        textInside: text.left >= rect("#editor-hint").left - 1 && text.right <= rect("#editor-hint").right + 1 && text.bottom <= rect("#editor-hint").bottom + 1,
+                        rows: rows.map((dd) => dd.textContent.trim()),
+                        overflowX: whole.some((w) => w.overflowX),
+                        overflowY: whole.some((w) => w.overflowY),
+                        ellipsis: whole.some((w) => w.ellipsis),
+                        textInside: whole.every((w) => w.textInside),
                         barBottom: rect("#editor-toolbar").bottom,
                         paneTop: rect("#editor-pane").top,
                         editorTop: rect("#editor").top,
@@ -387,11 +405,14 @@ test.describe("the editor hint, the editor toolbar and the top bar", () => {
                     };
                 });
                 expect(m.hint).toBe("Press Tab to indent. To leave the editor, press Escape, then Tab or Shift+Tab.");
+                expect(m.rows).toEqual(["Comment or uncomment the line, in the editor", "Suggest table, column and function names, in the editor", "Indent, in the editor", "Leave the editor (Shift Tab to go back)"]);
                 expect(m.overflowX).toBe(false);
                 expect(m.overflowY).toBe(false);
                 expect(m.ellipsis).toBe(false);
                 expect(m.textInside).toBe(true);
-                // the toolbar sits on top of the editor, never over it and never over the hint
+                // the toolbar sits on top of the editor, never over it and never over the hint (now
+                // the editor's visually hidden description: a 1 px box at the top edge of the editor
+                // pane, pulled 1 px up by its negative margin, so the tolerance is exactly that pixel)
                 expect(Math.abs(m.barBottom - m.paneTop)).toBeLessThanOrEqual(2);
                 expect(m.barBottom).toBeLessThanOrEqual(m.editorTop + 1);
                 expect(m.barBottom).toBeLessThanOrEqual(m.hintTop + 1);
@@ -406,9 +427,15 @@ test.describe("the editor hint, the editor toolbar and the top bar", () => {
         await page.setViewportSize({ width: 700, height: 900 });
         await app.open();
         await app.editor.focus();
-        const hint = page.locator("#editor-hint");
+        await page.locator("#help-button").click();
+        // Help's statement of the way out: its row wraps inside the popover rather than being cut
+        const hint = page.locator("#help-popover .help-keys dd").filter({ hasText: "Leave the editor" });
+        await expect(hint).toBeVisible();
         expect(await hint.evaluate((el) => el.getBoundingClientRect().height)).toBeGreaterThan(30);
         expect(await hint.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+        const popover = await page.locator("#help-popover").boundingBox();
+        const row = await hint.boundingBox();
+        expect(row.x + row.width).toBeLessThanOrEqual(popover.x + popover.width + 1);
         // the toolbar is still on top of the editor
         const gap = await page.evaluate(() => document.querySelector("#editor-pane").getBoundingClientRect().top - document.querySelector("#editor-toolbar").getBoundingClientRect().bottom);
         expect(Math.abs(gap)).toBeLessThanOrEqual(2);

@@ -23,6 +23,74 @@ const { expect } = base;
 // Request schemes that never touch the network.
 const LOCAL_SCHEMES = new Set(["data:", "blob:", "about:"]);
 
+// The SQL editor is the #editor element (js/components/sqlime-editor.js). CodeMirror draws it, and
+// its typing surface (the focus, role="textbox", the name and the description) is the .cm-content
+// element inside; if CodeMirror did not load, #editor itself is the editable box. Type into
+// EDITOR_INPUT (app.editor) and read the text from the element's value (editorValue), not from
+// the page: CodeMirror's markup also holds the line numbers and the placeholder.
+const EDITOR_INPUT = '#editor .cm-content, #editor[contenteditable="true"]';
+const editorValue = (page) => page.locator("#editor").evaluate((el) => el.value);
+
+// editorSelect puts the editor's selection over [anchor, head) of its text (a caret when the two
+// are equal) and the focus in the editor, whichever editor is drawn. For CodeMirror that is its
+// own selection (el.view); for the plain box, a DOM range over its text (a <br> counts as "\n").
+// It is not a student's act: like a click there, a test that wants the Schema tab's insert to go
+// at the caret must have typed in the editor (fill) or clicked it first.
+async function editorSelect(page, anchor, head = anchor) {
+    await page.locator("#editor").evaluate(
+        (el, [a, h]) => {
+            if (el.view) {
+                el.view.focus();
+                el.view.dispatch({ selection: { anchor: a, head: h } });
+                return;
+            }
+            HTMLElement.prototype.focus.call(el);
+            const point = (offset) => {
+                const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+                let left = offset;
+                for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                    const length = node.nodeType === Node.TEXT_NODE ? node.length : node.localName === "br" ? 1 : 0;
+                    if (node.nodeType === Node.TEXT_NODE && left <= length) {
+                        return [node, left];
+                    }
+                    left -= length;
+                }
+                return [el, el.childNodes.length];
+            };
+            const range = document.createRange();
+            range.setStart(...point(Math.min(a, h)));
+            range.setEnd(...point(Math.max(a, h)));
+            const selection = getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+        },
+        [anchor, head]
+    );
+}
+
+// expectEditorTextOnly: the editor holds text and nothing made from what was pasted or dropped
+// into it. The plain box has no element at all inside; CodeMirror's content has only its own:
+// line divs, spans (highlighting, the placeholder, the matching bracket), <br> and the widget
+// buffers (an <img> with no src), with none of the attributes markup could bring (on*, src, href,
+// id).
+async function expectEditorTextOnly(page) {
+    const stray = await page.locator("#editor").evaluate((root) => {
+        if (!root.view) {
+            return [...root.querySelectorAll("*")].map((el) => el.outerHTML);
+        }
+        const ATTRIBUTES = new Set(["class", "style", "aria-hidden", "contenteditable", "title", "aria-label"]);
+        const own = (el) =>
+            (el.localName === "div" && el.classList.contains("cm-line")) ||
+            el.localName === "span" ||
+            el.localName === "br" ||
+            (el.localName === "img" && el.classList.contains("cm-widgetBuffer") && !el.hasAttribute("src"));
+        return [...root.querySelector(".cm-content").querySelectorAll("*")]
+            .filter((el) => !own(el) || [...el.attributes].some((a) => !ATTRIBUTES.has(a.name)))
+            .map((el) => el.outerHTML);
+    });
+    expect(stray).toEqual([]);
+}
+
 // "Run SQL query ..." is the empty-database welcome, "Press Run ..." is shown when saved
 // SQL was put back in the editor without being run.
 const READY_STATUS = /Run SQL query to see the results|Press Run to execute it|\d+ rows?, took \d+ ms/;
@@ -244,7 +312,9 @@ function evidenceFile({
 class App {
     constructor(page) {
         this.page = page;
-        this.editor = page.locator("#editor");
+        // the typing surface; editorHost is the element with the editor's methods (value, query)
+        this.editor = page.locator(EDITOR_INPUT);
+        this.editorHost = page.locator("#editor");
         this.status = page.locator("#status");
         this.result = page.locator("#result");
         this.table = page.locator("#result table");
@@ -993,4 +1063,8 @@ module.exports = {
     fakeStorage,
     serveRepoAt,
     inNode,
+    EDITOR_INPUT,
+    editorValue,
+    editorSelect,
+    expectEditorTextOnly,
 };

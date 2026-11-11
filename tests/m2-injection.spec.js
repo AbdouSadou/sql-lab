@@ -1,5 +1,5 @@
 const path = require("node:path");
-const { test, expect, PAYLOAD, ATTR_PAYLOAD, quoteIdent, expectSchemaIconsOnly } = require("./helpers");
+const { test, expect, PAYLOAD, ATTR_PAYLOAD, quoteIdent, expectSchemaIconsOnly, editorValue, expectEditorTextOnly } = require("./helpers");
 
 const SAMPLE = path.join(__dirname, "fixtures", "sample.db");
 const sqlFile = (name, sql) => ({ name, mimeType: "text/plain", buffer: Buffer.from(sql) });
@@ -75,8 +75,8 @@ test("injection: markup in table names is shown as text in the Schema tab and th
         // the name button inserts the quoted name as text; nothing runs, no element is made
         await app.editor.fill("");
         await app.schemaInsert(name).click();
-        expect((await app.editor.innerText()).trim()).toBe(quoteIdent(name));
-        await expect(app.editor.locator("*")).toHaveCount(0);
+        expect((await editorValue(page)).trim()).toBe(quoteIdent(name));
+        await expectEditorTextOnly(page);
         await expect(app.status).toHaveText(statusBefore);
         await app.expectInert();
     }
@@ -129,8 +129,15 @@ test("injection: markup in URL fragments and in the open-url prompt is shown as 
     net.expectNoExternalRequests();
 });
 
-test("injection: pasting markup into the editor inserts text, not elements", async ({ app, page }) => {
+for (const plain of [false, true]) {
+test(`injection: pasting markup into the editor inserts text, not elements${plain ? ", plain editor" : ""}`, async ({ app, page }) => {
+    // the plain editor (the box that stays when vendor/editor.js does not load) pastes with its own
+    // handler (js/components/sqlime-editor.js onPaste); CodeMirror with its own
+    if (plain) {
+        await page.route("**/vendor/editor.js", (route) => route.abort());
+    }
     await app.openEmpty();
+    await expect(page.locator("#editor")).toHaveAttribute("data-editor", plain ? "plain" : "code");
     await app.editor.click();
     await app.editor.evaluate((el, text) => {
         // A plain event with a clipboardData stand-in: Firefox empties the clipboardData
@@ -139,13 +146,14 @@ test("injection: pasting markup into the editor inserts text, not elements", asy
         Object.defineProperty(event, "clipboardData", { value: { getData: () => text } });
         el.dispatchEvent(event);
     }, `SELECT '${PAYLOAD}' AS pasted`);
-    expect(await app.editor.innerText()).toBe(`SELECT '${PAYLOAD}' AS pasted`);
-    await expect(app.editor.locator("*")).toHaveCount(0);
+    expect(await editorValue(page)).toBe(`SELECT '${PAYLOAD}' AS pasted`);
+    await expectEditorTextOnly(page);
     await app.expectInert();
     await page.keyboard.press("Control+Enter");
     expect((await app.read()).rows).toEqual([[PAYLOAD]]);
     await app.expectInert();
 });
+}
 
 test("injection: saved SQL that holds markup is restored as text", async ({ app, page }) => {
     await page.addInitScript((p) => {
@@ -155,7 +163,7 @@ test("injection: saved SQL that holds markup is restored as text", async ({ app,
     }, PAYLOAD);
     await page.goto("./");
     await app.waitReady();
-    expect(await app.editor.innerText()).toBe(`SELECT '${PAYLOAD}' AS v`);
+    expect(await editorValue(page)).toBe(`SELECT '${PAYLOAD}' AS v`);
     await app.expectInert();
 });
 

@@ -439,8 +439,8 @@ test.describe("the History tab", () => {
         // the tab is not a popup: it stays, and the editor takes the focus
         await expect(app.historyList).toBeVisible();
         await expect(app.historyButton).toHaveAttribute("aria-selected", "true");
-        expect(await app.editor.evaluate((e) => e.query)).toBe(FIVE[2]);
-        expect(await page.evaluate(() => document.activeElement.id)).toBe("editor");
+        expect(await app.editorHost.evaluate((e) => e.query)).toBe(FIVE[2]);
+        await expect(app.editor).toBeFocused();
         // not run: same log, same saved query, no new result
         expect(await app.readLog("northlight")).toEqual(before.log);
         expect(await app.storedQueries()).toEqual(before.stored);
@@ -460,7 +460,7 @@ test.describe("the History tab", () => {
         await runFive(app);
         await app.historyButton.click();
         await app.historyEntries.nth(3).click();
-        expect(await app.editor.evaluate((e) => e.query)).toBe(FIVE[1]);
+        expect(await app.editorHost.evaluate((e) => e.query)).toBe(FIVE[1]);
     });
 
     test("keyboard: Tab into the list, move with the arrow keys without touching the editor, pick with Enter", async ({ page, app }) => {
@@ -490,19 +490,19 @@ test.describe("the History tab", () => {
         await page.keyboard.press("ArrowUp"); // stays on the first
         expect(await active()).toContain("'last'");
         // browsing changed nothing
-        expect(await app.editor.evaluate((e) => e.query)).toBe("SELECT 'untouched' AS q;");
+        expect(await app.editorHost.evaluate((e) => e.query)).toBe("SELECT 'untouched' AS q;");
         await page.keyboard.press("ArrowDown");
         await page.keyboard.press("ArrowDown");
         await page.keyboard.press("Enter");
-        expect(await app.editor.evaluate((e) => e.query)).toBe(FIVE[2]);
-        expect(await page.evaluate(() => document.activeElement.id)).toBe("editor");
+        expect(await app.editorHost.evaluate((e) => e.query)).toBe(FIVE[2]);
+        await expect(app.editor).toBeFocused();
         // Space picks as well
         await app.historyButton.focus();
         await page.keyboard.press("Tab");
         await page.keyboard.press("End");
         await page.keyboard.press("Space");
-        expect(await app.editor.evaluate((e) => e.query)).toBe(FIVE[0]);
-        expect(await page.evaluate(() => document.activeElement.id)).toBe("editor");
+        expect(await app.editorHost.evaluate((e) => e.query)).toBe(FIVE[0]);
+        await expect(app.editor).toBeFocused();
     });
 
     test("Escape in the list closes nothing: the tab stays, the focus stays, the editor keeps its text", async ({ page, app }) => {
@@ -515,13 +515,13 @@ test.describe("the History tab", () => {
         await expect(app.historyList).toBeVisible();
         await expect(app.historyButton).toHaveAttribute("aria-selected", "true");
         await expect(app.historyEntries.nth(1)).toBeFocused();
-        expect(await app.editor.evaluate((e) => e.query)).toBe("SELECT 'untouched' AS q;");
+        expect(await app.editorHost.evaluate((e) => e.query)).toBe("SELECT 'untouched' AS q;");
         // Escape on the tab itself
         await app.historyButton.focus();
         await page.keyboard.press("Escape");
         await expect(app.historyList).toBeVisible();
         await expect(app.historyButton).toBeFocused();
-        expect(await app.editor.evaluate((e) => e.query)).toBe("SELECT 'untouched' AS q;");
+        expect(await app.editorHost.evaluate((e) => e.query)).toBe("SELECT 'untouched' AS q;");
     });
 
     test("a click elsewhere does not close it, nor does moving on with Tab; the tab list moves with the arrow keys", async ({ page, app }) => {
@@ -617,7 +617,7 @@ test.describe("the History tab", () => {
         expect(await app.historyList.locator("img, script, iframe").count()).toBe(0);
         // restoring one puts it in the editor as text
         await app.historyEntries.first().click();
-        expect(await app.editor.evaluate((e) => e.query)).toBe(PAYLOAD);
+        expect(await app.editorHost.evaluate((e) => e.query)).toBe(PAYLOAD);
         await app.expectInert();
         // and the evidence export keeps it as text
         const file = await app.exportEvidence("U2034567");
@@ -735,7 +735,7 @@ test.describe("the History tab fits the screen", () => {
                 await page.keyboard.press("End");
                 await expect(app.historyEntries.last()).toBeInViewport();
                 await page.keyboard.press("Enter");
-                expect(await app.editor.evaluate((e) => e.query)).toBe(seeded[0].sql);
+                expect(await app.editorHost.evaluate((e) => e.query)).toBe(seeded[0].sql);
 
                 // after the pick, the page is as wide as before
                 expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);

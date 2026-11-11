@@ -6,7 +6,7 @@ Proof for the UI plan (`docs/design/SQL Lab UI and UX Plan.md`, section 8). Not 
 |---|---|
 | `before/` | The interface before the redesign (commit 0a088a7), captured at the start of Phase 1. |
 | `after/phase-N/` | The same states after phase N, with a `README.md` that pairs them with `before/` and records the self-review of section 8. |
-| `UI_INVENTORY.md` | Every interactive element before the redesign, its handler, the tests that pin it, and its new home. Phase 2 ticked each row with where it lives now (or, until its later phase, where it works meanwhile). |
+| `UI_INVENTORY.md` | Every interactive element before the redesign, its handler, the tests that pin it, and its new home. Phase 2 ticked each row with where it lives now (or, until its later phase, where it works meanwhile); Phase 3 moved the editor's rows to CodeMirror. |
 
 Every matrix has the same three viewports (1366×768, 1920×1080, 390×844), both themes, and the states below. A file is named `<state>--<viewport>--<theme>.png`; screenshots are full-page, at device scale 1, with motion reduced.
 
@@ -21,6 +21,7 @@ Every matrix has the same three viewports (1366×768, 1920×1080, 390×844), bot
 | `history` | From Phase 2: the History tab after three runs, one of them failed. |
 | `menu-theme` | The Theme menu open (from Phase 1; not in `before/`). |
 | `menu-database`, `menu-export`, `menu-help`, `menu-exercise-set` | From Phase 2: the database switcher's menu, the Export menu, the Help popover and the exercise set picker's menu, open. |
+| `menu-completion` | From Phase 3: the editor's list of names, open after `SELECT * FROM pro`. |
 | `evidence-dialog` | The evidence export dialog. |
 | `exercise-prompt` | Exercise 5 of the Northlight set, "Online sales by category". |
 | `exercise-correct` | Its answer, checked. |

@@ -1,6 +1,6 @@
 # SQL playground for teaching
 
-A static, browser-only SQL playground for teaching. SQLite runs in your browser as WebAssembly: there is no server, no account and no analytics, and the queries and data you work with never leave the browser. The page is plain HTML, CSS and JavaScript with no build step.
+A static, browser-only SQL playground for teaching. SQLite runs in your browser as WebAssembly: there is no server, no account and no analytics, and the queries and data you work with never leave the browser. The page is plain HTML, CSS and JavaScript. The one built file is the code editor's bundle, `vendor/editor.js`, and it is committed, so there is nothing to build to run or deploy the site.
 
 Based on SQLime by Anton Zhiyanov (https://github.com/nalgeon/sqlime).
 
@@ -18,6 +18,7 @@ Based on SQLime by Anton Zhiyanov (https://github.com/nalgeon/sqlime).
 ## Features
 
 - Full SQLite (CTEs, window functions, views, triggers) in the browser. Run with Ctrl/Cmd+Enter.
+- A code editor (CodeMirror 6): SQL highlighting, line numbers, bracket matching, and suggestions as you type for SQLite's keywords and functions and the open database's tables, views and columns (Ctrl+Space shows them at any time; the arrow keys pick one and Enter takes it, and until one is picked Enter starts a new line). Ctrl/Cmd+/ comments or uncomments the line. Tab indents; Escape, then Tab, leaves the editor. If the editor's script cannot load, a plain editor takes its place and everything still works.
 - An app-like layout: a top bar, a sidebar with Schema, Exercises and History tabs, the query above its result, and a status bar. The sidebar's width, whether it is hidden and the editor's height are set by dragging the bars between the panes (or with the arrow keys) and kept between visits. Under 700 px wide the panes stack.
 - Built-in datasets, listed in `datasets/manifest.json` and chosen from the database menu in the top bar (the button showing the open database). The default one (Northlight Retail) is open on a first visit. `?db=<id>` in the address opens a dataset directly.
 - The Schema tab: tables and views with their columns, types, key marks and row counts. Clicking a name puts it in the editor.
@@ -67,7 +68,7 @@ How the site finds the sets: the page reads the folder listing of `exercises/`. 
 
 ## Deploying
 
-Pushing to `main` redeploys the site: `.github/workflows/pages.yml` copies the repository root, leaving out `tests/`, `node_modules/`, `package.json`, `package-lock.json`, `playwright.config.js` and the git files, and publishes it with the official GitHub Pages actions. Everything else at the root is public, `datasets/generate_db.py` and `CODEMAP.md` included. The workflow can also be started by hand from the Actions tab.
+Pushing to `main` redeploys the site: `.github/workflows/pages.yml` copies the repository root, leaving out `tests/`, `docs/`, `tools/`, `node_modules/`, `package.json`, `package-lock.json`, `playwright.config.js` and the git files, and publishes it with the official GitHub Pages actions. Everything else at the root is public, `datasets/generate_db.py` and `CODEMAP.md` included. The workflow can also be started by hand from the Actions tab.
 
 Once, per repository: Settings, Pages, Source must be set to GitHub Actions. Until it is, the workflow fails or publishes nothing. The site is then at `https://<user>.github.io/<repo>/`. All addresses in the code are relative, so it works under that subpath; `.nojekyll` must stay at the root.
 
@@ -95,13 +96,13 @@ Both are in `js/lab/config.js`:
 
 ## Run it locally
 
-Serve the repository root with any static file server: from the repository root, `python3 -m http.server 8000 --bind 127.0.0.1` or `make serve` (`make serve PORT=9000` for another port). Then open http://localhost:8000/ (or your port). Do not open the address that `make serve` and a plain `python3 -m http.server` print, such as `http://0.0.0.0:8000/`: browsers do not treat it as a secure address, so the evidence export and `verify.html` cannot compute their checksum there. Opening `index.html` from the disk does not work either: the page loads ES modules and fetches the datasets. There is nothing to build; edit a file and reload.
+Serve the repository root with any static file server: from the repository root, `python3 -m http.server 8000 --bind 127.0.0.1` or `make serve` (`make serve PORT=9000` for another port). Then open http://localhost:8000/ (or your port). Do not open the address that `make serve` and a plain `python3 -m http.server` print, such as `http://0.0.0.0:8000/`: browsers do not treat it as a secure address, so the evidence export and `verify.html` cannot compute their checksum there. Opening `index.html` from the disk does not work either: the page loads ES modules and fetches the datasets. There is nothing to build; edit a file and reload (only a change to the editor's CodeMirror packages needs a build, below).
 
 `CODEMAP.md` is a map of the code: what each module does, how a database opens and a query runs, what is stored where, and how to extend it. Read it before changing code.
 
 ## Tests
 
-The tests need Node and Playwright (development tools only; the site itself has no build step). The first time:
+The tests need Node and Playwright (development tools only; the site itself needs no build). The first time:
 
 ```
 npm ci
@@ -116,6 +117,17 @@ npm test
 
 `npm test` runs Chromium and Firefox, each against the site at the server root and mounted at `/repo/` (as GitHub Pages serves a project site), and takes about four minutes. It starts its own static servers on ports 4173 and 4174; if those are busy, set `TEST_PORT_BASE` (it and the next port are used). To run one file or one browser: `npx playwright test tests/m5-results.spec.js --project=chromium-root`. `PW_WEBKIT=1 npm test` adds WebKit (after `npx playwright install webkit`; it needs system libraries that not every machine has).
 
+## The editor bundle
+
+The editor is [CodeMirror 6](https://codemirror.net/), bundled with esbuild into `vendor/editor.js` (about 390 KB, 130 KB compressed; the plan's budget is 500 KB), with the licences of the bundled packages in `vendor/codemirror.LICENSE.txt`. The bundle holds the library only: what SQL Lab does with it (the keys, the suggestions, the look) is `js/lab/code-editor.js` and `css/editor.css`, which need no build. To change a CodeMirror version, set it in `package.json` (exact versions; `@lezer/common` and `@lezer/lr` are pinned under `overrides`), then:
+
+```
+npm install
+npm run build:editor
+```
+
+and commit `vendor/editor.js` and `vendor/codemirror.LICENSE.txt`. A test (`tests/ui3-editor.spec.js`) fails while the committed bundle differs from a fresh build (`node tools/build-editor.mjs --check`).
+
 ## Credits and licence
 
-Based on [SQLime](https://github.com/nalgeon/sqlime) by Anton Zhiyanov. Link compression uses [lz-string](https://github.com/pieroxy/lz-string) 1.5.0 (MIT, Copyright 2013 pieroxy), vendored in `vendor/` with its licence. The SQLite WebAssembly build in `vendor/` is the official one from sqlite.org (`make sqlite` refreshes it). Released under the MIT License; see `LICENSE`, which keeps the upstream copyright notice.
+Based on [SQLime](https://github.com/nalgeon/sqlime) by Anton Zhiyanov. The editor is [CodeMirror 6](https://codemirror.net/) (MIT, Marijn Haverbeke and others), bundled in `vendor/` with its licences. Link compression uses [lz-string](https://github.com/pieroxy/lz-string) 1.5.0 (MIT, Copyright 2013 pieroxy), vendored in `vendor/` with its licence. The SQLite WebAssembly build in `vendor/` is the official one from sqlite.org (`make sqlite` refreshes it). Released under the MIT License; see `LICENSE`, which keeps the upstream copyright notice.

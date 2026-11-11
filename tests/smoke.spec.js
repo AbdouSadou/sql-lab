@@ -39,6 +39,8 @@ test("smoke: the engine needs no cross-origin isolation and fetches only its was
         /^vendor\/sqlite3\.js$/,
         /^vendor\/sqlite3\.wasm$/,
         /^vendor\/lz-string\.min\.js$/,
+        // the code editor (UI plan, Phase 3): CodeMirror, bundled
+        /^vendor\/editor\.js$/,
         // the typefaces (UI plan, Phase 1), only the subsets the page uses
         /^vendor\/fonts\/atkinson-hyperlegible-(next|mono)-latin(-ext)?-wght-(normal|italic)\.woff2$/,
         /^datasets\/manifest\.json$/,
@@ -51,4 +53,5 @@ test("smoke: the engine needs no cross-origin isolation and fetches only its was
     expect(unexpected).toEqual([]);
     expect(net.paths).toContain("vendor/sqlite3.wasm");
     expect(net.paths.filter((p) => p.endsWith(".wasm"))).toEqual(["vendor/sqlite3.wasm"]);
+    expect(net.paths).toContain("vendor/editor.js");
 });

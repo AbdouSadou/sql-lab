@@ -1,4 +1,4 @@
-const { test, expect, openFresh, tabTo } = require("./helpers");
+const { test, expect, openFresh, tabTo, EDITOR_INPUT } = require("./helpers");
 
 // Deterministic filler so the 20 KB statement does not compress to nothing.
 function filler(bytes) {
@@ -32,7 +32,7 @@ const CASES = {
 const NORMALISE = (s) => s.replace(/\r\n?/g, "\n");
 
 async function editorText(app) {
-    return NORMALISE(await app.editor.evaluate((el) => el.innerText));
+    return NORMALISE(await app.editorHost.evaluate((el) => el.value));
 }
 
 test.describe("AC4 (share link, the part that exists now)", () => {
@@ -46,10 +46,10 @@ test.describe("AC4 (share link, the part that exists now)", () => {
         }) => {
             await app.open("./?utm_source=test"); // a query string on the page must not leak into the link
             await app.editor.fill(sql);
-            // What the link carries is the editor's value. Typing blank lines in Chromium
-            // makes the editor's innerText report one extra newline per blank line
-            // (upstream quirk, see CODEMAP), so the recipient must see the same value.
-            const sent = NORMALISE(await app.editor.evaluate((el) => el.value));
+            // What the link carries is the editor's value, so the recipient must see the same value.
+            // (In the old contenteditable box, typed blank lines made innerText report an extra
+            // newline each, an upstream quirk, see CODEMAP; CodeMirror keeps the text as typed.)
+            const sent = NORMALISE(await app.editorHost.evaluate((el) => el.value));
             if (!sql.includes("\n\n")) expect(sent).toBe(NORMALISE(sql));
             const link = await app.copyLink();
 
@@ -100,7 +100,7 @@ test.describe("AC4 (share link, the part that exists now)", () => {
     test("AC4 blank lines and indentation survive exactly", async ({ app, browser, baseURL }) => {
         const sql = "SELECT 1\n\n\n  FROM (SELECT 2)\n\t-- tab\n\nWHERE 1;";
         await app.open();
-        await app.editor.evaluate((el, text) => (el.value = text), sql);
+        await app.editorHost.evaluate((el, text) => (el.value = text), sql);
         const link = await app.copyLink({ via: "keyboard" });
         const fresh = await openFresh(browser, baseURL, link);
         try {
@@ -333,7 +333,7 @@ test.describe("shared SQL and storage", () => {
         await app.open();
         await app.editor.fill("x");
         for (const blank of ["", "   ", "\n\n  \t\n"]) {
-            await app.editor.evaluate((el, text) => (el.value = text), blank);
+            await app.editorHost.evaluate((el, text) => (el.value = text), blank);
             const link = await app.copyLink();
             const json = await page.evaluate(
                 (hash) => JSON.parse(LZString.decompressFromEncodedURIComponent(hash.slice("#s=".length))),
@@ -592,7 +592,7 @@ test.describe("the copy link button", () => {
             return "-- " + s;
         });
         await page.evaluate((text) => {
-            document.querySelector("#editor").innerText = text;
+            document.querySelector("#editor").value = text;
         }, big);
         await page.locator("#copy-link").click();
         await expect(app.status).toContainText("too long to put in a link");
@@ -620,7 +620,7 @@ test.describe("the copy link button", () => {
         // and Space on it activates it too.
         await page.keyboard.press("Tab");
         await expect(page.locator("#download-csv")).toBeFocused();
-        expect(await tabTo(page, "#editor", { back: true }), "Shift+Tab from the result reaches the editor").toBe(true);
+        expect(await tabTo(page, EDITOR_INPUT, { back: true }), "Shift+Tab from the result reaches the editor").toBe(true);
         await page.keyboard.press("Escape");
         expect(await tabTo(page, "#copy-link", { back: true }), "copy link is reachable by Shift+Tab from the result").toBe(true);
         await page.keyboard.press("Space");

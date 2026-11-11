@@ -1,6 +1,6 @@
 // Fixes from the constraints review: the engine's address overrides, rich content dropped or
 // pasted into the editor and the export dialog's file name, .sql scripts and the SQL guard, and phone text entry.
-const { test, expect, serveRepoAt } = require("./helpers");
+const { test, expect, serveRepoAt, editorValue, editorSelect, expectEditorTextOnly } = require("./helpers");
 
 const LZString = require("../vendor/lz-string.min.js");
 const shareHash = (state) => "#s=" + LZString.compressToEncodedURIComponent(JSON.stringify({ v: 1, ...state }));
@@ -43,7 +43,7 @@ test.describe("engine address overrides", () => {
         const hash = shareHash({ d: "northlight", q: "select 'shared' as s" });
         await page.goto(`./?db=northlight&sqlite3.dir=${enc(ELSEWHERE)}${hash}`);
         await expect(app.status).toContainText("Press Run");
-        expect(await app.editor.innerText()).toContain("select 'shared' as s");
+        expect(await editorValue(page)).toContain("select 'shared' as s");
         net.expectNoExternalRequests();
         const url = new URL(page.url());
         expect(url.search).toBe("?db=northlight");
@@ -163,7 +163,7 @@ test.describe("engine address overrides on a doubled-slash path", () => {
             });
             await page.goto(`${SITE}${lead}?db=northlight&sqlite3.dir=${OTHER}&sqlite3.wasm=${OTHER}/a.wasm${hash}`);
             await app.waitReady();
-            expect(await app.editor.innerText()).toContain("select 'shared' as s");
+            expect(await editorValue(page)).toContain("select 'shared' as s");
             expect(foreign).toEqual([]);
             expect(requested.some((p) => p.endsWith("vendor/sqlite3.js"))).toBe(true);
             expect(requested.some((p) => p.endsWith("sqlite3.wasm"))).toBe(true);
@@ -375,17 +375,47 @@ test.describe("plain text only", () => {
         await page.keyboard.press("Control+C");
     }
 
-    // the point (relative to `target`) at the left edge of the character at `offset` of its first text node
-    function pointAt(target, offset) {
-        return target.evaluate((el, offset) => {
-            const text = document.createTreeWalker(el, NodeFilter.SHOW_TEXT).nextNode();
+    // The two editors these tests run against: the plain contenteditable box (the bundle is
+    // blocked, so js/lab/plain-text.js and the box's own handlers are what is under test) and
+    // CodeMirror (drawn inside #editor once vendor/editor.js loads). The student-facing behaviour
+    // is the same, so most tests here run against both, under the same name plus the editor's.
+    const EDITORS = [
+        { label: "plain editor", plain: true },
+        { label: "CodeMirror", plain: false },
+    ];
+
+    async function openEditor(page, app, { plain }) {
+        if (plain) {
+            await page.route("**/vendor/editor.js", (route) => route.abort());
+        }
+        await app.open();
+        await expect(app.editorHost).toHaveAttribute("data-editor", plain ? "plain" : "code");
+    }
+
+    // the point (relative to #editor) at the left edge of the character at `offset` of the text,
+    // measured on the first text node in the plain box and with CodeMirror's coordsAtPos in CodeMirror
+    function pointAt(page, offset) {
+        return page.locator("#editor").evaluate((host, offset) => {
+            const box = host.getBoundingClientRect();
+            if (host.view) {
+                const at = host.view.coordsAtPos(offset);
+                return { x: at.left - box.left + 1, y: (at.top + at.bottom) / 2 - box.top };
+            }
+            const text = document.createTreeWalker(host, NodeFilter.SHOW_TEXT).nextNode();
             const range = document.createRange();
             range.setStart(text, offset);
             range.setEnd(text, offset + 1);
             const rect = range.getBoundingClientRect();
-            const box = el.getBoundingClientRect();
             return { x: rect.left - box.left + 1, y: rect.top + rect.height / 2 - box.top };
         }, offset);
+    }
+
+    // the client point just after the last character of the text in CodeMirror (where a drop lands at the end)
+    async function endOfText(page) {
+        return page.locator("#editor").evaluate((host) => {
+            const at = host.view.coordsAtPos(host.view.state.doc.length);
+            return { x: at.right + 2, y: (at.top + at.bottom) / 2 };
+        });
     }
 
     // a drop event with the given data, dispatched at the element; returns whether it was cancelled
@@ -424,41 +454,47 @@ test.describe("plain text only", () => {
         }, data);
     }
 
-    test("a drop of rich HTML on the editor inserts the text at the drop point and creates nothing", async ({ page, app, net }) => {
-        await app.open();
-        await app.editor.fill("AAAA BBBB");
-        await app.editor.evaluate((el) => el.addEventListener("input", () => (window.__inputs = (window.__inputs || 0) + 1)));
-        await addDragSource(page, { "text/html": RICH, "text/plain": "X;" });
-        await page.dragAndDrop("#drag-source", "#editor", { targetPosition: await pointAt(app.editor, 4) });
-        await expect.poll(() => app.editor.innerText()).toBe("AAAAX; BBBB");
-        await expect(app.editor.locator("*")).toHaveCount(0);
-        await expect(page.locator("#editor iframe, #editor form, #editor img, #editor b")).toHaveCount(0);
-        expect(await page.evaluate(() => window.__inputs)).toBe(1); // an input event, as for typing
-        net.expectNoExternalRequests();
-        // undo takes the drop back as one step
-        await app.editor.focus();
-        await page.evaluate(() => document.execCommand("undo"));
-        expect(await app.editor.innerText()).toBe("AAAA BBBB");
-    });
+    for (const mode of EDITORS) {
+        test(`a drop of rich HTML on the editor inserts the text at the drop point and creates nothing, ${mode.label}`, async ({ page, app, net }) => {
+            await openEditor(page, app, mode);
+            await app.editor.fill("AAAA BBBB");
+            await app.editorHost.evaluate((el) => el.addEventListener("input", () => (window.__inputs = (window.__inputs || 0) + 1)));
+            await addDragSource(page, { "text/html": RICH, "text/plain": "X;" });
+            await page.dragAndDrop("#drag-source", "#editor", { targetPosition: await pointAt(page, 4) });
+            await expect.poll(() => editorValue(page)).toBe("AAAAX; BBBB");
+            await expectEditorTextOnly(page);
+            await expect(page.locator("#editor iframe, #editor form, #editor img:not(.cm-widgetBuffer), #editor b")).toHaveCount(0);
+            expect(await page.evaluate(() => window.__inputs)).toBe(1); // an input event, as for typing
+            net.expectNoExternalRequests();
+            // undo takes the drop back as one step
+            await app.editor.focus();
+            if (mode.plain) {
+                await page.evaluate(() => document.execCommand("undo"));
+            } else {
+                await page.keyboard.press("Control+Z");
+            }
+            expect(await editorValue(page)).toBe("AAAA BBBB");
+        });
 
-    test("a drop on the editor with no text/plain inserts nothing", async ({ page, app, net }) => {
-        await app.open();
-        await app.editor.fill("AAAA BBBB");
-        await addDragSource(page, { "text/html": RICH });
-        await page.dragAndDrop("#drag-source", "#editor", { targetPosition: await pointAt(app.editor, 4) });
-        await expect(app.editor.locator("*")).toHaveCount(0);
-        expect(await app.editor.innerText()).toBe("AAAA BBBB");
-        net.expectNoExternalRequests();
-    });
+        test(`a drop on the editor with no text/plain inserts nothing, ${mode.label}`, async ({ page, app, net }) => {
+            await openEditor(page, app, mode);
+            await app.editor.fill("AAAA BBBB");
+            await addDragSource(page, { "text/html": RICH });
+            await page.dragAndDrop("#drag-source", "#editor", { targetPosition: await pointAt(page, 4) });
+            await expectEditorTextOnly(page);
+            expect(await editorValue(page)).toBe("AAAA BBBB");
+            net.expectNoExternalRequests();
+        });
 
-    test("a multi-line drop on the editor keeps its lines", async ({ page, app }) => {
-        await app.open();
-        await app.editor.fill("AAAA");
-        await addDragSource(page, { "text/plain": "SELECT 1\nFROM t" });
-        await page.dragAndDrop("#drag-source", "#editor", { targetPosition: await pointAt(app.editor, 2) });
-        await expect.poll(() => app.editor.innerText()).toMatch(/^AASELECT 1\nFROM tAA$/);
-        await expect(app.editor.locator("img, iframe, form")).toHaveCount(0);
-    });
+        test(`a multi-line drop on the editor keeps its lines, ${mode.label}`, async ({ page, app }) => {
+            await openEditor(page, app, mode);
+            await app.editor.fill("AAAA");
+            await addDragSource(page, { "text/plain": "SELECT 1\nFROM t" });
+            await page.dragAndDrop("#drag-source", "#editor", { targetPosition: await pointAt(page, 2) });
+            await expect.poll(() => editorValue(page)).toMatch(/^AASELECT 1\nFROM tAA$/);
+            await expect(app.editorHost.locator("img:not(.cm-widgetBuffer), iframe, form")).toHaveCount(0);
+        });
+    }
 
     // The file name of the export dialog is a plain <input>: it takes text only and no markup by
     // itself, so these tests drive the real browser (a real drag, a real paste).
@@ -521,42 +557,47 @@ test.describe("plain text only", () => {
         expect(await page.evaluate(() => window.app.database.name)).toBe(value.trim());
     });
 
-    test("a paste into the editor is unchanged: plain text at the caret, once", async ({ page, app }) => {
-        await app.open();
-        await app.editor.fill("SELECT ");
-        await app.editor.focus();
-        const cancelled = await dispatchPaste(app.editor, { "text/html": RICH, "text/plain": "1 AS one\nFROM t" });
-        expect(cancelled).toBe(true);
-        expect(await app.editor.innerText()).toBe("SELECT 1 AS one\nFROM t");
-        await expect(app.editor.locator("img, iframe, form, b")).toHaveCount(0);
-    });
+    for (const mode of EDITORS) {
+        test(`a paste into the editor is unchanged: plain text at the caret, once, ${mode.label}`, async ({ page, app }) => {
+            await openEditor(page, app, mode);
+            await app.editor.fill("SELECT ");
+            await app.editor.focus();
+            await app.editorHost.evaluate((el) => el.addEventListener("input", () => (window.__inputs = (window.__inputs || 0) + 1)));
+            const cancelled = await dispatchPaste(app.editor, { "text/html": RICH, "text/plain": "1 AS one\nFROM t" });
+            expect(cancelled).toBe(true);
+            expect(await editorValue(page)).toBe("SELECT 1 AS one\nFROM t");
+            expect(await page.evaluate(() => window.__inputs)).toBe(1);
+            await expectEditorTextOnly(page);
+            await expect(app.editorHost.locator("img:not(.cm-widgetBuffer), iframe, form, b")).toHaveCount(0);
+        });
 
-    test("a drop that carries files inserts nothing and is cancelled, so the tab does not open them", async ({ page, app }) => {
-        await app.open();
-        await app.editor.fill("AAAA");
-        const nameBefore = await app.pickedText();
-        const url = page.url();
-        // files, with a text/plain alongside (file managers send the path or the name)
-        expect(await dispatchDrop(app.editor, { "text/plain": "/tmp/evil.html" }, { files: ["evil.html"] })).toBe(true);
-        const field = await openExportName(app);
-        const fieldBefore = await field.inputValue();
-        expect(await dispatchDrop(field, { "text/plain": "evil.html" }, { files: ["evil.html"] })).toBe(true);
-        // anywhere else on the page too
-        expect(await dispatchDrop(page.locator("#export-dialog"), { "text/plain": "evil.html" }, { files: ["evil.html"] })).toBe(true);
-        expect(await dispatchDrop(page.locator("#results-pane"), { "text/plain": "evil.html" }, { files: ["evil.html"] })).toBe(true);
-        expect(await app.editor.innerText()).toBe("AAAA");
-        expect(await field.inputValue()).toBe(fieldBefore);
-        expect(await app.pickedText()).toBe(nameBefore);
-        expect(page.url()).toBe(url);
-    });
+        test(`a drop that carries files inserts nothing and is cancelled, so the tab does not open them, ${mode.label}`, async ({ page, app }) => {
+            await openEditor(page, app, mode);
+            await app.editor.fill("AAAA");
+            const nameBefore = await app.pickedText();
+            const url = page.url();
+            // files, with a text/plain alongside (file managers send the path or the name)
+            expect(await dispatchDrop(app.editor, { "text/plain": "/tmp/evil.html" }, { files: ["evil.html"] })).toBe(true);
+            const field = await openExportName(app);
+            const fieldBefore = await field.inputValue();
+            expect(await dispatchDrop(field, { "text/plain": "evil.html" }, { files: ["evil.html"] })).toBe(true);
+            // anywhere else on the page too
+            expect(await dispatchDrop(page.locator("#export-dialog"), { "text/plain": "evil.html" }, { files: ["evil.html"] })).toBe(true);
+            expect(await dispatchDrop(page.locator("#results-pane"), { "text/plain": "evil.html" }, { files: ["evil.html"] })).toBe(true);
+            expect(await editorValue(page)).toBe("AAAA");
+            expect(await field.inputValue()).toBe(fieldBefore);
+            expect(await app.pickedText()).toBe(nameBefore);
+            expect(page.url()).toBe(url);
+        });
+    }
 
-    test("a drag that starts inside the editor keeps the browser's move behaviour", async ({ page, app }) => {
-        await app.open();
+    test("a drag that starts inside the editor keeps the browser's move behaviour, plain editor", async ({ page, app }) => {
+        await openEditor(page, app, EDITORS[0]);
         await app.editor.fill("AAAA BBBB");
         // the drag starts inside: not taken over, whatever the drop carries
         await app.editor.evaluate((el) => el.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer: new DataTransfer() })));
         expect(await dispatchDrop(app.editor, { "text/plain": "MOVED" })).toBe(false);
-        expect(await app.editor.innerText()).toBe("AAAA BBBB");
+        expect(await editorValue(page)).toBe("AAAA BBBB");
         // the next drop, from outside, is taken over again
         expect(await dispatchDrop(app.editor, { "text/plain": "X" })).toBe(true);
         // and a drag that ended without a drop clears the mark too
@@ -565,44 +606,92 @@ test.describe("plain text only", () => {
         expect(await dispatchDrop(app.editor, { "text/plain": "Y" })).toBe(true);
     });
 
+    // CodeMirror does the move itself instead of leaving it to the browser (so a drop that ends a
+    // drag from inside is cancelled too), and a drag starts only from a selection: the text moves,
+    // once, and the next drops, from outside, put their text in.
+    test("a drag that starts inside the editor keeps the browser's move behaviour, CodeMirror", async ({ page, app }) => {
+        await openEditor(page, app, EDITORS[1]);
+        await app.editor.fill("AAAA BBBB");
+        // a drag of "AAAA" from inside: dragstart puts the selected text on the transfer, as a browser does
+        const dragInside = (kind) =>
+            app.editor.evaluate((el, kind) => {
+                if (kind === "start") {
+                    window.__transfer = new DataTransfer();
+                }
+                el.dispatchEvent(new DragEvent(kind === "start" ? "dragstart" : "dragend", { bubbles: true, cancelable: true, dataTransfer: window.__transfer }));
+            }, kind);
+        const dropAtEnd = async (data, fromInside) => {
+            const point = await endOfText(page);
+            return app.editor.evaluate(
+                (el, { data, fromInside, x, y }) => {
+                    const transfer = fromInside ? window.__transfer : new DataTransfer();
+                    for (const [type, value] of Object.entries(data)) transfer.setData(type, value);
+                    const event = new DragEvent("drop", { dataTransfer: transfer, bubbles: true, cancelable: true, clientX: x, clientY: y });
+                    el.dispatchEvent(event);
+                    return event.defaultPrevented;
+                },
+                { data, fromInside, ...point }
+            );
+        };
+        await editorSelect(page, 0, 4);
+        await dragInside("start");
+        // the move: "AAAA" leaves its place and comes back at the drop point, once (not copied)
+        expect(await dropAtEnd({}, true)).toBe(true);
+        expect(await editorValue(page)).toBe(" BBBBAAAA");
+        // the next drop, from outside, is taken over again: its text goes in, the old drag's mark is gone
+        expect(await dropAtEnd({ "text/plain": "X" }, false)).toBe(true);
+        expect(await editorValue(page)).toBe(" BBBBAAAAX");
+        // and a drag that ended without a drop clears the mark too
+        await editorSelect(page, 0, 1);
+        await dragInside("start");
+        await dragInside("end");
+        expect(await dropAtEnd({ "text/plain": "Y" }, false)).toBe(true);
+        expect(await editorValue(page)).toBe(" BBBBAAAAXY");
+    });
+
     // A drag that began in the editor but never produced dragend or drop (its text was replaced
     // under it) must not leave the next, unrelated drop unprotected.
-    for (const [label, end] of [
-        ["pointer movement", (page) => page.mouse.move(300, 300)],
-        ["a key press", (page) => page.keyboard.press("Shift")],
-        ["a mouse press", (page) => page.mouse.down().then(() => page.mouse.up())],
-    ]) {
-        test(`a drag that started in the editor and never ended is forgotten at ${label}`, async ({ page, app, net }) => {
-            await app.open();
-            await app.editor.fill("AAAA BBBB");
-            await app.editor.evaluate((el) => el.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer: new DataTransfer() })));
-            await end(page);
-            // an external drop with rich content now: taken over, not left to the browser
-            expect(await dispatchDrop(app.editor, { "text/html": RICH, "text/plain": "X" })).toBe(true);
-            await expect(app.editor.locator("*")).toHaveCount(0);
-            net.expectNoExternalRequests();
-        });
+    for (const mode of EDITORS) {
+        for (const [label, end] of [
+            ["pointer movement", (page) => page.mouse.move(300, 300)],
+            ["a key press", (page) => page.keyboard.press("Shift")],
+            ["a mouse press", (page) => page.mouse.down().then(() => page.mouse.up())],
+        ]) {
+            test(`a drag that started in the editor and never ended is forgotten at ${label}, ${mode.label}`, async ({ page, app, net }) => {
+                await openEditor(page, app, mode);
+                await app.editor.fill("AAAA BBBB");
+                // the drag carries the selected "AAAA" (CodeMirror records it as the text a drop
+                // would move)
+                await editorSelect(page, 0, 4);
+                await app.editor.evaluate((el) => el.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer: new DataTransfer() })));
+                await end(page);
+                // an external drop with rich content now: taken over, not left to the browser
+                expect(await dispatchDrop(app.editor, { "text/html": RICH, "text/plain": "X" })).toBe(true);
+                await expectEditorTextOnly(page);
+                // and it is a drop from outside, not the end of that drag: its text goes in once and
+                // the dragged "AAAA" stays where it was (taken for a move, it would be deleted)
+                const text = await editorValue(page);
+                expect(text.split("X").length - 1).toBe(1);
+                expect(text.replace("X", "")).toBe("AAAA BBBB");
+                net.expectNoExternalRequests();
+            });
+        }
     }
 
-    test("a real drag of text inside the editor still moves it, once", async ({ page, app }) => {
-        await app.open();
-        await app.editor.fill("AAAA BBBB");
-        await app.editor.evaluate((el) => {
-            const text = el.firstChild;
-            const range = document.createRange();
-            range.setStart(text, 0);
-            range.setEnd(text, 4);
-            getSelection().removeAllRanges();
-            getSelection().addRange(range);
+    for (const mode of EDITORS) {
+        test(`a real drag of text inside the editor still moves it, once, ${mode.label}`, async ({ page, app }) => {
+            await openEditor(page, app, mode);
+            await app.editor.fill("AAAA BBBB");
+            await editorSelect(page, 0, 4);
+            const from = await pointAt(page, 1);
+            const to = await pointAt(page, 8);
+            const box = await app.editorHost.boundingBox();
+            await page.mouse.move(box.x + from.x, box.y + from.y);
+            await page.mouse.down();
+            await page.mouse.move(box.x + to.x - 6, box.y + to.y, { steps: 6 });
+            await page.mouse.move(box.x + to.x, box.y + to.y, { steps: 3 });
+            await page.mouse.up();
+            expect(await editorValue(page)).toBe(" BBBAAAAB");
         });
-        const from = await pointAt(app.editor, 1);
-        const to = await pointAt(app.editor, 8);
-        const box = await app.editor.boundingBox();
-        await page.mouse.move(box.x + from.x, box.y + from.y);
-        await page.mouse.down();
-        await page.mouse.move(box.x + to.x - 6, box.y + to.y, { steps: 6 });
-        await page.mouse.move(box.x + to.x, box.y + to.y, { steps: 3 });
-        await page.mouse.up();
-        expect(await app.editor.innerText()).toBe(" BBBAAAAB");
-    });
+    }
 });

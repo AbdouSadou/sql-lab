@@ -23,6 +23,9 @@
     <link rel="stylesheet" href="css/buttons.css">
     <link rel="stylesheet" href="css/shell.css">
     <link rel="stylesheet" href="css/menu.css">
+    <!-- the code editor (CodeMirror, js/components/sqlime-editor.js imports it), fetched alongside
+         the engine rather than after it -->
+    <link rel="modulepreload" href="vendor/editor.js">
     <script type="module" src="js/lab/brand.js"></script>
 </head>
 
@@ -108,6 +111,10 @@
                         <dd>Run the query, or the part of it you selected</dd>
                         <dt><kbd data-mod>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd></dt>
                         <dd>Check your answer to an exercise</dd>
+                        <dt><kbd data-mod>Ctrl</kbd> <kbd>/</kbd></dt>
+                        <dd>Comment or uncomment the line, in the editor</dd>
+                        <dt><kbd>Ctrl</kbd> <kbd>Space</kbd></dt>
+                        <dd>Suggest table, column and function names, in the editor</dd>
                         <dt><kbd data-mod>Ctrl</kbd> <kbd>O</kbd></dt>
                         <dd>Open a database file</dd>
                         <dt><kbd data-mod>Ctrl</kbd> <kbd>U</kbd></dt>
@@ -178,10 +185,14 @@
                     </button>
                 </div>
                 <section id="editor-pane" class="editor-pane" aria-label="SQL editor">
-                    <!-- tabindex="0" changes nothing for a contenteditable (it is a Tab stop already);
-                         it tells accessibility checkers that the scrolling pane holds one -->
+                    <!-- The plain editor, until CodeMirror draws the editor inside it (or for good, if
+                         CodeMirror does not load). tabindex="0" changes nothing for a contenteditable
+                         (it is a Tab stop already); it tells accessibility checkers that the scrolling
+                         pane holds one. CodeMirror's content element takes over the role, the name and
+                         the description. -->
                     <sqlime-editor id="editor" class="sqlime-editor" autocorrect="off" autocapitalize="off" aria-describedby="editor-hint" tabindex="0"></sqlime-editor>
-                    <p id="editor-hint" class="editor-hint">Press Tab to indent. To leave the editor, press Escape, then Tab or Shift+Tab.</p>
+                    <!-- the editor's description for a screen reader; Help shows the same keys -->
+                    <p id="editor-hint" class="visually-hidden">Press Tab to indent. To leave the editor, press Escape, then Tab or Shift+Tab.</p>
                 </section>
                 <div id="editor-splitter" class="splitter splitter--horizontal" role="separator" aria-orientation="horizontal" aria-controls="editor-pane" aria-label="Editor height" tabindex="0" title="Drag, or use the arrow keys, to share the height between the query and its result"><span class="splitter-grip"></span></div>
 

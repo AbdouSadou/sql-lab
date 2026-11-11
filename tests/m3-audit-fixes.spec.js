@@ -21,7 +21,7 @@ function gate() {
 const LZString = require("../vendor/lz-string.min.js");
 const shareHash = (state) => "#s=" + LZString.compressToEncodedURIComponent(JSON.stringify({ v: 1, ...state }));
 
-const editorText = (app) => app.editor.evaluate((el) => el.innerText);
+const editorText = (app) => app.editorHost.evaluate((el) => el.value);
 const dbName = (page) => page.evaluate(() => window.app.database?.name);
 
 // The database switcher (the top bar's button and its menu) follows the open database: a course
@@ -271,8 +271,9 @@ test("a corrupt default dataset on the first load starts on an empty database th
     expect((await app.query("SELECT 1 AS one;")).rows).toEqual([["1"]]);
 
     // The Schema tab shows that the database is empty, and the old "show tables" shortcut (Ctrl+/,
-    // replaced by that tab) throws nothing and changes nothing: not the status, not the result,
-    // not the query.
+    // replaced by that tab) throws nothing and changes nothing: not the status, not the result.
+    // The key now belongs to the editor (UI plan, section 5): it comments the line out, and a
+    // second press brings the query back as it was.
     await expect(page.locator("#panel-schema")).toBeVisible();
     await expect(page.locator("#schema .schema-message")).toHaveText(
         "No tables yet. Create one with CREATE TABLE and it will appear here."
@@ -281,6 +282,9 @@ test("a corrupt default dataset on the first load starts on an empty database th
     const status = await app.status.textContent();
     const result = await app.result.innerHTML();
     const query = await editorText(app);
+    await expect(app.editor).toBeFocused();
+    await page.keyboard.press("Control+/");
+    expect(await editorText(app)).toBe(`-- ${query}`);
     await page.keyboard.press("Control+/");
     await expect(app.status).toHaveText(status);
     expect(await app.result.innerHTML()).toBe(result);
@@ -335,7 +339,19 @@ test("with no database open (unsupported address) the Schema tab lists nothing a
     const status = await app.status.textContent();
     const result = await app.result.innerHTML();
     const query = await editorText(app);
+    // Ctrl+/ outside the editor does nothing at all; in the editor (now empty) it comments the
+    // line out and a second press takes the comment away again
+    await page.locator("#tab-schema").focus();
     await page.keyboard.press("Control+/");
+    await expect(app.status).toHaveText(status);
+    expect(await app.result.innerHTML()).toBe(result);
+    expect(await editorText(app)).toBe(query);
+    await app.editor.fill("SELECT 1;");
+    await page.keyboard.press("Control+/");
+    expect(await editorText(app)).toBe("-- SELECT 1;");
+    await page.keyboard.press("Control+/");
+    expect(await editorText(app)).toBe("SELECT 1;");
+    await app.editor.fill(query);
     await expect(app.status).toHaveText(status);
     expect(await app.result.innerHTML()).toBe(result);
     expect(await editorText(app)).toBe(query);
@@ -548,33 +564,46 @@ test.describe("stale loads", () => {
 
 // ---- keyboard and screen readers -----------------------------------------------------------
 
-test("the editor shows a visible focus ring and the Escape-then-Tab hint while it has the focus", async ({
-    page,
-    app,
-}) => {
+// The ring is drawn over CodeMirror's editor (.cm-editor::after: its outline would be under the
+// line numbers); the plain box (tests/ui3-editor.spec.js) keeps its outline. The Escape-then-Tab
+// hint is no longer a line under the editor (UI plan, section 2): Help states it, and the editor
+// keeps it as its description.
+const editorRing = (page) =>
+    page.locator("#editor .cm-editor").evaluate((el) => {
+        const style = getComputedStyle(el, "::after");
+        return { content: style.content, style: style.borderTopStyle, width: parseFloat(style.borderTopWidth), color: style.borderTopColor };
+    });
+
+test("the editor shows a visible focus ring while it has the focus, and Help tells how to get out", async ({ page, app }) => {
     await app.open();
     await expect(app.editor).toBeFocused();
-    const ring = await app.editor.evaluate((el) => {
-        const style = getComputedStyle(el);
-        return { style: style.outlineStyle, width: parseFloat(style.outlineWidth), color: style.outlineColor };
-    });
+    const ring = await editorRing(page);
     expect(ring.style).toBe("solid");
     expect(ring.width).toBeGreaterThanOrEqual(2);
     expect(ring.color).not.toBe("rgba(0, 0, 0, 0)");
 
-    // sighted keyboard users can read how to get out (Tab indents inside the editor)
+    // sighted keyboard users can read how to get out (Tab indents inside the editor): in Help
     const hint = page.locator("#editor-hint");
-    await expect(hint).toBeVisible();
-    await expect(hint).toContainText("Escape, then Tab");
+    await page.locator("#help-button").click();
+    const keys = page.locator("#help-popover .help-keys");
+    await expect(keys).toBeVisible();
+    await expect(keys).toContainText("Esc then Tab");
+    await expect(keys).toContainText("Leave the editor");
+    await page.keyboard.press("Escape");
+    await app.editor.focus();
     // assistive technology still gets it as the description
     expect(await app.editor.getAttribute("aria-describedby")).toBe("editor-hint");
+    await expect(hint).toContainText("Escape, then Tab");
+    await expect(app.editor).toHaveAccessibleDescription(/Escape, then Tab/);
 
-    // after leaving the editor the ring and the hint go, and the page does not jump
+    // after leaving the editor the ring goes, and the page does not jump
     const before = await page.locator("#editor-toolbar").boundingBox();
     await page.keyboard.press("Escape");
     await page.keyboard.press("Tab");
     await expect(app.editor).not.toBeFocused();
-    await expect(hint).toBeHidden();
+    await expect.poll(async () => (await editorRing(page)).content).toBe("none");
+    // the hint takes no room on the screen: a visually hidden line, not a row under the editor
+    expect(await hint.evaluate((el) => el.getBoundingClientRect().height)).toBeLessThanOrEqual(1);
     expect((await page.locator("#editor-toolbar").boundingBox()).y).toBe(before.y);
 });
 
@@ -757,5 +786,8 @@ test("a table name inserted after a click on blank page space goes at the caret,
 
     await page.mouse.click(4, 4); // blank page margin
     await app.schemaInsert("orders").click();
-    expect(await editorText(app)).toBe("SELECT *\nFROM orders \nWHERE 1");
+    // End puts CodeMirror's caret after the trailing space of "FROM " (the old box parked it in
+    // front of that space, so the name came with one extra space behind it): the name goes right
+    // there, in the middle line, with no doubled space.
+    expect(await editorText(app)).toBe("SELECT *\nFROM orders\nWHERE 1");
 });

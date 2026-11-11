@@ -12,6 +12,7 @@ const {
     realManifest,
     withSampleDataset,
     PAYLOAD,
+    editorValue,
 } = require("./helpers");
 
 const LZString = require("../vendor/lz-string.min.js");
@@ -963,7 +964,7 @@ test.describe("resolveRoute and exercise sets", () => {
             const page = await context.newPage();
             await page.goto(`./${shareHash({ d: "northlight", x: "retail-basics", e: "e05", q: "select 5 as five" })}`);
             await expect(page.locator("#status")).toContainText("A shared query is in the editor");
-            expect(await page.locator("#editor").innerText()).toBe("select 5 as five");
+            expect(await editorValue(page)).toBe("select 5 as five");
             // the dataset is open: the switcher names it, and the engine holds its file
             await expect(page.locator("#database-button-name")).toHaveText("Northlight Retail");
             expect(await page.evaluate(() => window.app.database.name)).toBe("northlight_retail.db");
