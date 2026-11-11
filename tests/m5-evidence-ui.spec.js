@@ -1,6 +1,6 @@
 const { test, expect, evidenceFile, realManifest } = require("./helpers");
 
-// F11 evidence export through the real UI (the toolbar button, the dialog, the download event)
+// F11 evidence export through the real UI (the Export menu item, the dialog, the download event)
 // and the verify page. The file format and the single-character-edit sweep over every
 // position are in m5-evidence-format.spec.js; verify.html itself is in m5-verify-page.spec.js.
 

@@ -39,7 +39,7 @@ test("no sharing: the gist and token code and pages are gone", async ({ page }) 
     expect(res.status()).toBe(404);
 });
 
-test("no sharing: the toolbar, command bar and welcome text carry no settings, gist or token control", async ({
+test("no sharing: the top bar, editor toolbar and status bar carry no settings, gist or token control", async ({
     page,
     app,
 }) => {
@@ -47,7 +47,19 @@ test("no sharing: the toolbar, command bar and welcome text carry no settings, g
     await app.open();
     await expect(page.locator("#save")).toHaveCount(0);
     await expect(page.locator("a[href='settings.html']")).toHaveCount(0);
-    await expect(page.locator("#commandbar button")).toHaveText([/run/, /tables/, /copy link/, /history/, /download csv/]);
+    // the top bar: the brand, the database switcher, Copy link, Export, Theme and Help; the editor
+    // toolbar: Run; the status bar: no control but its credit link, which goes to About
+    await expect(page.locator("#database-button, #copy-link, #export-button, #theme-button, #help-button")).toHaveText([
+        /Northlight Retail/,
+        /Copy link/,
+        /Export/,
+        /Theme/,
+        /Help/,
+    ]);
+    await expect(page.locator("header.topbar button:not([role^=menuitem])")).toHaveCount(5);
+    await expect(page.locator("#editor-toolbar button")).toHaveText([/Run/]);
+    await expect(page.locator("footer.statusbar button")).toHaveCount(0);
+    await expect(page.locator("footer.statusbar a")).toHaveAttribute("href", "about.html");
     const text = (await page.locator("body").innerText()).toLowerCase();
     for (const word of ["settings", "sharing", "share", "gist", "token"]) {
         expect(text, word).not.toContain(word);
@@ -118,11 +130,12 @@ for (const fragment of UNSUPPORTED) {
         await expect(app.status).toContainText("unsupported address");
         await expect(app.status.locator("div")).toHaveClass(/error/);
 
-        // no database was opened: the header name never became ready, nothing is rendered,
-        // the command bar is still disabled
-        await expect(page.locator("#db-name")).not.toHaveClass(/ready/);
+        // no database was opened: the switcher says so, nothing is rendered, Run is still
+        // not offered (it was the disabled command bar)
+        await expect(app.databaseLabel).toHaveText("No database open");
+        expect(await page.evaluate(() => Boolean(window.app.database))).toBe(false);
         await expect(page.locator("#result table")).toHaveCount(0);
-        await expect(page.locator("#commandbar")).toHaveClass(/sqlime-disabled/);
+        await expect(page.locator("#execute")).toBeDisabled();
 
         // and running SQL does not quietly work against a blank database
         await app.editor.click();

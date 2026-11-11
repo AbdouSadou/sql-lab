@@ -11,30 +11,34 @@ test("editor keys: Tab alone still indents and keeps focus in the editor", async
     expect(await app.editor.innerText()).toBe("select  1");
 });
 
-test("editor keys: Escape then Tab leaves the editor and reaches Run", async ({ page, app }) => {
+// Run sits above the editor now (the editor toolbar comes before the editor in the Tab order), and
+// the splitter between the query and its result comes after it.
+test("editor keys: Escape then Tab leaves the editor forwards, to the splitter below it", async ({ page, app }) => {
     await app.openEmpty();
     await app.editor.click();
     await page.keyboard.type("SELECT 3 AS three;");
     await page.keyboard.press("Escape");
     await page.keyboard.press("Tab");
     await expect(app.editor).not.toBeFocused();
-    await expect(page.locator("#execute")).toBeFocused();
+    await expect(page.locator("#execute")).not.toBeFocused();
+    await expect(page.locator("#editor-splitter")).toBeFocused();
     expect(await app.editor.innerText()).toBe("SELECT 3 AS three;"); // nothing was indented
+});
+
+test("editor keys: Escape then Shift+Tab leaves the editor backwards, to Run", async ({ page, app }) => {
+    await app.openEmpty();
+    await app.editor.click();
+    await page.keyboard.type("SELECT 3 AS three;");
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Shift+Tab");
+    await expect(app.editor).not.toBeFocused();
+    await expect(page.locator("#execute")).toBeFocused();
+    await expect(page.locator("#editor-splitter")).not.toBeFocused();
+    expect(await app.editor.innerText()).toBe("SELECT 3 AS three;");
 
     // the whole journey without a mouse: write, leave, press Run
     await page.keyboard.press("Enter");
     expect(await app.read()).toEqual({ columns: ["three"], rows: [["3"]] });
-});
-
-test("editor keys: Escape then Shift+Tab leaves the editor backwards", async ({ page, app }) => {
-    await app.openEmpty();
-    await app.editor.click();
-    await page.keyboard.type("SELECT 1;");
-    await page.keyboard.press("Escape");
-    await page.keyboard.press("Shift+Tab");
-    await expect(app.editor).not.toBeFocused();
-    await expect(page.locator("#execute")).not.toBeFocused();
-    expect(await app.editor.innerText()).toBe("SELECT 1;");
 });
 
 test("editor keys: Escape does not stay armed after another key", async ({ page, app }) => {
@@ -51,7 +55,7 @@ test("editor keys: an Escape from an earlier visit does not leak into the next o
     await app.open();
     await app.editor.click();
     await page.keyboard.press("Escape");
-    await page.locator("#db-name").focus();
+    await page.locator("#database-button").focus();
     await app.editor.click();
     await page.keyboard.press("Tab");
     await expect(app.editor).toBeFocused();

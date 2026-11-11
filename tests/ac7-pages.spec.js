@@ -92,8 +92,17 @@ test("AC7 the site loads and runs a query at the project subpath", async ({ page
     // Whatever mount this project serves, the page must have stayed inside it.
     expect(new URL(page.url()).pathname).toBe(new URL(baseURL).pathname);
     expect(await app.query("SELECT 2 + 2 AS four;")).toEqual({ columns: ["four"], rows: [["4"]] });
-    await expect(page.locator("#reset img")).toHaveJSProperty("complete", true);
-    expect(await page.locator("#reset img").evaluate((img) => img.naturalWidth)).toBeGreaterThan(0);
+    // The brand link in the top bar is relative to the mount and its mark (an inline svg) is drawn.
+    await expect(page.locator("#reset")).toBeVisible();
+    expect(new URL(await page.locator("#reset").evaluate((a) => a.href)).pathname).toBe(new URL(baseURL).pathname);
+    expect((await page.locator("#reset .brand-mark").boundingBox()).width).toBeGreaterThan(0);
+    // The icons the page names (favicon, touch icon) resolve at the mount too.
+    const icons = await page.locator("link[rel~=icon], link[rel=apple-touch-icon]").evaluateAll((links) => links.map((l) => l.href));
+    expect(icons.length).toBeGreaterThan(0);
+    for (const href of icons) {
+        expect(new URL(href).pathname.startsWith(new URL(baseURL).pathname), href).toBe(true);
+        expect((await page.request.get(href)).status(), href).toBe(200);
+    }
     net.expectNoSameOriginFailures();
     // Every request stayed under the mount: a root-absolute URL would have 404ed.
     for (const e of net.network) {

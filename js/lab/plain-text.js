@@ -1,4 +1,5 @@
-// Only text/plain may enter the editable areas (the database name and the SQL editor).
+// Only text/plain may enter the SQL editor, and no file dropped on the page is opened by the
+// browser in its place.
 //
 // A contenteditable element takes whatever a paste or a drop carries, markup included:
 // an <img src="https://..."> makes the page request that URL, an <iframe> or a <form> becomes
@@ -6,7 +7,7 @@
 // representation is inserted, with execCommand("insertText") so that the browser's undo and
 // the element's own input handling (the editor's "start" event, say) work as for typing.
 //
-// mountPlainText(element, {singleLine}) -> unmount()
+// mountPlainText(element) -> unmount()
 //   paste   Cancelled; the clipboard's text/plain goes in at the caret. Skipped when the
 //           element's own paste handler has already dealt with the event (the SQL editor's
 //           does, and its behaviour is unchanged).
@@ -20,17 +21,16 @@
 //           anywhere: a browser sends none of those while a drag is going on, so one that
 //           arrives means the drag ended without a dragend (the dragged text was replaced
 //           under it, say), and the next drop, whatever it carries, is taken over again.
-//   singleLine  line breaks in what comes in become spaces (the database name).
+//
+// guardFileDrops(target = document): a file dragged over the page and dropped anywhere outside
+//   the editor is refused too, so the browser never opens it in the tab and the student's work
+//   stays (a file is opened from the database menu). Drops of text are left to the browser
+//   (the export dialog's file name takes them natively).
 //
 // Nothing here is shown or stored by itself; the text is inserted as text, never as markup.
 
-import { ONE_LINE_SEPARATOR } from "./config.js";
-
-const LINE_BREAKS = /\r\n|[\r\n\u2028\u2029]/g;
-
-function plainTextOf(dataTransfer, singleLine) {
-    const text = dataTransfer ? dataTransfer.getData("text/plain") : "";
-    return singleLine ? text.replace(LINE_BREAKS, ONE_LINE_SEPARATOR) : text;
+function plainTextOf(dataTransfer) {
+    return dataTransfer ? dataTransfer.getData("text/plain") : "";
 }
 
 function carriesFiles(dataTransfer) {
@@ -78,7 +78,7 @@ function insertText(element, text, range) {
     document.execCommand("insertText", false, text);
 }
 
-export function mountPlainText(element, { singleLine = false } = {}) {
+export function mountPlainText(element) {
     // true from the start of a drag that began inside the element until it ends
     let draggingInside = false;
 
@@ -87,7 +87,7 @@ export function mountPlainText(element, { singleLine = false } = {}) {
             return;
         }
         event.preventDefault();
-        insertText(element, plainTextOf(event.clipboardData, singleLine), null);
+        insertText(element, plainTextOf(event.clipboardData), null);
     };
     const onDragStart = () => {
         draggingInside = true;
@@ -110,7 +110,7 @@ export function mountPlainText(element, { singleLine = false } = {}) {
         if (carriesFiles(event.dataTransfer)) {
             return;
         }
-        const text = plainTextOf(event.dataTransfer, singleLine);
+        const text = plainTextOf(event.dataTransfer);
         insertText(element, text, rangeAt(event.clientX, event.clientY));
     };
 
@@ -136,4 +136,14 @@ export function mountPlainText(element, { singleLine = false } = {}) {
             document.removeEventListener(type, endDrag, { capture: true });
         }
     };
+}
+
+export function guardFileDrops(target = document) {
+    const refuse = (event) => {
+        if (carriesFiles(event.dataTransfer)) {
+            event.preventDefault();
+        }
+    };
+    target.addEventListener("dragover", refuse);
+    target.addEventListener("drop", refuse);
 }

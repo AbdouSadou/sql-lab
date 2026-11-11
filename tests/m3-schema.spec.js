@@ -1,4 +1,4 @@
-// M3 part 2: F4 schema sidebar (js/lab/schema.js, js/lab/insert.js, css/schema.css).
+// M3 part 2: F4 the Schema tab of the sidebar (js/lab/schema.js, js/lab/insert.js, css/schema.css).
 const {
     test,
     expect,
@@ -9,6 +9,8 @@ const {
     realManifest,
     routeManifest,
     withSampleDataset,
+    expectSchemaIconsOnly,
+    tabTo,
 } = require("./helpers");
 
 const sqlFile = App.sqlFile;
@@ -40,7 +42,7 @@ const settle = (page) => page.evaluate(() => new Promise((resolve) => setTimeout
 test.describe("schema sidebar: listing", () => {
     test("lists Northlight's five tables and the v_sales view with row counts", async ({ app }) => {
         await app.open();
-        await expect(app.schemaToggle).toHaveAttribute("aria-expanded", "true");
+        await expect(app.schemaToggle).toHaveAttribute("aria-selected", "true");
         await expect(app.page.locator("#schema .schema-item")).toHaveCount(6);
         expect(await app.schemaSummary()).toEqual([
             { name: "customers", count: "60", view: false },
@@ -106,7 +108,7 @@ test.describe("schema sidebar: listing", () => {
 
     test("an empty database says there are no tables yet; it goes away with the first table", async ({ app }) => {
         await app.openEmpty();
-        await expect(app.schemaToggle).toHaveAttribute("aria-expanded", "true");
+        await expect(app.schemaToggle).toHaveAttribute("aria-selected", "true");
         await expect(app.page.locator("#schema .schema-message")).toContainText("No tables yet");
         await expect(app.page.locator("#schema .schema-item")).toHaveCount(0);
         await app.run("CREATE TABLE a (x)");
@@ -203,9 +205,9 @@ test.describe("schema sidebar: inserting", () => {
         await app.editor.fill("SELECT  FROM stores");
         await caretAt(page, 7);
         await settle(page);
-        // the student clicks elsewhere on the page, then on a name in the sidebar
+        // the student clicks elsewhere on the page, then on text in the sidebar, then on a name there
         await page.locator("#status").click();
-        await page.locator("#schema .schema-dataset-name").click();
+        await page.locator("#schema .schema-dataset-description").click();
         await expect(app.editor).not.toBeFocused();
         await app.schemaInsert("customers").click();
         expect(await editorText(page)).toBe("SELECT customers FROM stores");
@@ -275,10 +277,10 @@ test.describe("schema sidebar: inserting", () => {
         await expect(app.editor).toBeFocused();
     });
 
-    test("after picking a dataset the caret is not in the editor; a click still appends at the end", async ({ app, page }) => {
+    test("after picking a database the caret is not in the editor; a click still appends at the end", async ({ app, page }) => {
         await withSampleDataset(page);
         await app.open();
-        await app.picker.selectOption("sample");
+        await app.pickDatabase("Sample Fruit");
         await expect(app.status).toContainText(/\d+ rows?, took/);
         const preview = await editorText(page);
         expect(preview).toMatch(/^select \* from /);
@@ -294,17 +296,23 @@ test.describe("schema sidebar: inserting", () => {
         await app.editor.fill("SELECT  FROM stores");
         await caretAt(page, 7);
         await settle(page);
-        // Escape, then Tab leaves the editor; Tab on through Run and the results reaches the
-        // sidebar, which comes after them in the page (and the editor comes first)
+        // The sidebar comes before the editor in the page (skip link, top bar, sidebar, Run, editor).
+        // Escape, then Shift+Tab leaves the editor and walks back through Run to the sidebar.
         await page.keyboard.press("Escape");
-        await page.keyboard.press("Tab");
+        await page.keyboard.press("Shift+Tab");
         let inSidebar = false;
         for (let i = 0; i < 15 && !inSidebar; i++) {
-            inSidebar = await page.evaluate(() => !!document.activeElement.closest("#schema"));
-            if (!inSidebar) await page.keyboard.press("Tab");
+            inSidebar = await page.evaluate(() => !!document.activeElement.closest("#sidebar"));
+            if (!inSidebar) await page.keyboard.press("Shift+Tab");
         }
         expect(inSidebar, "the sidebar is reachable with Tab").toBe(true);
-        expect(await page.evaluate(() => document.activeElement.className)).toBe("schema-toggle");
+        // on back to the top bar's last control with keys; forward from there the first sidebar stop
+        // is the Schema tab, then the panel's controls
+        expect(await tabTo(page, "#help-button", { back: true }), "Shift+Tab reaches Help").toBe(true);
+        await page.keyboard.press("Tab");
+        expect(await page.evaluate(() => document.activeElement.id)).toBe("tab-schema");
+        await page.keyboard.press("Tab");
+        expect(await page.evaluate(() => !!document.activeElement.closest("#schema"))).toBe(true);
         // a real keyboard user: Enter on the expander, then on a column name
         await app.schemaExpand("stores").focus();
         await page.keyboard.press("Enter");
@@ -321,41 +329,53 @@ test.describe("schema sidebar: inserting", () => {
 });
 
 test.describe("schema sidebar: collapsing", () => {
-    test("the toggle hides and shows the whole panel; it is not remembered across loads", async ({ app, page }) => {
+    test("another tab and the sidebar splitter hide the whole panel; the tab is not remembered across loads", async ({ app, page }) => {
         await app.open();
-        await expect(app.schemaToggle).toHaveAttribute("aria-expanded", "true");
+        await expect(app.schemaToggle).toHaveAttribute("aria-selected", "true");
         await expect(page.locator("#schema-panel")).toBeVisible();
-        await app.schemaToggle.click();
-        await expect(app.schemaToggle).toHaveAttribute("aria-expanded", "false");
+        // another tab hides the panel
+        await app.openTab("exercises");
+        await expect(app.schemaToggle).toHaveAttribute("aria-selected", "false");
+        await expect(page.locator("#schema-panel")).toBeHidden();
+        await expect(app.schemaInsert("orders")).toHaveCount(0); // not in the accessibility tree
+        await app.openTab("schema");
+        await expect(app.schemaToggle).toHaveAttribute("aria-selected", "true");
+        await expect(page.locator("#schema-panel")).toBeVisible();
+        // the splitter hides the whole sidebar (Enter), and shows it again
+        const before = (await app.result.boundingBox()).width;
+        await page.locator("#sidebar-splitter").focus();
+        await page.keyboard.press("Enter");
+        await expect(page.locator("#app")).toHaveClass(/app--sidebar-collapsed/);
         await expect(page.locator("#schema-panel")).toBeHidden();
         await expect(app.schemaInsert("orders")).toHaveCount(0); // not in the accessibility tree
         // the results get the room
         const width = (await app.result.boundingBox()).width;
         expect(width).toBeGreaterThan(0);
-        await app.schemaToggle.click();
+        expect(width).toBeGreaterThan(before);
+        await page.keyboard.press("Enter");
         await expect(page.locator("#schema-panel")).toBeVisible();
-        await app.schemaToggle.click();
-        // not persisted: nothing in storage about it, and a reload starts open again
+        // the selected tab is not persisted: nothing in storage about it, and a reload starts on Schema again
+        await app.openTab("history");
         const keys = await page.evaluate(() => Object.keys(localStorage).concat(Object.keys(sessionStorage)));
         expect(keys.filter((k) => /schema|sidebar/i.test(k))).toEqual([]);
         await page.reload();
         await app.waitReady();
-        await expect(app.schemaToggle).toHaveAttribute("aria-expanded", "true");
+        await expect(app.schemaToggle).toHaveAttribute("aria-selected", "true");
+        await expect(page.locator("#schema-panel")).toBeVisible();
     });
 
-    test("it is closed by default at phone width and opens on request", async ({ app, page }) => {
+    test("it is the selected tab at phone width too, above the editor, and follows the database while another tab is shown", async ({ app, page }) => {
         await page.setViewportSize({ width: 390, height: 800 });
         await app.open();
-        await expect(app.schemaToggle).toHaveAttribute("aria-expanded", "false");
-        await expect(page.locator("#schema-panel")).toBeHidden();
-        await app.schemaToggle.click();
-        await expect(app.schemaToggle).toHaveAttribute("aria-expanded", "true");
+        await expect(app.schemaToggle).toHaveAttribute("aria-selected", "true");
+        await expect(page.locator("#schema-panel")).toBeVisible();
         await expect(app.schemaInsert("orders")).toBeVisible();
-        // while closed, the panel still follows the database
-        await app.schemaToggle.click();
+        // while another tab is shown, the panel still follows the database
+        await app.openTab("history");
+        await expect(page.locator("#schema-panel")).toBeHidden();
         await app.run("CREATE TABLE phone_t (a)");
         await expect(app.status).toContainText(/Executing|rows?, took/);
-        await app.schemaToggle.click();
+        await app.openTab("schema");
         await expect(app.schemaInsert("phone_t")).toBeVisible();
     });
 });
@@ -395,7 +415,7 @@ test.describe("schema sidebar: refresh", () => {
 
     test("re-renders only when the schema or the data changed", async ({ app, page }) => {
         await app.open();
-        await app.page.locator("#schema .schema-list").evaluate((list) => {
+        await app.page.locator("#schema .schema-list").first().evaluate((list) => {
             list.querySelector(".schema-item").__marker = true;
         });
         const marked = () => page.locator("#schema .schema-item").first().evaluate((li) => li.__marker === true);
@@ -434,7 +454,8 @@ test.describe("schema sidebar: refresh", () => {
         const tables = Array.from({ length: 40 }, (_, i) => `CREATE TABLE t${String(i).padStart(2, "0")} (a);`).join("\n");
         await app.open();
         await app.upload(sqlFile("many.sql", tables));
-        const scroll = page.locator("#schema .schema-scroll");
+        // the Schema tab's panel is what scrolls (its lists are as tall as they are)
+        const scroll = page.locator("#panel-schema");
         const scrollable = await scroll.evaluate((el) => el.scrollHeight - el.clientHeight);
         expect(scrollable).toBeGreaterThan(100);
         await scroll.evaluate((el) => (el.scrollTop = 200));
@@ -470,7 +491,7 @@ test.describe("schema sidebar: hostile names", () => {
         await page.waitForTimeout(200);
         await app.expectInert();
         expect((await app.schemaSummary()).map((s) => s.name).sort()).toEqual([ATTR_PAYLOAD, PAYLOAD, "v" + PAYLOAD].sort());
-        await expect(page.locator("#schema img, #schema script, #schema svg, #schema [onerror]")).toHaveCount(0);
+        await expectSchemaIconsOnly(page);
         for (const name of names) {
             await app.schemaExpand(name).click();
             const columns = await app.schemaColumns(name);
@@ -479,6 +500,7 @@ test.describe("schema sidebar: hostile names", () => {
         }
         await app.schemaExpand("v" + PAYLOAD, "view").click();
         expect((await app.schemaColumns("v" + PAYLOAD, "view")).map((c) => c.name)).toEqual([PAYLOAD]);
+        await expectSchemaIconsOnly(page);
         await app.expectInert();
         // inserting quotes it and creates no element in the editor either
         await app.editor.fill("");
@@ -527,9 +549,8 @@ test.describe("schema sidebar: layout", () => {
                         `CREATE TABLE ${long} (${long}_column INTEGER, ${quoteIdent("name with many words " + "word ".repeat(12))} TEXT); INSERT INTO ${long} VALUES (1, 'x');`
                     )
                 );
-                if ((await app.schemaToggle.getAttribute("aria-expanded")) === "false") {
-                    await app.schemaToggle.click();
-                }
+                // the Schema tab is the selected one at every width
+                await expect(app.schemaToggle).toHaveAttribute("aria-selected", "true");
                 await app.schemaExpand(long).click();
                 await app.run("SELECT " + Array.from({ length: 12 }, (_, i) => `'cell value number ${i}' AS c${i}`).join(", "));
                 await expect(app.status).toContainText(/rows?, took/);
@@ -549,28 +570,35 @@ test.describe("schema sidebar: layout", () => {
     test("desktop: the sidebar sits beside the editor and results and scrolls on its own", async ({ app, page }) => {
         await page.setViewportSize({ width: 1280, height: 700 });
         await app.open();
-        const aside = await page.locator("#schema").boundingBox();
+        const aside = await page.locator("#sidebar").boundingBox();
+        const main = await page.locator("#main").boundingBox();
         const editor = await app.editor.boundingBox();
-        expect(aside.x).toBeGreaterThanOrEqual(editor.x + editor.width);
-        expect(Math.abs(aside.y - editor.y)).toBeLessThan(40);
+        const result = await app.result.boundingBox();
+        // the sidebar is the left column: the editor and the results are to its right
+        expect(editor.x).toBeGreaterThanOrEqual(aside.x + aside.width);
+        expect(result.x).toBeGreaterThanOrEqual(aside.x + aside.width);
+        expect(Math.abs(aside.y - main.y)).toBeLessThan(40);
         expect(aside.height).toBeLessThanOrEqual(700);
         for (const name of ["customers", "orders", "v_sales"]) {
             await app.schemaExpand(name, name === "v_sales" ? "view" : "table").click();
         }
-        const scroll = page.locator("#schema .schema-scroll");
+        // the tab's panel scrolls on its own; the page does not
+        const scroll = page.locator("#panel-schema");
         expect(await scroll.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
-        expect((await page.locator("#schema").boundingBox()).height).toBeLessThanOrEqual(700);
+        expect((await page.locator("#sidebar").boundingBox()).height).toBeLessThanOrEqual(700);
+        expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight), "the page itself does not scroll at desktop size").toBe(true);
     });
 
     test("phone: a single column, the sidebar shown above the editor", async ({ app, page }) => {
         await page.setViewportSize({ width: 390, height: 800 });
         await app.open();
-        await app.schemaToggle.click();
-        const aside = await page.locator("#schema").boundingBox();
+        await expect(app.schemaToggle).toHaveAttribute("aria-selected", "true");
+        const aside = await page.locator("#sidebar").boundingBox();
         const editor = await app.editor.boundingBox();
         expect(aside.y + aside.height).toBeLessThanOrEqual(editor.y + 1);
         expect(aside.width).toBeLessThanOrEqual(390);
         const panel = await page.locator("#schema-panel").boundingBox();
-        expect(panel.height).toBeLessThanOrEqual(800 * 0.5 + 1);
+        expect(panel.height).toBeGreaterThan(0);
+        expect((await page.locator("#panel-schema").boundingBox()).height).toBeLessThanOrEqual(800 * 0.5 + 1);
     });
 });

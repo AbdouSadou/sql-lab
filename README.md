@@ -18,17 +18,18 @@ Based on SQLime by Anton Zhiyanov (https://github.com/nalgeon/sqlime).
 ## Features
 
 - Full SQLite (CTEs, window functions, views, triggers) in the browser. Run with Ctrl/Cmd+Enter.
-- Built-in datasets, listed in `datasets/manifest.json` and chosen from the Dataset menu in the toolbar. The default one (Northlight Retail) is open on a first visit. `?db=<id>` in the address opens a dataset directly.
-- A schema sidebar: tables and views with their columns, types and row counts. Clicking a name puts it in the editor.
-- Open a SQLite database file, a SQL script, or a database from a URL, and export the open database, with your changes, as a file (the export button).
-- Results show at most 500 rows ("showing 500 of N rows"), the time taken, and, for a failed run, the statement that failed. The download csv button saves the whole result.
-- Share a query with the copy link button: the link holds the dataset, the exercise (if one is open) and the SQL, compressed, in the part of the address after `#`, which browsers never send to a server. Opening a link puts the SQL in the editor without running it. A link can be long for very large queries.
-- Exercise sets with a Check button (Ctrl/Cmd+Shift+Enter), a numbered list of exercises with pass marks, progressive hints and a "7/10 complete" counter kept in your browser. Pick a set in the Exercises menu, or open `?set=<set id>` (add `&ex=<exercise id>` for one exercise).
-- A run log: every Run is kept (the last 200 per dataset, fewer if the queries are very long, in that browser on that device) and the history button puts an earlier query back in the editor; its times are UTC. When the browser has no room left to keep the log or the exercise progress, a line under the status says so.
-- Evidence export: the evidence button saves the run log as a `.txt` file with the student's number and a checksum, to attach to assessed work; `verify.html` checks such a file. The file holds the log of the open dataset only (an uploaded file has a log of its own), so a student who worked on two datasets exports once for each dataset. The log lives in one browser profile: on a shared lab PC whose profile is wiped at log-off, or in a private window, it is gone, so students should export before they log off. `about.html` tells them this, and tells markers about `verify.html`.
+- An app-like layout: a top bar, a sidebar with Schema, Exercises and History tabs, the query above its result, and a status bar. The sidebar's width, whether it is hidden and the editor's height are set by dragging the bars between the panes (or with the arrow keys) and kept between visits. Under 700 px wide the panes stack.
+- Built-in datasets, listed in `datasets/manifest.json` and chosen from the database menu in the top bar (the button showing the open database). The default one (Northlight Retail) is open on a first visit. `?db=<id>` in the address opens a dataset directly.
+- The Schema tab: tables and views with their columns, types, key marks and row counts. Clicking a name puts it in the editor.
+- Open a SQLite database file, a SQL script, or a database from a URL, (all three from the database menu), and export the open database, with your changes, as a file (Export, then Database (.db)…; the file name given there also renames the database).
+- Results show at most 500 rows ("showing 500 of N rows"), the time taken, and, for a failed run, the statement that failed. Download CSV (beside the result, and Export, then Results (.csv)) saves the whole result.
+- Share a query with Copy link in the top bar: the link holds the dataset, the exercise (if one is open) and the SQL, compressed, in the part of the address after `#`, which browsers never send to a server. Opening a link puts the SQL in the editor without running it. A link can be long for very large queries.
+- Exercise sets with a Check answer button (Ctrl/Cmd+Shift+Enter), a numbered list of exercises with pass marks, progressive hints and a "7 of 10 complete" counter kept in your browser. Pick a set in the Exercises tab, or open `?set=<set id>` (add `&ex=<exercise id>` for one exercise).
+- A run log: every Run is kept (the last 200 per dataset, fewer if the queries are very long, in that browser on that device) and the History tab lists it, newest first; a click puts an earlier query back in the editor. Its times are UTC. When the browser has no room left to keep the log or the exercise progress, a line under the status says so.
+- Evidence export: Export, then Evidence (.txt)…, saves the run log as a `.txt` file with the student's number and a checksum, to attach to assessed work; `verify.html` checks such a file. The file holds the log of the open dataset only (an uploaded file has a log of its own), so a student who worked on two datasets exports once for each dataset. The log lives in one browser profile: on a shared lab PC whose profile is wiped at log-off, or in a private window, it is gone, so students should export before they log off. `about.html` tells them this, and tells markers about `verify.html`.
 - Phone-friendly layout.
 - Browsers: current Chrome, Edge, Firefox and Safari. The menus use the `popover` attribute, so they need Safari 17, Firefox 125 or Chrome 114 or later; an older browser shows the page without them.
-- Kept in the student's own browser (`localStorage`) and nowhere else: the last query for each database, exercise progress, the SQL last written for each exercise, the run log, and the theme the student chose.
+- Kept in the student's own browser (`localStorage`) and nowhere else: the last query for each database, exercise progress, the SQL last written for each exercise, the run log, the theme the student chose, and the pane sizes (`sqllab.layout`).
 - Light and dark themes: the page follows the device until the student picks Light, Dark or Match device in the Theme menu.
 
 ## Adding a dataset
@@ -62,7 +63,7 @@ Exercises are SELECT-only. `hints` are revealed one at a time, in order. A stude
 
 A `model_query` that fails, or a `dataset` that does not exist, is not caught when the Exercises menu is built (the menu checks only the file's shape): the dataset is reported only when the set is opened, and the model query only when an exercise is checked, when the student is told that the exercise cannot be checked and the browser's console says why (the engine's message, which can name a column or a table of the query but does not contain the query). So an instructor should try each new exercise once: open the set and press Check on every exercise before publishing it.
 
-How the site finds the sets: the page reads the folder listing of `exercises/`. `python3 -m http.server` writes one itself, and the Pages workflow writes `exercises/index.html` while it stages the site (the step "List exercise sets" in `.github/workflows/pages.yml`), because GitHub Pages cannot list a folder. A file that is not valid still appears in the Exercises menu, greyed out and named after its file, with the problem as its tooltip, so you see it at once. Progress and the SQL a student last wrote for each exercise are stored in the student's own browser (`localStorage`), one record per set; the Reset progress button clears them (it does not clear the run log).
+How the site finds the sets: the page reads the folder listing of `exercises/`. `python3 -m http.server` writes one itself, and the Pages workflow writes `exercises/index.html` while it stages the site (the step "List exercise sets" in `.github/workflows/pages.yml`), because GitHub Pages cannot list a folder. A file that is not valid still appears in the Exercises tab's set menu, greyed out and named after its file, with the problem under its name, so you see it at once. Progress and the SQL a student last wrote for each exercise are stored in the student's own browser (`localStorage`), one record per set; the Reset progress button clears them (it does not clear the run log).
 
 ## Deploying
 
@@ -74,7 +75,7 @@ The evidence export and `verify.html` need a secure page (https, or `localhost`)
 
 ## Marking evidence files
 
-A student exports their run log from the evidence button in the toolbar: they type their student number, and the browser saves `evidence-<dataset id>.txt`. To check one:
+A student exports their run log from the Export menu in the top bar (Evidence (.txt)…): they type their student number, and the browser saves `evidence-<dataset id>.txt`. To check one:
 
 1. Open `verify.html` on the site (for example `https://<user>.github.io/<repo>/verify.html`). The app itself does not link to it; the About page does, in its "For markers" section, and you can bookmark it.
 2. Paste the text of the student's `.txt` into the box, or drop the file on the page, or choose it. The page checks it at once; nothing is uploaded.

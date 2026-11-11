@@ -28,13 +28,13 @@ export function reportStorage(what, ok) {
     }
 }
 
-export function mountStorageNotice({ ui }) {
+export function mountStorageNotice({ ui, before }) {
     const note = document.createElement("p");
     note.id = "storage-notice";
     note.className = "storage-notice";
     note.setAttribute("role", "status");
     note.hidden = true;
-    ui.status.after(note);
+    before.before(note);
 
     const failing = new Set();
     document.addEventListener(STORAGE_STATE_EVENT, (event) => {

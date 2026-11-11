@@ -1,0 +1,616 @@
+/* The app shell (UI plan, section 4; looks from docs/design/mockup/): a top bar, the sidebar, the
+   query above its result, and a status bar. It fills the window (100dvh) and the page itself never
+   scrolls; the panes do. js/lab/layout.js sets --sidebar-width and --editor-height from the
+   splitters and keeps them in localStorage.
+
+   Under 700 px the panes stack and the page scrolls: a stopgap until Phase 6 of the plan, which
+   turns the sidebar into a drawer and the query and result into two tabs. */
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    background: var(--desk);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    line-height: var(--leading-ui);
+}
+
+/* Positioned, like each scrolling pane below, so that absolutely positioned content (the
+   visually hidden texts of css/core.css) is clipped and scrolled by its pane: with the initial
+   containing block as theirs they would lengthen the page itself. */
+.app {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+/* ---- skip link --------------------------------------------------------------------------- */
+
+.skip-link {
+    position: absolute;
+    top: var(--space-2);
+    left: var(--space-2);
+    z-index: 100;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-control);
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+    transform: translateY(-200%);
+}
+
+.skip-link:focus {
+    transform: none;
+}
+
+/* ---- top bar ------------------------------------------------------------------------------ */
+
+.topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+    min-height: 48px;
+    box-sizing: border-box;
+    /* 7 + 32 + 7 + the 1 px rule: 48 px */
+    padding: 7px var(--space-4);
+    border-bottom: 1px solid var(--rule);
+}
+
+.brand-heading {
+    margin: 0;
+    font-size: var(--text-md);
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--control-height);
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.brand-mark {
+    flex: none;
+    width: 24px;
+    height: 24px;
+}
+
+.brand-mark-tile {
+    fill: var(--accent);
+}
+
+.brand-mark-line {
+    fill: none;
+    stroke: var(--on-accent);
+    stroke-width: 1.5;
+}
+
+/* a long name is cut with an ellipsis rather than widening the bar */
+.database-button {
+    min-width: 0;
+    max-width: min(22rem, 100%);
+    padding: 0 10px;
+}
+
+.database-button-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: auto;
+}
+
+.topbar-theme {
+    display: contents;
+}
+
+/* ---- the help popover --------------------------------------------------------------------- */
+
+.help-popover[popover] {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    box-sizing: border-box;
+    width: min(24rem, calc(100vw - 16px), var(--popover-room, 100vw));
+    overflow: auto;
+    padding: var(--space-4);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-float);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-float);
+}
+
+.help-popover[popover]:popover-open {
+    animation: menu-fade var(--motion-fade) ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .help-popover[popover]:popover-open {
+        animation: none;
+    }
+}
+
+.help-title {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-md);
+}
+
+.help-privacy {
+    margin: 0 0 var(--space-4);
+}
+
+.help-subtitle {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-sm);
+}
+
+.help-keys {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-2) var(--space-3);
+    margin: 0 0 var(--space-4);
+}
+
+.help-keys dt {
+    white-space: nowrap;
+}
+
+.help-keys dd {
+    margin: 0;
+    color: var(--graphite);
+}
+
+.help-popover kbd {
+    display: inline-block;
+    min-width: 1.5em;
+    padding: 0 var(--space-1);
+    border: 1px solid var(--rule-strong);
+    border-radius: 4px;
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+    text-align: center;
+}
+
+.help-about {
+    margin: 0;
+}
+
+.help-about a {
+    color: var(--accent);
+}
+
+/* ---- the workbench: [sidebar | splitter] main ------------------------------------------ */
+
+.workbench {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    min-height: 0;
+}
+
+/* the navigation landmark: the sidebar and the splitter that sizes it */
+.sidebar-region {
+    display: grid;
+    grid-template-columns: var(--sidebar-width, 280px) auto;
+    min-width: 0;
+    min-height: 0;
+}
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.app--sidebar-collapsed .sidebar-region {
+    grid-template-columns: 0 auto;
+}
+
+.app--sidebar-collapsed .sidebar {
+    visibility: hidden;
+}
+
+/* the tabs (js/lab/tabs.js) */
+.tabs {
+    display: flex;
+    gap: var(--space-1);
+    padding: 0 var(--space-3);
+    border-bottom: 1px solid var(--rule);
+}
+
+.tab {
+    height: 40px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--graphite);
+    font: inherit;
+    cursor: pointer;
+}
+
+.tab[aria-selected="true"] {
+    border-bottom-color: var(--accent);
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.tab:hover {
+    color: var(--ink);
+}
+
+@media (pointer: coarse) {
+    .tab {
+        height: 44px;
+    }
+}
+
+.tab-panel {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
+
+.tab-panel[hidden] {
+    display: none;
+}
+
+/* ---- splitters (js/lab/layout.js): focusable separators ------------------------------- */
+
+.splitter {
+    position: relative;
+    z-index: 2;
+    touch-action: none;
+}
+
+.splitter:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 0;
+}
+
+/* between the sidebar and the main area: the 1 px rule of the plan, with a grip mark and a 13 px
+   area to press, on the main area's side (the sidebar's scrollbar stays the scrollbar's) */
+.splitter--vertical {
+    width: 1px;
+    background: var(--rule);
+    cursor: col-resize;
+}
+
+.splitter--vertical::after {
+    content: "";
+    position: absolute;
+    inset: 0 -12px 0 0;
+}
+
+.splitter--vertical .splitter-grip {
+    position: absolute;
+    top: 50%;
+    left: -1px;
+    width: 3px;
+    height: 32px;
+    transform: translateY(-50%);
+}
+
+/* a hidden sidebar leaves a handle, with its grip, to bring it back */
+.app--sidebar-collapsed .splitter--vertical {
+    width: 12px;
+    border-right: 1px solid var(--rule);
+    background: var(--desk);
+}
+
+.app--sidebar-collapsed .splitter--vertical .splitter-grip {
+    left: 4px;
+}
+
+.splitter--horizontal {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 8px;
+    box-sizing: border-box;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    background: var(--desk);
+    cursor: row-resize;
+}
+
+/* 16 px to press: the 8 px bar and 4 px on either side (the inset counts from inside the borders) */
+.splitter--horizontal::after {
+    content: "";
+    position: absolute;
+    inset: -5px 0;
+}
+
+.splitter-grip {
+    width: 32px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--rule-strong);
+}
+
+/* on a touch screen: as wide as the panes' padding allows, never over a control beside it */
+@media (pointer: coarse) {
+    .splitter--horizontal {
+        height: 16px;
+    }
+
+    .splitter--horizontal::after {
+        inset: -7px 0;
+    }
+
+    .splitter--vertical::after {
+        inset: 0 -16px 0 -6px;
+    }
+}
+
+.app--resizing,
+.app--resizing * {
+    user-select: none;
+}
+
+/* ---- main: [exercise prompt] toolbar / editor / splitter / result ---------------------------- */
+
+.main {
+    display: grid;
+    grid-template-areas:
+        "prompt"
+        "toolbar"
+        "editor"
+        "splitter"
+        "results";
+    grid-template-rows: auto auto var(--editor-height, 40%) auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+    background: var(--paper);
+}
+
+.exercise-panel {
+    grid-area: prompt;
+}
+
+.editor-toolbar {
+    grid-area: toolbar;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 6px var(--space-4);
+    border-bottom: 1px solid var(--rule);
+}
+
+.editor-pane {
+    position: relative;
+    grid-area: editor;
+    display: flex;
+    flex-direction: column;
+    min-height: 120px;
+    overflow: auto;
+}
+
+#editor-splitter {
+    grid-area: splitter;
+}
+
+/* The result scrolls inside its own box, both ways, under its summary line, so the line and
+   Download CSV stay in view and a wide table never widens the page (css/result.css). The pane
+   itself scrolls only when the verdict and the summary leave the result less than its minimum. */
+.results-pane {
+    position: relative;
+    grid-area: results;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
+}
+
+.results-pane > * {
+    flex: none;
+}
+
+.results-pane > .sqlime-result {
+    flex: 1 1 auto;
+    min-height: 6rem;
+    overflow: auto;
+}
+
+.results-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: 6px var(--space-4) 6px var(--space-5);
+}
+
+.results-summary .sqlime-status {
+    flex: 1 1 16rem;
+    min-width: 0;
+    /* centred on the row with Download CSV (the status keeps a margin elsewhere) */
+    margin: 0;
+    /* a long file name in a message ("Saved ...") breaks instead of widening the page */
+    overflow-wrap: anywhere;
+}
+
+/* ---- status bar --------------------------------------------------------------------------- */
+
+.statusbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-5);
+    min-height: 28px;
+    box-sizing: border-box;
+    padding: var(--space-1) var(--space-4);
+    border-top: 1px solid var(--rule);
+    color: var(--graphite);
+    font-size: var(--text-xs);
+}
+
+/* One 28 px row from 700 px up: the database name gives way (cut with an ellipsis, its title has
+   it whole), everything else keeps its size. Under 700 px the bar wraps instead. */
+.statusbar-item {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.statusbar > #status-database {
+    min-width: 0;
+}
+
+@media (min-width: 700px) {
+    .statusbar {
+        flex-wrap: nowrap;
+    }
+
+    .statusbar > * {
+        flex: none;
+    }
+
+    .statusbar > #status-database {
+        flex: 0 1 auto;
+    }
+}
+
+.statusbar-version {
+    margin-left: auto;
+}
+
+.statusbar-credit {
+    position: relative;
+    color: var(--graphite);
+}
+
+/* a 32 px target in the 28 px bar, without making the bar taller: it reaches up, not past the
+   window's bottom edge (44 px on a touch screen) */
+.statusbar-credit::after {
+    content: "";
+    position: absolute;
+    inset: -12px 0 -4px;
+}
+
+@media (pointer: coarse) {
+    .statusbar-credit::after {
+        inset: -24px 0 -4px;
+    }
+}
+
+.statusbar-credit:hover {
+    color: var(--ink);
+}
+
+/* ---- under 700 px: stacked, the page scrolls (Phase 6 replaces this) ------------------------ */
+
+@media (max-width: 699.98px) {
+    .app {
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible;
+    }
+
+    /* the brand and the switcher on one row, the four actions on the next */
+    .topbar {
+        padding: var(--space-2) var(--space-3);
+    }
+
+    .topbar-actions {
+        flex: 1 1 100%;
+        justify-content: space-between;
+        gap: 0;
+        margin-left: 0;
+    }
+
+    .topbar-actions .button--quiet {
+        padding: 0 var(--space-2);
+    }
+
+    .workbench,
+    .sidebar-region,
+    .app--sidebar-collapsed .sidebar-region {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .app--sidebar-collapsed .sidebar {
+        visibility: visible;
+    }
+
+    .sidebar {
+        max-height: 40vh;
+        border-bottom: 1px solid var(--rule);
+    }
+
+    .splitter {
+        display: none;
+    }
+
+    .main {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .editor-pane {
+        min-height: 12rem;
+        overflow: visible;
+    }
+
+    .results-pane {
+        overflow: visible;
+    }
+
+    /* as high as its table (the page scrolls), still scrolling sideways inside its box */
+    .results-pane > .sqlime-result {
+        min-height: 0;
+    }
+}
+
+/* the top bar keeps one row from 700 px up: the database button gives way, its name cut with an
+   ellipsis, before anything wraps */
+@media (min-width: 700px) {
+    .topbar {
+        flex-wrap: nowrap;
+    }
+
+    .brand-heading,
+    .topbar-actions {
+        flex: none;
+    }
+
+    .database-button {
+        flex: 0 1 auto;
+    }
+}
+
+@media (min-width: 700px) and (max-width: 799.98px) {
+    .topbar {
+        column-gap: var(--space-3);
+    }
+
+    .topbar-actions .button--quiet {
+        padding: 0 var(--space-2);
+    }
+}

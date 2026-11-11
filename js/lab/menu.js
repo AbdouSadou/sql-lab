@@ -19,7 +19,7 @@
 // focus on the checked item, else the first; ArrowUp opens it on the last. In the menu: ArrowDown
 // and ArrowUp move with wrap-around, Home and End go to the ends, a printable character goes to
 // the next item whose text starts with it, Escape closes and returns to the button, Tab closes and
-// lets the focus move on.
+// lets the focus move on, Shift+Tab closes and returns to the button.
 
 const ITEM = '[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"]';
 const GAP = 4; // px between the button and the menu
@@ -66,6 +66,8 @@ export function mountMenu(button, menu, { onSelect = () => {}, onOpen = () => {}
     function open(focus = "checked") {
         if (!isOpen()) {
             menu.showPopover();
+            // placed as it opened; now that its width is known, kept inside the window
+            place();
         }
         focusItem(initialItem(focus));
     }
@@ -149,8 +151,15 @@ export function mountMenu(button, menu, { onSelect = () => {}, onOpen = () => {}
                 close(true);
                 break;
             case "Tab":
-                // close without taking the focus back: the Tab moves on from the button's place
-                close(false);
+                if (event.shiftKey) {
+                    // back to the button: the browser gives the focus back to it as the menu
+                    // closes, so its own Shift+Tab would go one further, past the button
+                    event.preventDefault();
+                    close(true);
+                } else {
+                    // close without taking the focus back: the Tab moves on from the button's place
+                    close(false);
+                }
                 break;
             default:
                 if (event.key.length === 1 && /\S/.test(event.key) && !event.ctrlKey && !event.metaKey && !event.altKey) {
@@ -207,11 +216,31 @@ export function placePopover(popover, anchor) {
         style.bottom = `${window.innerHeight - rect.top + GAP}px`;
         style.maxHeight = `${Math.max(above, 80)}px`;
     }
+    // The room from the aligned edge to the far side of the window, as --popover-room: css/menu.css
+    // and css/shell.css keep the popover's width within it, so it never runs off the other edge
+    // (its own width is not known before it shows).
     if (rect.left + rect.width / 2 > window.innerWidth / 2) {
+        const right = Math.max(MARGIN, window.innerWidth - rect.right);
         style.left = "auto";
-        style.right = `${Math.max(MARGIN, window.innerWidth - rect.right)}px`;
+        style.right = `${right}px`;
+        style.setProperty("--popover-room", `${window.innerWidth - right - MARGIN}px`);
     } else {
+        const left = Math.max(MARGIN, rect.left);
         style.right = "auto";
-        style.left = `${Math.max(MARGIN, rect.left)}px`;
+        style.left = `${left}px`;
+        style.setProperty("--popover-room", `${window.innerWidth - left - MARGIN}px`);
+    }
+    if (popover.matches(":popover-open")) {
+        keepInside(popover);
+    }
+}
+
+// keepInside moves a shown popover back inside the window's margins (a last resort: the room above
+// should already keep it there)
+function keepInside(popover) {
+    const box = popover.getBoundingClientRect();
+    if (box.left < MARGIN || box.right > window.innerWidth - MARGIN) {
+        popover.style.right = "auto";
+        popover.style.left = `${MARGIN}px`;
     }
 }

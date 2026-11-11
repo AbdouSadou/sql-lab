@@ -1,167 +1,246 @@
-/* Exercise mode (js/lab/exercise-panel.js): the panel above the editor, the Check button and the
-   verdict above the status line. Light and dark both come from the custom properties below;
-   state is never shown by colour alone (a mark and words go with it). */
+/* Exercise mode (js/lab/exercise-panel.js): the Exercises tab of the sidebar (set picker,
+   progress, list, Reset progress), the exercise prompt above the editor, Check answer in the
+   editor toolbar, and the verdict at the top of the result. Looks from
+   docs/design/mockup/exercise-correct.html. State is never shown by colour alone: an icon and
+   words go with it. */
 
 .exercise-panel[hidden],
 .exercise-feedback[hidden],
 .exercise-hints[hidden],
+.exercise-progress-block[hidden],
+.exercise-empty[hidden],
 #exercise-hint-button[hidden] {
     display: none !important;
 }
 
-.exercise-panel {
-    margin: 0 0 0.75rem 0;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--rule);
-    border-radius: 0.25rem;
-    background: var(--paper);
-}
+/* ---- the Exercises tab ---------------------------------------------------------------------- */
 
-.exercise-head {
+.exercise-set {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.25rem 0.75rem;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-3);
 }
 
-.exercise-set-title {
-    flex: 1 1 12rem;
-    margin: 0;
-    font-size: 1.125rem;
-    line-height: 1.3;
-    overflow-wrap: anywhere;
+.set-picker {
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 10px;
+}
+
+.set-picker-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.exercise-progress-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 var(--space-2);
 }
 
 .exercise-progress {
     margin: 0;
-    font-weight: 600;
+    color: var(--graphite);
+    font-size: var(--text-xs);
 }
 
-.exercise-panel .button--small {
-    min-height: 2rem;
-    padding: 0.25rem 0.75rem;
-    font-size: 0.875rem;
-    line-height: 1.25rem;
+.exercise-progress-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--rule);
 }
 
-/* the numbered buttons wrap onto as many rows as they need */
+.exercise-progress-fill {
+    width: 0;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--success);
+}
+
+.exercise-empty {
+    margin: 0;
+    padding: 0 var(--space-2);
+    color: var(--graphite);
+}
+
 .exercise-list {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin: 0.75rem 0 0 0;
+    flex-direction: column;
+    margin: 0;
     padding: 0;
     list-style: none;
+    counter-reset: exercise;
 }
 
 .exercise-list-item {
     margin: 0;
     padding: 0;
+    counter-increment: exercise;
 }
 
 .exercise-item {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.25rem;
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-    padding: 0 0.625rem;
-    border: 1px solid var(--accent);
-    border-radius: 0.25rem;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: 36px;
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-control);
     background: transparent;
     color: var(--ink);
     font: inherit;
-    font-weight: 600;
+    text-align: left;
     cursor: pointer;
 }
 
-.exercise-item:hover {
-    background: var(--accent-subtle);
+@media (pointer: coarse) {
+    .exercise-item {
+        min-height: 44px;
+    }
 }
 
-/* passed: a filled box and a check mark (the mark is also in the accessible name) */
-.exercise-item--passed {
-    border-color: var(--success);
-    background: var(--success-subtle);
-    color: var(--success);
+.exercise-item:hover {
+    background: var(--sunken);
+}
+
+/* the open exercise: the selection tint and a heavier title */
+.exercise-item[aria-current="true"] {
+    background: var(--accent-subtle);
+    font-weight: 600;
 }
 
 .exercise-item-mark {
-    font-size: 0.875rem;
+    display: flex;
+    flex: none;
 }
 
-/* the active one: a thick underline and a heavier border, on top of the colour */
-.exercise-item[aria-current="true"] {
-    border-width: 3px;
-    padding: 0 0.5rem;
-    text-decoration: underline;
-    text-underline-offset: 0.25rem;
+.exercise-mark-passed {
+    color: var(--success);
 }
 
-.exercise-item:focus-visible,
-#exercise-check:focus-visible,
-.exercise-panel .button:focus-visible,
-.exercise-hint:focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 2px;
+.exercise-mark-open {
+    color: var(--rule-strong);
 }
 
-.exercise-prompt {
-    margin-top: 0.75rem;
+/* the exercise's number, a counter: the button's name says it in words ("Exercise 2 of 10: ..."),
+   so the only text of the button is the title, which its name contains (label in name) */
+.exercise-item-number {
+    flex: none;
+    width: 18px;
+    color: var(--graphite);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+}
+
+.exercise-item-number::before {
+    content: counter(exercise);
+}
+
+.exercise-item-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.exercise-reset-row {
+    margin: 0;
+}
+
+/* ---- the prompt, above the editor toolbar ---------------------------------------------------- */
+
+/* At most 40 percent of the window, and less on a short one: js/lab/layout.js sets --prompt-max so
+   that the toolbar, the smallest editor (120 px) and the smallest result (96 px) keep their room;
+   the prompt scrolls inside the rest. */
+.exercise-panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    max-height: var(--prompt-max, 40vh);
+    overflow: auto;
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid var(--rule);
+    background: var(--sunken);
+}
+
+.exercise-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-3);
+}
+
+.exercise-title {
+    margin: 0;
+    font-size: var(--text-md);
+    overflow-wrap: anywhere;
 }
 
 .exercise-kicker {
     margin: 0;
-    font-size: 0.8125rem;
-    opacity: 0.75;
-}
-
-.exercise-title {
-    margin: 0.125rem 0 0.25rem 0;
-    font-size: 1rem;
-    overflow-wrap: anywhere;
+    color: var(--graphite);
+    font-size: var(--text-xs);
 }
 
 .exercise-text {
-    margin: 0;
-    line-height: 1.45;
+    max-width: 76ch;
+    margin: var(--space-2) 0 0 0;
+    font-size: var(--text-md);
+    line-height: var(--leading-code);
     white-space: pre-line;
     overflow-wrap: anywhere;
 }
 
 #exercise-hint-button {
-    margin-top: 0.75rem;
+    align-self: flex-start;
 }
 
 .exercise-hints {
-    margin: 0.5rem 0 0 0;
-    padding-left: 1.5rem;
-    line-height: 1.45;
+    margin: 0;
+    padding-left: var(--space-5);
+    line-height: var(--leading-code);
 }
 
 .exercise-hint {
-    margin: 0.125rem 0;
+    margin: var(--space-1) 0;
     white-space: pre-line;
     overflow-wrap: anywhere;
 }
 
-/* ---- the Check button, in the command bar ---- */
+/* ---- Check answer: the filled primary of exercise mode; Run stays beside it, quiet ------------ */
+
+.editor-toolbar--exercise #execute {
+    border-color: var(--rule-strong);
+    background: var(--paper);
+    color: var(--ink);
+    font-weight: 400;
+}
+
+.editor-toolbar--exercise #execute:hover {
+    background: var(--sunken);
+}
+
+.editor-toolbar--exercise #execute .shortcut {
+    color: var(--graphite);
+}
 
 #exercise-check[aria-busy="true"] {
     cursor: progress;
 }
 
-/* ---- the verdict, in the live region above the status line ---- */
+/* ---- the verdict, at the top of the result (Phase 5 turns it into the feedback banner) ------- */
 
 .exercise-feedback {
-    margin: 0 0 0.5rem 0;
+    margin: var(--space-3) var(--space-5) 0;
 }
 
 .verdict {
-    padding: 0.5rem 0.75rem;
+    padding: var(--space-2) var(--space-3);
     border: 2px solid currentColor;
-    border-radius: 0.25rem;
+    border-radius: var(--radius-control);
 }
 
 .verdict p {
@@ -170,7 +249,7 @@
 
 .verdict p + p,
 .verdict-diff {
-    margin-top: 0.375rem;
+    margin-top: 6px;
 }
 
 .verdict--pass {
@@ -191,12 +270,8 @@
 .verdict-head {
     display: flex;
     align-items: baseline;
-    gap: 0.5rem;
-    font-size: 1.125rem;
-}
-
-.verdict--pass .verdict-head {
-    font-size: 1.375rem;
+    gap: var(--space-2);
+    font-size: var(--text-md);
 }
 
 .verdict-mark {
@@ -210,13 +285,13 @@
 }
 
 .verdict-note {
-    font-size: 0.875rem;
+    font-size: var(--text-xs);
 }
 
 .verdict-diff {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: var(--space-3);
 }
 
 .verdict-scroll {
@@ -224,19 +299,12 @@
     overflow-x: auto;
 }
 
-/* a box that overflows is a keyboard stop (js/lab/exercise-panel.js sets its tabindex) */
-.verdict-scroll:focus-visible,
-.verdict-next:focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 2px;
-}
-
 .verdict-scroll-note[hidden] {
     display: none !important;
 }
 
 .verdict p.verdict-actions {
-    margin-top: 0.5rem;
+    margin-top: var(--space-2);
 }
 
 .verdict-table {
@@ -245,11 +313,11 @@
     background: var(--paper);
     color: var(--ink);
     font-family: var(--font-mono);
-    font-size: 0.8125rem;
+    font-size: var(--text-xs);
 }
 
 .verdict-table caption {
-    padding: 0.125rem 0;
+    padding: 2px 0;
     font-family: var(--font-ui);
     font-weight: 600;
     text-align: left;
@@ -257,23 +325,19 @@
 
 .verdict-table th,
 .verdict-table td {
-    padding: 0.125rem 0.5rem;
+    padding: 2px var(--space-2);
     border: 1px solid var(--rule);
     text-align: left;
     white-space: pre;
 }
 
-@media only screen and (max-width: 40rem) {
+@media (max-width: 699.98px) {
     .exercise-panel {
-        margin: 0 1rem 0.75rem 1rem;
-        padding: 0.625rem 0.75rem;
+        max-height: none;
+        padding: var(--space-3) var(--space-4);
     }
 
     .exercise-feedback {
-        margin: 0 0 0.5rem 0;
-    }
-
-    .exercise-item {
-        min-width: 2.75rem;
+        margin: var(--space-3) var(--space-4) 0;
     }
 }

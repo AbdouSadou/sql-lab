@@ -1,16 +1,16 @@
-.sqlime-result-section {
-    flex-grow: 1;
-    padding: 0 1rem 0.5rem 1rem;
-}
-
+/* the result in the results pane, inset like its summary line (docs/design/mockup/main-light.html);
+   a wide or long table scrolls inside it (css/shell.css makes it the pane's scroller) */
 .sqlime-result {
     display: block;
     overflow-x: auto;
+    padding: var(--space-1) var(--space-5) var(--space-5);
 }
 
-/* "Scroll sideways" note, shown by js/lab/result-scroll.js while a result is wider than its box */
+/* "Scroll sideways" note, shown by js/lab/result-scroll.js while a result is wider than its box;
+   it sits under the result's box (the result scrolls inside that box) */
 .result-scroll-note {
-    margin: 0.25rem 0 0 0;
+    margin: 0;
+    padding: var(--space-2) var(--space-5);
     font-size: 0.8125rem;
     opacity: 0.75;
 }
@@ -78,14 +78,6 @@
 }
 
 @media only screen and (min-width: 40rem) {
-    .sqlime-result-section {
-        padding: 0 0 0.5rem 0;
-    }
-
-    .sqlime-result {
-        overflow-x: visible;
-    }
-
     .sqlime-result table {
         width: auto;
     }
@@ -95,8 +87,9 @@
     }
 }
 
-/* a result that scrolls sideways is a Tab stop (js/lab/result-scroll.js) */
+/* a result that scrolls is a Tab stop (js/lab/result-scroll.js); its ring is drawn inside the box,
+   so the pane's edges do not cut it */
 .sqlime-result:focus-visible {
     outline: var(--focus-ring);
-    outline-offset: var(--focus-offset);
+    outline-offset: -2px;
 }

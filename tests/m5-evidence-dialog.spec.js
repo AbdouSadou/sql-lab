@@ -1,8 +1,8 @@
 const fs = require("node:fs");
 const { test, expect, evidenceFile, openFresh, modelQuery, SAMPLE_FILE } = require("./helpers");
 
-// F11, the page side: the toolbar button, the dialog, what the file holds for each kind of log,
-// and that the student number goes nowhere but the file.
+// F11, the page side: the Export menu's "Evidence (.txt)…" item, the dialog, what the file holds for
+// each kind of log, and that the student number goes nowhere but the file.
 
 const STUDENT = "U2034567";
 const NOW = "2026-11-09T14:32:08Z";
@@ -10,14 +10,18 @@ const NOW = "2026-11-09T14:32:08Z";
 // the files an export can be asked about, parsed into lines
 const linesOf = (text) => text.split("\n");
 
+// app.exportMenuButton is the Export menu's button: the dialog is opened from the menu, and the
+// focus goes back to this button when the dialog closes
+
 test.describe("the dialog", () => {
     test("opens as a modal <dialog> with a labelled input, autocomplete off and no name", async ({ page, app }) => {
         await app.open();
         await app.query("SELECT 1;");
-        await expect(app.evidenceButton).toHaveText("evidence");
-        // the button is in the toolbar, next to the database export
-        await expect(page.locator("#toolbar > #export-evidence")).toHaveCount(1);
-        await app.evidenceButton.click();
+        // the item is in the Export menu, after the database export
+        await expect(page.locator("#export-menu > #export-db ~ #export-evidence")).toHaveCount(1);
+        await app.openExportMenu();
+        await expect(app.evidenceButton.locator(".menu-item-label")).toHaveText("Evidence (.txt)…");
+        await app.openEvidence();
         await expect(app.evidenceDialog).toBeVisible();
         expect(await app.evidenceDialog.evaluate((d) => d.tagName === "DIALOG" && d.matches(":modal"))).toBe(true);
         // a visible label tied to the input
@@ -35,7 +39,7 @@ test.describe("the dialog", () => {
         await app.query("SELECT 1;");
         let downloads = 0;
         page.on("download", () => downloads++);
-        await app.evidenceButton.click();
+        await app.openEvidence();
         await expect(app.evidenceError).toBeHidden();
         for (const bad of ["abcde", "abcdefghijklm", "U2034-567", "U2034 567", " U2034567", "U2034567 ", "", "ü2034567"]) {
             await app.evidenceInput.fill(bad);
@@ -60,32 +64,32 @@ test.describe("the dialog", () => {
         await expect(app.evidenceInput).not.toHaveAttribute("aria-invalid", "true");
     });
 
-    test("Escape closes without saving: focus returns to the button and the input is emptied", async ({ page, app }) => {
+    test("Escape closes without saving: focus returns to the Export button and the input is emptied", async ({ page, app }) => {
         await app.open();
         await app.query("SELECT 1;");
         let downloads = 0;
         page.on("download", () => downloads++);
-        await app.evidenceButton.click();
+        await app.openEvidence();
         await app.evidenceInput.fill(STUDENT);
         await page.keyboard.press("Escape");
         await expect(app.evidenceDialog).toBeHidden();
-        await expect(app.evidenceButton).toBeFocused();
+        await expect(app.exportMenuButton).toBeFocused();
         expect(await app.evidenceInput.inputValue()).toBe("");
-        await app.evidenceButton.click();
+        await app.openEvidence();
         expect(await app.evidenceInput.inputValue()).toBe("");
         expect(downloads).toBe(0);
     });
 
-    test("Cancel closes without saving: focus returns to the button and the input is emptied", async ({ page, app }) => {
+    test("Cancel closes without saving: focus returns to the Export button and the input is emptied", async ({ page, app }) => {
         await app.open();
         await app.query("SELECT 1;");
         let downloads = 0;
         page.on("download", () => downloads++);
-        await app.evidenceButton.click();
+        await app.openEvidence();
         await app.evidenceInput.fill(STUDENT);
         await app.evidenceDialog.getByRole("button", { name: "Cancel" }).click();
         await expect(app.evidenceDialog).toBeHidden();
-        await expect(app.evidenceButton).toBeFocused();
+        await expect(app.exportMenuButton).toBeFocused();
         expect(await app.evidenceInput.inputValue()).toBe("");
         expect(downloads).toBe(0);
     });
@@ -93,7 +97,7 @@ test.describe("the dialog", () => {
     test("the dialog's late close event leaves the focus alone once it has moved on", async ({ page, app }) => {
         await app.open();
         await app.query("SELECT 1;");
-        await app.evidenceButton.click();
+        await app.openEvidence();
         await expect(app.evidenceDialog).toBeVisible();
         // Cancel and move the focus in one task, so that the close event arrives after both
         const stayed = await page.evaluate(async () => {
@@ -128,7 +132,7 @@ test.describe("the dialog", () => {
             let downloads = 0;
             page.on("download", () => downloads++);
             await page.evaluate(() => window.__holdDigest());
-            await app.evidenceButton.click();
+            await app.openEvidence();
             await app.evidenceInput.fill(STUDENT);
             await app.evidenceDialog.locator("button[type=submit]").click();
             // the export has started and is waiting for the checksum: cancel, then open again
@@ -138,7 +142,7 @@ test.describe("the dialog", () => {
                 await page.keyboard.press("Escape");
             }
             await expect(app.evidenceDialog).toBeHidden();
-            await app.evidenceButton.click();
+            await app.openEvidence();
             await expect(app.evidenceDialog).toBeVisible();
             // let the checksum finish, and everything that follows it
             await page.evaluate(async () => {
@@ -180,7 +184,7 @@ test.describe("the dialog", () => {
             });
             await app.open();
             await app.query("SELECT 1;");
-            await app.evidenceButton.click();
+            await app.openEvidence();
             await app.evidenceInput.fill(STUDENT);
             await app.evidenceDialog.locator("button[type=submit]").click();
             if (way === "Cancel") {
@@ -189,7 +193,7 @@ test.describe("the dialog", () => {
                 await page.keyboard.press("Escape");
             }
             await expect(app.evidenceDialog).toBeHidden();
-            await app.evidenceButton.click();
+            await app.openEvidence();
             await expect(app.evidenceDialog).toBeVisible();
             await app.evidenceInput.fill(STUDENT);
             // now the cancelled export finds out its checksum failed
@@ -225,7 +229,7 @@ test.describe("the dialog", () => {
             await app.query("SELECT 1;");
             let downloads = 0;
             page.on("download", () => downloads++);
-            await app.evidenceButton.click();
+            await app.openEvidence();
             await app.evidenceInput.fill(STUDENT);
             await app.evidenceDialog.locator("button[type=submit]").click();
             await expect.poll(() => page.evaluate(() => window.__digestCalls)).toBe(1);
@@ -236,7 +240,7 @@ test.describe("the dialog", () => {
             }
             await expect(app.evidenceDialog).toBeHidden();
             // open again and submit while the cancelled export is still waiting for its checksum
-            await app.evidenceButton.click();
+            await app.openEvidence();
             await app.evidenceInput.fill(STUDENT);
             await app.evidenceDialog.locator("button[type=submit]").click();
             // the second export started: it was not ignored
@@ -253,11 +257,11 @@ test.describe("the dialog", () => {
         });
     }
 
-    test("a successful export closes the dialog, returns focus to the button and says what was saved", async ({ app }) => {
+    test("a successful export closes the dialog, returns focus to the Export button and says what was saved", async ({ page, app }) => {
         await app.open();
         await app.query("SELECT 1;");
         const file = await app.exportEvidence(STUDENT);
-        await expect(app.evidenceButton).toBeFocused();
+        await expect(app.exportMenuButton).toBeFocused();
         await expect(app.status).toContainText(`Saved ${file.name} with 1 query.`);
         expect(await app.evidenceInput.inputValue()).toBe("");
     });
@@ -265,7 +269,7 @@ test.describe("the dialog", () => {
     test("an empty log gives a short message and no dialog", async ({ page, app }) => {
         await app.open();
         // the table preview the app ran itself is not a Run
-        await app.evidenceButton.click();
+        await app.openEvidence();
         await expect(app.evidenceDialog).toBeHidden();
         expect(await page.evaluate(() => document.querySelector("dialog[open]"))).toBeNull();
         await expect(app.status).toContainText("Nothing to export yet");
@@ -274,14 +278,21 @@ test.describe("the dialog", () => {
     test("the dialog works by keyboard alone", async ({ page, app }) => {
         await app.open();
         await app.query("SELECT 1;");
-        await app.evidenceButton.focus();
+        // Enter on the Export menu's button opens the menu on its first item; two ArrowDowns reach
+        // "Evidence (.txt)…" and Enter chooses it
+        await app.exportMenuButton.focus();
+        await page.keyboard.press("Enter");
+        await expect(page.locator("#export-menu")).toBeVisible();
+        await page.keyboard.press("ArrowDown");
+        await page.keyboard.press("ArrowDown");
+        await expect(app.evidenceButton).toBeFocused();
         await page.keyboard.press("Enter");
         await expect(app.evidenceDialog).toBeVisible();
         await page.keyboard.type(STUDENT);
         const downloaded = page.waitForEvent("download");
         await page.keyboard.press("Enter");
         expect((await downloaded).suggestedFilename()).toBe("evidence-northlight.txt");
-        await expect(app.evidenceButton).toBeFocused();
+        await expect(app.exportMenuButton).toBeFocused();
     });
 
     test("the dialog fits and can be used at phone width, in both colour schemes", async ({ page, app }) => {
@@ -290,7 +301,7 @@ test.describe("the dialog", () => {
         await app.query("SELECT 1;");
         for (const colorScheme of ["light", "dark"]) {
             await page.emulateMedia({ colorScheme });
-            await app.evidenceButton.click();
+            await app.openEvidence();
             await app.evidenceInput.fill("abc");
             await app.evidenceDialog.locator("button[type=submit]").click();
             const box = await app.evidenceDialog.boundingBox();
@@ -348,7 +359,7 @@ test.describe("the student number goes into the file only", () => {
         // reload: nothing remembers it
         await page.reload();
         await app.waitReady();
-        await app.evidenceButton.click();
+        await app.openEvidence();
         expect(await app.evidenceInput.inputValue()).toBe("");
     });
 
@@ -569,13 +580,13 @@ test.describe("what the file holds", () => {
         expect(await page.evaluate(() => JSON.stringify({ ...localStorage }))).not.toContain(model);
     });
 
-    test("with no crypto.subtle the button says so and opens no dialog", async ({ page, app }) => {
+    test("with no crypto.subtle the menu item says so and opens no dialog", async ({ page, app }) => {
         await page.addInitScript(() => {
             Object.defineProperty(crypto, "subtle", { value: undefined, configurable: true });
         });
         await app.open();
         await app.query("SELECT 1;");
-        await app.evidenceButton.click();
+        await app.openEvidence();
         await expect(app.evidenceDialog).toBeHidden();
         await expect(app.status).toContainText("cannot make the checksum");
     });

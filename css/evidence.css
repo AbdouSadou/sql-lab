@@ -1,18 +1,62 @@
-/* The evidence export dialog (js/lab/evidence-dialog.js). */
+/* Dialogs: the evidence export (js/lab/evidence-dialog.js) and the database export
+   (js/lab/export-dialog.js). Native <dialog>s: radius 10 and a shadow, as menus have. */
 
-.evidence-dialog {
+.evidence-dialog,
+.app-dialog {
     box-sizing: border-box;
     width: min(28rem, calc(100vw - 2rem));
     max-width: calc(100vw - 2rem);
-    padding: 1rem;
-    border: 1px solid var(--accent);
-    border-radius: 0.25rem;
+    padding: var(--space-5);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-float);
     background: var(--paper);
     color: var(--ink);
+    box-shadow: var(--shadow-float);
 }
 
-.evidence-dialog::backdrop {
+.evidence-dialog::backdrop,
+.app-dialog::backdrop {
     background: var(--scrim);
+}
+
+.app-dialog-title {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-md);
+}
+
+.app-dialog-text {
+    margin: 0 0 var(--space-4);
+}
+
+.app-dialog-label {
+    display: block;
+    margin-bottom: var(--space-1);
+    font-weight: 600;
+}
+
+.app-dialog-input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--control-height);
+    padding: 0 var(--space-2);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-control);
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+}
+
+.app-dialog-hint {
+    margin: var(--space-1) 0 var(--space-4);
+    color: var(--graphite);
+    font-size: var(--text-xs);
+}
+
+.app-dialog-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
 }
 
 .evidence-title {

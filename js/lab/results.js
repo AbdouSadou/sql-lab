@@ -1,7 +1,10 @@
 // F5 Results UX: what a run looks like on screen and the CSV of it.
 //
-//   mountResults({ui, getDatabase}) -> {showResult(result, elapsed), showError(exc)}
-//       Called once from js/index.js, whose showResult and showError delegate here.
+//   mountResults({ui, summary, getDatabase}) -> {canDownload(), download(), showResult(result,
+//       elapsed), showError(exc)}
+//       Called once from js/index.js, whose showResult and showError delegate here; the Export
+//       menu (js/lab/export-menu.js) asks canDownload() and calls download() for its "Results
+//       (.csv)" entry.
 //       showResult prints at most ROW_LIMIT rows, says "N rows, took X ms" (singular for 1,
 //       "showing 500 of N rows, ..." when capped; N is always the full count) and offers the
 //       whole result, not the capped table, to the #download-csv button. showError puts the
@@ -23,11 +26,12 @@
 //   csvFileName(databaseName) -> string
 //       "<name without its extension>-result.csv", sanitised like the database export.
 //
-// The button (#download-csv, last in the command bar) is visible only while the table of a
-// query result with at least one row is on screen. A MutationObserver on #result retires it
-// when that table leaves, whichever code path removed it (tables view, an error, a new
-// database, another exercise, a clear), and the click handler checks again, so the file is
-// always the result on screen at that moment. Everything the student sees here is escaped.
+// The button (#download-csv, at the end of the result's summary line, #results-summary) is
+// visible only while the table of a query result with at least one row is on screen. A
+// MutationObserver on #result retires it when that table leaves, whichever code path removed it
+// (an error, a new database, another exercise, a restored query, a clear), and the click handler
+// checks again, so the file is always the result on screen at that moment. Everything the
+// student sees here is escaped.
 
 import {
     CSV_BUTTON_TEXT,
@@ -43,6 +47,7 @@ import {
 import { cellText } from "./cell-text.js";
 import { safeBaseName, saveFile } from "./export.js";
 import { escapeHtml } from "./html.js";
+import { icon } from "./icons.js";
 import { engineMessage, stripLeadingNoise } from "./runner.js";
 
 // ---- text ----------------------------------------------------------------------------------
@@ -113,14 +118,31 @@ export function csvFileName(databaseName) {
 
 // ---- the page ------------------------------------------------------------------------------
 
-export function mountResults({ ui, getDatabase }) {
+// withTime escapes a status message that ends with the time a run took ("..., took 3 ms") and puts
+// that time in a span of its own (.status-time): it is the one part that differs from one run
+// of the same query to the next, so the screenshot baselines (tests/ui-visual.spec.js) give it
+// one value before each shot.
+function withTime(message, ms) {
+    const time = `${ms} ms`;
+    if (!message.endsWith(time)) {
+        return escapeHtml(message);
+    }
+    return `${escapeHtml(message.slice(0, -time.length))}<span class="status-time">${escapeHtml(time)}</span>`;
+}
+
+// mountResults({ui, summary, getDatabase}) -> {showResult, showError, canDownload, download}
+//   summary  the result's summary row (#results-summary): Download CSV goes at its right end
+export function mountResults({ ui, summary, getDatabase }) {
     const button = document.createElement("button");
     button.id = "download-csv";
     button.type = "button";
-    button.textContent = CSV_BUTTON_TEXT;
+    button.className = "button button--quiet results-download";
     button.title = CSV_BUTTON_TITLE;
+    const label = document.createElement("span");
+    label.textContent = CSV_BUTTON_TEXT;
+    button.append(icon("download"), label);
     button.hidden = true;
-    ui.commandbar.append(button);
+    summary.append(button);
 
     // The full result on offer, and the table that shows (the first rows of) it.
     let offered = null;
@@ -154,7 +176,7 @@ export function mountResults({ ui, getDatabase }) {
     }).observe(ui.result, { childList: true });
     document.addEventListener("lab:database-loaded", retire);
 
-    button.addEventListener("click", () => {
+    function download() {
         if (!onScreen()) {
             retire();
             return;
@@ -164,12 +186,18 @@ export function mountResults({ ui, getDatabase }) {
         } catch {
             ui.status.error(escapeHtml(CSV_FAILED_MESSAGE));
         }
-    });
+    }
+
+    button.addEventListener("click", download);
 
     return {
+        // a result with rows is on screen: the Export menu offers it too
+        canDownload: onScreen,
+        download,
+
         showResult(result, elapsed) {
             const total = result ? result.values.length : 0;
-            ui.status.success(escapeHtml(resultStatusMessage(total, Math.min(total, ROW_LIMIT), elapsed)));
+            ui.status.success(withTime(resultStatusMessage(total, Math.min(total, ROW_LIMIT), elapsed), elapsed));
             if (!total) {
                 ui.result.print("");
                 retire();

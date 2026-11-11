@@ -661,8 +661,9 @@ test.describe("check() without the set's pristine dataset", () => {
     test("another dataset's pristine bytes are not used for the set", async ({ page, app }) => {
         await withSampleDataset(page);
         await app.open();
-        await app.picker.selectOption("sample");
-        await expect(page.locator("#db-name")).toContainText("sample.db");
+        await app.pickDatabase("Sample Fruit");
+        await expect(app.databaseLabel).toHaveText("Sample Fruit");
+        expect(await page.evaluate(() => window.app.database.name)).toBe("sample.db");
         // retail-basics is a Northlight set; the open dataset is "sample"
         const out = await app.check("e01", model("e01"));
         expect(out).toMatchObject({ status: "unavailable", reason: "dataset" });

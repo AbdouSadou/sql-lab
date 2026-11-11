@@ -242,12 +242,56 @@ test.describe("Download CSV", () => {
         await app.open();
     });
 
-    test("the button is in the command bar after copy link", async ({ app, page }) => {
-        const ids = await page.locator("#commandbar > button").evaluateAll((b) => b.map((x) => x.id));
-        expect(ids).toEqual(["execute", "show-tables", "copy-link", "run-history", "download-csv"]);
+    // The old command bar held [execute, show-tables, copy-link, run-history, download-csv]. Each
+    // control now lives in its own region: Run in the editor toolbar, Copy link in the top bar,
+    // History as a sidebar tab, Download CSV in the result's summary line, and the tables button is
+    // gone (the Schema tab lists the tables).
+    test("each control is present once, in its region, in a sensible order: Copy link, History tab, Run, Download CSV", async ({ app, page }) => {
+        const inRegion = (region, id) => page.locator(`${region} #${id}`);
+        for (const [region, id] of [
+            ["#editor-toolbar", "execute"],
+            [".topbar", "copy-link"],
+            ["#sidebar [role=tablist]", "tab-history"],
+            ["#results-summary", "download-csv"],
+        ]) {
+            await expect(page.locator(`#${id}`), `#${id} is on the page once`).toHaveCount(1);
+            await expect(inRegion(region, id), `#${id} is in ${region}`).toHaveCount(1);
+        }
+        await expect(page.locator("#show-tables")).toHaveCount(0);
+        // one button in the editor toolbar before an exercise is open, one Copy link in the top bar
+        expect(await page.locator("#editor-toolbar > button").evaluateAll((b) => b.map((x) => x.id))).toEqual(["execute"]);
+        expect(await page.locator(".topbar-actions > button, .topbar-actions > .topbar-theme > button").evaluateAll((b) => b.map((x) => x.id))).toEqual(["copy-link", "export-button", "theme-button", "help-button"]);
+        expect(await page.locator("#sidebar [role=tab]").evaluateAll((b) => b.map((x) => x.id))).toEqual(["tab-schema", "tab-exercises", "tab-history"]);
+        // page order, which is also the Tab order: the top bar, the sidebar, the toolbar, the result
+        const order = await page.evaluate(() => {
+            const nodes = ["download-csv", "execute", "tab-history", "copy-link"].map((id) => document.getElementById(id));
+            return nodes.sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1)).map((n) => n.id);
+        });
+        expect(order).toEqual(["copy-link", "tab-history", "execute", "download-csv"]);
         // the table preview of the default dataset is a query result with rows
         await expect(app.csvButton).toBeVisible();
-        await expect(app.csvButton).toHaveText("download csv");
+        await expect(app.csvButton).toHaveText("Download CSV");
+    });
+
+    test("the Export menu's Results (.csv) item downloads the same file, and is disabled when there is nothing to download", async ({ app, page }) => {
+        await app.run("select 1 as a, 'x' as b");
+        await expect(app.status).toContainText("1 row, took");
+        await app.openExportMenu();
+        const item = page.locator("#export-csv");
+        await expect(item).toHaveText(/Results \(\.csv\)/);
+        await expect(item).toHaveAttribute("aria-disabled", "false");
+        const [download] = await Promise.all([page.waitForEvent("download"), item.click()]);
+        expect(download.suggestedFilename()).toBe("northlight_retail-result.csv");
+        const chunks = [];
+        for await (const chunk of await download.createReadStream()) chunks.push(chunk);
+        expect(Buffer.concat(chunks).toString("utf8")).toBe("a,b\r\n1,x\r\n");
+        // a result with no rows leaves nothing to download: the item says so
+        await app.run("select 1 as a where 0");
+        await expect(app.status).toContainText("0 rows, took");
+        await app.openExportMenu();
+        await expect(item).toHaveAttribute("aria-disabled", "true");
+        await page.keyboard.press("Escape");
+        await expect(page.locator("#export-menu")).toBeHidden();
     });
 
     test("a capped result downloads in full: all 906 rows and the header", async ({ app, page }) => {
@@ -394,12 +438,15 @@ test.describe("Download CSV", () => {
         expect((await app.downloadCsv()).name).toBe("class data-result.csv");
     });
 
-    test("keyboard path: Tab from copy link (then history) reaches the button, Enter and Space download", async ({ app, page }) => {
+    test("keyboard path: Tab from the editor's splitter reaches the button, Enter and Space download", async ({ app, page }) => {
         await app.run("select 1 as a, 'x' as b");
         await expect(app.status).toContainText("1 row, took");
-        await page.locator("#copy-link").focus();
+        // the button follows the editor and its splitter in the Tab order, and nothing sits between
+        await page.locator("#editor-splitter").focus();
         await page.keyboard.press("Tab");
-        await expect(page.locator("#run-history")).toBeFocused(); // M5 part 2: history sits between
+        await expect(app.csvButton).toBeFocused();
+        await page.keyboard.press("Shift+Tab");
+        await expect(page.locator("#editor-splitter")).toBeFocused();
         await page.keyboard.press("Tab");
         await expect(app.csvButton).toBeFocused();
         const [download] = await Promise.all([page.waitForEvent("download"), page.keyboard.press("Enter")]);
@@ -437,14 +484,36 @@ test.describe("the button follows the table on screen", () => {
         await expect(app.csvButton).toBeHidden();
     });
 
-    test("it goes with the tables view, and stays gone on a table's columns", async ({ app, page }) => {
+    // The old tables view (and a table's columns) replaced the result, so the button went with
+    // it. The Schema tab lists tables and columns in the sidebar and leaves the result alone; what
+    // can still replace or empty the result is covered by the tests around this one (no rows, an
+    // error, a database switch, another exercise, any code path that clears the table).
+    test("the Schema tab, with a table's columns open, leaves the result and the button as they are", async ({ app, page }) => {
         await showResult(app);
-        await page.locator("#show-tables").click();
-        await expect(app.status).toContainText("tables:");
+        await app.openTab("schema");
+        await app.schemaExpand("products").click();
+        expect((await app.schemaColumns("products")).map((c) => c.name)).toContain("product_name");
+        await expect(app.table).toBeVisible();
+        await expect(app.csvButton).toBeVisible();
+        expect((await app.downloadCsv()).text).toBe("a,b\r\n1,2\r\n");
+        await expect(app.result).not.toContainText("product_name");
+    });
+
+    test("a restored history entry puts SQL in the editor and leaves the result on screen with its button", async ({ app, page }) => {
+        await showResult(app);
+        await app.run("select nope");
+        await expect(app.status).toContainText("no such column: nope");
         await expect(app.csvButton).toBeHidden();
-        await app.result.getByRole("button", { name: "products" }).click();
-        await expect(app.result).toContainText("product_name");
-        await expect(app.csvButton).toBeHidden();
+        await showResult(app);
+        await app.openHistory();
+        // newest first: [select 1 as a, 2 as b], [select nope], [select 1 as a, 2 as b]
+        await app.historyEntries.nth(1).click();
+        await expect(app.editor).toHaveText("select nope");
+        await expect(app.status).toContainText("Press Run");
+        // nothing was run: the result on screen is still the one that was run, and so is its file
+        await expect(app.table).toBeVisible();
+        await expect(app.csvButton).toBeVisible();
+        expect((await app.downloadCsv()).text).toBe("a,b\r\n1,2\r\n");
     });
 
     test("it goes with an error", async ({ app }) => {
@@ -462,7 +531,7 @@ test.describe("the button follows the table on screen", () => {
         await app.open();
         await app.run(ORDER_ITEMS);
         await expect(app.csvButton).toBeVisible();
-        await app.picker.selectOption("sample");
+        await app.pickDatabase("Sample Fruit");
         await expect(page.locator("#schema")).toContainText("Sample Fruit");
         await app.waitReady();
         // the sample's table preview is on screen; the file is that table, not order_items

@@ -21,20 +21,48 @@ test("table names: a table named with spaces and quotes previews correctly", asy
     expect(await app.read()).toEqual({ columns: ["id", "label"], rows: [["1", "one"], ["2", "two"]] });
 });
 
-test("table names: the table list opens the schema of tables with awkward names", async ({ app, page }) => {
+test("table names: the Schema tab lists tables with awkward names, shows their columns and inserts their quoted names", async ({ app, page }) => {
     await app.open();
     await app.upload(sqlFile("names.sql", SQL));
+    await expect(app.status).toContainText("2 rows, took");
+    const statusBefore = await app.status.textContent();
+    const resultBefore = await app.read();
 
-    await page.locator("#show-tables").click();
-    const buttons = page.locator("#result table tbody button");
-    await expect(buttons).toHaveText([SPACED, TRICKY]);
+    // the names are on the rows as text, in the order the tab sorts them (case-insensitive)
+    await expect(page.locator("#schema .schema-row .schema-insert")).toHaveText([TRICKY, SPACED]);
 
-    await buttons.nth(0).click();
-    await expect(app.status).toContainText(`tables / ${SPACED}:`);
-    expect((await app.read()).rows.map((r) => r[1])).toEqual(["id", "label"]);
+    // the arrow opens the columns, read from PRAGMA table_info on the quoted name
+    await app.schemaExpand(SPACED).click();
+    expect(await app.schemaColumns(SPACED)).toEqual([
+        { name: "id", type: "INTEGER" },
+        { name: "label", type: "TEXT" },
+    ]);
+    await app.schemaExpand(TRICKY).click();
+    expect(await app.schemaColumns(TRICKY)).toEqual([
+        { name: "code", type: "TEXT" },
+        { name: "qty", type: "INTEGER" },
+        { name: "note", type: "TEXT" },
+    ]);
 
-    await page.locator("#show-tables").click();
-    await buttons.nth(1).click();
-    await expect(app.status).toContainText(`tables / ${TRICKY}:`);
-    expect((await app.read()).rows.map((r) => r[1])).toEqual(["code", "qty", "note"]);
+    // the name button puts the quoted name in the editor ("$&" and "$1" are not replacement patterns)
+    await app.editor.fill("");
+    await app.schemaInsert(SPACED).click();
+    expect((await app.editor.innerText()).trim()).toBe('"my ""quoted"" table"');
+    await app.editor.fill("");
+    await app.schemaInsert(TRICKY).click();
+    expect((await app.editor.innerText()).trim()).toBe('"it\'s $& $1 a ""b"" table"');
+    await app.schemaColumn(TRICKY, "qty").click();
+    expect((await app.editor.innerText()).trim()).toBe('"it\'s $& $1 a ""b"" table" qty');
+
+    // nothing ran: the status and the result are what the upload's preview left
+    await expect(app.status).toHaveText(statusBefore);
+    expect(await app.read()).toEqual(resultBefore);
+
+    // and the inserted text is a name the database accepts
+    await app.editor.fill("select * from ");
+    await app.schemaInsert(TRICKY).click();
+    await app.editor.press("Control+Enter");
+    await expect(app.status).toContainText("1 row, took");
+    expect((await app.read()).rows).toEqual([["x", "3", ""]]); // a NULL is drawn as an empty cell
+    await app.expectInert();
 });

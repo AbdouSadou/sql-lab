@@ -5,8 +5,9 @@ const { test, expect, evidenceFile, App } = require("./helpers");
 // M5 audit fixes: one test per behaviour changed after the independent audits. The statement
 // line (comments, trailing comment) is in m4-runner and m5-results, the escaped header lines
 // in m5-evidence-format; here: the run log under load and in a full storage, the notice, the
-// verify page's verdict in view, colour contrast, the history time zone, the editor hint and
-// toolbar at 768px, and what the About page and README tell students and markers.
+// verify page's verdict in view, colour contrast, the history time zone, the editor hint, the
+// editor toolbar and the top bar at 768px, and what the About page and README tell students and
+// markers.
 
 const ROOT = path.join(__dirname, "..");
 const SET = JSON.parse(fs.readFileSync(path.join(ROOT, "exercises", "retail-basics.json"), "utf8"));
@@ -53,13 +54,13 @@ test.describe("the run log under load", () => {
             }
             expect((await app.readLog("northlight")).map((e) => e.sql)).toEqual(expected);
         }
-        // and the popup of the page that comes back lists all of them
+        // and the History tab of the page that comes back lists all of them
         await app.open();
-        await app.historyButton.click();
+        await app.openHistory();
         await expect(app.historyEntries).toHaveCount(expected.length);
     });
 
-    test("an entry is stored, in the popup and in the export as soon as appendLog returns", async ({ page, app }) => {
+    test("an entry is stored, in the History tab and in the export as soon as appendLog returns", async ({ page, app }) => {
         await app.open();
         const seen = await page.evaluate(async () => {
             const { appendLog, readLog } = await import("./js/lab/run-log.js");
@@ -80,14 +81,14 @@ test.describe("the run log under load", () => {
             read: ["select 1", "select 2"],
         });
         expect((await app.readLog("northlight")).map((e) => e.sql)).toEqual(["select 1", "select 2"]);
-        await app.historyButton.click();
+        await app.openHistory();
         await expect(app.historyEntries).toHaveCount(2);
     });
 
     // What is promised for two tabs: tabs that run at human spacing lose nothing. Two tabs that
     // write within the same few milliseconds can still overwrite each other (reading and writing
     // one localStorage key is not atomic, and a Web Lock is not used, see run-log.js).
-    test("two tabs that run 25 ms apart lose no entry, and each popup shows the other tab's entries", async ({ context, page, app }) => {
+    test("two tabs that run 25 ms apart lose no entry, and each History tab shows the other tab's entries", async ({ context, page, app }) => {
         await app.open();
         const other = await context.newPage();
         const otherApp = new App(other);
@@ -115,15 +116,14 @@ test.describe("the run log under load", () => {
             const own = sqls.filter((s) => s.startsWith(`select '${tag}`));
             expect(own).toEqual(Array.from({ length: N }, (_, i) => `select '${tag}${i}'`));
         }
-        // a later read in either tab (opening the popup) shows the other tab's entries too
+        // a later read in either tab (opening the History tab) shows the other tab's entries too
         for (const tab of [app, otherApp]) {
-            await tab.historyButton.click();
+            await tab.openHistory();
             await expect(tab.historyEntries).toHaveCount(2 * N);
             const texts = await tab.historyEntries.allInnerTexts();
             for (const tag of ["A", "B"]) {
                 expect(texts.filter((t) => t.includes(`select '${tag}`))).toHaveLength(N);
             }
-            await tab.page.keyboard.press("Escape");
         }
         await other.close();
     });
@@ -132,7 +132,7 @@ test.describe("the run log under load", () => {
 test.describe("a full storage", () => {
     const pad = (c) => `SELECT '${c.repeat(900)}';`;
 
-    test("the popup and the export keep every entry while the page is open, and a line says storage is full", async ({ page, app }) => {
+    test("the History tab and the export keep every entry while the page is open, and a line says storage is full", async ({ page, app }) => {
         await limitStorage(page, "sqllab.log.", 3500);
         await app.open();
         await expect(notice(page)).toBeHidden();
@@ -144,10 +144,9 @@ test.describe("a full storage", () => {
         await app.query(pad("d"));
         // only the newest fit in storage ...
         expect((await app.readLog("northlight")).map((e) => e.sql)).toEqual([pad("b"), pad("c"), pad("d")]);
-        // ... but this page still has all four, in the popup and in the export
-        await app.historyButton.click();
+        // ... but this page still has all four, in the History tab and in the export
+        await app.openHistory();
         await expect(app.historyEntries).toHaveCount(4);
-        await page.keyboard.press("Escape");
         const file = await app.exportEvidence("U2034567");
         expect(file.text.match(/^\[\d+\] /gm)).toHaveLength(4);
         expect(file.text).toContain(pad("a"));
@@ -189,7 +188,7 @@ test.describe("a full storage", () => {
         await app.editor.fill(SET.exercises[0].model_query);
         await app.checkButton.click();
         await expect(app.feedback).toContainText("Passed");
-        await expect(app.progress).toHaveText("1/10 complete");
+        await expect(app.progress).toHaveText("1 of 10 complete");
         await expect(notice(page)).toBeVisible();
         await expect(notice(page)).toContainText("exercise progress");
         await expect(notice(page)).not.toContainText("query history");
@@ -214,8 +213,10 @@ test.describe("the history times", () => {
         await app.query("select 1 as a");
         await app.run("select nope");
         await expect(app.status).toContainText("no such column");
-        await app.historyButton.click();
-        const texts = await app.historyEntries.allInnerTexts();
+        await app.openHistory();
+        await expect(app.historyEntries).toHaveCount(2);
+        // each entry shows its SQL, then its time (the part under test), then its outcome
+        const texts = await app.historyEntries.locator(".run-history-time").allInnerTexts();
         expect(texts).toHaveLength(2);
         for (const text of texts) {
             expect(text).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC\b/);
@@ -296,30 +297,39 @@ const rgb = (text) => text.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number);
 
 test.describe("text colours reach 4.5:1", () => {
     for (const scheme of ["light", "dark"]) {
-        test(`in the ${scheme} scheme: the evidence error and the buttons of the command bar and toolbar`, async ({ page, app }) => {
+        test(`in the ${scheme} scheme: the evidence error and the buttons of the top bar, the History tab, the results and the Export menu`, async ({ page, app }) => {
             await page.emulateMedia({ colorScheme: scheme });
             await app.open();
             await app.query("select 1 as a");
+            // the text colour of the element and the first opaque background behind it (the surface it sits on)
             const colours = (selector, surface) =>
-                page.locator(selector).first().evaluate(
-                    (el, surfaceSelector) => ({
-                        text: getComputedStyle(el).color,
-                        surface: getComputedStyle(surfaceSelector ? document.querySelector(surfaceSelector) : document.body).backgroundColor,
-                    }),
-                    surface
-                );
-            // buttons sit on the page background
-            for (const selector of ["#run-history", "#download-csv", "#export-evidence", "#copy-link", "#export-db"]) {
-                const { text, surface } = await colours(selector);
-                expect(contrast(rgb(text), rgb(surface)), `${selector} text ${text} on ${surface}`).toBeGreaterThanOrEqual(4.5);
+                page.locator(selector).first().evaluate((el, surfaceSelector) => {
+                    const opaque = (colour) => !/^rgba\(.*, 0\)$|^transparent$/.test(colour);
+                    let behind = surfaceSelector ? document.querySelector(surfaceSelector) : el;
+                    while (behind && !opaque(getComputedStyle(behind).backgroundColor)) {
+                        behind = behind.parentElement;
+                    }
+                    return { text: getComputedStyle(el).color, surface: getComputedStyle(behind ?? document.body).backgroundColor };
+                }, surface);
+            const expectContrast = async (selector, surface) => {
+                const { text, surface: ground } = await colours(selector, surface);
+                expect(contrast(rgb(text), rgb(ground)), `${selector} text ${text} on ${ground}`).toBeGreaterThanOrEqual(4.5);
+            };
+            // the buttons and the tab that sit on the page
+            for (const selector of ["#tab-history", "#download-csv", "#copy-link"]) {
+                await expectContrast(selector);
+            }
+            // the Export menu's items sit on the menu
+            await app.openExportMenu();
+            for (const selector of ["#export-evidence", "#export-db"]) {
+                await expectContrast(selector);
             }
             // the error in the dialog sits on the dialog
             await app.evidenceButton.click();
             await app.evidenceInput.fill("bad number");
             await app.evidenceDialog.locator("button[type=submit]").click();
             await expect(app.evidenceError).toBeVisible();
-            const { text, surface } = await colours("#evidence-error", "#evidence-dialog");
-            expect(contrast(rgb(text), rgb(surface)), `error text ${text} on ${surface}`).toBeGreaterThanOrEqual(4.5);
+            await expectContrast("#evidence-error", "#evidence-dialog");
         });
     }
 
@@ -345,10 +355,10 @@ test.describe("text colours reach 4.5:1", () => {
 
 // ---- layout at 768 ---------------------------------------------------------------------------
 
-test.describe("the editor hint and the toolbar", () => {
+test.describe("the editor hint, the editor toolbar and the top bar", () => {
     for (const url of ["./", "./?set=retail-basics"]) {
         for (const width of [768, 1024, 1280]) {
-            test(`${url} at ${width}px: the hint is whole, the command bar stays on the editor, the toolbar is one row`, async ({ page, app }) => {
+            test(`${url} at ${width}px: the hint is whole, the editor toolbar stays on top of the editor, the top bar is one row`, async ({ page, app }) => {
                 await page.setViewportSize({ width, height: 900 });
                 await app.open(url);
                 await app.editor.focus();
@@ -359,17 +369,21 @@ test.describe("the editor hint and the toolbar", () => {
                     const range = document.createRange();
                     range.selectNodeContents(hint);
                     const text = range.getBoundingClientRect();
-                    const tops = [...document.querySelector("#toolbar").children].filter((c) => c.getClientRects().length).map((c) => Math.round(c.getBoundingClientRect().top / 8));
+                    // the vertical centre of every item of the top bar
+                    const items = ["#reset", "#database-button", "#copy-link", "#export-button", "#theme-button", "#help-button"].map((s) => document.querySelector(s));
+                    const centres = items.map((c) => c.getBoundingClientRect().top + c.getBoundingClientRect().height / 2);
                     return {
                         hint: hint.textContent.trim(),
                         overflowX: hint.scrollWidth > hint.clientWidth + 1,
                         overflowY: hint.scrollHeight > hint.clientHeight + 1,
                         ellipsis: style.textOverflow === "ellipsis",
                         textInside: text.left >= rect("#editor-hint").left - 1 && text.right <= rect("#editor-hint").right + 1 && text.bottom <= rect("#editor-hint").bottom + 1,
-                        barBottom: rect("#commandbar").bottom,
-                        editorBottom: rect("#editor").bottom,
+                        barBottom: rect("#editor-toolbar").bottom,
+                        paneTop: rect("#editor-pane").top,
+                        editorTop: rect("#editor").top,
                         hintTop: rect("#editor-hint").top,
-                        rows: new Set(tops).size,
+                        topbarItems: items.length,
+                        topbarSpread: Math.max(...centres) - Math.min(...centres),
                     };
                 });
                 expect(m.hint).toBe("Press Tab to indent. To leave the editor, press Escape, then Tab or Shift+Tab.");
@@ -377,11 +391,13 @@ test.describe("the editor hint and the toolbar", () => {
                 expect(m.overflowY).toBe(false);
                 expect(m.ellipsis).toBe(false);
                 expect(m.textInside).toBe(true);
-                // the bar sits at the bottom of the editor and never over the hint
-                expect(Math.abs(m.barBottom - m.editorBottom)).toBeLessThanOrEqual(2);
+                // the toolbar sits on top of the editor, never over it and never over the hint
+                expect(Math.abs(m.barBottom - m.paneTop)).toBeLessThanOrEqual(2);
+                expect(m.barBottom).toBeLessThanOrEqual(m.editorTop + 1);
                 expect(m.barBottom).toBeLessThanOrEqual(m.hintTop + 1);
-                // every toolbar item is on one row
-                expect(m.rows).toBe(1);
+                // every top bar item (brand, database switcher, Copy link, Export, Theme, Help) is on one row
+                expect(m.topbarItems).toBe(6);
+                expect(m.topbarSpread).toBeLessThanOrEqual(4);
             });
         }
     }
@@ -393,8 +409,8 @@ test.describe("the editor hint and the toolbar", () => {
         const hint = page.locator("#editor-hint");
         expect(await hint.evaluate((el) => el.getBoundingClientRect().height)).toBeGreaterThan(30);
         expect(await hint.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
-        // the bar is still on the editor
-        const gap = await page.evaluate(() => document.querySelector("#editor").getBoundingClientRect().bottom - document.querySelector("#commandbar").getBoundingClientRect().bottom);
+        // the toolbar is still on top of the editor
+        const gap = await page.evaluate(() => document.querySelector("#editor-pane").getBoundingClientRect().top - document.querySelector("#editor-toolbar").getBoundingClientRect().bottom);
         expect(Math.abs(gap)).toBeLessThanOrEqual(2);
     });
 });

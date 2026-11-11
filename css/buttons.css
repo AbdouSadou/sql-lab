@@ -1,27 +1,107 @@
+/* Buttons (UI plan, section 3): 32 px high (44 on a touch screen), radius 6, a text label always,
+   an icon only beside it. One filled primary per context (Run, or Check answer in an exercise);
+   the default is outlined; quiet buttons have no outline until hovered. */
+
 .button {
-    border: 1px solid var(--accent);
-    border-radius: 0.25rem;
-    background: transparent;
-    padding: 0.5rem;
-    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: var(--control-height);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-control);
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+    line-height: 1.2;
+    white-space: nowrap;
     cursor: pointer;
 }
+
 .button:hover {
-    background: var(--accent);
-    color: var(--on-accent);
+    background: var(--sunken);
 }
-.button:disabled {
-    opacity: 0.5;
+
+/* A press on a button's icon or shortcut hint is a press on the button: the click delegation of
+   js/controllers/actions.js (upstream's) takes the element pressed, or its parent, as the button. */
+.button > * {
+    pointer-events: none;
+}
+
+.button:disabled,
+.button[aria-disabled="true"] {
+    color: var(--graphite);
     cursor: default;
 }
-.button:disabled:hover {
-    pointer-events: none;
+
+.button:disabled:hover,
+.button[aria-disabled="true"]:hover {
+    background: var(--paper);
+}
+
+.button[hidden] {
+    display: none;
+}
+
+.button--primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+}
+
+.button--primary:hover {
+    border-color: var(--accent-hover);
+    background: var(--accent-hover);
+}
+
+/* the key that does the same, inside the primary button ("Ctrl Enter") */
+.button .shortcut {
+    font-size: var(--text-xs);
+    font-weight: 400;
+}
+
+.button--primary .shortcut {
+    color: var(--on-accent-muted);
+}
+
+/* a primary button that cannot be used (Run before a database is open, or while a run is on) is
+   drawn as the plain kind, not as grey on blue */
+.button--primary:disabled,
+.button--primary:disabled:hover {
+    border-color: var(--rule-strong);
+    background: var(--sunken);
+    color: var(--graphite);
+}
+
+.button--primary:disabled .shortcut {
+    color: var(--graphite);
+}
+
+.button:not(.button--primary) .shortcut {
+    color: var(--graphite);
+}
+
+.button--quiet {
+    gap: 6px;
+    padding: 0 10px;
+    border-color: transparent;
     background: transparent;
-    color: var(--accent);
+}
+
+.button--quiet:hover {
+    background: var(--sunken);
 }
 
 .button--small {
-    border-radius: 0.125rem;
-    padding: 0.125rem 0.5rem;
-    font-size: 80%;
+    min-height: 28px;
+    padding: 0 var(--space-2);
+    font-size: var(--text-xs);
+}
+
+@media (pointer: coarse) {
+    .button--small {
+        min-height: 44px;
+    }
 }

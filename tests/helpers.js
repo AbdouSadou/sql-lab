@@ -310,21 +310,105 @@ class App {
         // The status can already show a ready message from the database that is open, so
         // wait for the open database to be replaced before waiting for the new status.
         const before = ready ? await this.page.evaluateHandle(() => window.app?.database) : null;
-        await this.page.locator("#toolbar input[type=file]").setInputFiles(file);
+        await this.page.locator("#open-file-input").setInputFiles(file);
         if (ready) {
             await this.page.waitForFunction((old) => window.app.database !== old, before);
             await this.waitReady();
         }
     }
 
-    // rename types a new database name in the header and presses Enter.
+    // rename renames the open database the way the page offers it since the UI plan's Phase 2:
+    // the Export menu's "Database (.db)…" dialog takes the new name, and Export (Enter) renames the
+    // database and saves it under that name (the download is not waited for).
     async rename(name) {
-        const field = this.page.locator("#db-name");
-        await field.click();
-        await this.page.keyboard.press("Control+A");
-        await this.page.keyboard.type(name);
-        await this.page.keyboard.press("Enter");
+        await this.openExportMenu();
+        await this.page.locator("#export-db").click();
+        const field = this.page.locator("#export-name");
+        await expect(field).toBeVisible();
+        await field.fill(name);
+        await field.press("Enter");
         await expect(this.page).toHaveTitle(new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} - `));
+    }
+
+    // ---- the top bar (UI plan, Phase 2)
+    // the database switcher: its button, the name it shows, its menu
+    get databaseButton() {
+        return this.page.locator("#database-button");
+    }
+
+    get databaseLabel() {
+        return this.page.locator("#database-button-name");
+    }
+
+    get databaseMenu() {
+        return this.page.locator("#database-menu");
+    }
+
+    // pickDatabase chooses a course database by its name in the switcher's menu
+    async pickDatabase(name) {
+        await this.databaseButton.click();
+        await expect(this.databaseMenu).toBeVisible();
+        await this.databaseMenu.getByRole("menuitemradio", { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`) }).click();
+    }
+
+    // the menu's entries for the course databases, and the one with this id (in the page even
+    // while the menu is closed); pickDatabaseById opens the menu with a click and chooses it, as a
+    // student does
+    get databaseItems() {
+        return this.databaseMenu.locator('[role="menuitemradio"]');
+    }
+
+    databaseItem(id) {
+        return this.databaseMenu.locator(`[role="menuitemradio"][data-dataset-id="${id}"]`);
+    }
+
+    async pickDatabaseById(id) {
+        await this.databaseButton.click();
+        await expect(this.databaseMenu).toBeVisible();
+        await this.databaseItem(id).click();
+    }
+
+    // expectPicked asserts which course database the menu ticks: exactly the one with this id, or
+    // none (null: an upload, a URL or the empty database is not in the list); with a name, the
+    // button shows it too.
+    async expectPicked(id, name = null) {
+        const ticked = this.databaseMenu.locator('[role="menuitemradio"][aria-checked="true"]');
+        if (id === null) {
+            await expect(ticked).toHaveCount(0);
+        } else {
+            await expect(ticked).toHaveCount(1);
+            await expect(ticked).toHaveAttribute("data-dataset-id", id);
+        }
+        if (name !== null) {
+            await expect(this.databaseLabel).toHaveText(name);
+        }
+    }
+
+    // the Export menu's button in the top bar, and its menu
+    get exportMenuButton() {
+        return this.page.locator("#export-button");
+    }
+
+    get exportMenu() {
+        return this.page.locator("#export-menu");
+    }
+
+    // openExportMenu opens the Export menu of the top bar
+    async openExportMenu() {
+        if (!(await this.exportMenu.isVisible())) {
+            await this.exportMenuButton.click();
+        }
+        await expect(this.exportMenu).toBeVisible();
+    }
+
+    // the sidebar's tabs: "schema", "exercises" or "history"
+    tab(name) {
+        return this.page.locator(`#tab-${name}`);
+    }
+
+    async openTab(name) {
+        await this.tab(name).click();
+        await expect(this.page.locator(`#panel-${name}`)).toBeVisible();
     }
 
     // storedQueries returns the SQL the app saved in localStorage, as [key, sql] pairs.
@@ -382,8 +466,20 @@ class App {
     }
 
     // ---- F6 run log and F11 evidence export (js/lab/run-log.js, evidence-dialog.js)
+    // the History tab of the sidebar (it replaced the history popup of the command bar)
     get historyButton() {
-        return this.page.locator("#run-history");
+        return this.page.locator("#tab-history");
+    }
+
+    // the same, by what it is now: the History tab
+    get historyTab() {
+        return this.historyButton;
+    }
+
+    // openHistory shows the History tab and waits for its list
+    async openHistory() {
+        await this.openTab("history");
+        await expect(this.historyList).toBeVisible();
     }
 
     get historyList() {
@@ -394,8 +490,14 @@ class App {
         return this.page.locator("#run-history-list button");
     }
 
+    // "Evidence (.txt)…" in the Export menu; openEvidence() opens the menu and chooses it
     get evidenceButton() {
         return this.page.locator("#export-evidence");
+    }
+
+    async openEvidence() {
+        await this.openExportMenu();
+        await this.evidenceButton.click();
     }
 
     get evidenceDialog() {
@@ -435,7 +537,7 @@ class App {
     // exportEvidence drives the real dialog: the button, the student number, Export. Returns the
     // downloaded file as {name, buffer, text}.
     async exportEvidence(student = "U2034567") {
-        await this.evidenceButton.click();
+        await this.openEvidence();
         await expect(this.evidenceDialog).toBeVisible();
         await this.evidenceInput.fill(student);
         const [download] = await Promise.all([
@@ -455,8 +557,28 @@ class App {
         return this.page.locator("#exercise-panel");
     }
 
+    // the set picker of the Exercises tab: a menu button and its menu
     get setPicker() {
         return this.page.locator("#exercise-set-picker");
+    }
+
+    get setMenu() {
+        return this.page.locator("#exercise-set-menu");
+    }
+
+    // openSetMenu opens the set picker's menu (showing the Exercises tab first if need be)
+    async openSetMenu() {
+        if (!(await this.setPicker.isVisible())) {
+            await this.openTab("exercises");
+        }
+        await this.setPicker.click();
+        await expect(this.setMenu).toBeVisible();
+    }
+
+    // pickSet chooses an entry of the set picker by its label ("None", or a set's title)
+    async pickSet(label) {
+        await this.openSetMenu();
+        await this.setMenu.getByRole("menuitemradio", { name: label, exact: true }).click();
     }
 
     get checkButton() {
@@ -547,8 +669,9 @@ class App {
         return this.page.locator("#schema");
     }
 
+    // the Schema tab of the sidebar (it replaced the schema panel's own toggle)
     get schemaToggle() {
-        return this.page.locator("#schema .schema-toggle");
+        return this.page.locator("#tab-schema");
     }
 
     schemaInsert(name, kind = "table") {
@@ -600,26 +723,36 @@ class App {
         return { name, mimeType: "text/plain", buffer: Buffer.from(sql) };
     }
 
-    // picker is the dataset select in the toolbar; exportButton the export button.
+    // picker is the database switcher's button (it replaced the Dataset select); exportButton is
+    // "Database (.db)…" in the Export menu.
     get picker() {
-        return this.page.locator("#dataset-picker");
+        return this.databaseButton;
     }
 
     get exportButton() {
         return this.page.locator("#export-db");
     }
 
-    // pickedText is the text of the option the picker shows as selected.
-    pickedText() {
-        return this.picker.evaluate((select) => select.selectedOptions[0]?.textContent ?? null);
+    // the same, by what it is now: the Export menu's "Database (.db)…" entry
+    get exportDatabaseItem() {
+        return this.exportButton;
     }
 
-    // exportFile clicks the export button and returns the downloaded file as
-    // {name, buffer}. The button, the download event and the saved bytes are the real thing.
+    // pickedText is the name the database switcher shows.
+    pickedText() {
+        return this.databaseLabel.textContent();
+    }
+
+    // exportFile exports the database through the Export menu and its dialog (the name as it is)
+    // and returns the downloaded file as {name, buffer}. The menu, the dialog, the download event
+    // and the saved bytes are the real thing.
     async exportFile() {
+        await this.openExportMenu();
+        await this.exportButton.click();
+        await expect(this.page.locator("#export-dialog")).toBeVisible();
         const [download] = await Promise.all([
             this.page.waitForEvent("download"),
-            this.exportButton.click(),
+            this.page.locator("#export-dialog button[type=submit]").click(),
         ]);
         const stream = await download.createReadStream();
         const chunks = [];
@@ -652,6 +785,49 @@ async function openFresh(browser, baseURL, link, { setup } = {}) {
 
 // quoteIdent quotes a name as an SQL identifier (for building test SQL).
 const quoteIdent = (name) => `"${name.replaceAll('"', '""')}"`;
+
+// tabTo presses Tab (or Shift+Tab with back) until the focused element matches the selector, at most
+// max times; keys only. Returns whether it got there.
+async function tabTo(page, selector, { back = false, max = 80 } = {}) {
+    for (let i = 0; i < max; i++) {
+        if (await page.evaluate((s) => document.activeElement?.matches(s) ?? false, selector)) {
+            return true;
+        }
+        await page.keyboard.press(back ? "Shift+Tab" : "Tab");
+    }
+    return page.evaluate((s) => document.activeElement?.matches(s) ?? false, selector);
+}
+
+// expectSchemaIconsOnly: nothing in the Schema tab was made from a name. The tab draws its own icon
+// svgs (js/lab/icons.js: class "icon", plus "hidden" on the arrow that is not shown, and
+// aria-hidden="true", or for the key marks role="img" with the label "Primary key" or "Foreign key
+// to <table>", set as an attribute), each a single <use> whose href starts with "#icon-"; any other
+// svg, and any element outside the few tags the panel is built from, is a failure.
+async function expectSchemaIconsOnly(page) {
+    await expect(page.locator("#schema img, #schema script, #schema foreignObject, #schema [onerror]")).toHaveCount(0);
+    const stray = await page.locator("#schema").evaluate((root) => {
+        const TAGS = new Set(["div", "p", "button", "input", "section", "h2", "ul", "li", "span", "svg", "use"]);
+        const bad = [...root.querySelectorAll("*")].filter((el) => !TAGS.has(el.localName)).map((el) => el.outerHTML);
+        for (const svg of root.querySelectorAll("svg")) {
+            const use = svg.children[0];
+            const named = svg.getAttribute("role") === "img";
+            const label = svg.getAttribute("aria-label") ?? "";
+            const fine =
+                /^icon( icon--filled)?( hidden)?$/.test(svg.getAttribute("class") ?? "") &&
+                svg.children.length === 1 &&
+                use.localName === "use" &&
+                use.attributes.length === 1 &&
+                use.getAttribute("href")?.startsWith("#icon-") &&
+                (named ? label === "Primary key" || label.startsWith("Foreign key to ") : svg.getAttribute("aria-hidden") === "true") &&
+                [...svg.attributes].every((a) => ["class", "aria-hidden", "focusable", "role", "aria-label"].includes(a.name));
+            if (!fine) {
+                bad.push(svg.outerHTML);
+            }
+        }
+        return bad;
+    });
+    expect(stray, "elements in the Schema tab that are not the panel's own").toEqual([]);
+}
 
 const test = base.test.extend({
     net: async ({ context, baseURL }, use) => {
@@ -798,6 +974,8 @@ module.exports = {
     PAYLOAD,
     ATTR_PAYLOAD,
     quoteIdent,
+    tabTo,
+    expectSchemaIconsOnly,
     SAMPLE_FILE,
     SAMPLE_ENTRY,
     realManifest,

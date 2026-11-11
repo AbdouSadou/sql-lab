@@ -964,7 +964,9 @@ test.describe("resolveRoute and exercise sets", () => {
             await page.goto(`./${shareHash({ d: "northlight", x: "retail-basics", e: "e05", q: "select 5 as five" })}`);
             await expect(page.locator("#status")).toContainText("A shared query is in the editor");
             expect(await page.locator("#editor").innerText()).toBe("select 5 as five");
-            expect(await page.locator("#db-name").innerText()).toContain("northlight_retail.db");
+            // the dataset is open: the switcher names it, and the engine holds its file
+            await expect(page.locator("#database-button-name")).toHaveText("Northlight Retail");
+            expect(await page.evaluate(() => window.app.database.name)).toBe("northlight_retail.db");
             const out = await route(page, { hash: await page.evaluate(() => location.hash) });
             expect(out).toMatchObject({ dataset: "northlight", sql: "select 5 as five", exercise: { setId: "retail-basics", exerciseId: "e05" } });
         } finally {
@@ -977,13 +979,15 @@ test.describe("resolveRoute and exercise sets", () => {
         await routeSet(page, "fruit", { ...good(), id: "fruit", dataset: "sample" });
         await page.goto("?set=fruit&ex=e1&db=northlight");
         await app.waitReady();
-        await expect(page.locator("#db-name")).toContainText("sample.db");
+        await expect(app.databaseLabel).toHaveText("Sample Fruit");
+        expect(await page.evaluate(() => window.app.database.name)).toBe("sample.db");
         expect(await app.pickedText()).toBe("Sample Fruit");
 
         // a bad set: the default dataset opens and the status says why; the id is text only
         await page.goto("?set=no-such-set");
         await expect(app.status).toContainText('The exercise set "no-such-set" could not be opened');
-        await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+        await expect(app.databaseLabel).toHaveText("Northlight Retail");
+        expect(await page.evaluate(() => window.app.database.name)).toBe("northlight_retail.db");
 
         await page.goto(`?set=${encodeURIComponent(PAYLOAD)}`);
         await expect(app.status).toContainText("The exercise set in the address could not be opened");

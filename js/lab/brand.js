@@ -3,6 +3,9 @@
 //   - document.title: the page's own title part (data-page-title on <title>, for
 //     example "About") followed by the app name, or just the app name.
 //   - every element with a data-app-name attribute gets the name as its text.
+//   - every element with a data-app-label attribute gets the name followed by that attribute's
+//     text as its aria-label (the brand link: "<name>, home: open the default database"; a
+//     visually hidden span beside the name would read with a stray space before the comma).
 
 import { APP_NAME } from "./config.js";
 
@@ -18,6 +21,9 @@ function apply() {
     document.title = titleFor(title ? title.dataset.pageTitle : "");
     for (const el of document.querySelectorAll("[data-app-name]")) {
         el.textContent = APP_NAME;
+    }
+    for (const el of document.querySelectorAll("[data-app-label]")) {
+        el.setAttribute("aria-label", `${APP_NAME}${el.dataset.appLabel}`);
     }
 }
 

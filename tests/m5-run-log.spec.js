@@ -2,7 +2,7 @@ const fs = require("node:fs");
 const { test, expect, withSampleDataset, SAMPLE_FILE, PAYLOAD } = require("./helpers");
 
 // M5 part 2, F6 run log (js/lab/run-log.js): what a Run appends, how it is stored, and the
-// history popup in the command bar.
+// History tab of the sidebar.
 
 const T = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
@@ -91,7 +91,13 @@ test.describe("what a Run appends", () => {
         expect(await logKeys(page)).toEqual([]);
         await app.run("   ");
         await page.locator("#execute").click();
-        await page.locator("#show-tables").click();
+        expect(await logKeys(page)).toEqual([]);
+        // using the Schema tab (expanding a table, inserting a name) is not a Run either
+        await app.openTab("schema");
+        await app.schemaExpand("fruit").click();
+        await expect(app.schemaExpand("fruit")).toHaveAttribute("aria-expanded", "true");
+        await app.schemaInsert("fruit").click();
+        await expect(app.editor).toContainText("fruit");
         expect(await logKeys(page)).toEqual([]);
         await app.query("SELECT 1;");
         expect((await app.readLog("file:sample.db")).map((e) => e.sql)).toEqual(["SELECT 1;"]);
@@ -133,12 +139,12 @@ test.describe("one log per dataset", () => {
         await withSampleDataset(page);
         await app.open();
         await app.query("SELECT 'a' AS q;");
-        await app.picker.selectOption("sample");
-        await expect(app.picker).toHaveValue("sample");
+        await app.pickDatabase("Sample Fruit");
+        await expect(app.databaseLabel).toHaveText("Sample Fruit");
         await app.waitReady();
         await app.query("SELECT 'b' AS q;");
-        await app.picker.selectOption("northlight");
-        await expect(app.picker).toHaveValue("northlight");
+        await app.pickDatabase("Northlight Retail");
+        await expect(app.databaseLabel).toHaveText("Northlight Retail");
         await app.waitReady();
         await app.query("SELECT 'c' AS q;");
         expect((await app.readLog("northlight")).map((e) => e.sql)).toEqual(["SELECT 'a' AS q;", "SELECT 'c' AS q;"]);
@@ -194,7 +200,7 @@ test.describe("storage", () => {
         expect(log[199].sql).toBe("SELECT 'new' AS q;");
     });
 
-    test("corrupt or foreign stored text counts as an empty log and is replaced by the next Run", async ({ page, app }) => {
+    test("corrupt or foreign stored text counts as an empty log and is replaced by the next Run", async ({ app }) => {
         await app.open();
         const bad = [
             "{{", "", "null", "[]", '"text"', "42", "true", '{"a":1}', '{"v":2,"entries":[]}', '{"v":1}',
@@ -205,7 +211,6 @@ test.describe("storage", () => {
             await app.historyButton.click();
             await expect(app.historyList, JSON.stringify(text)).toContainText("Nothing yet");
             await expect(app.historyEntries).toHaveCount(0);
-            await page.keyboard.press("Escape");
             await app.query("SELECT 'fresh' AS q;");
             expect((await app.readLog("northlight")).map((e) => e.sql), JSON.stringify(text)).toEqual(["SELECT 'fresh' AS q;"]);
         }
@@ -225,7 +230,7 @@ test.describe("storage", () => {
         expect((await app.readLog("northlight")).map((e) => e.sql)).toEqual([good[0].sql, good[1].sql, "SELECT 'x' AS q;"]);
     });
 
-    test("two tabs do not lose each other's entries", async ({ context, page, app, baseURL }) => {
+    test("two tabs do not lose each other's entries", async ({ context, app }) => {
         await app.open();
         const other = await context.newPage();
         const otherApp = new (require("./helpers").App)(other);
@@ -236,7 +241,7 @@ test.describe("storage", () => {
         await otherApp.query("SELECT 'b2' AS q;");
         const sqls = (await app.readLog("northlight")).map((e) => e.sql);
         expect(sqls).toEqual(["SELECT 'a1' AS q;", "SELECT 'b1' AS q;", "SELECT 'a2' AS q;", "SELECT 'b2' AS q;"]);
-        // and a tab shows the other tab's entries in its popup
+        // and a browser tab shows the other tab's entries in its History tab
         await app.historyButton.click();
         await expect(app.historyEntries).toHaveCount(4);
         await expect(app.historyEntries.first()).toContainText("b2");
@@ -259,9 +264,8 @@ test.describe("storage", () => {
         await expect(app.status).toContainText("no such column: nope");
         await app.historyButton.click();
         await expect(app.historyEntries).toHaveCount(2);
-        await expect(app.historyEntries.first()).toContainText("error");
+        await expect(app.historyEntries.first()).toContainText("Error");
         await expect(app.historyEntries.nth(1)).toContainText("1 row");
-        await page.keyboard.press("Escape");
         // the evidence export has them too
         const file = await app.exportEvidence("U2034567");
         expect(file.text).toContain("SELECT 'one' AS q;");
@@ -330,7 +334,6 @@ test.describe("storage", () => {
         await app.query(huge);
         await app.historyButton.click();
         await expect(app.historyEntries).toHaveCount(3);
-        await page.keyboard.press("Escape");
         const file = await app.exportEvidence("U2034567");
         expect(file.text).toContain(`\n${huge}\n`);
         expect(file.text).toContain("SELECT 1 AS n;");
@@ -340,13 +343,12 @@ test.describe("storage", () => {
         await app.query("SELECT 'after' AS q;");
         await app.historyButton.click();
         await expect(app.historyEntries.first()).toContainText("'after'");
-        await page.keyboard.press("Escape");
         expect((await app.readLog("northlight")).at(-1).sql).toBe("SELECT 'after' AS q;");
         expect(errors).toEqual([]);
     });
 });
 
-test.describe("the history popup", () => {
+test.describe("the History tab", () => {
     const FIVE = [
         "SELECT category, COUNT(*) FROM products GROUP BY category;",
         "SELECT pric FROM products;",
@@ -366,34 +368,46 @@ test.describe("the history popup", () => {
         await app.query(FIVE[4]);
     }
 
-    test("the toggle sits after copy link and before download csv, and the list is built when it opens", async ({ page, app }) => {
+    test("the tab sits in the sidebar, after copy link and before download csv, and the list is built when it is shown", async ({ page, app }) => {
         await runFive(app);
-        const ids = await page.locator("#commandbar > *").evaluateAll((els) => els.map((e) => e.id));
-        expect(ids.indexOf("copy-link")).toBeGreaterThan(-1);
-        expect(ids.indexOf("run-history")).toBe(ids.indexOf("copy-link") + 1);
-        expect(ids.indexOf("download-csv")).toBeGreaterThan(ids.indexOf("run-history"));
-        await expect(app.historyButton).toHaveAttribute("aria-expanded", "false");
-        await expect(app.historyButton).toHaveAttribute("aria-controls", "run-history-list");
+        // Copy link is in the top bar, the History tab is the last of the sidebar's tabs, and Download CSV
+        // is in the results summary: in the page's order, which is the Tab order
+        expect(await page.locator("header.topbar #copy-link").count()).toBe(1);
+        expect(await page.locator("#sidebar [role=tablist] > *").evaluateAll((els) => els.map((e) => e.id))).toEqual([
+            "tab-schema",
+            "tab-exercises",
+            "tab-history",
+        ]);
+        expect(await page.locator("#results-summary #download-csv").count()).toBe(1);
+        expect(
+            await page.locator("#copy-link, #tab-history, #download-csv").evaluateAll((els) => els.map((e) => e.id))
+        ).toEqual(["copy-link", "tab-history", "download-csv"]);
+        await expect(app.historyButton).toHaveAttribute("role", "tab");
+        await expect(app.historyButton).toHaveAttribute("aria-selected", "false");
+        await expect(app.historyButton).toHaveAttribute("aria-controls", "panel-history");
         await expect(app.historyList).toBeHidden();
         expect(await app.historyList.evaluate((l) => l.children.length)).toBe(0);
 
         await app.historyButton.click();
-        await expect(app.historyButton).toHaveAttribute("aria-expanded", "true");
+        await expect(app.historyButton).toHaveAttribute("aria-selected", "true");
         await expect(app.historyList).toBeVisible();
         await expect(app.historyEntries).toHaveCount(5);
-        // real buttons, newest first, each with the time, the outcome and the start of the SQL
+        // real buttons, newest first, each with the start of the SQL, the time and the outcome
         expect(await app.historyEntries.evaluateAll((bs) => bs.map((b) => b.tagName + ":" + b.type))).toEqual(Array(5).fill("BUTTON:button"));
         const texts = await app.historyEntries.allInnerTexts();
-        expect(texts[0]).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC\s+1 row\s+SELECT 'last' AS q;$/);
-        expect(texts[1]).toMatch(/0 rows\s+SELECT \* FROM stores WHERE 0;$/);
-        expect(texts[2]).toMatch(/2 rows\s+SELECT 1 UNION ALL SELECT 2;$/);
-        expect(texts[3]).toMatch(/\berror\s+SELECT pric FROM products;$/);
-        expect(texts[4]).toMatch(/5 rows\s+SELECT category, COUNT\(\*\) FROM products GROUP BY category;$/);
+        expect(texts[0]).toMatch(/^SELECT 'last' AS q;\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC\s+1 row$/);
+        expect(texts[1]).toMatch(/^SELECT \* FROM stores WHERE 0;\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC\s+0 rows$/);
+        // a statement of several lines shows its first line and an ellipsis
+        expect(texts[2]).toMatch(/^SELECT 1 …\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC\s+2 rows$/);
+        expect(texts[3]).toMatch(/^SELECT pric FROM products;\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC\s+Error$/);
+        expect(texts[4]).toMatch(/^SELECT category, COUNT\(\*\) FROM products GROUP BY category;\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC\s+5 rows$/);
         // the time shown is the entry's UTC time
         const log = await app.readLog("northlight");
         expect(texts[0]).toContain(`${log[4].t.slice(0, 10)} ${log[4].t.slice(11, 19)}`);
         // the accessible name has all three, separated
-        expect(await app.historyEntries.first().evaluate((b) => b.textContent)).toMatch(/UTC 1 row SELECT 'last'/);
+        await expect(app.historyEntries.first()).toHaveAccessibleName(
+            /^SELECT 'last' AS q; \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC 1 row$/
+        );
     });
 
     test("a long statement is cut to its start", async ({ app }) => {
@@ -407,7 +421,7 @@ test.describe("the history popup", () => {
         expect(sql.startsWith(shown.slice(0, -1))).toBe(true);
     });
 
-    test("choosing an entry puts its SQL in the editor without running or saving it, closes the popup and focuses the editor", async ({
+    test("choosing an entry puts its SQL in the editor without running or saving it, and focuses the editor", async ({
         page,
         app,
     }) => {
@@ -422,8 +436,9 @@ test.describe("the history popup", () => {
         await app.historyButton.click();
         // the third newest: the multi-line one
         await app.historyEntries.nth(2).click();
-        await expect(app.historyList).toBeHidden();
-        await expect(app.historyButton).toHaveAttribute("aria-expanded", "false");
+        // the tab is not a popup: it stays, and the editor takes the focus
+        await expect(app.historyList).toBeVisible();
+        await expect(app.historyButton).toHaveAttribute("aria-selected", "true");
         expect(await app.editor.evaluate((e) => e.query)).toBe(FIVE[2]);
         expect(await page.evaluate(() => document.activeElement.id)).toBe("editor");
         // not run: same log, same saved query, no new result
@@ -436,6 +451,9 @@ test.describe("the history popup", () => {
         await app.editor.press("Control+Enter");
         await expect(app.status).toContainText("2 rows");
         expect((await app.readLog("northlight")).at(-1).sql).toBe(FIVE[2]);
+        // and the list, still shown, has the new entry at its top
+        await expect(app.historyEntries).toHaveCount(6);
+        await expect(app.historyEntries.first().locator(".run-history-sql")).toHaveText("SELECT 1 …");
     });
 
     test("an error entry can be restored too", async ({ app }) => {
@@ -445,14 +463,16 @@ test.describe("the history popup", () => {
         expect(await app.editor.evaluate((e) => e.query)).toBe(FIVE[1]);
     });
 
-    test("keyboard: open, move with the arrow keys without touching the editor, pick with Enter", async ({ page, app }) => {
+    test("keyboard: Tab into the list, move with the arrow keys without touching the editor, pick with Enter", async ({ page, app }) => {
         await runFive(app);
         await app.editor.fill("SELECT 'untouched' AS q;");
         const active = () => page.evaluate(() => document.activeElement.textContent);
         await app.historyButton.focus();
         await page.keyboard.press("Enter");
         await expect(app.historyList).toBeVisible();
-        // the newest entry has the focus
+        // Tab moves from the tab into the list, onto the newest entry (the list is one Tab stop)
+        await page.keyboard.press("Tab");
+        expect(await page.evaluate(() => document.activeElement.className)).toBe("run-history-entry");
         expect(await active()).toContain("'last'");
         await page.keyboard.press("ArrowDown");
         expect(await active()).toContain("stores WHERE 0");
@@ -460,7 +480,7 @@ test.describe("the history popup", () => {
         await page.keyboard.press("ArrowDown");
         expect(await active()).toContain("pric");
         await page.keyboard.press("ArrowUp");
-        expect(await active()).toContain("UNION ALL");
+        expect(await active()).toContain("SELECT 1 …");
         await page.keyboard.press("End");
         expect(await active()).toContain("GROUP BY category");
         await page.keyboard.press("ArrowDown"); // stays on the last
@@ -474,57 +494,65 @@ test.describe("the history popup", () => {
         await page.keyboard.press("ArrowDown");
         await page.keyboard.press("ArrowDown");
         await page.keyboard.press("Enter");
-        await expect(app.historyList).toBeHidden();
         expect(await app.editor.evaluate((e) => e.query)).toBe(FIVE[2]);
         expect(await page.evaluate(() => document.activeElement.id)).toBe("editor");
         // Space picks as well
         await app.historyButton.focus();
-        await page.keyboard.press("Space");
-        await expect(app.historyList).toBeVisible();
+        await page.keyboard.press("Tab");
         await page.keyboard.press("End");
         await page.keyboard.press("Space");
         expect(await app.editor.evaluate((e) => e.query)).toBe(FIVE[0]);
+        expect(await page.evaluate(() => document.activeElement.id)).toBe("editor");
     });
 
-    test("Escape closes the popup and returns focus to the toggle", async ({ page, app }) => {
+    test("Escape in the list closes nothing: the tab stays, the focus stays, the editor keeps its text", async ({ page, app }) => {
         await runFive(app);
         await app.editor.fill("SELECT 'untouched' AS q;");
         await app.historyButton.click();
+        await page.keyboard.press("Tab");
         await page.keyboard.press("ArrowDown");
         await page.keyboard.press("Escape");
-        await expect(app.historyList).toBeHidden();
-        await expect(app.historyButton).toHaveAttribute("aria-expanded", "false");
-        await expect(app.historyButton).toBeFocused();
-        expect(await app.editor.evaluate((e) => e.query)).toBe("SELECT 'untouched' AS q;");
-        // Escape on the toggle itself, with the popup open
-        await page.keyboard.press("Enter");
         await expect(app.historyList).toBeVisible();
+        await expect(app.historyButton).toHaveAttribute("aria-selected", "true");
+        await expect(app.historyEntries.nth(1)).toBeFocused();
+        expect(await app.editor.evaluate((e) => e.query)).toBe("SELECT 'untouched' AS q;");
+        // Escape on the tab itself
         await app.historyButton.focus();
         await page.keyboard.press("Escape");
-        await expect(app.historyList).toBeHidden();
+        await expect(app.historyList).toBeVisible();
         await expect(app.historyButton).toBeFocused();
+        expect(await app.editor.evaluate((e) => e.query)).toBe("SELECT 'untouched' AS q;");
     });
 
-    test("a click outside closes it, and so does moving on with Tab", async ({ page, app }) => {
+    test("a click elsewhere does not close it, nor does moving on with Tab; the tab list moves with the arrow keys", async ({ page, app }) => {
         await runFive(app);
         await app.historyButton.click();
         await expect(app.historyList).toBeVisible();
-        await page.mouse.click(1200, 600); // empty page below the schema panel
-        await expect(app.historyList).toBeHidden();
-        await app.historyButton.click();
+        await page.locator("#status-database").click(); // the status bar
         await expect(app.historyList).toBeVisible();
         await app.editor.click();
-        await expect(app.historyList).toBeHidden();
+        await expect(app.historyList).toBeVisible();
+        // the tab itself does not toggle it off
         await app.historyButton.click();
         await expect(app.historyList).toBeVisible();
-        // the toggle itself closes it again
-        await app.historyButton.click();
-        await expect(app.historyList).toBeHidden();
-        // Tab out of the last entry
-        await app.historyButton.click();
+        await expect(app.historyButton).toHaveAttribute("aria-selected", "true");
+        // Tab out of the last entry: on to the sidebar splitter, the list stays
+        await page.keyboard.press("Tab");
         await page.keyboard.press("End");
         await page.keyboard.press("Tab");
+        await expect(page.locator("#sidebar-splitter")).toBeFocused();
+        await expect(app.historyList).toBeVisible();
+        // Shift+Tab goes back to the entry the list left off on
+        await page.keyboard.press("Shift+Tab");
+        await expect(app.historyEntries.last()).toBeFocused();
+        // the tabs are left with the arrow keys and the list is hidden with its panel, not lost
+        await app.historyButton.focus();
+        await page.keyboard.press("ArrowLeft");
+        await expect(app.tab("exercises")).toHaveAttribute("aria-selected", "true");
         await expect(app.historyList).toBeHidden();
+        await page.keyboard.press("ArrowRight");
+        await expect(app.historyButton).toHaveAttribute("aria-selected", "true");
+        await expect(app.historyEntries).toHaveCount(5);
     });
 
     test("an empty log shows a short message instead of a list", async ({ app }) => {
@@ -536,38 +564,42 @@ test.describe("the history popup", () => {
         expect(await app.historyList.locator("ul, ol, li").count()).toBe(0);
     });
 
-    test("it shows the log of the open database only, and closes when another database opens", async ({ page, app }) => {
+    test("it shows the log of the open database only, and follows the database when another opens", async ({ page, app }) => {
         await withSampleDataset(page);
         await app.open();
         await app.query("SELECT 'north' AS q;");
         await app.historyButton.click();
         await expect(app.historyEntries).toHaveCount(1);
-        await app.picker.selectOption("sample");
-        await expect(app.historyList).toBeHidden();
-        await expect(app.picker).toHaveValue("sample");
+        await app.pickDatabase("Sample Fruit");
+        await expect(app.databaseLabel).toHaveText("Sample Fruit");
         await app.waitReady();
-        await app.historyButton.click();
+        // the tab, still shown, now lists the other database's log: nothing yet
+        await expect(app.historyButton).toHaveAttribute("aria-selected", "true");
         await expect(app.historyList).toContainText("Nothing yet");
-        await page.keyboard.press("Escape");
+        await expect(app.historyEntries).toHaveCount(0);
         await app.query("SELECT 'sample' AS q;");
         await app.historyButton.click();
         await expect(app.historyEntries).toHaveCount(1);
         await expect(app.historyEntries.first()).toContainText("'sample'");
     });
 
-    test("entries added after it was last opened are there when it opens again", async ({ page, app }) => {
+    test("entries added after it was last shown are there when it is shown again", async ({ app }) => {
         await app.open();
         await app.query("SELECT 1;");
         await app.historyButton.click();
         await expect(app.historyEntries).toHaveCount(1);
-        await page.keyboard.press("Escape");
+        await app.openTab("schema");
         await app.query("SELECT 2;");
         await app.historyButton.click();
         await expect(app.historyEntries).toHaveCount(2);
         await expect(app.historyEntries.first()).toContainText("SELECT 2;");
+        // and while it is shown, a Run adds its entry at once
+        await app.query("SELECT 3;");
+        await expect(app.historyEntries).toHaveCount(3);
+        await expect(app.historyEntries.first()).toContainText("SELECT 3;");
     });
 
-    test("hostile SQL, errors and storage text show as text and run nothing", async ({ page, app }) => {
+    test("hostile SQL, errors and storage text show as text and run nothing", async ({ app }) => {
         await app.open();
         await app.query(`SELECT '${PAYLOAD}' AS "${PAYLOAD.replaceAll('"', "")}";`);
         await app.run(`SELECT * FROM "${PAYLOAD}";`);
@@ -604,10 +636,10 @@ test.describe("the history popup", () => {
     });
 });
 
-test.describe("the popup fits the screen", () => {
+test.describe("the History tab fits the screen", () => {
     const long = `SELECT ${Array.from({ length: 80 }, (_, i) => `'value number ${i}' AS column_${i}`).join(", ")} FROM products;`;
     const seeded = [
-        ...entries(8),
+        ...entries(17),
         { t: "2026-11-09T11:00:00Z", sql: long, rows: 20 },
         { t: "2026-11-09T11:00:01Z", sql: "SELECT 1\nFROM a\nWHERE b;", error: "no such table: a with a rather long engine message that goes on and on" },
         { t: "2026-11-09T11:00:02Z", sql: "x".repeat(300), rows: 0 },
@@ -628,7 +660,7 @@ test.describe("the popup fits the screen", () => {
 
     for (const width of [1280, 768, 390]) {
         for (const colorScheme of ["light", "dark"]) {
-            test(`at ${width}px wide in the ${colorScheme} scheme the open popup is whole, readable and causes no sideways scroll`, async ({
+            test(`at ${width}px wide in the ${colorScheme} scheme the shown list is whole, readable and causes no sideways scroll`, async ({
                 page,
                 app,
             }) => {
@@ -638,22 +670,30 @@ test.describe("the popup fits the screen", () => {
                 await app.seedLog("northlight", seeded);
                 await app.historyButton.click();
                 await expect(app.historyEntries).toHaveCount(seeded.length);
-                await app.historyList.scrollIntoViewIfNeeded();
+                await page.locator("#panel-history").scrollIntoViewIfNeeded();
 
                 const m = await page.evaluate(() => {
                     const list = document.querySelector("#run-history-list");
-                    const r = list.getBoundingClientRect();
+                    // the pane the list scrolls in: it is what has to sit on the screen
+                    const panel = document.querySelector("#panel-history");
+                    const r = panel.getBoundingClientRect();
                     const doc = document.documentElement;
                     const hit = (x, y) => {
                         const el = document.elementFromPoint(x, y);
-                        return Boolean(el && (el === list || list.contains(el)));
+                        return Boolean(el && (el === panel || panel.contains(el)));
                     };
                     const inset = 6;
                     const buttons = [...list.querySelectorAll("button")];
+                    // the colour the list is painted on: the first ancestor with a background
+                    let ground = list;
+                    while (ground && getComputedStyle(ground).backgroundColor === "rgba(0, 0, 0, 0)") {
+                        ground = ground.parentElement;
+                    }
                     return {
                         rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom },
                         viewport: { w: window.innerWidth, h: window.innerHeight },
                         pageOverflow: doc.scrollWidth - doc.clientWidth,
+                        panelOverflowX: panel.scrollWidth - panel.clientWidth,
                         listOverflowX: list.scrollWidth - list.clientWidth,
                         corners: [
                             hit(r.left + inset, r.top + inset),
@@ -663,8 +703,8 @@ test.describe("the popup fits the screen", () => {
                             hit((r.left + r.right) / 2, (r.top + r.bottom) / 2),
                         ],
                         buttonOverflow: Math.max(...buttons.map((b) => b.scrollWidth - b.clientWidth)),
-                        scrollable: list.scrollHeight > list.clientHeight,
-                        list: { bg: getComputedStyle(list).backgroundColor, color: getComputedStyle(list).color },
+                        scrollable: panel.scrollHeight > panel.clientHeight,
+                        ground: ground ? getComputedStyle(ground).backgroundColor : null,
                         sql: getComputedStyle(buttons[0].querySelector(".run-history-sql")).color,
                         error: getComputedStyle(list.querySelector(".run-history-outcome--error")).color,
                         outcome: getComputedStyle(buttons[0].querySelector(".run-history-outcome")).color,
@@ -676,37 +716,40 @@ test.describe("the popup fits the screen", () => {
                 expect(m.rect.top).toBeGreaterThanOrEqual(0);
                 expect(m.rect.bottom).toBeLessThanOrEqual(m.viewport.h);
                 expect(m.pageOverflow).toBeLessThanOrEqual(0);
+                expect(m.panelOverflowX).toBeLessThanOrEqual(0);
                 expect(m.listOverflowX).toBeLessThanOrEqual(0);
                 expect(m.buttonOverflow).toBeLessThanOrEqual(0);
-                expect(m.corners, "no ancestor clips the popup and nothing covers it").toEqual([true, true, true, true, true]);
-                // eleven entries do not all fit: the list scrolls inside itself rather than growing off screen
+                expect(m.corners, "no ancestor clips the tab's panel and nothing covers it").toEqual([true, true, true, true, true]);
+                // twenty entries do not all fit: the panel scrolls inside itself rather than growing off screen
                 expect(m.scrollable).toBe(true);
                 // colours follow the scheme and are readable
-                expect(m.list.bg).toBe(colorScheme === "dark" ? "rgb(23, 28, 37)" : "rgb(252, 253, 252)"); // --paper
+                expect(m.ground).toBe(colorScheme === "dark" ? "rgb(16, 20, 27)" : "rgb(238, 241, 240)"); // --desk, the ground of the sidebar
                 for (const colour of [m.sql, m.error, m.outcome, m.time]) {
-                    expect(contrast(colour, m.list.bg)).toBeGreaterThanOrEqual(4.5);
+                    expect(contrast(colour, m.ground)).toBeGreaterThanOrEqual(4.5);
                 }
 
                 // the last entry can be reached by scrolling the list, and picked
+                // (the focus is put on the list's Tab stop directly: Firefox also makes a scrolling panel a
+                // Tab stop of its own, which the long list is here)
+                await app.historyEntries.first().focus();
                 await page.keyboard.press("End");
                 await expect(app.historyEntries.last()).toBeInViewport();
                 await page.keyboard.press("Enter");
-                await expect(app.historyList).toBeHidden();
                 expect(await app.editor.evaluate((e) => e.query)).toBe(seeded[0].sql);
 
-                // closed, the page is as wide as before
+                // after the pick, the page is as wide as before
                 expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
-                await page.screenshot({ path: test.info().outputPath(`popup-${width}-${colorScheme}.png`) });
+                await page.screenshot({ path: test.info().outputPath(`history-${width}-${colorScheme}.png`) });
             });
         }
     }
 
-    test("the popup is as wide as the screen allows with a long error message at 390px", async ({ page, app }) => {
+    test("the entries are as wide as the screen allows with a long error message at 390px", async ({ page, app }) => {
         await page.setViewportSize({ width: 390, height: 700 });
         await app.open();
         await app.seedLog("northlight", seeded);
         await app.historyButton.click();
-        const box = await app.historyList.boundingBox();
+        const box = await app.historyEntries.first().boundingBox();
         expect(box.x).toBeGreaterThanOrEqual(8);
         expect(box.x + box.width).toBeLessThanOrEqual(390 - 8);
         expect(box.width).toBeGreaterThan(300);

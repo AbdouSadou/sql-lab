@@ -8,7 +8,7 @@ const QUERIES = {
     view: "SELECT name, price FROM v_priced ORDER BY price;",
 };
 
-// Export is the toolbar's export button: a real click, a real download event.
+// Export is the Export menu's "Database (.db)…" item and its dialog: real clicks, a real download event.
 test("AC3 uploading a .db file works", async ({ app }) => {
     await app.open();
     await app.upload(FIXTURE);
@@ -19,7 +19,7 @@ test("AC3 uploading a .db file works", async ({ app }) => {
     expect(fruit.rows).toHaveLength(4);
     expect(fruit.rows[0]).toEqual(["1", "apple", "0.5", "crisp"]);
     expect((await app.query(QUERIES.view)).rows).toHaveLength(4);
-    await expect(app.page.locator("#db-name")).toContainText("sample.db");
+    await expect(app.databaseLabel).toContainText("sample.db");
 });
 
 test("AC3 export then re-upload round-trips", async ({ page, app }) => {

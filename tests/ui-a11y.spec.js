@@ -1,15 +1,17 @@
 // UI plan (docs/design), section 8: accessibility proof. axe-core finds no serious or critical
-// violation in any state of the screenshot matrix (tests/ui-states.js), in either theme, at desktop
-// and phone width; and a keyboard-only session loads the page, opens a database, runs a query and
+// violation in any state of the screenshot matrix (tests/ui-states.js), in either theme, at each of
+// its window sizes; and a keyboard-only session loads the page, opens a database, runs a query and
 // completes one exercise.
 
 const AxeBuilder = require("@axe-core/playwright").default;
-const { test, expect, withSampleDataset, modelQuery } = require("./helpers");
+const { test, expect, withSampleDataset, modelQuery, tabTo } = require("./helpers");
 const { RECIPES } = require("./ui-states.js");
 
-const STATES = RECIPES.legacy.states;
+const STATES = RECIPES.shell.states;
+// the window sizes of the screenshot matrix
 const VIEWPORTS = [
     { name: "desktop", width: 1366, height: 768 },
+    { name: "large desktop", width: 1920, height: 1080 },
     { name: "phone", width: 390, height: 844 },
 ];
 
@@ -45,48 +47,49 @@ test.describe("360 px wide", () => {
     }
 });
 
-// Press Tab (or Shift+Tab) until the focused element matches `selector`; keys only.
-async function tabTo(page, selector, { back = false, max = 40 } = {}) {
-    for (let i = 0; i < max; i++) {
-        if (await page.evaluate((s) => document.activeElement?.matches(s) ?? false, selector)) {
-            return;
-        }
-        await page.keyboard.press(back ? "Shift+Tab" : "Tab");
-    }
-    throw new Error(`Tab never reached ${selector}`);
-}
-
 test("keyboard only: load the page, open a database, run a query, complete one exercise", async ({ page, app }) => {
     await withSampleDataset(page);
     await app.open();
 
-    // open a database: from the editor (focused after load), out with Escape, back to the Dataset
-    // picker, and the arrow key chooses the next database
+    // open a database: from the editor (focused after load), out with Escape, back to the
+    // database switcher; its menu opens on the open database and the arrow key moves to the next
     await expect(app.editor).toBeFocused();
     await page.keyboard.press("Escape");
-    await tabTo(page, "#dataset-picker", { back: true });
+    expect(await tabTo(page, "#database-button", { back: true }), "Tab reaches #database-button").toBe(true);
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#database-menu")).toBeVisible();
     await page.keyboard.press("ArrowDown");
-    await expect(page.locator("#db-name")).toContainText("sample.db");
+    await expect(page.locator("#database-menu").getByRole("menuitemradio", { name: /^Sample Fruit/ })).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(app.databaseLabel).toHaveText("Sample Fruit");
     await app.waitReady();
 
     // run a query on it
-    await tabTo(page, "#editor");
+    expect(await tabTo(page, "#editor"), "Tab reaches #editor").toBe(true);
     await page.keyboard.press("Control+A");
     await page.keyboard.type("SELECT count(*) AS n FROM fruit;");
     await page.keyboard.press("Control+Enter");
     await expect(app.status).toContainText(/1 row, took/);
     await expect(app.table).toBeVisible();
 
-    // complete one exercise: the Exercises picker, the first set, its first exercise
+    // complete one exercise: the Exercises tab (arrow keys along the tabs), its set picker, the
+    // first set, its first exercise
     await page.keyboard.press("Escape");
-    await tabTo(page, "#exercise-set-picker", { back: true });
+    expect(await tabTo(page, "#tab-schema", { back: true }), "Tab reaches #tab-schema").toBe(true);
+    await page.keyboard.press("ArrowRight");
+    await expect(app.tab("exercises")).toBeFocused();
+    await expect(page.locator("#panel-exercises")).toBeVisible();
+    expect(await tabTo(page, "#exercise-set-picker"), "Tab reaches #exercise-set-picker").toBe(true);
+    await page.keyboard.press("Enter");
+    await expect(app.setMenu).toBeVisible();
     await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
     await expect(app.exercisePanel).toBeVisible();
     await app.waitReady();
-    await tabTo(page, "#editor");
+    expect(await tabTo(page, "#editor"), "Tab reaches #editor").toBe(true);
     await page.keyboard.press("Control+A");
     await page.keyboard.type(modelQuery("e01"));
     await page.keyboard.press("Control+Shift+Enter");
     await expect(app.feedback).toContainText("Passed");
-    await expect(app.progress).toContainText("1/10 complete");
+    await expect(app.progress).toContainText("1 of 10 complete");
 });

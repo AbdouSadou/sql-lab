@@ -87,8 +87,9 @@ legacy.states = {
         await page.getByRole("button", { name: "Columns of table products", exact: true }).click();
         await page.locator("#schema .schema-column").first().waitFor();
     },
-    // The native selects (Dataset, Exercises) open outside the page and never appear in a
-    // screenshot, so the menus drawn open are the history popup and, from Phase 1, the Theme menu.
+    // (The interface before Phase 2.) Its native selects (Dataset, Exercises) open outside the
+    // page and never appear in a screenshot, so the menus drawn open are the history popup and,
+    // from Phase 1, the Theme menu.
     "menu-history": async (page) => {
         await legacy.open(page);
         await legacy.run(page, "SELECT * FROM stores;");
@@ -125,7 +126,71 @@ legacy.states = {
     },
 };
 
+// The app shell of Phase 2: a top bar with menus, a sidebar with tabs, the query above its result.
+const shell = {
+    open: legacy.open,
+    run: legacy.run,
+    async menu(page, button, menu) {
+        await page.locator(button).click();
+        await page.locator(menu).waitFor({ state: "visible" });
+        // the switcher's sizes arrive with a HEAD request after it opens
+        await page.waitForTimeout(150);
+    },
+};
+
+shell.states = {
+    // Phase 4 brings the empty state; until then a first visit runs a preview of the first table.
+    "first-visit": legacy.states["first-visit"],
+    "no-result": legacy.states["no-result"],
+    result: legacy.states.result,
+    error: legacy.states.error,
+    "schema-expanded": async (page) => {
+        await shell.open(page);
+        await page.getByRole("button", { name: "Columns of table products", exact: true }).click();
+        await page.locator("#schema .schema-column").first().waitFor();
+    },
+    "menu-database": async (page) => {
+        await shell.open(page);
+        await shell.menu(page, "#database-button", "#database-menu");
+    },
+    "menu-export": async (page) => {
+        await shell.open(page);
+        await shell.run(page, RESULT_SQL);
+        await shell.menu(page, "#export-button", "#export-menu");
+    },
+    "menu-theme": async (page) => {
+        await shell.open(page);
+        await shell.menu(page, "#theme-button", "#theme-menu");
+    },
+    "menu-help": async (page) => {
+        await shell.open(page);
+        await shell.menu(page, "#help-button", "#help-popover");
+    },
+    "menu-exercise-set": async (page) => {
+        await shell.open(page, `./?set=${EXERCISE.set}&ex=${EXERCISE.ex}`);
+        await shell.menu(page, "#exercise-set-picker", "#exercise-set-menu");
+    },
+    history: async (page) => {
+        await shell.open(page);
+        await shell.run(page, "SELECT * FROM stores;");
+        await shell.run(page, ERROR_SQL, /no such column/);
+        await shell.run(page, RESULT_SQL);
+        await page.locator("#tab-history").click();
+        await page.locator("#run-history-list button").first().waitFor();
+    },
+    "evidence-dialog": async (page) => {
+        await shell.open(page);
+        await shell.run(page, RESULT_SQL);
+        await page.locator("#export-button").click();
+        await page.locator("#export-evidence").click();
+        await page.locator("#evidence-dialog").waitFor({ state: "visible" });
+    },
+    "exercise-prompt": legacy.states["exercise-prompt"],
+    "exercise-correct": legacy.states["exercise-correct"],
+    "exercise-wrong": legacy.states["exercise-wrong"],
+};
+
 // The theme menu (menu-theme) exists only from Phase 1; the before shots were taken without it.
-const RECIPES = { legacy };
+const RECIPES = { legacy, shell };
 
 module.exports = { RECIPES, RESULT_SQL, ERROR_SQL, EXERCISE, CORRECT_SQL, WRONG_SQL };

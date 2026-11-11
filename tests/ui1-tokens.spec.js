@@ -140,8 +140,12 @@ test.describe("tokens", () => {
     test("every var() in the site's CSS is a defined custom property", () => {
         const css = ownFiles().filter((f) => f.endsWith(".css"));
         const defined = new Set(css.flatMap((f) => [...read(f).matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m[1])));
-        // set from script (js/lab/command-bar-fit.js), read with a fallback
-        defined.add("--commandbar-clearance");
+        // set from script (js/lab/layout.js, from the splitters and the window), read with a fallback
+        defined.add("--sidebar-width");
+        defined.add("--editor-height");
+        defined.add("--prompt-max");
+        // set from script (js/lab/menu.js: the room beside a popover's button)
+        defined.add("--popover-room");
         const missing = css.flatMap((f) => [...read(f).matchAll(/var\((--[a-z0-9-]+)/g)].map((m) => m[1]).filter((v) => !defined.has(v)).map((v) => `${f}: ${v}`));
         expect(missing).toEqual([]);
     });

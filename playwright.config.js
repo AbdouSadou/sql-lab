@@ -32,6 +32,8 @@ const projects = browsers.flatMap(([name, device]) =>
     Object.entries(MOUNTS).map(([mountName, m]) => ({
         name: `${name}-${mountName}`,
         use: { ...device, baseURL: origin(m) },
+        // the screenshot baselines (tests/ui-visual.spec.js) are kept for one engine at one mount
+        ...(name === "chromium" && mountName === "root" ? {} : { testIgnore: /ui-visual\.spec\.js$/ }),
     }))
 );
 

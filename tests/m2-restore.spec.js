@@ -15,8 +15,8 @@ test("restore: saved SQL comes back in the editor on reload and is not run", asy
     await expect(app.status).toContainText("Press Run to execute it");
     await expect(app.table).toHaveCount(0);
     await expect(app.status).not.toContainText("took");
-    // the command bar is usable straight away, and Run runs the restored SQL
-    await expect(page.locator("#commandbar")).not.toHaveClass(/sqlime-disabled/);
+    // Run is usable straight away, and it runs the restored SQL
+    await expect(page.locator("#execute")).toBeEnabled();
     await page.locator("#execute").click();
     expect(await app.read()).toEqual({ columns: ["marker"], rows: [["11"]] });
 });

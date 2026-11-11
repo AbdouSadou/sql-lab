@@ -227,15 +227,16 @@ test("None while a set's dataset is loading leaves the idle status, not 'Loading
         await route.fulfill({ path: SAMPLE_FILE, contentType: "application/octet-stream" });
     });
     await app.open();
-    await app.setPicker.selectOption("fruit");
+    await app.pickSet("Fruit practice");
     await expect(app.status).toContainText("Loading database");
-    await app.setPicker.selectOption("");
+    await app.pickSet("None");
     await expect(app.status).toHaveText("Run SQL query to see the results");
     // the late response changes nothing
     await page.waitForTimeout(2200);
     await expect(app.status).toHaveText("Run SQL query to see the results");
     await expect(app.exercisePanel).toBeHidden();
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
+    expect(await page.evaluate(() => window.app.database.name)).toBe("northlight_retail.db");
     // and Run still works
     expect((await app.query("select count(*) as n from stores")).rows).toEqual([["5"]]);
 });
@@ -357,7 +358,7 @@ test("passing the last exercise says the set is complete and offers no next step
     await seedProgress(page, ALL.filter((id) => id !== "e10"));
     await app.openSet("retail-basics", { ex: "e10" });
     await passExercise(app, "e10");
-    await expect(app.progress).toHaveText("10/10 complete");
+    await expect(app.progress).toHaveText("10 of 10 complete");
     await expect(app.feedback).toContainText("All 10 exercises complete");
     await expect(app.feedback.getByRole("button")).toHaveCount(0);
 });
@@ -377,18 +378,25 @@ test("choosing an exercise from the list announces it and leaves the focus on th
 
 // ---- the phone gutter ----------------------------------------------------------------------------
 
-test("on a phone the editor and the command bar have the same side gutter as the panel", async ({ page, app }) => {
+test("on a phone the editor and the editor toolbar have the same side gutter as the exercise prompt", async ({ page, app }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await app.openSet();
+    // Each of the three is a full-width pane that pads its own content, so the gutter is the edge of
+    // its content box (the box less its side padding), measured from the window's edge.
     const boxes = await page.evaluate(() => {
         const box = (selector) => {
-            const r = document.querySelector(selector).getBoundingClientRect();
-            return { left: Math.round(r.left), right: Math.round(r.right) };
+            const el = document.querySelector(selector);
+            const r = el.getBoundingClientRect();
+            const style = getComputedStyle(el);
+            return {
+                left: Math.round(r.left + parseFloat(style.paddingLeft)),
+                right: Math.round(r.right - parseFloat(style.paddingRight)),
+            };
         };
         return {
             panel: box("#exercise-panel"),
             editor: box("#editor"),
-            bar: box("#commandbar"),
+            bar: box("#editor-toolbar"),
             noScroll: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
         };
     });

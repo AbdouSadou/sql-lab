@@ -39,6 +39,16 @@ function isEmpty(database) {
     return database.db.selectValue("select count(*) from sqlite_schema") === 0;
 }
 
+// exportProblem says why the open database cannot be saved before anything is asked (it is empty),
+// or returns null. A failure of the engine is left to serializeDatabase to report.
+export function exportProblem(database) {
+    try {
+        return isEmpty(database) ? EXPORT_EMPTY_MESSAGE : null;
+    } catch {
+        return null;
+    }
+}
+
 // serializeDatabase returns {ok: true, bytes, filename} or {ok: false, message}.
 export function serializeDatabase(database) {
     try {

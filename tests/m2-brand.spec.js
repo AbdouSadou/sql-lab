@@ -3,7 +3,7 @@ const path = require("node:path");
 const { test, expect } = require("./helpers");
 
 const ROOT = path.resolve(__dirname, "..");
-// the credit in the footer of every page, and the upstream credit the About page also gives in its text
+// the credit in the footer of every page (the status bar of the app), and the upstream credit the About page also gives in its text
 const FOOTER_CREDIT = "Made by Abdou Sadou, based on SQLime by Anton Zhiyanov";
 const CREDIT = "Based on SQLime by Anton Zhiyanov";
 const SAMPLE = path.join(__dirname, "fixtures", "sample.db");
@@ -48,6 +48,9 @@ test("brand: the app name is written in js/lab/config.js and nowhere else", () =
     // student's saved progress.
     expect(hits.map((h) => h.replace(/:\d+:/, ":"))).toEqual([
         'js/lab/config.js: export const APP_NAME = "SQL Lab";',
+        // the key the pane sizes and the collapsed sidebar are kept under (UI plan, Phase 2): a
+        // storage key like the others, not the app name
+        'js/lab/config.js: export const LAYOUT_STORAGE_KEY = "sqllab.layout";',
         // and the theme choice (UI plan, Phase 1); the boot script that applies it before the
         // first paint cannot import config.js, so it repeats the key (tests/ui1-tokens.spec.js
         // checks that the two agree)
@@ -59,11 +62,12 @@ test("brand: the app name is written in js/lab/config.js and nowhere else", () =
     ]);
 });
 
-test("brand: the default name shows in the title, header and footer of index and About", async ({ page, app }) => {
+test("brand: the default name shows in the title, top bar and status bar of index, and in the header and footer of About", async ({ page, app }) => {
     await app.open();
     await expect(page).toHaveTitle("northlight_retail.db - SQL Lab");
-    await expect(page.locator("header h1")).toContainText("SQL Lab");
-    await expect(page.locator("footer")).toContainText("SQL Lab");
+    // the app name is the brand of the top bar, and it leads the credit in the status bar
+    await expect(page.locator("header.topbar h1 a#reset")).toContainText("SQL Lab");
+    await expect(page.locator("footer.statusbar")).toContainText("SQL Lab");
 
     await page.goto("about.html");
     await expect(page).toHaveTitle("About - SQL Lab");
@@ -76,7 +80,7 @@ test("brand: the default name shows in the title, header and footer of index and
     await expect(page.locator("body > footer")).toContainText("SQL Lab");
 });
 
-test("brand: renaming through a copy of js/lab/config.js changes title, header and footer on index and About", async ({
+test("brand: renaming through a copy of js/lab/config.js changes title, top bar and status bar on index, and header and footer on About", async ({
     page,
     app,
 }) => {
@@ -84,8 +88,8 @@ test("brand: renaming through a copy of js/lab/config.js changes title, header a
 
     await app.open();
     await expect(page).toHaveTitle("northlight_retail.db - Renamed Workbench");
-    await expect(page.locator("header h1")).toContainText("Renamed Workbench");
-    await expect(page.locator("footer")).toContainText("Renamed Workbench");
+    await expect(page.locator("header.topbar h1 a#reset")).toContainText("Renamed Workbench");
+    await expect(page.locator("footer.statusbar")).toContainText("Renamed Workbench");
 
     // The title that combines a database name with the app name is built from the constant too.
     await app.upload(SAMPLE);
@@ -113,17 +117,14 @@ test("brand: renaming through a copy of js/lab/config.js changes title, header a
 
 test("brand: renaming a database keeps the app name in the title", async ({ page, app }) => {
     await app.open();
-    const name = page.locator("#db-name");
-    await name.click();
-    await page.keyboard.press("Control+A");
-    await page.keyboard.type("lesson1.db");
-    await page.keyboard.press("Enter");
+    await app.rename("lesson1.db");
     await expect(page).toHaveTitle("lesson1.db - SQL Lab");
 });
 
 test("brand: the credit is on index and About", async ({ page, app }) => {
     await app.open();
-    await expect(page.locator("footer")).toContainText(FOOTER_CREDIT);
+    await expect(page.locator("footer.statusbar")).toContainText(FOOTER_CREDIT);
+    await expect(page.locator("footer.statusbar a")).toHaveAttribute("href", "about.html");
     await page.goto("about.html");
     await expect(page.locator("body > footer")).toContainText(FOOTER_CREDIT);
     await expect(page.locator("main")).toContainText(CREDIT);
@@ -140,7 +141,7 @@ test("brand: 'sqlime' appears in visible text only inside the credit", async ({ 
     await app.upload(SAMPLE);
     expect(await visible()).not.toMatch(/sqlime/i);
     expect(await page.title()).not.toMatch(/sqlime/i);
-    await page.locator("#show-tables").click();
+    await app.openTab("schema"); // the tables of the open database are listed
     expect(await visible()).not.toMatch(/sqlime/i);
 
     for (const url of ["about.html", "verify.html"]) {
@@ -196,10 +197,10 @@ test("brand: the favicon files exist, are an original mark and load", async ({ p
     net.expectNoExternalRequests();
 });
 
-test("brand: the footer is visible, inside the screen, and links to About at phone width", async ({ page, app }) => {
+test("brand: the status bar is visible, inside the screen, and links to About at phone width", async ({ page, app }) => {
     await page.setViewportSize({ width: 360, height: 640 });
     await app.open();
-    const footer = page.locator("footer");
+    const footer = page.locator("footer.statusbar");
     await expect(footer).toBeVisible();
     await expect(footer).toContainText(FOOTER_CREDIT);
     await footer.scrollIntoViewIfNeeded();
@@ -207,7 +208,7 @@ test("brand: the footer is visible, inside the screen, and links to About at pho
     const box = await footer.boundingBox();
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(360);
-    // no sideways scrolling, and the footer sits below the editor and the results
+    // no sideways scrolling, and the status bar sits below the editor and the results
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     const status = await page.locator("#status").boundingBox();
     expect(box.y).toBeGreaterThanOrEqual(status.y);
@@ -216,11 +217,11 @@ test("brand: the footer is visible, inside the screen, and links to About at pho
     await expect(page).toHaveURL(/about\.html$/);
 });
 
-test("brand: the footer fits the desktop grid", async ({ page, app }) => {
+test("brand: the status bar fits the desktop app shell", async ({ page, app }) => {
     await page.setViewportSize({ width: 1200, height: 800 });
     await app.open();
-    const footer = await page.locator("footer").boundingBox();
-    const grid = await page.locator(".grid").boundingBox();
+    const footer = await page.locator("footer.statusbar").boundingBox();
+    const grid = await page.locator("#app").boundingBox();
     expect(footer.x).toBeGreaterThanOrEqual(grid.x);
     expect(footer.x + footer.width).toBeLessThanOrEqual(grid.x + grid.width + 1);
     expect(footer.y).toBeGreaterThan((await page.locator("#editor").boundingBox()).y);

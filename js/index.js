@@ -29,38 +29,45 @@ import {
     clearPristine,
     datasetFileName,
     fetchDataset,
+    getPristineId,
     keepPristine,
 } from "./lab/datasets.js";
+import { mountDatabaseSwitcher } from "./lab/database-switcher.js";
 import { mountExercises } from "./lab/exercise-panel.js";
-import { createExportAction } from "./lab/export.js";
+import { createExportAction, exportProblem } from "./lab/export.js";
+import { mountExportDialog } from "./lab/export-dialog.js";
+import { mountExportMenu } from "./lab/export-menu.js";
 import { mountEvidence } from "./lab/evidence-dialog.js";
+import { mountHelp } from "./lab/help.js";
 import { escapeHtml } from "./lab/html.js";
+import { showPlatformKeys } from "./lab/keys.js";
+import { mountLayout } from "./lab/layout.js";
 import { errorText, mountResults } from "./lab/results.js";
 import { resolveRoute } from "./lab/router.js";
 import { mountRunLog } from "./lab/run-log.js";
 import { runSql } from "./lab/runner.js";
 import { mountResultScroll } from "./lab/result-scroll.js";
-import { mountCommandBarFit } from "./lab/command-bar-fit.js";
 import { mountSchema } from "./lab/schema.js";
 import { createSetActions } from "./lab/set-actions.js";
 import { setShareContext } from "./lab/share.js";
-import { mountPlainText } from "./lab/plain-text.js";
+import { guardFileDrops, mountPlainText } from "./lab/plain-text.js";
+import { mountStatusBar } from "./lab/status-bar.js";
 import { mountStorageNotice } from "./lab/storage-notice.js";
-import { tableContentSql, tableInfoSql } from "./lab/sql.js";
+import { tableContentSql } from "./lab/sql.js";
+import { mountTabs } from "./lab/tabs.js";
 import { mountThemeMenu } from "./lab/theme.js";
-import { mountToolbar } from "./lab/toolbar-extras.js";
 
 const ui = {
     buttons: {
         reset: document.querySelector("#reset"),
         execute: document.querySelector("#execute"),
-        showTables: document.querySelector("#show-tables"),
     },
-    name: document.querySelector("#db-name"),
-    toolbar: document.querySelector("#toolbar"),
-    commandbar: document.querySelector("#commandbar"),
+    topbar: document.querySelector(".topbar"),
+    toolbar: document.querySelector("#editor-toolbar"),
+    fileInput: document.querySelector("#open-file-input"),
     editor: document.querySelector("#editor"),
     status: document.querySelector("#status"),
+    summary: document.querySelector("#results-summary"),
     result: document.querySelector("#result"),
 };
 
@@ -68,18 +75,21 @@ const actions = {
     executeCurrent: executeCurrent,
     copyLink: createCopyLinkAction(ui),
     exportDatabase: createExportAction(ui, () => database),
-    showTables: showTables,
-    showTable: showTable,
     visit: visit,
 };
 
 const shortcuts = {
     o: () => {
-        ui.toolbar.btnOpenFile.click();
+        // a menu left open would still be there when the file chooser closes (":popover-open"
+        // is a selector only where the popover attribute exists)
+        if (typeof HTMLElement.prototype.hidePopover === "function") {
+            for (const popover of document.querySelectorAll(":popover-open")) {
+                popover.hidePopover();
+            }
+        }
+        ui.fileInput.click();
     },
     u: openUrl,
-    // a rejection means the message is already on the screen (an empty or missing database)
-    "/": () => showTables().catch(ignoreRejection),
 };
 
 let database;
@@ -102,9 +112,9 @@ function beginLoad() {
 }
 
 // endLoad ends a load. Only the latest load counts: an older one that finishes late must
-// not end the newer one. A load that ended without opening a database (opened=false) puts
-// the picker back on the database that is open, because the student's choice was not
-// carried out and choosing the same dataset again fires no change event.
+// not end the newer one. A load that ended without opening a database (opened=false) shows
+// the database that is open in the switcher and the set picker again, because the student's
+// choice was not carried out.
 function endLoad(ticket, opened) {
     if (ticket !== latestLoad) {
         return;
@@ -125,26 +135,45 @@ window.app = {
     },
 };
 
-// The dataset picker and the export button live in the toolbar (js/lab/toolbar-extras.js).
-const picker = mountToolbar(ui.toolbar, {
+// The database switcher of the top bar (js/lab/database-switcher.js): the course databases,
+// "Open a file…" and "Open from URL…".
+const picker = mountDatabaseSwitcher({
+    button: document.querySelector("#database-button"),
+    label: document.querySelector("#database-button-name"),
+    menu: document.querySelector("#database-menu"),
     onSelect: startFromDataset,
-    onExport: () => actions.exportDatabase(),
+    onOpenFile: () => ui.fileInput.click(),
+    onOpenUrl: openUrl,
 });
 
-// The theme menu (js/lab/theme.js), at the end of the footer for now: the header row is full
-// at 768 and 1200 px (the toolbar keeps one row next to the title). Phase 2 of the UI plan moves
-// it into the top bar.
-mountThemeMenu(document.querySelector(".footer-theme"), { buttonClass: "footer-button" });
+// The theme menu (js/lab/theme.js) and Help (js/lab/help.js), in the top bar.
+mountThemeMenu(document.querySelector(".topbar-theme"), { buttonClass: "button button--quiet" });
+mountHelp({ button: document.querySelector("#help-button"), popover: document.querySelector("#help-popover") });
 
-// Exercise mode: the set picker, the panel and the Check button (js/lab/exercise-panel.js).
+// The sidebar's tabs (js/lab/tabs.js); the History tab draws its list when it is shown.
+const tabs = mountTabs(document.querySelector("#sidebar .tabs"), {
+    onShow: (id) => {
+        if (id === "tab-history") {
+            runLog?.refresh();
+        }
+    },
+});
+
+// Exercise mode: the Exercises tab, the prompt and Check answer (js/lab/exercise-panel.js).
 // It follows the page through the events below; the callbacks are how it asks for a load.
 const lab = mountExercises({
-    toolbar: ui.toolbar,
+    pickerSlot: document.querySelector(".exercise-set-picker-slot"),
     ui: ui,
     execute: (sql) => execute(sql),
     isLoading: () => loading,
     openSet: (set) => setActions.openSet(set),
     closeSet: () => setActions.closeSet(),
+    // a set that opens shows its tab, and the sidebar if it was hidden: the exercise list,
+    // the progress and Reset progress live there
+    showTab: () => {
+        layout.showSidebar();
+        tabs.show("tab-exercises");
+    },
 });
 
 // What choosing a set (or "None") does is decided in js/lab/set-actions.js; these are the
@@ -160,39 +189,89 @@ const setActions = createSetActions({
     showInvite: () => ui.status.info(MESSAGES.invite),
 });
 
-// The schema sidebar (js/lab/schema.js) follows the page through the events below.
-mountSchema({ aside: document.querySelector("#schema"), editor: ui.editor });
+// The Schema tab (js/lab/schema.js) follows the page through the events below.
+mountSchema({ container: document.querySelector("#schema"), editor: ui.editor });
 
 // The "scroll sideways" note under a result that is wider than its box (js/lab/result-scroll.js).
 mountResultScroll({ result: ui.result, note: document.querySelector("#result-scroll-note") });
 
-// The room the editor leaves for the command bar follows the bar's height (js/lab/command-bar-fit.js).
-mountCommandBarFit({ editor: ui.editor, bar: ui.commandbar });
-
 // F5: the row cap, timing, the failing statement and Download CSV (js/lab/results.js);
 // showResult and showError below delegate to it.
-const results = mountResults({ ui, getDatabase: () => database });
+const results = mountResults({ ui, summary: ui.summary, getDatabase: () => database });
 
-// F6 run log and its history popup (js/lab/run-log.js), and F11 evidence export
+// F6 run log in the History tab (js/lab/run-log.js), and F11 evidence export
 // (js/lab/evidence-dialog.js); both follow the page through the events below.
-const runLog = mountRunLog({ ui });
-mountEvidence({ toolbar: ui.toolbar, ui, runLog });
+const exportButton = document.querySelector("#export-button");
+const runLog = mountRunLog({
+    ui,
+    list: document.querySelector("#run-history-list"),
+    isShown: () => tabs.current() === "tab-history",
+});
+const evidence = mountEvidence({ ui, runLog, returnFocus: exportButton });
 // one line of notice while the browser cannot keep the run log or the progress
-mountStorageNotice({ ui });
+mountStorageNotice({ ui, before: ui.summary });
 
-// Only text/plain may be pasted or dropped into the editable areas (js/lab/plain-text.js).
+// The Export menu (js/lab/export-menu.js): the database (a dialog that also renames it, as the
+// old editable name did), the result as CSV, the evidence file.
+const exportDialog = mountExportDialog({
+    returnFocus: exportButton,
+    getName: () => (database ? database.name : null),
+    getProblem: () => exportProblem(database),
+    onExport: (name) => {
+        if (name !== database.name) {
+            changeName(name);
+        }
+        actions.exportDatabase();
+    },
+    // as the old export button: the reason in the status line, the result left as it is
+    onNoDatabase: (message) => ui.status.error(escapeHtml(message)),
+});
+mountExportMenu({ button: exportButton, menu: document.querySelector("#export-menu"), onDatabase: exportDialog.open, results, evidence });
+
+// The status bar (js/lab/status-bar.js), the pane sizes (js/lab/layout.js) and the shortcut
+// names of this platform (js/lab/keys.js).
+const statusBar = mountStatusBar({
+    database: document.querySelector("#status-database"),
+    run: document.querySelector("#status-run"),
+    version: document.querySelector("#status-version"),
+});
+const layout = mountLayout({
+    app: document.querySelector("#app"),
+    sidebar: document.querySelector("#sidebar"),
+    sidebarSplitter: document.querySelector("#sidebar-splitter"),
+    main: document.querySelector("#main"),
+    prompt: document.querySelector("#exercise-panel"),
+    toolbar: ui.toolbar,
+    editorPane: document.querySelector("#editor-pane"),
+    editorSplitter: document.querySelector("#editor-splitter"),
+    resultsPane: document.querySelector("#results-pane"),
+    result: ui.result,
+    feedback: document.querySelector("#exercise-feedback"),
+});
+showPlatformKeys();
+
+// The skip link focuses the editor: following its #editor would change the address, which
+// the router would take for a database to open.
+document.querySelector(".skip-link").addEventListener("click", (event) => {
+    event.preventDefault();
+    ui.editor.focus();
+});
+
+// Only text/plain may be pasted or dropped into the editor, and a file dropped anywhere is not
+// opened in place of the page (js/lab/plain-text.js).
 mountPlainText(ui.editor);
-mountPlainText(ui.name, { singleLine: true });
+guardFileDrops();
 
 // announce tells the rest of the page (and the lab modules) what just happened:
 //   lab:database-loaded  detail {database, dataset, exercise}: a database is open; dataset is
 //                        the manifest entry, or null for an upload, a URL or the empty
 //                        database; exercise is {set, exerciseId} when an exercise set was
 //                        opened with it, else null (the exercise panel closes)
-//   lab:run-finished     detail {database, sql, ok, rows, error, preview}: after every run,
-//                        failed ones too (statements before the error stay applied); rows is
-//                        the full row count, error the engine's message alone on one line;
-//                        preview is true for the table preview the app runs on its own
+//   lab:run-finished     detail {database, sql, ok, rows, error, preview, elapsed}: after
+//                        every run, failed ones too (statements before the error stay
+//                        applied); rows is the full row count, error the engine's message alone
+//                        on one line; preview is true for the table preview the app runs on its
+//                        own; elapsed is how long a successful run took, in whole ms
 function announce(type, detail) {
     document.dispatchEvent(new CustomEvent(type, { detail }));
 }
@@ -216,7 +295,6 @@ async function startFromCurrentUrl() {
     showStarted({ shared: started.shared, notice: started.notice, exercise: started.exercise });
     if (started.errors.length) {
         ui.status.error(escapeHtml(started.errors.join(" ")));
-        enableCommandBar();
     }
 }
 
@@ -419,13 +497,14 @@ async function start(
         : sql ?? (database.query || storage.get(database.name));
 
     document.title = titleFor(database.meaningfulName);
-    ui.name.ready(database.name);
     ui.status.info(MESSAGES.invite);
     ui.editor.value = database.query;
     if (!keepFocus) {
         ui.editor.focus();
     }
 
+    // Run is offered once a database is open (it stays so: a failed switch keeps the open one)
+    ui.buttons.execute.disabled = false;
     announce("lab:database-loaded", { database, dataset, exercise });
     return true;
 }
@@ -475,7 +554,7 @@ function execute(sql, persist = true) {
         // runSql (js/lab/runner.js) is the one way user SQL runs; the exercise checker uses it too
         const result = runSql(run, sql);
         const elapsed = Math.round(performance.now() - started);
-        outcome = { ok: true, rows: result ? result.values.length : 0 };
+        outcome = { ok: true, rows: result ? result.values.length : 0, elapsed };
         showResult(result, elapsed);
         return Promise.resolve();
     } catch (exc) {
@@ -498,9 +577,9 @@ function openUrl() {
     startFromUrl(url);
 }
 
-// changeName changes database name
+// changeName renames the database (from the export dialog)
 function changeName(name) {
-    if (name == ui.name.value && name == database.name) {
+    if (name == database.name) {
         return;
     }
     // Move what is *saved* under the old name. database.query is not that: it can be the
@@ -512,32 +591,29 @@ function changeName(name) {
     if (saved) {
         storage.set(name, saved);
     }
-    ui.name.value = name;
     document.title = titleFor(name);
     picker.rename(name);
+    statusBar.rename(name, { builtIn: getPristineId() !== null });
 }
 
 // showStarted shows the result of successful database load
 // notice is plain text from the router (a link named an unknown dataset, say) that goes
-// with the normal message. focus=false (a pick in the dataset picker) leaves the focus on
-// the picker, so a keyboard user can keep choosing; otherwise the caret ends up at the end
-// of the editor text, after the table preview has replaced that text.
+// with the normal message. focus=false (a pick in the database switcher) leaves the focus on
+// the switcher's button, so a keyboard user can keep choosing; otherwise the caret ends up at
+// the end of the editor text, after the table preview has replaced that text.
 function showStarted({ shared = false, notice = null, focus = true, exercise = null } = {}) {
     const prefix = notice ? `${notice} ` : "";
     if (exercise) {
         // no table preview in exercise mode: the editor holds the link's SQL, a draft or nothing
         const message = database.query ? (shared ? SHARED_MESSAGE : RESTORED_MESSAGE) : MESSAGES.invite;
         ui.status.info(escapeHtml(prefix + message));
-        enableCommandBar();
     } else if (database.query) {
         // SQL restored from storage or from a share link goes in the editor (start()
         // put it there) but is never run: a runaway query saved by an earlier session,
         // or sent in a link, would hang the tab.
         ui.status.info(escapeHtml(prefix + (shared ? SHARED_MESSAGE : RESTORED_MESSAGE)));
-        enableCommandBar();
     } else if (database.tables.length) {
         showTableContent(database.tables[0]);
-        enableCommandBar();
         if (notice) {
             ui.status.info(escapeHtml(notice));
         }
@@ -547,35 +623,6 @@ function showStarted({ shared = false, notice = null, focus = true, exercise = n
     if (focus) {
         caretToEnd(ui.editor);
     }
-}
-
-// showTables shows all database tables
-function showTables() {
-    if (!database) {
-        showError(NO_DATABASE_MESSAGE);
-        return Promise.reject();
-    }
-    const tables = database.gatherTables();
-    if (!tables.length) {
-        ui.status.info("Database is empty");
-        return Promise.reject();
-    }
-    ui.status.info(`${tables.length} tables:`);
-    ui.result.printTables(tables);
-    return Promise.resolve();
-}
-
-// showTable shows specific database table
-function showTable(table) {
-    if (!database) {
-        showError(NO_DATABASE_MESSAGE);
-        return Promise.reject();
-    }
-    const result = database.execute(tableInfoSql(table));
-    const all = actionButton("showTables", "tables");
-    ui.status.info(`${all} / ${escapeHtml(table)}:`);
-    ui.result.print(result);
-    return Promise.resolve();
 }
 
 // showTableContent select data from specified table
@@ -611,30 +658,22 @@ function showError(exc) {
 // shown in the status area, so there is nothing left to report.
 function ignoreRejection() {}
 
-// enableCommandBar enables all buttons
-// in the command bar
-function enableCommandBar() {
-    ui.commandbar.classList.remove("sqlime-disabled");
-}
-
 function visit(page) {
     window.location.assign(`${page}.html`);
     return Promise.resolve();
 }
 
-// User changed database name
-ui.name.addEventListener("change", (event) => {
-    changeName(event.target.value);
-});
-
-// Toolbar 'open file' button click
-ui.toolbar.addEventListener("open-file", (event) => {
-    const file = event.detail;
+// "Open a file…" (the database switcher, Ctrl/Cmd+O): the chosen file
+ui.fileInput.addEventListener("change", () => {
+    const file = ui.fileInput.files[0];
+    if (!file) {
+        return;
+    }
     const reader = new FileReader();
     const fileType = file.name.endsWith(".sql") ? "sql" : "binary";
     reader.onload = function () {
         // forget the chosen file, so choosing the same file again fires a new change event
-        ui.toolbar.file.value = "";
+        ui.fileInput.value = "";
         startFromFile(file, reader.result, fileType);
     };
     if (fileType == "sql") {
@@ -642,11 +681,6 @@ ui.toolbar.addEventListener("open-file", (event) => {
     } else {
         reader.readAsArrayBuffer(file);
     }
-});
-
-// Toolbar 'open url' button click
-ui.toolbar.addEventListener("open-url", () => {
-    openUrl();
 });
 
 // Navigate back to previous database
@@ -659,13 +693,8 @@ ui.editor.addEventListener("execute", (event) => {
     execute(event.detail).catch(ignoreRejection);
 });
 
-// SQL editor 'started typing' event
-ui.editor.addEventListener("start", (event) => {
-    enableCommandBar();
-});
-
 // Handle user actions
-new ActionController(actions).listen(ui.commandbar, ui.status, ui.result);
+new ActionController(actions).listen(ui.topbar, ui.toolbar, ui.status, ui.result);
 new ShortcutController(shortcuts).listen(document);
 
 startFromCurrentUrl();

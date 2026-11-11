@@ -2,7 +2,7 @@ const { test, expect, App, SAMPLE_FILE, realSet, failStorage, setStorageFailing,
 
 // M5 durability and layout fixes found by the independent verifiers: the run log and the
 // progress when storage fills, frees up or cannot be read; a log held only in memory; the
-// notice; a bare "/*" at the end of the SQL; the command bar over a long query; a long word in
+// notice; a bare "/*" at the end of the SQL; the editor toolbar over a long query; a long word in
 // the editor. The modules without a DOM run in Node against fakeStorage (tests/helpers.js);
 // the page tests drive the real app.
 
@@ -111,9 +111,8 @@ test.describe("two tabs, storage filled and then freed (in the browser)", () => 
         const stored = (await app.readLog("northlight")).map((e) => e.sql);
         expect([...stored].sort()).toEqual([...expected].sort());
         for (const tab of tabs) {
-            await tab.historyButton.click();
+            await tab.openHistory();
             await expect(tab.historyEntries).toHaveCount(expected.length);
-            await tab.page.keyboard.press("Escape");
             const file = await tab.exportEvidence("U2034567");
             expect(file.text.match(/^\[\d+\] /gm)).toHaveLength(expected.length);
         }
@@ -123,7 +122,7 @@ test.describe("two tabs, storage filled and then freed (in the browser)", () => 
 });
 
 test.describe("a log that cannot be read", () => {
-    test("when getItem throws but setItem works, the Runs stay in the popup and the export, and the notice shows (in Node)", async () => {
+    test("when getItem throws but setItem works, the Runs stay in the History tab and the export, and the notice shows (in Node)", async () => {
         const storage = fakeStorage();
         storage.unreadable = true;
         await inNode(storage, async (events, tab) => {
@@ -143,16 +142,15 @@ test.describe("a log that cannot be read", () => {
         });
     });
 
-    test("in the page: 30 Runs are all in the popup and the export, and the notice shows", async ({ page, app }) => {
+    test("in the page: 30 Runs are all in the History tab and the export, and the notice shows", async ({ page, app }) => {
         await failStorage(page, { methods: ["getItem"] });
         await app.open();
         for (let i = 1; i <= 30; i++) {
             await app.query(`select ${i} as n;`);
         }
         await expect(notice(page)).toBeVisible();
-        await app.historyButton.click();
+        await app.openHistory();
         await expect(app.historyEntries).toHaveCount(30);
-        await page.keyboard.press("Escape");
         const file = await app.exportEvidence("U2034567");
         expect(file.text.match(/^\[\d+\] /gm)).toHaveLength(30);
     });
@@ -318,7 +316,7 @@ test.describe("the storage notice", () => {
         await expect(notice(page)).toBeVisible();
         // room again, and back to the first database: its next Run stores its whole log
         await setStorageFailing(page, false);
-        await app.picker.selectOption("northlight");
+        await app.pickDatabase("Northlight Retail");
         await expect(app.status).toContainText(/Run SQL query|Press Run|took/);
         await app.query("select 3 as a");
         await expect(notice(page)).toBeHidden();
@@ -340,7 +338,7 @@ test.describe("exercise progress after a failed write", () => {
         await app.exerciseButton(2).click();
         await app.editor.fill(SET.exercises[1].model_query);
         await app.checkButton.click();
-        await expect(app.progress).toHaveText("2/10 complete");
+        await expect(app.progress).toHaveText("2 of 10 complete");
         await expect(notice(page)).toBeHidden();
         const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("sqllab.progress.retail-basics")));
         expect(Object.keys(stored.passed)).toEqual([SET.exercises[0].id, SET.exercises[1].id]);
@@ -799,12 +797,12 @@ test.describe("a bare /* at the end of the SQL", () => {
     });
 });
 
-test.describe("the command bar over a long query", () => {
+test.describe("the editor toolbar over a long query", () => {
     const lines = (n) => `${Array.from({ length: n - 1 }, (_, i) => `-- line ${i + 1} of a long query`).join("\n")}\nselect * from products limit 3`;
 
     for (const withSet of [false, true]) {
         for (const width of [640, 700, 768, 800, 1024, 1280]) {
-            test(`${withSet ? "with an exercise open" : "no exercise"} at ${width}px: the last line of the query is above the bar`, async ({ page, app }) => {
+            test(`${withSet ? "with an exercise open" : "no exercise"} at ${width}px: the toolbar is above the query and never over its last line`, async ({ page, app }) => {
                 await page.setViewportSize({ width, height: 900 });
                 if (withSet) {
                     await app.openSet();
@@ -814,35 +812,35 @@ test.describe("the command bar over a long query", () => {
                 }
                 await app.query(lines(8));
                 await expect(page.locator("#download-csv")).toBeVisible();
-                // The editor's room for the bar follows the bar's height from a ResizeObserver, one
-                // frame after the bar wraps: measure once it has caught up (it does so before paint,
-                // so a person never sees the overlap), not in the gap.
-                await page.waitForFunction(() => {
-                    const bar = document.querySelector("#commandbar").getBoundingClientRect().height;
-                    const room = parseFloat(document.querySelector("#editor").style.getPropertyValue("--commandbar-clearance"));
-                    return room === Math.ceil(bar) + 2;
-                });
-                // the 8th line is the last one; make sure the editor's text is what is measured
+                // the toolbar is a row of its own above the editor, so it cannot cover the query:
+                // measure its box against the editor's text (the 8th line is the last one)
                 const m = await page.evaluate(() => {
                     const editor = document.querySelector("#editor");
-                    const bar = document.querySelector("#commandbar").getBoundingClientRect();
+                    const bar = document.querySelector("#editor-toolbar").getBoundingClientRect();
+                    const pane = document.querySelector("#editor-pane").getBoundingClientRect();
                     const range = document.createRange();
                     range.selectNodeContents(editor);
                     const rects = [...range.getClientRects()].filter((r) => r.width > 0 && r.height > 0);
-                    const rows = new Set([...document.querySelectorAll("#commandbar > button")].filter((b) => b.getClientRects().length).map((b) => Math.round(b.getBoundingClientRect().top)));
+                    const rows = new Set([...document.querySelectorAll("#editor-toolbar > button")].filter((b) => b.getClientRects().length).map((b) => Math.round(b.getBoundingClientRect().top)));
                     return {
+                        firstLineTop: Math.min(...rects.map((r) => r.top)),
                         lastLineBottom: Math.max(...rects.map((r) => r.bottom)),
                         barTop: bar.top,
                         barBottom: bar.bottom,
+                        paneTop: pane.top,
+                        paneBottom: pane.bottom,
                         editorBottom: editor.getBoundingClientRect().bottom,
                         barRows: rows.size,
                         lines: editor.innerText.trim().split("\n").length,
                     };
                 });
                 expect(m.lines).toBe(8);
-                expect(m.lastLineBottom).toBeLessThanOrEqual(m.barTop + 1);
-                // the bar is still on the editor, at its bottom
-                expect(Math.abs(m.barBottom - m.editorBottom)).toBeLessThanOrEqual(2);
+                // the query starts below the toolbar, and no line of it is under the toolbar
+                expect(m.firstLineTop).toBeGreaterThanOrEqual(m.barBottom - 1);
+                expect(m.lastLineBottom).toBeGreaterThan(m.firstLineTop);
+                expect(m.lastLineBottom).toBeLessThanOrEqual(m.paneBottom + 1);
+                // the toolbar is still against the editor, at its top
+                expect(Math.abs(m.barBottom - m.paneTop)).toBeLessThanOrEqual(2);
                 if (width >= 1024) {
                     expect(m.barRows).toBe(1);
                 }
@@ -850,11 +848,15 @@ test.describe("the command bar over a long query", () => {
         }
     }
 
-    test("a one-row bar leaves the room it always did, and a narrow window still has no sideways scroll", async ({ page, app }) => {
+    test("the editor keeps no room for a bar, and a narrow window still has no sideways scroll", async ({ page, app }) => {
         await page.setViewportSize({ width: 1280, height: 900 });
         await app.open();
-        const padding = await page.evaluate(() => getComputedStyle(document.querySelector("#editor")).paddingBottom);
-        expect(padding).toBe("34px");
+        // the toolbar is not over the editor any more: the bottom padding is the top padding
+        const padding = await page.evaluate(() => {
+            const style = getComputedStyle(document.querySelector("#editor"));
+            return [style.paddingTop, style.paddingBottom];
+        });
+        expect(padding[1]).toBe(padding[0]);
         await page.setViewportSize({ width: 700, height: 900 });
         await app.query(lines(8));
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

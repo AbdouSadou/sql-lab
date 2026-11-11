@@ -79,3 +79,9 @@ export function countRowsSql(name) {
 export function pragmaTableInfoSql(name) {
     return `PRAGMA table_info(${quoteIdent(name)})`;
 }
+
+// pragmaForeignKeyListSql lists a table's foreign keys: id, seq, table, from, to, on_update,
+// on_delete, match ("from" is the column here, "table" the one it refers to).
+export function pragmaForeignKeyListSql(name) {
+    return `PRAGMA foreign_key_list(${quoteIdent(name)})`;
+}

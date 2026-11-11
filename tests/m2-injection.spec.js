@@ -1,5 +1,5 @@
 const path = require("node:path");
-const { test, expect, PAYLOAD, ATTR_PAYLOAD, quoteIdent } = require("./helpers");
+const { test, expect, PAYLOAD, ATTR_PAYLOAD, quoteIdent, expectSchemaIconsOnly } = require("./helpers");
 
 const SAMPLE = path.join(__dirname, "fixtures", "sample.db");
 const sqlFile = (name, sql) => ({ name, mimeType: "text/plain", buffer: Buffer.from(sql) });
@@ -42,12 +42,12 @@ test("injection: markup echoed in an error message is shown as text", async ({ a
     expect(pageErrors).toEqual([]);
 });
 
-test("injection: markup in table names is shown as text in the list, the schema view and the preview", async ({
+test("injection: markup in table names is shown as text in the Schema tab and the preview", async ({
     app,
     page,
     pageErrors,
 }) => {
-    const names = [ATTR_PAYLOAD, PAYLOAD];
+    const names = [PAYLOAD, ATTR_PAYLOAD]; // the order the Schema tab sorts them in
     const sql = names.map((n) => `CREATE TABLE ${quoteIdent(n)} (id INTEGER, label TEXT); INSERT INTO ${quoteIdent(n)} VALUES (1, 'x');`).join("\n");
     await app.open();
     await app.upload(sqlFile("evil.sql", sql));
@@ -55,22 +55,33 @@ test("injection: markup in table names is shown as text in the list, the schema 
     await expect(app.status).toContainText("1 row, took");
     await app.expectInert();
 
-    await page.locator("#show-tables").click();
-    await expect(app.status).toContainText("2 tables:");
-    const buttons = page.locator("#result table tbody button");
-    await expect(buttons).toHaveCount(2);
-    await expect(buttons.nth(0)).toHaveText(ATTR_PAYLOAD);
-    await expect(buttons.nth(1)).toHaveText(PAYLOAD);
-    expect(await buttons.nth(0).getAttribute("data-arg")).toBe(ATTR_PAYLOAD);
+    // the Schema tab (shown by default) lists both names as text
+    const rows = page.locator("#schema .schema-row .schema-insert");
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toHaveText(PAYLOAD);
+    await expect(rows.nth(1)).toHaveText(ATTR_PAYLOAD);
+    // the name also reaches an attribute (the button's label) whole, without breaking out of it
+    expect(await rows.nth(1).getAttribute("aria-label")).toBe(`Insert table name ${ATTR_PAYLOAD} into the query`);
+    await expectSchemaIconsOnly(page);
     await app.expectInert();
 
-    for (const [i, name] of names.entries()) {
-        await page.locator("#show-tables").click();
-        await buttons.nth(i).click();
-        await expect(app.status).toContainText(`tables / ${name}:`);
-        expect((await app.read()).rows.map((r) => r[1])).toEqual(["id", "label"]);
+    const statusBefore = await app.status.textContent();
+    for (const name of names) {
+        // the arrow shows the columns, read with PRAGMA table_info on the quoted name
+        await app.schemaExpand(name).click();
+        expect((await app.schemaColumns(name)).map((c) => c.name)).toEqual(["id", "label"]);
+        await expectSchemaIconsOnly(page);
+        await app.expectInert();
+        // the name button inserts the quoted name as text; nothing runs, no element is made
+        await app.editor.fill("");
+        await app.schemaInsert(name).click();
+        expect((await app.editor.innerText()).trim()).toBe(quoteIdent(name));
+        await expect(app.editor.locator("*")).toHaveCount(0);
+        await expect(app.status).toHaveText(statusBefore);
         await app.expectInert();
     }
+    await page.waitForTimeout(200); // an <img onerror> would have fired by now
+    await app.expectInert();
     expect(pageErrors).toEqual([]);
 });
 
@@ -78,7 +89,11 @@ test("injection: markup in uploaded file names is shown as text or not at all", 
     const name = `${PAYLOAD}.db`;
     await app.open();
     await app.upload({ name, mimeType: "application/octet-stream", buffer: require("node:fs").readFileSync(SAMPLE) });
-    await expect(page.locator("#db-name")).toHaveText(new RegExp(PAYLOAD.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    // the file name is the database's name: on the switcher button and in the status bar, as text
+    const shown = new RegExp(PAYLOAD.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    await expect(app.databaseLabel).toHaveText(shown);
+    await expect(page.locator("#status-database")).toHaveText(shown);
+    expect(await app.databaseButton.getAttribute("aria-label")).toBe(`Database: ${name}`);
     expect(await page.title()).toBe(`${name} - SQL Lab`);
     await app.expectInert();
 

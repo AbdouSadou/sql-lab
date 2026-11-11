@@ -1,5 +1,6 @@
-// M3 part 1: F1 dataset picker, the default dataset, ?db=, share links with datasets, the
-// manifest, failures, stale loads, phones, the keyboard. Export has its own file.
+// M3 part 1: F1 the database switcher (the top bar's button #database-button and its menu
+// #database-menu), the default dataset, ?db=, share links with datasets, the manifest, failures,
+// stale loads, the top bar on phones and desktops, the keyboard. Export has its own file.
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
@@ -43,6 +44,12 @@ async function editorText(app) {
     return app.editor.evaluate((el) => el.innerText);
 }
 
+// ---- the database switcher ------------------------------------------------------------
+// The switcher's helpers are in tests/helpers.js: app.databaseItems, app.databaseItem(id),
+// app.pickDatabaseById(id) (a click on the button, then on the entry, as a student does) and
+// app.expectPicked(id, name) (exactly that entry ticked, and the button showing the name; null:
+// nothing ticked, as for a file, a URL or the empty database).
+
 // shareHash makes a "#s=..." fragment the way copy link does, with the vendored lz-string.
 const LZString = require("../vendor/lz-string.min.js");
 async function shareHash(page, state) {
@@ -77,9 +84,9 @@ test("AC1 the first visit has the default dataset loaded and SELECT COUNT(*) FRO
         columns: ["COUNT(*)"],
         rows: [["450"]],
     });
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
     await expect(page).toHaveTitle("northlight_retail.db - SQL Lab");
-    await expect(app.picker).toHaveValue("northlight");
+    await app.expectPicked("northlight");
     expect(await app.pickedText()).toBe("Northlight Retail");
     // fetched same-origin by relative URLs, once each
     expect(net.paths.filter((p) => p === "datasets/manifest.json")).toHaveLength(1);
@@ -151,32 +158,47 @@ test("after load with restored SQL the caret is at the end of that SQL too", asy
     expect((await editorText(app)).trim()).toBe("SELECT 1 AS one; -- end");
 });
 
-// ---- the picker -------------------------------------------------------------------
+// ---- the database switcher ---------------------------------------------------------
 
-test("the picker is a labelled select that lists the manifest datasets by name", async ({ page, app }) => {
+test("the switcher is a labelled menu button that lists the manifest datasets by name", async ({ page, app }) => {
     await withSampleDataset(page);
     await app.open();
-    const select = page.getByLabel("Dataset");
-    await expect(select).toHaveAttribute("id", "dataset-picker");
-    expect(await select.evaluate((el) => el.tagName)).toBe("SELECT");
-    await expect(select.locator("option")).toHaveText(["Northlight Retail", "Sample Fruit"]);
-    await expect(select).toHaveValue("northlight");
-    await expect(select).toBeEnabled();
+    const button = page.getByRole("button", { name: "Database: Northlight Retail" });
+    await expect(button).toHaveAttribute("id", "database-button");
+    expect(await button.evaluate((el) => el.tagName)).toBe("BUTTON");
+    await expect(button).toHaveAttribute("aria-haspopup", "menu");
+    await expect(button).toHaveAttribute("aria-expanded", "false");
+    await expect(button).toBeEnabled();
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
+
+    await button.click();
+    await expect(app.databaseMenu).toBeVisible();
+    await expect(button).toHaveAttribute("aria-expanded", "true");
+    await expect(app.databaseMenu).toHaveAttribute("role", "menu");
+    await expect(app.databaseMenu.locator('[role="menuitemradio"] .menu-item-label')).toHaveText([
+        "Northlight Retail",
+        "Sample Fruit",
+    ]);
+    await app.expectPicked("northlight");
+    await expect(app.databaseItem("sample")).toHaveAttribute("aria-checked", "false");
 });
 
-test("the picker shows each dataset's description as a tooltip, as text", async ({ page, app }) => {
+test("the switcher shows each dataset's description in its menu entry, as text", async ({ page, app }) => {
     await app.open();
-    const title = await app.picker.locator("option").first().getAttribute("title");
-    expect(title).toBe(realManifest().datasets[0].description);
+    await app.databaseButton.click();
+    await expect(app.databaseMenu).toBeVisible();
+    await expect(app.databaseItem("northlight").locator(".menu-item-description")).toHaveText(
+        realManifest().datasets[0].description
+    );
 });
 
-test("a first start that fails (unsupported address) leaves the picker usable", async ({ page, app }) => {
+test("a first start that fails (unsupported address) leaves the switcher usable", async ({ page, app }) => {
     await page.goto("./#gist:abc");
     await expect(app.status).toContainText("Failed to load database from unsupported address gist:abc");
     await expect(app.picker).toBeEnabled();
-    expect(await app.pickedText()).toBe("no database open");
-    await app.picker.selectOption("northlight");
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    expect(await app.pickedText()).toBe("No database open");
+    await app.pickDatabaseById("northlight");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
     expect(await app.pickedText()).toBe("Northlight Retail");
     expect((await app.query("SELECT COUNT(*) AS n FROM orders;")).rows).toEqual([["450"]]);
 });
@@ -186,9 +208,9 @@ test("F1 picking a dataset opens it, shows it, and puts ?db=<id> in the address"
     await app.open();
     const before = page.url();
 
-    await app.picker.selectOption("sample");
+    await app.pickDatabaseById("sample");
     await expect(app.status).toContainText("4 rows, took");
-    await expect(page.locator("#db-name")).toContainText("sample.db");
+    await expect(app.databaseLabel).toHaveText("Sample Fruit");
     await expect(page).toHaveTitle("sample.db - SQL Lab");
     expect(await app.pickedText()).toBe("Sample Fruit");
     expect((await app.query("SELECT COUNT(*) AS n FROM fruit;")).rows).toEqual([["4"]]);
@@ -200,9 +222,9 @@ test("F1 picking a dataset opens it, shows it, and puts ?db=<id> in the address"
     // a relative request for the file
     expect(net.paths).toContain("datasets/sample.db");
 
-    // and back to the first one through the picker
-    await app.picker.selectOption("northlight");
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    // and back to the first one through the switcher
+    await app.pickDatabaseById("northlight");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
     expect(new URL(page.url()).search).toBe("?db=northlight");
     expect((await app.query("SELECT COUNT(*) AS n FROM orders;")).rows).toEqual([["450"]]);
 });
@@ -214,10 +236,10 @@ test("a dataset that was just picked has its own saved SQL, and the other one ke
     await withSampleDataset(page);
     await app.open();
     await app.query("SELECT 'in northlight' AS where_;");
-    await app.picker.selectOption("sample");
+    await app.pickDatabaseById("sample");
     await expect(app.status).toContainText("4 rows, took");
     await app.query("SELECT 'in sample' AS where_;");
-    await app.picker.selectOption("northlight");
+    await app.pickDatabaseById("northlight");
     await expect(app.status).toContainText("Your last query is back");
     expect((await editorText(app)).trim()).toBe("SELECT 'in northlight' AS where_;");
     // SQL is restored, not run
@@ -227,47 +249,48 @@ test("a dataset that was just picked has its own saved SQL, and the other one ke
 test("reload keeps the picked dataset", async ({ page, app }) => {
     await withSampleDataset(page);
     await app.open();
-    await app.picker.selectOption("sample");
-    await expect(page.locator("#db-name")).toContainText("sample.db");
+    await app.pickDatabaseById("sample");
+    await expect(app.databaseLabel).toHaveText("Sample Fruit");
 
     await page.reload();
     await app.waitReady();
-    await expect(page.locator("#db-name")).toContainText("sample.db");
-    await expect(app.picker).toHaveValue("sample");
+    await expect(app.databaseLabel).toHaveText("Sample Fruit");
+    await app.expectPicked("sample");
     expect(new URL(page.url()).search).toBe("?db=sample");
 });
 
 test("back and forward step between datasets", async ({ page, app }) => {
     await withSampleDataset(page);
     await app.open();
-    await app.picker.selectOption("sample");
-    await expect(page.locator("#db-name")).toContainText("sample.db");
-    await app.picker.selectOption("northlight");
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    await app.pickDatabaseById("sample");
+    await expect(app.databaseLabel).toHaveText("Sample Fruit");
+    await app.pickDatabaseById("northlight");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
 
     await page.goBack(); // ?db=sample
-    await expect(page.locator("#db-name")).toContainText("sample.db");
-    await expect(app.picker).toHaveValue("sample");
+    await expect(app.databaseLabel).toHaveText("Sample Fruit");
+    await app.expectPicked("sample");
     await page.goBack(); // the first visit: no query string, the default dataset
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
-    await expect(app.picker).toHaveValue("northlight");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
+    await app.expectPicked("northlight");
     await page.goForward();
-    await expect(page.locator("#db-name")).toContainText("sample.db");
-    await expect(app.picker).toHaveValue("sample");
+    await expect(app.databaseLabel).toHaveText("Sample Fruit");
+    await app.expectPicked("sample");
     // the database really is the sample, not just its name
     expect((await app.query("SELECT COUNT(*) AS n FROM fruit;")).rows).toEqual([["4"]]);
 });
 
-test("the logo goes to the default dataset and says so", async ({ page, app }) => {
+test("the brand goes to the default dataset and says so", async ({ page, app }) => {
     await withSampleDataset(page);
     await app.open("./?db=sample");
-    await expect(page.locator("#db-name")).toContainText("sample.db");
+    await expect(app.databaseLabel).toHaveText("Sample Fruit");
     const logo = page.locator("#reset");
     await expect(logo).toHaveAttribute("href", "./");
-    await expect(logo.locator("img")).toHaveAttribute("alt", /default dataset/i);
+    // the brand says where it goes: its (visually hidden) text names the default database
+    await expect(logo).toHaveAccessibleName(/open the default database/i);
     await logo.click();
     await app.waitReady();
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
 });
 
 test("the demo and 'start from scratch' text and files are gone", async ({ page, app, request, baseURL }) => {
@@ -300,8 +323,8 @@ test("the demo and 'start from scratch' text and files are gone", async ({ page,
 test("?db=<known id> opens that dataset", async ({ page, app }) => {
     await withSampleDataset(page);
     await app.open("./?db=sample");
-    await expect(page.locator("#db-name")).toContainText("sample.db");
-    await expect(app.picker).toHaveValue("sample");
+    await expect(app.databaseLabel).toHaveText("Sample Fruit");
+    await app.expectPicked("sample");
     // no notice: the status is the table preview's
     await expect(app.status).not.toContainText("dataset");
 });
@@ -309,8 +332,8 @@ test("?db=<known id> opens that dataset", async ({ page, app }) => {
 test("?db=<unknown id> shows a notice and opens the default dataset", async ({ page, app }) => {
     await app.page.goto("./?db=nope");
     await expect(app.status).toContainText('There is no dataset "nope" on this site, so the default dataset is open.');
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
-    await expect(app.picker).toHaveValue("northlight");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
+    await app.expectPicked("northlight");
     // the preview ran and the app works
     await expect(app.table).toHaveCount(1);
     expect((await app.query("SELECT COUNT(*) AS n FROM orders;")).rows).toEqual([["450"]]);
@@ -324,12 +347,12 @@ test("?db= with an unusable value (markup, empty, repeated) is handled without e
     await expect(app.status).toContainText("The dataset in the address is not available");
     await expect(app.status).not.toContainText("<img");
     await app.expectInert();
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
 
     await page.goto("./?db=");
     await app.waitReady();
     await expect(app.status).not.toContainText("dataset");
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
     await app.page.goto("./?db=sample&db=northlight&other=1");
     await expect(app.status).toContainText('There is no dataset "sample"'); // the first one counts
 });
@@ -339,12 +362,11 @@ test("a share link beats a plain fragment path, which beats ?db=", async ({ page
     const share = await shareHash(page, { d: "northlight", q: "SELECT 'by link' AS who;" });
     await page.goto(`./?db=sample${share}`);
     await expect(app.status).toContainText("A shared query is in the editor");
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
 
     await page.goto("./?db=sample#datasets/sample.db");
-    await expect(page.locator("#db-name")).toContainText("sample.db");
-    expect(await app.pickedText()).toBe("sample.db"); // opened as a file, not as the dataset
-    await expect(app.picker).toHaveValue("");
+    await expect(app.databaseLabel).toHaveText("sample.db"); // opened as a file, not as the dataset
+    await app.expectPicked(null); // not ticked in the menu either
 });
 
 // ---- share links with datasets (AC4) -----------------------------------------------
@@ -352,7 +374,7 @@ test("a share link beats a plain fragment path, which beats ?db=", async ({ page
 test("AC4 a link restores SQL and dataset in a fresh browser context", async ({ page, app, browser, baseURL }) => {
     await withSampleDataset(page);
     await app.open("./?db=sample");
-    await expect(page.locator("#db-name")).toContainText("sample.db");
+    await expect(app.databaseLabel).toHaveText("Sample Fruit");
     await app.editor.fill("SELECT name, price FROM fruit WHERE price > 1 ORDER BY price;");
     const link = await app.copyLink();
     expect(new URL(link).search).toBe("");
@@ -360,8 +382,8 @@ test("AC4 a link restores SQL and dataset in a fresh browser context", async ({ 
     const fresh = await openFresh(browser, baseURL, link, { setup: withSampleDataset });
     try {
         await expect(fresh.app.status).toContainText("A shared query is in the editor");
-        await expect(fresh.page.locator("#db-name")).toContainText("sample.db");
-        await expect(fresh.app.picker).toHaveValue("sample");
+        await expect(fresh.app.databaseLabel).toHaveText("Sample Fruit");
+        await fresh.app.expectPicked("sample");
         expect((await editorText(fresh.app)).trim()).toBe("SELECT name, price FROM fruit WHERE price > 1 ORDER BY price;");
         await fresh.page.locator("#execute").click();
         expect(await fresh.app.read()).toEqual({
@@ -389,7 +411,7 @@ test("AC4 a link made on the default dataset opens it with the SQL, with no noti
     try {
         await expect(fresh.app.status).toContainText("A shared query is in the editor");
         await expect(fresh.app.status).not.toContainText("dataset");
-        await expect(fresh.app.picker).toHaveValue("northlight");
+        await fresh.app.expectPicked("northlight");
         await fresh.page.locator("#execute").click();
         expect((await fresh.app.read()).rows).toEqual([["450"]]);
     } finally {
@@ -406,7 +428,7 @@ test("a link naming an unknown dataset opens the default dataset, restores the S
     await expect(app.status).toContainText('There is no dataset "gone" on this site, so the default dataset is open.');
     await expect(app.status).toContainText("A shared query is in the editor");
     expect((await editorText(app)).trim()).toBe("SELECT 'still here' AS s;");
-    await expect(app.picker).toHaveValue("northlight");
+    await app.expectPicked("northlight");
     await page.locator("#execute").click();
     expect(await app.read()).toEqual({ columns: ["s"], rows: [["still here"]] });
 });
@@ -420,7 +442,7 @@ test("a link that names no dataset opens the default dataset, restores the SQL a
     await expect(app.status).toContainText("This link does not name a dataset, so the default dataset is open.");
     await expect(app.status).toContainText("A shared query is in the editor");
     expect((await editorText(app)).trim()).toBe("SELECT 'no dataset' AS s;");
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
 });
 
 test("pasting a link for another dataset into an open tab switches to it", async ({ page, app }) => {
@@ -428,9 +450,9 @@ test("pasting a link for another dataset into an open tab switches to it", async
     await app.open();
     const hash = await shareHash(page, { d: "sample", q: "SELECT 7 AS seven;" });
     await page.evaluate((h) => (location.hash = h), hash);
-    await expect(page.locator("#db-name")).toContainText("sample.db");
+    await expect(app.databaseLabel).toHaveText("Sample Fruit");
     await expect(app.status).toContainText("A shared query is in the editor");
-    await expect(app.picker).toHaveValue("sample");
+    await app.expectPicked("sample");
 });
 
 test("copy link carries the dataset id of whatever was picked, and says so for files that are not built in", async ({
@@ -448,7 +470,7 @@ test("copy link carries the dataset id of whatever was picked, and says so for f
     expect(await idOf(await app.copyLink())).toBe("northlight");
     await expect(app.status).not.toContainText("not built in");
 
-    await app.picker.selectOption("sample");
+    await app.pickDatabaseById("sample");
     await expect(app.status).toContainText("4 rows, took");
     await app.editor.fill("SELECT 1;");
     expect(await idOf(await app.copyLink())).toBe("sample");
@@ -462,11 +484,11 @@ test("copy link carries the dataset id of whatever was picked, and says so for f
     await expect(app.status).toContainText("not built in");
 
     // so does open-from-URL
-    await app.picker.selectOption("sample");
+    await app.pickDatabaseById("sample");
     await expect(app.status).toContainText("4 rows, took");
     page.once("dialog", (dialog) => dialog.accept("datasets/northlight_retail.db"));
     await page.keyboard.press("Control+u");
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    await expect(app.databaseLabel).toHaveText("northlight_retail.db");
     await app.editor.fill("SELECT 1;");
     expect(await idOf(await app.copyLink())).toBeUndefined();
     await expect(app.status).toContainText("the link will not include it");
@@ -474,7 +496,7 @@ test("copy link carries the dataset id of whatever was picked, and says so for f
 
 // ---- upload and open-from-URL ------------------------------------------------------
 
-test("after an upload the picker shows a disabled selected option naming the file; picking a dataset leaves it", async ({
+test("after an upload the switcher names the file and ticks no course database; picking a dataset leaves it", async ({
     page,
     app,
 }) => {
@@ -482,38 +504,47 @@ test("after an upload the picker shows a disabled selected option naming the fil
     await app.open();
     await app.upload(SAMPLE_FILE);
     expect(await app.pickedText()).toBe("sample.db");
-    const selected = app.picker.locator("option:checked");
-    await expect(selected).toBeDisabled();
-    await expect(app.picker.locator("option")).toHaveText(["sample.db", "Northlight Retail", "Sample Fruit"]);
+    await app.expectPicked(null);
+    // the file is not an entry of the menu: the course databases are all it lists
+    await expect(app.databaseMenu.locator('[role="menuitemradio"] .menu-item-label')).toHaveText([
+        "Northlight Retail",
+        "Sample Fruit",
+    ]);
     // the address has no ?db= for a file that is not a dataset
     expect(new URL(page.url()).search).toBe("");
 
-    // renaming the database renames the option
+    // renaming the database renames what the button shows
     await app.rename("mine.db");
     expect(await app.pickedText()).toBe("mine.db");
+    await app.expectPicked(null);
 
-    await app.picker.selectOption("northlight");
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
-    await expect(app.picker.locator("option")).toHaveText(["Northlight Retail", "Sample Fruit"]);
+    await app.pickDatabaseById("northlight");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
+    await expect(app.databaseMenu.locator('[role="menuitemradio"] .menu-item-label')).toHaveText([
+        "Northlight Retail",
+        "Sample Fruit",
+    ]);
+    await app.expectPicked("northlight");
     expect(await app.pickedText()).toBe("Northlight Retail");
 });
 
-test("after open-from-URL the picker names the file; the dataset has to be picked again", async ({ page, app }) => {
+test("after open-from-URL the switcher names the file; the dataset has to be picked again", async ({ page, app }) => {
     await app.open();
     page.once("dialog", (dialog) => dialog.accept("tests/fixtures/sample.db"));
     // tests/ is not served (it is not part of the site), so this load fails and the dataset stays
     await page.keyboard.press("Control+u");
     await expect(app.status).toContainText("Failed to load database");
-    await expect(app.picker).toHaveValue("northlight");
+    await app.expectPicked("northlight");
     expect((await app.query("SELECT COUNT(*) AS n FROM orders;")).rows).toEqual([["450"]]);
 
     page.once("dialog", (dialog) => dialog.accept("datasets/northlight_retail.db"));
     await page.keyboard.press("Control+u");
-    await expect(app.picker.locator("option:checked")).toBeDisabled();
+    await expect(app.databaseLabel).toHaveText("northlight_retail.db");
+    await app.expectPicked(null);
     expect(await app.pickedText()).toBe("northlight_retail.db");
 
-    await app.picker.selectOption("northlight");
-    await expect(app.picker.locator("option:checked")).toBeEnabled();
+    await app.pickDatabaseById("northlight");
+    await app.expectPicked("northlight");
     expect(await app.pickedText()).toBe("Northlight Retail");
 });
 
@@ -568,7 +599,9 @@ for (const [name, body, message] of BAD_MANIFESTS) {
         // nothing was loaded: an empty database, nothing requested
         expect((await editorText(app)).trim()).toBe("");
         expect(net.paths.filter((p) => p.endsWith(".db"))).toEqual([]);
-        await expect(app.picker).toBeDisabled();
+        // no course database to pick: the menu has no such entries (it still offers Open a file and
+        // Open from URL), and the button names the empty database
+        await expect(app.databaseItems).toHaveCount(0);
         expect(await app.pickedText()).toBe("new.db");
         // and the app works: upload still does
         await app.upload(SAMPLE_FILE);
@@ -585,8 +618,8 @@ test("manifest validation: the shipped minimal and unusual-but-valid manifests a
         ],
     });
     await app.open();
-    await expect(app.picker.locator("option")).toHaveText(["Plain", "Second"]);
-    await expect(app.picker).toHaveValue("x_1");
+    await expect(app.databaseMenu.locator('[role="menuitemradio"] .menu-item-label')).toHaveText(["Plain", "Second"]);
+    await app.expectPicked("x_1", "Plain");
 });
 
 test("manifest hostile names are shown as text, never as markup", async ({ page, app }) => {
@@ -597,9 +630,14 @@ test("manifest hostile names are shown as text, never as markup", async ({ page,
         ],
     });
     await app.open();
-    await expect(app.picker.locator("option")).toHaveCount(2);
+    await expect(app.databaseItems).toHaveCount(2);
+    // the names are text in the menu, tags and all
+    await expect(app.databaseMenu.locator('[role="menuitemradio"] .menu-item-label')).toHaveText([
+        PAYLOAD,
+        PAYLOAD + " b",
+    ]);
     await app.expectInert();
-    await app.picker.selectOption("b"); // fails: 404, and the message names the dataset
+    await app.pickDatabaseById("b"); // fails: 404, and the message names the dataset
     await expect(app.status).toContainText("could not be loaded");
     await expect(app.status).toContainText("<img");
     await app.expectInert();
@@ -620,9 +658,9 @@ for (const [name, options] of [
         await expect(app.status).toContainText("The list of datasets (datasets/manifest.json) could not be loaded");
         await expect(app.status).toContainText("You can still open a database file of your own");
         expect((await editorText(app)).trim()).toBe("");
-        await expect(page.locator("#db-name")).toContainText("new.db");
-        // the command bar is usable and the database is a working empty one
-        await expect(page.locator("#commandbar")).not.toHaveClass(/sqlime-disabled/);
+        await expect(app.databaseLabel).toHaveText("new.db");
+        // the query toolbar is usable and the database is a working empty one
+        await expect(page.locator("#execute")).toBeEnabled();
         await app.query("CREATE TABLE t (x); INSERT INTO t VALUES (41), (1); SELECT SUM(x) AS s FROM t;");
         expect((await app.read()).rows).toEqual([["42"]]);
         await app.upload(SAMPLE_FILE);
@@ -644,7 +682,7 @@ test("a share link still restores its SQL when the manifest cannot be fetched", 
 test("a plain database path still loads when the manifest is broken, with a notice", async ({ page, app }) => {
     await routeManifest(page, "{oops");
     await page.goto("./#datasets/northlight_retail.db");
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    await expect(app.databaseLabel).toHaveText("northlight_retail.db");
     await expect(app.status).toContainText("is not valid");
     expect((await app.query("SELECT COUNT(*) AS n FROM orders;")).rows).toEqual([["450"]]);
 });
@@ -662,9 +700,11 @@ for (const [name, fulfill] of [
         await page.route(/\/datasets\/northlight_retail\.db$/, (route) => route.fulfill(fulfill));
         await page.goto("./");
         await expect(app.status).toContainText('The dataset "Northlight Retail" could not be loaded, so an empty database is open.');
-        await expect(page.locator("#db-name")).toContainText("new.db");
-        // the picker still lists the dataset, so reload or another pick is possible
-        await expect(app.picker.locator("option")).toHaveText(["new.db", "Northlight Retail"]);
+        await expect(app.databaseLabel).toHaveText("new.db");
+        // the menu still lists the dataset, so reload or another pick is possible; the empty
+        // database is not an entry of it, the button names it
+        await expect(app.databaseMenu.locator('[role="menuitemradio"] .menu-item-label')).toHaveText(["Northlight Retail"]);
+        await app.expectPicked(null);
         expect(await app.pickedText()).toBe("new.db");
         await app.upload(SAMPLE_FILE);
         expect((await app.query("SELECT COUNT(*) AS n FROM fruit;")).rows).toEqual([["4"]]);
@@ -679,22 +719,22 @@ test("a dataset that cannot be fetched at start can be picked later, once it wor
     await page.goto("./");
     await expect(app.status).toContainText("could not be loaded");
     failing = false;
-    await app.picker.selectOption("northlight");
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    await app.pickDatabaseById("northlight");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
     expect((await app.query("SELECT COUNT(*) AS n FROM orders;")).rows).toEqual([["450"]]);
 });
 
-test("a failed pick leaves the previous database open and the picker back on it", async ({ page, app }) => {
+test("a failed pick leaves the previous database open and the switcher back on it", async ({ page, app }) => {
     await withSampleDataset(page);
     await page.route(SAMPLE_URL, (route) => route.fulfill({ status: 500, body: "boom" }));
     await app.open();
     await app.run("CREATE TABLE keep (x); INSERT INTO keep VALUES (1);");
     const before = page.url();
 
-    await app.picker.selectOption("sample");
+    await app.pickDatabaseById("sample");
     await expect(app.status).toContainText('The dataset "Sample Fruit" could not be loaded. The previous database is still open.');
-    await expect(app.picker).toHaveValue("northlight");
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    await app.expectPicked("northlight");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
     expect(page.url()).toBe(before); // nothing was pushed
     // still the same connection, with the student's table
     expect((await app.query("SELECT COUNT(*) AS n FROM keep;")).rows).toEqual([["1"]]);
@@ -702,9 +742,9 @@ test("a failed pick leaves the previous database open and the picker back on it"
     // an engine-level failure (a file that is a database by its header but is garbage) too
     const bad = Buffer.concat([Buffer.from("SQLite format 3\0"), Buffer.alloc(100, 7)]);
     await page.route(SAMPLE_URL, (route) => route.fulfill({ status: 200, body: bad }));
-    await app.picker.selectOption("sample");
+    await app.pickDatabaseById("sample");
     await expect(app.status).toContainText("Failed to load database");
-    await expect(app.picker).toHaveValue("northlight");
+    await app.expectPicked("northlight");
     expect((await app.query("SELECT COUNT(*) AS n FROM keep;")).rows).toEqual([["1"]]);
 });
 
@@ -731,20 +771,20 @@ test("rapid switching ends on the last choice: a slow earlier load does not over
     await withThreeDatasets(page, { sampleGate: slow });
     await app.open();
 
-    await app.picker.selectOption("sample"); // held back
-    await app.picker.selectOption("sample2"); // answers at once
-    await expect(page.locator("#db-name")).toContainText("sample2.db");
-    await expect(app.picker).toHaveValue("sample2");
+    await app.pickDatabaseById("sample"); // held back
+    await app.pickDatabaseById("sample2"); // answers at once
+    await expect(app.databaseLabel).toHaveText("Second Sample");
+    await app.expectPicked("sample2");
 
     slow.open(); // the first load now completes
     await page.waitForTimeout(500);
-    await expect(page.locator("#db-name")).toContainText("sample2.db");
-    await expect(app.picker).toHaveValue("sample2");
+    await expect(app.databaseLabel).toHaveText("Second Sample");
+    await app.expectPicked("sample2");
     expect(new URL(page.url()).search).toBe("?db=sample2");
     expect(await page.evaluate(() => window.app.database.name)).toBe("sample2.db");
     // one history entry for the choice that won, none for the stale one
     await page.goBack();
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
 });
 
 test("rapid switching: three quick choices end on the third, whatever order the answers come in", async ({
@@ -754,15 +794,15 @@ test("rapid switching: three quick choices end on the third, whatever order the 
     const first = gate();
     await withThreeDatasets(page, { sampleGate: first });
     await app.open();
-    await app.picker.selectOption("sample"); // held
-    await app.picker.selectOption("sample2");
-    await app.picker.selectOption("northlight");
+    await app.pickDatabaseById("sample"); // held
+    await app.pickDatabaseById("sample2");
+    await app.pickDatabaseById("northlight");
     await expect(app.status).not.toContainText("Loading database");
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
     first.open();
     await page.waitForTimeout(500);
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
-    await expect(app.picker).toHaveValue("northlight");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
+    await app.expectPicked("northlight");
     expect((await app.query("SELECT COUNT(*) AS n FROM orders;")).rows).toEqual([["450"]]);
 });
 
@@ -770,16 +810,16 @@ test("a pick that is still loading does not overwrite an upload made after it", 
     const slow = gate();
     await withThreeDatasets(page, { sampleGate: slow });
     await app.open();
-    await app.picker.selectOption("sample"); // held
+    await app.pickDatabaseById("sample"); // held
     await app.upload({
         name: "mine.db",
         mimeType: "application/octet-stream",
         buffer: fs.readFileSync(SAMPLE_FILE),
     });
-    await expect(page.locator("#db-name")).toContainText("mine.db");
+    await expect(app.databaseLabel).toHaveText("mine.db");
     slow.open();
     await page.waitForTimeout(500);
-    await expect(page.locator("#db-name")).toContainText("mine.db");
+    await expect(app.databaseLabel).toHaveText("mine.db");
     expect(await app.pickedText()).toBe("mine.db");
 });
 
@@ -793,8 +833,8 @@ test("a slow load that fails after a newer choice does not disturb it", async ({
         await route.fulfill({ status: 500, body: "boom" });
     });
     await app.open();
-    await app.picker.selectOption("sample"); // will fail, late
-    await app.picker.selectOption("northlight");
+    await app.pickDatabaseById("sample"); // will fail, late
+    await app.pickDatabaseById("northlight");
     // the name does not change (northlight was open), so wait for the load to finish
     await expect(app.status).not.toContainText("Loading database");
     await expect(app.status).toContainText(/rows?, took|Your last query/);
@@ -803,40 +843,55 @@ test("a slow load that fails after a newer choice does not disturb it", async ({
     await page.waitForTimeout(500);
     await expect(app.status).not.toContainText("could not be loaded");
     expect(await app.read()).toEqual({ columns: ["m"], rows: [["marker"]] });
-    await expect(app.picker).toHaveValue("northlight");
+    await app.expectPicked("northlight");
 });
 
-// ---- phones ----------------------------------------------------------------------------
+// ---- the top bar: phones and desktops ----------------------------------------------------
 
-test("at phone width the toolbar is visible, wraps, and the picker works", async ({ page, app }) => {
+// the controls of the top bar, in order: the brand, the database switcher, Copy link, Export,
+// Theme, Help
+const TOPBAR_CONTROLS = ["#reset", "#database-button", "#copy-link", "#export-button", "#theme-button", "#help-button"];
+const TOPBAR_BUTTONS = TOPBAR_CONTROLS.slice(1);
+
+test("at phone width the top bar is visible, wraps, and the switcher works", async ({ page, app }) => {
     await page.setViewportSize({ width: 360, height: 740 });
     await withSampleDataset(page);
     await app.open();
 
-    for (const locator of [app.picker, app.exportButton, page.getByText("open file"), page.getByText("open url")]) {
-        await expect(locator).toBeVisible();
+    for (const selector of TOPBAR_CONTROLS) {
+        await expect(page.locator(`header.topbar ${selector}`), selector).toBeVisible();
     }
-    await expect(page.getByLabel("Dataset")).toBeVisible();
-    // nothing sticks out sideways
-    const overflow = await page.evaluate(() => ({
+    await expect(page.getByRole("button", { name: "Database: Northlight Retail" })).toBeVisible();
+    // opening a file and opening from a URL are in the switcher's menu
+    await app.databaseButton.click();
+    await expect(app.databaseMenu).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: /^Open a file…/ })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: /^Open from URL…/ })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(app.databaseMenu).toBeHidden();
+
+    // it wraps onto more than one row, and nothing sticks out sideways
+    const overflow = await page.evaluate((selectors) => ({
         page: document.documentElement.scrollWidth - window.innerWidth,
-        sticking: [...document.querySelectorAll("#toolbar *")]
+        rows: new Set(selectors.map((s) => Math.round(document.querySelector(s).getBoundingClientRect().top / 4))).size,
+        sticking: [...document.querySelectorAll("header.topbar *")]
             .filter((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5 || el.getBoundingClientRect().left < -0.5)
             .map((el) => el.tagName + "#" + el.id),
-    }));
+    }), TOPBAR_CONTROLS);
     expect(overflow.page).toBeLessThanOrEqual(0);
     expect(overflow.sticking).toEqual([]);
-    // touch-sized targets
-    for (const locator of [app.picker, app.exportButton]) {
-        expect((await locator.boundingBox()).height).toBeGreaterThanOrEqual(30);
+    expect(overflow.rows).toBeGreaterThan(1);
+    // touch-sized targets: every button of the top bar
+    for (const selector of TOPBAR_BUTTONS) {
+        expect((await page.locator(selector).boundingBox()).height, selector).toBeGreaterThanOrEqual(32);
     }
 
-    await app.picker.selectOption("sample");
-    await expect(page.locator("#db-name")).toContainText("sample.db");
+    await app.pickDatabaseById("sample");
+    await expect(app.databaseLabel).toHaveText("Sample Fruit");
     expect(await app.pickedText()).toBe("Sample Fruit");
 });
 
-test("at phone width a long dataset name does not push the toolbar off the screen", async ({ page, app }) => {
+test("at phone width a long dataset name does not push the top bar off the screen", async ({ page, app }) => {
     await page.setViewportSize({ width: 360, height: 740 });
     const manifest = realManifest();
     manifest.datasets[0].name = "A very long dataset name that goes on and on and on and on and on";
@@ -845,57 +900,117 @@ test("at phone width a long dataset name does not push the toolbar off the scree
     const widths = await page.evaluate(() => ({
         page: document.documentElement.scrollWidth,
         view: window.innerWidth,
+        sticking: [...document.querySelectorAll("header.topbar *")]
+            .filter((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5 || el.getBoundingClientRect().left < -0.5)
+            .map((el) => el.tagName + "#" + el.id),
     }));
     expect(widths.page).toBeLessThanOrEqual(widths.view);
+    expect(widths.sticking).toEqual([]);
 });
 
-test("at desktop width the toolbar sits in the header next to the title", async ({ page, app }) => {
-    await page.setViewportSize({ width: 1200, height: 800 });
+test("from 768 to 1280 px wide every control of the top bar is on one line", async ({ page, app }) => {
     await app.open();
-    const title = await page.locator("header h1").boundingBox();
-    const bar = await page.locator("#toolbar").boundingBox();
-    expect(bar.y).toBeLessThan(title.y + title.height); // same row, not underneath
-    await expect(app.picker).toBeVisible();
+    for (const width of [768, 900, 1024, 1200, 1280]) {
+        await page.setViewportSize({ width, height: 800 });
+        const bar = await page.locator("header.topbar").evaluate((el) => ({
+            overflowX: el.scrollWidth - el.clientWidth,
+            right: el.getBoundingClientRect().right,
+        }));
+        expect(bar.overflowX, `${width}px: nothing sticks out of the bar`).toBeLessThanOrEqual(0);
+        const boxes = [];
+        for (const selector of TOPBAR_CONTROLS) {
+            const box = await page.locator(selector).boundingBox();
+            expect(box, `${width}px: ${selector} is shown`).not.toBeNull();
+            expect(box.x + box.width, `${width}px: ${selector} is inside the window`).toBeLessThanOrEqual(width + 0.5);
+            boxes.push(box);
+        }
+        // one row: each control's middle lies within the height of every other one
+        const middles = boxes.map((box) => box.y + box.height / 2);
+        for (const [i, box] of boxes.entries()) {
+            for (const middle of middles) {
+                expect(middle, `${width}px: ${TOPBAR_CONTROLS[i]} shares a line with the rest`).toBeGreaterThan(box.y);
+                expect(middle).toBeLessThan(box.y + box.height);
+            }
+        }
+        await expect(app.picker).toBeVisible();
+    }
 });
 
 // ---- keyboard ---------------------------------------------------------------------------
 
-test("the picker works from the keyboard: Tab to it, arrow keys change the dataset, focus stays", async ({
+test("the switcher works from the keyboard: Tab to it, Enter and arrows choose a dataset, focus returns to the button", async ({
     page,
     app,
 }) => {
     await withSampleDataset(page);
     await app.open();
 
-    await app.editor.press("Escape");
-    await app.editor.press("Shift+Tab"); // out of the editor, backwards, along the toolbar
-    let reached = false;
-    for (let i = 0; i < 12 && !reached; i++) {
-        reached = await page.evaluate(() => document.activeElement?.id === "dataset-picker");
-        if (!reached) await page.keyboard.press("Shift+Tab");
-    }
-    expect(reached, "the picker is reachable with Tab").toBe(true);
-
-    await page.keyboard.press("ArrowDown");
-    await expect(page.locator("#db-name")).toContainText("sample.db");
-    await expect(app.picker).toBeFocused(); // focus was not pulled into the editor
-    expect(await app.pickedText()).toBe("Sample Fruit");
-    await page.keyboard.press("ArrowUp");
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    // the brand comes first, then the switcher
+    await page.locator("#reset").focus();
+    await page.keyboard.press("Tab");
     await expect(app.picker).toBeFocused();
 
-    // and on to the editor with Tab, and Run
-    // (the exercise picker, open file, open url, export, evidence and the help link come first)
-    for (let i = 0; i < 7; i++) {
+    // Enter opens the menu with the focus on the open database; the arrows move; Enter chooses
+    await page.keyboard.press("Enter");
+    await expect(app.databaseMenu).toBeVisible();
+    await expect(app.databaseItem("northlight")).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(app.databaseItem("sample")).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(app.databaseMenu).toBeHidden();
+    await expect(app.databaseLabel).toHaveText("Sample Fruit");
+    await expect(app.picker).toBeFocused(); // focus was not pulled into the editor
+    await expect(app.status).toContainText("4 rows, took");
+    await expect(app.picker).toBeFocused();
+    expect(await app.pickedText()).toBe("Sample Fruit");
+    expect(new URL(page.url()).search).toBe("?db=sample");
+
+    // ArrowDown opens it too, on the ticked entry now; ArrowUp moves to the one above
+    await page.keyboard.press("ArrowDown");
+    await expect(app.databaseMenu).toBeVisible();
+    await expect(app.databaseItem("sample")).toBeFocused();
+    await page.keyboard.press("ArrowUp");
+    await expect(app.databaseItem("northlight")).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
+    await expect(app.picker).toBeFocused();
+    expect(new URL(page.url()).search).toBe("?db=northlight");
+
+    // Escape closes the menu without choosing, and the focus stays on the button
+    await page.keyboard.press("Enter");
+    await expect(app.databaseMenu).toBeVisible();
+    await page.keyboard.press("ArrowDown");
+    await expect(app.databaseItem("sample")).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(app.databaseMenu).toBeHidden();
+    await expect(app.picker).toBeFocused();
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
+    expect(new URL(page.url()).search).toBe("?db=northlight");
+
+    // and on to the editor with Tab: the top bar's other buttons, the sidebar and the Run button
+    // come first, so this takes however many stops they are
+    let reached = false;
+    for (let i = 0; i < 80 && !reached; i++) {
         await page.keyboard.press("Tab");
+        reached = await page.evaluate(() => document.activeElement?.id === "editor");
     }
-    await expect(app.editor).toBeFocused();
+    expect(reached, "the editor is reachable with Tab").toBe(true);
 });
 
 test("the export button is a real button reachable and operable from the keyboard", async ({ page, app }) => {
     await app.open();
-    await app.exportButton.focus();
+    const button = page.locator("#export-button");
+    await button.focus();
+    expect(await button.evaluate((el) => el.tagName)).toBe("BUTTON");
+    // Enter opens the Export menu on "Database (.db)…", Enter again its dialog, and Enter in the
+    // dialog's name field saves the file
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#export-menu")).toBeVisible();
+    await expect(app.exportButton).toBeFocused();
     expect(await app.exportButton.evaluate((el) => el.tagName)).toBe("BUTTON");
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#export-dialog")).toBeVisible();
+    await expect(page.locator("#export-name")).toBeFocused();
     const [download] = await Promise.all([page.waitForEvent("download"), page.keyboard.press("Enter")]);
     expect(download.suggestedFilename()).toBe("northlight_retail.db");
 });
@@ -933,18 +1048,18 @@ test.describe("page events and the database getter", () => {
             { type: "lab:database-loaded", name: "northlight_retail.db", dataset: "northlight", current: true },
         ].map((e) => expect.objectContaining(e)));
 
-        await app.picker.selectOption("sample");
-        await expect(page.locator("#db-name")).toContainText("sample.db");
+        await app.pickDatabaseById("sample");
+        await expect(app.databaseLabel).toHaveText("Sample Fruit");
         await app.upload(SAMPLE_FILE);
         page.once("dialog", (dialog) => dialog.accept("datasets/northlight_retail.db"));
         await page.keyboard.press("Control+u");
-        await expect(app.picker.locator("option:checked")).toBeDisabled();
-        await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+        await expect(app.databaseLabel).toHaveText("northlight_retail.db");
+        await app.expectPicked(null);
 
         const loaded = await events(page, "lab:database-loaded");
         expect(loaded.map((e) => [e.name, e.dataset, e.current])).toEqual([
             ["northlight_retail.db", "northlight", true], // the page load: a dataset
-            ["sample.db", "sample", true], // the picker: a dataset
+            ["sample.db", "sample", true], // the database switcher: a course database
             ["sample.db", null, true], // an upload: no dataset
             ["northlight_retail.db", null, true], // open-from-URL: no dataset
         ]);
@@ -987,8 +1102,8 @@ test.describe("page events and the database getter", () => {
         await app.open();
         expect(await page.evaluate(() => window.app.database.name)).toBe("northlight_retail.db");
         expect(await page.evaluate(() => window.app.database.tables.length)).toBeGreaterThan(3);
-        await app.picker.selectOption("sample");
-        await expect(page.locator("#db-name")).toContainText("sample.db");
+        await app.pickDatabaseById("sample");
+        await expect(app.databaseLabel).toHaveText("Sample Fruit");
         expect(await page.evaluate(() => window.app.database.name)).toBe("sample.db");
         // a getter: the page cannot replace the database by assigning to it
         expect(await page.evaluate(() => {
@@ -1011,7 +1126,7 @@ test("the previous connection is closed after a successful switch, and kept afte
 
     // a failed switch keeps it
     await page.route(SAMPLE_URL, (route) => route.fulfill({ status: 500, body: "x" }));
-    await app.picker.selectOption("sample");
+    await app.pickDatabaseById("sample");
     await expect(app.status).toContainText("previous database is still open");
     expect(await page.evaluate(() => window.__old.db.isOpen())).toBe(true);
     expect(await page.evaluate(() => window.app.database === window.__old)).toBe(true);
@@ -1019,8 +1134,8 @@ test("the previous connection is closed after a successful switch, and kept afte
     // a successful one closes it
     await page.unroute(SAMPLE_URL);
     await routeSampleOk(page);
-    await app.picker.selectOption("sample");
-    await expect(page.locator("#db-name")).toContainText("sample.db");
+    await app.pickDatabaseById("sample");
+    await expect(app.databaseLabel).toHaveText("Sample Fruit");
     expect(await page.evaluate(() => window.__old.db.isOpen())).toBe(false);
     // also for an upload
     await page.evaluate(() => (window.__old = window.app.database));
@@ -1083,7 +1198,7 @@ test.describe("pristine bytes", () => {
             route.fulfill({ status: 200, contentType: "application/octet-stream", body: wal })
         );
         await app.open();
-        await app.picker.selectOption("sample");
+        await app.pickDatabaseById("sample");
         await expect(app.status).toContainText("4 rows, took"); // it opened: the engine got a patched copy
         const info = await pristineInfo(page);
         expect(info.id).toBe("sample");
@@ -1107,13 +1222,13 @@ test("AC6 a session that switches datasets, exports, shares and uploads makes ze
     await withSampleDataset(page);
     await app.open();
     await app.query("SELECT COUNT(*) AS n FROM orders;");
-    await app.picker.selectOption("sample");
-    await expect(page.locator("#db-name")).toContainText("sample.db");
+    await app.pickDatabaseById("sample");
+    await expect(app.databaseLabel).toHaveText("Sample Fruit");
     await app.query("SELECT COUNT(*) AS n FROM fruit;");
     await app.copyLink();
     await app.exportFile();
     await page.goBack();
-    await expect(page.locator("#db-name")).toContainText("northlight_retail.db");
+    await expect(app.databaseLabel).toHaveText("Northlight Retail");
     await app.upload(SAMPLE_FILE);
     await page.goto("./?db=nope");
     await expect(app.status).toContainText("There is no dataset");

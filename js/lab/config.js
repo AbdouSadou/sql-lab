@@ -68,12 +68,66 @@ export const DATASET_PARAM = "db";
 // HTML page is caught by this check.
 export const SQLITE_HEADER = "SQLite format 3\u0000";
 
-// Toolbar text (the picker and the export button).
-export const PICKER_LABEL = "Dataset";
-export const PICKER_LOADING = "Loading datasets...";
-export const EXPORT_BUTTON_TEXT = "export";
-export const HELP_LABEL = "About this app";
+// The top bar (UI plan, section 5). The interface says "database", not "dataset".
+// The database switcher (js/lab/database-switcher.js): its button shows the open database.
+export const DATABASE_MENU_LABEL = "Databases";
+export const DATABASE_LOADING = "Loading…";
+export const DATABASE_NONE = "No database open";
+// the switcher button's name: the open database, and what the button is for
+export const databaseButtonLabel = (name) => `Database: ${name}`;
+export const OPEN_FILE_TEXT = "Open a file…";
+export const OPEN_FILE_DESCRIPTION = "A SQLite database or a .sql script from this device";
+export const OPEN_URL_TEXT = "Open from URL…";
+export const OPEN_URL_DESCRIPTION = "A database file on the web";
+// the size of a course database in its menu entry
+export const databaseSizeText = (bytes) =>
+    bytes >= 1_000_000 ? `${(bytes / 1_000_000).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1000))} KB`;
+// The Export menu (js/lab/export-menu.js): each entry says what it is for.
+export const EXPORT_MENU_LABEL = "Export";
+export const EXPORT_DATABASE_TEXT = "Database (.db)…";
 export const EXPORT_BUTTON_TITLE = "Download the open database, with your changes, as a file";
+export const EXPORT_RESULTS_TEXT = "Results (.csv)";
+export const EXPORT_RESULTS_DESCRIPTION = "The whole result on screen, for a spreadsheet";
+export const EXPORT_RESULTS_NONE = "Run a query that returns rows first";
+export const EXPORT_EVIDENCE_TEXT = "Evidence (.txt)…";
+// one line in the menu; the evidence dialog itself explains the file at length
+export const EXPORT_EVIDENCE_DESCRIPTION = "A text record of the queries you ran, for your assessment";
+// The database export dialog (js/lab/export-dialog.js): the file name is also the database's
+// name, so a rename happens here (it used to be the editable name in the header).
+export const EXPORT_DIALOG_TITLE = "Export the database";
+export const EXPORT_DIALOG_TEXT = "Saves the open database, with your changes, as a file on this device.";
+export const EXPORT_NAME_LABEL = "File name";
+export const EXPORT_NAME_HINT = "This also renames the database here: the page title and the CSV file take the new name.";
+export const EXPORT_SUBMIT_TEXT = "Export";
+export const EXPORT_CANCEL_TEXT = "Cancel";
+
+// The layout (js/lab/layout.js): the sidebar's width and whether it is hidden, and the editor
+// pane's share (its toolbar and the editor) of the room under the exercise prompt, kept in
+// localStorage under one key.
+export const LAYOUT_STORAGE_KEY = "sqllab.layout";
+export const SIDEBAR_WIDTH = { initial: 280, min: 220, max: 420 };
+// a sidebar dragged narrower than this hides
+export const SIDEBAR_HIDE_BELOW = 160;
+export const EDITOR_SHARE = 0.4;
+export const EDITOR_MIN_HEIGHT = 120;
+export const RESULTS_MIN_HEIGHT = 96;
+// the exercise prompt takes at most this share of the window, less on a short one (it scrolls
+// inside), and keeps this much at least
+export const PROMPT_SHARE = 0.4;
+export const PROMPT_MIN_HEIGHT = 72;
+// arrow keys move a splitter this far
+export const SPLITTER_STEP = 16;
+export const sidebarWidthText = (width) => (width ? `${width} pixels wide` : "hidden");
+export const editorHeightText = (height) => `${height} pixels high`;
+
+// The status bar (js/lab/status-bar.js).
+export const STATUS_NO_RUN = "No query run yet";
+export const STATUS_RUN_FAILED = "Last run failed";
+// "5 rows in 3 ms": the rows part, then the time (a span of its own: the screenshot baselines give
+// it one value)
+export const statusRowsText = (rows) => `${rows.toLocaleString("en")} ${rows === 1 ? "row" : "rows"} in `;
+export const statusTimeText = (ms) => `${ms} ms`;
+export const statusVersionText = (version) => `SQLite ${version}`;
 
 // The theme (js/lab/theme.js). The stored value is "light" or "dark"; nothing stored means "match
 // the device". js/lab/theme-boot.js reads the same key before the first paint, so it repeats it.
@@ -109,8 +163,6 @@ export const LINK_NO_DATASET_MESSAGE =
 export const NOT_IN_LINK_MESSAGE =
     "This database is not built in, so the link will not include it. " +
     "Whoever opens the link gets the default dataset.";
-// shown when no database is open (the very first start failed, e.g. an unsupported address)
-export const PICKER_NONE_LABEL = "no database open";
 
 // Export.
 export const EXPORT_EMPTY_MESSAGE =
@@ -128,17 +180,21 @@ export const EXPORT_FALLBACK_NAME = "database";
 
 // F4 schema sidebar (js/lab/schema.js). Messages are plain text; the sidebar builds its DOM
 // with textContent, and names inside them come from the open database.
-export const SCHEMA_TOGGLE_TEXT = "Schema";
-export const SCHEMA_REGION_LABEL = "Database schema";
-// the sidebar starts open when the viewport is at least this wide (the layout breakpoint
-// of css/layout.css), closed on a phone; the state is kept per page load only
-export const SCHEMA_OPEN_QUERY = "(min-width: 40rem)";
+export const SCHEMA_TABLES_HEADING = "Tables";
+export const SCHEMA_VIEWS_HEADING = "Views";
+// a filter box appears above the lists once there are more objects than this
+export const SCHEMA_FILTER_FROM = 8;
+export const SCHEMA_FILTER_LABEL = "Filter tables and views";
+export const SCHEMA_NO_MATCH = "No table or view matches.";
+export const SCHEMA_MORE_TEXT = "Show more";
+export const SCHEMA_LESS_TEXT = "Show less";
+export const SCHEMA_PRIMARY_KEY = "Primary key";
+export const schemaForeignKeyLabel = (table) => `Foreign key to ${table}`;
 export const SCHEMA_EMPTY_MESSAGE =
     "No tables yet. Create one with CREATE TABLE and it will appear here.";
 export const SCHEMA_ERROR_MESSAGE = "The tables of this database could not be listed.";
 // shown instead of a row count or a column list that could not be read
 export const SCHEMA_DASH = "–";
-export const SCHEMA_VIEW_BADGE = "view";
 export const schemaExpandLabel = (kind, name) => `Columns of ${kind} ${name}`;
 export const schemaInsertLabel = (kind, name) => `Insert ${kind} name ${name} into the query`;
 export const schemaInsertColumnLabel = (table, name) =>
@@ -221,10 +277,10 @@ export const CHECK_NO_DATASET_MESSAGE =
 
 // ---- F2/F7 exercise mode (the panel: js/lab/exercise-panel.js) ----
 
-// Toolbar: the exercise set picker.
-export const SET_PICKER_LABEL = "Exercises";
+// The Exercises tab: the set picker (a menu button) and its menu.
+export const SET_PICKER_LABEL = "Exercise set";
+export const SET_PICKER_MENU_LABEL = "Exercise sets";
 export const SET_PICKER_NONE = "None";
-export const SET_PICKER_LOADING = "Loading exercises...";
 // a set that failed validation, or a file whose name is unusable: a disabled option naming its
 // file, the problem as its title
 export const setPickerBrokenLabel = (id) => `${id}.json (not valid)`;
@@ -234,7 +290,7 @@ export const EXERCISE_RESET_TEXT = "Reset progress";
 export const EXERCISE_RESET_TITLE = "Forget which exercises of this set you have passed, and the SQL saved for them";
 export const exerciseResetConfirm = (title) =>
     `Forget which exercises of "${title}" you have passed, and the SQL saved for them? This cannot be undone.`;
-export const exerciseProgressText = (passed, total) => `${passed}/${total} complete`;
+export const exerciseProgressText = (passed, total) => `${passed} of ${total} complete`;
 export const exerciseListLabel = (title) => `Exercises in ${title}`;
 export const exerciseButtonLabel = (position, total, title, passed) =>
     `Exercise ${position} of ${total}: ${title}, ${passed ? "passed" : "not passed"}`;
@@ -251,7 +307,7 @@ export const exerciseAnnouncement = (position, total, title, prompt) =>
     `Exercise ${position} of ${total}: ${title}. ${prompt}`;
 
 // Check.
-export const CHECK_BUTTON_TEXT = "check";
+export const CHECK_BUTTON_TEXT = "Check answer";
 export const CHECK_BUTTON_TITLE = "⌃⇧↵ or ⌘⇧↵";
 export const CHECK_EMPTY_MESSAGE = "Write a query first, then press Check.";
 export const CHECK_PASS_HEADLINE = "Passed";
@@ -293,15 +349,12 @@ export const STATEMENT_ELLIPSIS = "…";
 export const failedStatementMessage = (message, position, count, statement) =>
     `${message} (${count > 1 ? `statement ${position} of ${count}` : "statement"}: ${statement})`;
 
-// Download CSV: the button in the command bar, the file and what a failure says.
-export const CSV_BUTTON_TEXT = "download csv";
+// Download CSV: the button in the result's summary row (and the Export menu), the file and what
+// a failure says.
+export const CSV_BUTTON_TEXT = "Download CSV";
 export const CSV_BUTTON_TITLE = "Download the whole result on screen as a CSV file";
 export const CSV_FILE_SUFFIX = "-result.csv";
 export const CSV_FAILED_MESSAGE = "The CSV file could not be saved.";
-
-// The custom property js/lab/command-bar-fit.js sets on the editor and css/editor.css reads: the
-// height the editor leaves free at its bottom for the command bar.
-export const COMMANDBAR_CLEARANCE_PROPERTY = "--commandbar-clearance";
 
 // ---- F6 run log (js/lab/run-log.js) ----
 
@@ -329,13 +382,11 @@ export const STORAGE_NOTICE_LOG =
 export const STORAGE_NOTICE_PROGRESS =
     "Your browser has no room left to keep your exercise progress, so it will be lost when you close this page.";
 
-// The history popup in the command bar.
-export const HISTORY_BUTTON_TEXT = "history";
-export const HISTORY_BUTTON_TITLE = "Put one of your earlier queries back in the editor";
+// The History tab of the sidebar (js/lab/run-log.js).
 export const HISTORY_LIST_LABEL = "Earlier queries, newest first. Times are UTC.";
 export const HISTORY_EMPTY_MESSAGE = "Nothing yet. The queries you run will be listed here.";
 export const HISTORY_RESTORED_MESSAGE = "An earlier query is in the editor. Press Run to execute it.";
-export const HISTORY_ERROR_WORD = "error";
+export const HISTORY_ERROR_WORD = "Error";
 // shown after the time of every entry (the log keeps UTC, whatever the clock on the wall says)
 export const HISTORY_TIME_ZONE = "UTC";
 // the start of the SQL shown on an entry's button, in characters
@@ -357,8 +408,6 @@ export const EVIDENCE_SQL_ESCAPE = "\\";
 // The verify page refuses a file larger than this.
 export const EVIDENCE_MAX_BYTES = 20 * 1024 * 1024;
 
-export const EVIDENCE_BUTTON_TEXT = "evidence";
-export const EVIDENCE_BUTTON_TITLE = "Save your run log as a file to attach to your work";
 export const EVIDENCE_EMPTY_MESSAGE = "Nothing to export yet. Run a query first, then export your evidence.";
 export const EVIDENCE_NO_CRYPTO_MESSAGE =
     "This page cannot make the checksum, because the browser withholds it on an address that is not secure. " +
@@ -388,7 +437,3 @@ export const VERIFY_READ_FAILED_REASON = "The file could not be read as text.";
 // The file is a valid evidence file followed by nothing but line breaks. Still EDITED (any change
 // to the file is reported), but it reads as a stray newline, not as tampering.
 export const VERIFY_EXTRA_BLANK_LINES_REASON = "Extra blank lines were added after the checksum line.";
-
-// js/lab/plain-text.js: what a line break becomes when text is pasted or dropped into a
-// one-line field (the database name).
-export const ONE_LINE_SEPARATOR = " ";

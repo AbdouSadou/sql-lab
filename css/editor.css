@@ -1,113 +1,51 @@
-.sqlime-editor-section {
-    position: relative;
-    flex-grow: 1;
-    padding: 0 0 0.5rem 0;
+/* The editor pane (js/components/sqlime-editor.js; CodeMirror replaces the editor in Phase 3 of
+   the UI plan). The pane is the box: the editor fills it and the pane scrolls. */
+
+/* the editor grows into the room the hint leaves; longer SQL makes the pane scroll */
+.sqlime-editor {
+    flex: 1 0 auto;
+    display: block;
+    box-sizing: border-box;
+    min-height: 0;
+    padding: var(--space-3) var(--space-4);
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: var(--leading-code);
+    white-space: pre-wrap;
+    /* a long word with no space (a string literal, a list of numbers) breaks instead of widening the pane */
+    overflow-wrap: anywhere;
 }
 
-.sqlime-editor {
-    position: relative;
-    display: block;
-    resize: vertical;
-    width: 100%;
-    min-height: 5rem;
-    border-top: 1px solid var(--rule-strong);
-    background: var(--paper);
-    padding: 0.5rem 1rem;
-    white-space: pre-wrap;
-    /* a long word with no space (a string literal, a list of numbers) breaks instead of widening the page (Firefox) */
-    overflow-wrap: anywhere;
-    font-family: var(--font-mono);
-}
 /* the editor has the focus when the page opens, so the focus must be visible */
 .sqlime-editor:focus {
     outline: 2px solid var(--accent);
     outline-offset: -2px;
 }
-/* The key hint is for sighted keyboard users: Tab indents in the editor, so they need to
-   be told how to leave. It shows while the editor has the focus; its space is always kept,
-   so the page does not jump. (visibility:hidden text still counts for aria-describedby.) */
-.editor-hint {
-    margin: 0;
-    padding: 0.25rem 1rem 0;
-    min-height: 1.5rem;
-    visibility: hidden;
-    color: var(--ink);
-    opacity: 0.75;
-    font-size: 0.8125rem;
-    line-height: 1.25rem;
-}
-.sqlime-editor:focus + .editor-hint {
-    visibility: visible;
-}
+
 .sqlime-editor:empty::before {
     display: inline-block;
-    content: "select * from ...";
+    content: "Write SQL here, then press Run.";
     color: var(--graphite);
+    font-family: var(--font-ui);
 }
 
-@media only screen and (min-width: 40rem) {
-    /* The command bar sits over the bottom of the editor (css/commandbar.css), so the editor and
-       the bar share the first grid row and the hint has the second. The hint may wrap to two
-       lines on a narrow window and the bar still stays on the editor. */
-    .sqlime-editor-section {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
-        /* explicit, so that the bar's grid area is a real area (an absolutely positioned item measures from the padding edge of the grid when its lines do not exist) */
-        grid-template-rows: auto auto;
-        align-content: start;
-    }
-    .sqlime-editor {
-        grid-area: 1 / 1 / 2 / 2;
-        align-self: start;
-    }
-    .editor-hint {
-        grid-area: 2 / 1 / 3 / 2;
-        padding-left: 0.5rem;
-        padding-right: 0.5rem;
-    }
-    .sqlime-editor {
-        min-height: 8rem;
-        border-left: 1px solid var(--rule-strong);
-        border-right: 1px solid var(--rule-strong);
-        border-bottom: 1px solid var(--rule-strong);
-        /* room for the command bar: js/lab/command-bar-fit.js sets its real height (it wraps to two rows in some windows); one row is the fallback */
-        padding: 0.5rem 0.5rem var(--commandbar-clearance, 2.125rem) 0.5rem;
-    }
-    .sqlime-editor::after {
-        position: absolute;
-        right: 0;
-        bottom: 0;
-        display: inline-block;
-        padding: 0.5rem;
-        color: var(--graphite);
-        font-family: var(--font-ui);
-        content: "sqlite 3.54.1";
-    }
+/* The key hint is for sighted keyboard users: Tab indents in the editor, so they need to be told
+   how to leave. It shows while the editor has the focus; its room is always kept, so nothing moves.
+   (visibility: hidden text still counts for aria-describedby.) Phase 3 moves it into Help. */
+.editor-hint {
+    flex: none;
+    margin: 0;
+    padding: var(--space-1) var(--space-4);
+    min-height: 1.5rem;
+    box-sizing: border-box;
+    visibility: hidden;
+    color: var(--graphite);
+    font-size: var(--text-xs);
+    line-height: 1.25rem;
 }
 
-/* On a phone the editor and the command bar get the same 1rem side gutter as the exercise
-   panel and the result, instead of running edge to edge. */
-@media only screen and (max-width: 39.99rem) {
-    .sqlime-editor {
-        box-sizing: border-box;
-        width: auto;
-        margin: 0 1rem;
-        border: 1px solid var(--rule-strong);
-        padding: 0.5rem;
-    }
-    .editor-hint {
-        margin: 0 1rem;
-        padding: 0.25rem 0 0 0;
-    }
-    .sqlime-commandbar {
-        margin: 0 1rem;
-    }
-}
-
-/* The command bar (now five buttons wide: run, tables, copy link, history, download csv) would
-   run into the "sqlite" label in the corner of a narrow editor, so the label gives way. */
-@media only screen and (min-width: 40rem) and (max-width: 52rem) {
-    .sqlime-editor::after {
-        content: none;
-    }
+.sqlime-editor:focus + .editor-hint {
+    visibility: visible;
 }

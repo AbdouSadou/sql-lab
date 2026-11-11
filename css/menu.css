@@ -7,8 +7,8 @@
     inset: auto;
     margin: 0;
     box-sizing: border-box;
-    min-width: 12rem;
-    max-width: min(24rem, calc(100vw - 16px));
+    min-width: min(12rem, var(--popover-room, 100vw));
+    max-width: min(24rem, calc(100vw - 16px), var(--popover-room, 100vw));
     overflow: auto;
     padding: var(--space-1);
     border: 1px solid var(--rule);
@@ -83,10 +83,67 @@
     background: var(--rule);
 }
 
+/* a wider menu whose entries carry a second line (the database switcher, Export) */
+.menu--wide[popover] {
+    min-width: min(16rem, var(--popover-room, 100vw));
+    max-width: min(28rem, calc(100vw - 16px), var(--popover-room, 100vw));
+}
+
+.menu-item--two-line {
+    align-items: flex-start;
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+}
+
+.menu-item--two-line > .icon {
+    margin-top: 2px;
+}
+
+.menu-item-text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.menu-item-label {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* one line saying what an entry is for (the plan's "one-line description"): a longer one is cut
+   with an ellipsis, its whole text in the title (and, for a course database, in the Schema tab) */
+.menu-item-description {
+    overflow: hidden;
+    color: var(--graphite);
+    font-size: var(--text-xs);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* the shortcut of an entry ("Ctrl O"), at its end */
+.menu-item-shortcut {
+    flex: none;
+    align-self: center;
+    margin-left: var(--space-3);
+    color: var(--graphite);
+    font-size: var(--text-xs);
+    white-space: nowrap;
+}
+
+.menu-item-size {
+    flex: none;
+    color: var(--graphite);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+}
+
 /* A browser without the popover attribute (before Safari 17, Firefox 125, Chrome 114) would draw a
    closed menu in the page; there the menu is hidden, and js/lab/menu.js hides its button. */
 @supports not selector(:popover-open) {
-    .menu {
+    .menu,
+    .help-popover {
         display: none;
     }
 }

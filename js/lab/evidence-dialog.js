@@ -1,11 +1,12 @@
-// F11 evidence export, the page side: the "evidence" button in the toolbar, the dialog that
+// F11 evidence export, the page side: "Evidence (.txt)…" in the Export menu, the dialog that
 // asks for the student number, and the download. The file format and checksum are
 // js/lab/evidence.js; the entries come from the run log (js/lab/run-log.js).
 //
-//   mountEvidence({toolbar, ui, runLog}) -> {open()}
-//       Called once from js/index.js. Adds <button id="export-evidence"> after #export-db and
-//       builds a real <dialog> (opened with showModal) with a labelled input for the student
-//       number. runLog.current() gives the log key and the entries of the open dataset.
+//   mountEvidence({ui, runLog, returnFocus}) -> {open()}
+//       Called once from js/index.js. Builds a real <dialog> (opened with showModal) with a
+//       labelled input for the student number; the Export menu's "Evidence (.txt)…" calls
+//       open(). runLog.current() gives the log key and the entries of the open dataset. When it
+//       closes, the focus goes to returnFocus (the Export menu's button).
 //
 // The student number is validated against STUDENT_ID_PATTERN (config.js) exactly as typed (no
 // trimming: a space is a mistake worth telling the student about). A bad number shows an
@@ -13,7 +14,7 @@
 // goes into the downloaded file and nowhere else: not storage, not an address, not the file
 // name, not the page title, not the console. The input has autocomplete="off" and no name, and
 // is emptied whenever the dialog closes. Escape and Cancel close it without saving; after a
-// successful export the dialog closes and the focus returns to the button.
+// successful export the dialog closes and the focus returns to the Export menu's button.
 //
 // An entry gets a "link:" line only when it succeeded on a built-in dataset: the F3 link for
 // that query and dataset alone, on the page address without its query string. An error entry,
@@ -21,8 +22,6 @@
 // would be too long or would not open have none.
 
 import {
-    EVIDENCE_BUTTON_TEXT,
-    EVIDENCE_BUTTON_TITLE,
     EVIDENCE_CANCEL_TEXT,
     EVIDENCE_DIALOG_TEXT,
     EVIDENCE_DIALOG_TITLE,
@@ -71,14 +70,10 @@ function el(tag, props = {}, text = "") {
     return node;
 }
 
-export function mountEvidence({ toolbar, ui, runLog }) {
-    const button = el("button", { type: "button", id: "export-evidence", className: "button button--small", title: EVIDENCE_BUTTON_TITLE }, EVIDENCE_BUTTON_TEXT);
-    const anchor = toolbar.querySelector("#export-db");
-    if (anchor) {
-        anchor.after(button);
-    } else {
-        toolbar.append(button);
-    }
+// returnFocus is the element the focus goes back to when the dialog closes: the Export menu's
+// button, whose "Evidence (.txt)…" entry calls open().
+export function mountEvidence({ ui, runLog, returnFocus }) {
+    const button = returnFocus;
 
     const dialog = el("dialog", { id: "evidence-dialog", className: "evidence-dialog" });
     dialog.setAttribute("aria-labelledby", "evidence-title");
@@ -210,7 +205,6 @@ export function mountEvidence({ toolbar, ui, runLog }) {
         }
     }
 
-    button.addEventListener("click", open);
     form.addEventListener("submit", (event) => {
         event.preventDefault();
         exportNow();

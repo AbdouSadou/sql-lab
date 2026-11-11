@@ -1,5 +1,5 @@
 // Fixes from the constraints review: the engine's address overrides, rich content dropped or
-// pasted into the editable areas, .sql scripts and the SQL guard, and phone text entry.
+// pasted into the editor and the export dialog's file name, .sql scripts and the SQL guard, and phone text entry.
 const { test, expect, serveRepoAt } = require("./helpers");
 
 const LZString = require("../vendor/lz-string.min.js");
@@ -297,7 +297,7 @@ test.describe("sql scripts and the guard", () => {
     });
 });
 
-// ---- 2. only text/plain enters the database name and the SQL editor ----
+// ---- 2. only text/plain enters the file name of the export dialog and the SQL editor ----
 
 test.describe("plain text only", () => {
     const TRACKER = "https://tracker.example/";
@@ -308,8 +308,10 @@ test.describe("plain text only", () => {
     });
 
     // a draggable element whose drag carries the given data, the way another page or program would
-    async function addDragSource(page, data) {
-        await page.evaluate((data) => {
+    // (`parent` is where the source goes: inside the export dialog while it is open, because the rest
+    // of the page is inert behind a modal dialog)
+    async function addDragSource(page, data, parent = "body") {
+        await page.evaluate(([data, parent]) => {
             const source = document.createElement("div");
             source.id = "drag-source";
             source.draggable = true;
@@ -319,8 +321,58 @@ test.describe("plain text only", () => {
                 for (const [type, value] of Object.entries(data)) event.dataTransfer.setData(type, value);
                 event.dataTransfer.effectAllowed = "copy";
             });
-            document.body.append(source);
-        }, data);
+            document.querySelector(parent).append(source);
+        }, [data, parent]);
+    }
+
+    // openExportName opens the Export menu's "Database (.db)…" dialog and returns its file name
+    // input (the name of the open database, selected). It replaced the editable name of the header.
+    async function openExportName(app) {
+        await app.openExportMenu();
+        await app.exportButton.click();
+        const field = app.page.locator("#export-name");
+        await expect(field).toBeVisible();
+        return field;
+    }
+
+    // the point (relative to the padding box of the text input `field`) at the left edge of the
+    // character at `offset`; an input has no text node to measure, so the text is measured with its font
+    function inputPointAt(field, offset) {
+        return field.evaluate((el, offset) => {
+            const style = getComputedStyle(el);
+            const context = document.createElement("canvas").getContext("2d");
+            context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+            const width = context.measureText(el.value.slice(0, offset)).width;
+            return { x: parseFloat(style.paddingLeft) + width, y: el.clientHeight / 2 };
+        }, offset);
+    }
+
+    // copyRich makes a real copy (Ctrl+C) whose clipboard carries the given html and plain text,
+    // the way another page or program would put them there
+    async function copyRich(page, html, text) {
+        await page.evaluate(
+            ([html, text]) => {
+                const source = document.createElement("div");
+                source.id = "rich-source";
+                source.textContent = "copy source";
+                document.body.append(source);
+                document.addEventListener(
+                    "copy",
+                    (event) => {
+                        event.clipboardData.setData("text/html", html);
+                        event.clipboardData.setData("text/plain", text);
+                        event.preventDefault();
+                    },
+                    { once: true }
+                );
+                const range = document.createRange();
+                range.selectNodeContents(source);
+                getSelection().removeAllRanges();
+                getSelection().addRange(range);
+            },
+            [html, text]
+        );
+        await page.keyboard.press("Control+C");
     }
 
     // the point (relative to `target`) at the left edge of the character at `offset` of its first text node
@@ -408,38 +460,41 @@ test.describe("plain text only", () => {
         await expect(app.editor.locator("img, iframe, form")).toHaveCount(0);
     });
 
-    test("a drop on the database name inserts one line of text at the drop point", async ({ page, app, net }) => {
+    // The file name of the export dialog is a plain <input>: it takes text only and no markup by
+    // itself, so these tests drive the real browser (a real drag, a real paste).
+    test("a drop on the export file name inserts one line of text at the drop point", async ({ page, app, net }) => {
         await app.open();
-        const name = page.locator("#db-name");
-        const before = await name.innerText();
-        await addDragSource(page, { "text/html": RICH, "text/plain": "one\ntwo\r\nthree" });
-        await page.dragAndDrop("#drag-source", "#db-name", { targetPosition: await pointAt(name, 3) });
-        await expect.poll(() => name.innerText()).toBe(`${before.slice(0, 3)}one two three${before.slice(3)}`);
-        await expect(name.locator("*")).toHaveCount(0);
-        net.expectNoExternalRequests();
-        // the rename flow still works: Enter fires change and the new name is used
-        await name.press("Enter");
+        const field = await openExportName(app);
+        const before = await field.inputValue();
+        await field.evaluate((el) => el.setSelectionRange(el.value.length, el.value.length)); // a caret, not a selection
+        await addDragSource(page, { "text/html": RICH, "text/plain": "one\ntwo\r\nthree" }, "#export-dialog");
+        await page.dragAndDrop("#drag-source", "#export-name", { targetPosition: await inputPointAt(field, 3) });
         const expected = `${before.slice(0, 3)}one two three${before.slice(3)}`;
+        await expect.poll(() => field.inputValue()).toBe(expected);
+        await expect(page.locator("#export-dialog img, #export-dialog iframe, #export-dialog b")).toHaveCount(0);
+        await expect(page.locator("#export-dialog form")).toHaveCount(1);
+        net.expectNoExternalRequests();
+        // the rename flow still works: Enter exports under the new name and the new name is used
+        await field.press("Enter");
         await expect(page).toHaveTitle(new RegExp(`^${expected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} - `));
         expect(await page.evaluate(() => window.app.database.name)).toBe(expected);
     });
 
-    test("a paste of rich HTML into the database name inserts one line of text", async ({ page, app, net }) => {
+    test("a paste of rich HTML into the export file name inserts one line of text", async ({ page, app, net }) => {
         await app.open();
-        const name = page.locator("#db-name");
-        await name.click();
+        await copyRich(page, RICH, "first\nsecond.db");
+        const field = await openExportName(app);
         await page.keyboard.press("Control+A");
-        const cancelled = await dispatchPaste(name, { "text/html": RICH, "text/plain": "first\nsecond.db" });
-        expect(cancelled).toBe(true);
-        await expect(name.locator("*")).toHaveCount(0);
-        expect(await name.innerText()).toBe("first second.db");
+        await page.keyboard.press("Control+V");
+        await expect(field).toHaveValue("first second.db");
+        await expect(page.locator("#export-dialog img, #export-dialog iframe, #export-dialog form input[name=x]")).toHaveCount(0);
         net.expectNoExternalRequests();
         await page.keyboard.press("Enter");
         await expect(page).toHaveTitle(/^first second\.db - /);
         expect(await page.evaluate(() => window.app.database.name)).toBe("first second.db");
     });
 
-    test("a real copy of rich content, pasted into the database name, brings text only", async ({ page, app }) => {
+    test("a real copy of rich content, pasted into the export file name, brings text only", async ({ page, app }) => {
         await app.open();
         await page.evaluate(() => {
             const source = document.createElement("div");
@@ -452,17 +507,18 @@ test.describe("plain text only", () => {
             getSelection().addRange(range);
         });
         await page.keyboard.press("Control+C");
-        const name = page.locator("#db-name");
-        await name.click();
+        const field = await openExportName(app);
         await page.keyboard.press("Control+A");
         await page.keyboard.press("Control+V");
-        await expect(name.locator("*")).toHaveCount(0);
-        const value = await name.innerText();
+        await expect(page.locator("#export-dialog img, #export-dialog b")).toHaveCount(0);
+        const value = await field.inputValue();
         expect(value).toContain("line one");
         expect(value).toContain("line two");
         expect(value).not.toMatch(/[\r\n]/);
         await page.keyboard.press("Enter");
-        expect(await page.evaluate(() => window.app.database.name)).toBe(value);
+        // the export dialog takes the name without its outer blanks (js/lab/export-dialog.js), as
+        // the old header field did on commit; the line breaks were already gone in the field
+        expect(await page.evaluate(() => window.app.database.name)).toBe(value.trim());
     });
 
     test("a paste into the editor is unchanged: plain text at the caret, once", async ({ page, app }) => {
@@ -478,14 +534,19 @@ test.describe("plain text only", () => {
     test("a drop that carries files inserts nothing and is cancelled, so the tab does not open them", async ({ page, app }) => {
         await app.open();
         await app.editor.fill("AAAA");
-        const name = page.locator("#db-name");
-        const nameBefore = await name.innerText();
+        const nameBefore = await app.pickedText();
         const url = page.url();
         // files, with a text/plain alongside (file managers send the path or the name)
         expect(await dispatchDrop(app.editor, { "text/plain": "/tmp/evil.html" }, { files: ["evil.html"] })).toBe(true);
-        expect(await dispatchDrop(name, { "text/plain": "evil.html" }, { files: ["evil.html"] })).toBe(true);
+        const field = await openExportName(app);
+        const fieldBefore = await field.inputValue();
+        expect(await dispatchDrop(field, { "text/plain": "evil.html" }, { files: ["evil.html"] })).toBe(true);
+        // anywhere else on the page too
+        expect(await dispatchDrop(page.locator("#export-dialog"), { "text/plain": "evil.html" }, { files: ["evil.html"] })).toBe(true);
+        expect(await dispatchDrop(page.locator("#results-pane"), { "text/plain": "evil.html" }, { files: ["evil.html"] })).toBe(true);
         expect(await app.editor.innerText()).toBe("AAAA");
-        expect(await name.innerText()).toBe(nameBefore);
+        expect(await field.inputValue()).toBe(fieldBefore);
+        expect(await app.pickedText()).toBe(nameBefore);
         expect(page.url()).toBe(url);
     });
 

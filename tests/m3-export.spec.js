@@ -1,7 +1,17 @@
-// The export action: a toolbar button that downloads the open in-memory database. AC3 (in
-// ac3-upload-roundtrip.spec.js) covers the round trip; these cover the rest.
+// The export action: the Export menu of the top bar, its item "Database (.db)…" and the dialog that
+// names the file and downloads the open in-memory database. AC3 (in ac3-upload-roundtrip.spec.js)
+// covers the round trip; these cover the rest.
 const fs = require("node:fs");
 const { test, expect, SAMPLE_FILE } = require("./helpers");
+
+// chooseExportOfEmpty chooses "Database (.db)…" in the Export menu with an empty database open: as
+// the old export button did, it says at once that there is nothing to export; no dialog asks for a
+// name first (a name typed there would only rename a database that cannot be saved).
+async function chooseExportOfEmpty(app) {
+    await app.openExportMenu();
+    await app.exportButton.click();
+    await expect(app.page.locator("#export-dialog")).toBeHidden();
+}
 
 test("export downloads the default dataset as a file named from the database", async ({ app }) => {
     await app.open();
@@ -45,8 +55,13 @@ test("exporting an empty database gives a clear message, not an error and not a 
     await app.openEmpty();
     let downloads = 0;
     page.on("download", () => downloads++);
-    await app.exportButton.click();
+    const title = await page.title();
+    const before = await page.evaluate(() => window.app.database.name);
+    await chooseExportOfEmpty(app);
     await expect(app.status).toContainText("The database is empty, so there is nothing to export");
+    // nothing was renamed on the way
+    await expect(page).toHaveTitle(title);
+    expect(await page.evaluate(() => window.app.database.name)).toBe(before);
     await page.waitForTimeout(300);
     expect(downloads).toBe(0);
     expect(pageErrors).toEqual([]);
@@ -58,7 +73,7 @@ test("exporting an empty database gives a clear message, not an error and not a 
     expect(name).toBe("new.db");
     await app.run("DROP TABLE t;");
     await expect(app.status).toContainText("took");
-    await app.exportButton.click();
+    await chooseExportOfEmpty(app);
     await expect(app.status).toContainText("nothing to export");
     expect(downloads).toBe(1);
 });
@@ -98,12 +113,37 @@ test("an uploaded database exports under its own name and holds the same content
     expect(buffer.length).toBe(fs.statSync(SAMPLE_FILE).size);
 });
 
-test("the export button is visible and labelled in the toolbar, at desktop and phone width", async ({ page, app }) => {
+test("the Export menu button is visible, labelled and touch-sized, at desktop and phone width", async ({ page, app }) => {
     for (const width of [1200, 360]) {
         await page.setViewportSize({ width, height: 800 });
         await app.open();
+        const button = page.locator("#export-button");
+        await expect(button).toBeVisible();
+        await expect(button).toHaveText("Export");
+        await expect(button).toHaveAttribute("aria-haspopup", "menu");
+        expect((await button.boundingBox()).height, `${width}px: touch-sized`).toBeGreaterThanOrEqual(32);
+        // the item that downloads says what it is for
+        await button.click();
         await expect(app.exportButton).toBeVisible();
-        await expect(app.exportButton).toHaveText("export");
-        await expect(app.exportButton).toHaveAttribute("title", /Download/);
+        await expect(app.exportButton).toContainText("Database (.db)…");
+        await expect(app.exportButton).toContainText("Download");
+        await page.keyboard.press("Escape");
+        await expect(page.locator("#export-menu")).toBeHidden();
     }
+});
+
+test("the export is operable from the keyboard: Enter opens the menu, the dialog, then downloads", async ({ page, app }) => {
+    await app.open();
+    const button = page.locator("#export-button");
+    await button.focus();
+    expect(await button.evaluate((el) => el.tagName)).toBe("BUTTON");
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#export-menu")).toBeVisible();
+    await expect(app.exportButton).toBeFocused();
+    expect(await app.exportButton.evaluate((el) => el.tagName)).toBe("BUTTON");
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#export-dialog")).toBeVisible();
+    await expect(page.locator("#export-name")).toBeFocused();
+    const [download] = await Promise.all([page.waitForEvent("download"), page.keyboard.press("Enter")]);
+    expect(download.suggestedFilename()).toBe("northlight_retail.db");
 });

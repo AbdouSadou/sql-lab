@@ -1,104 +1,113 @@
-/* The schema sidebar (js/lab/schema.js) and the workspace layout around it.
-   The sidebar comes after the editor and results in the markup, so the Tab order reaches the
-   editor and Run first instead of walking through every table name.
-   Phone and narrow screens: one column, the sidebar shown above the editor (order: -1),
-   closed until opened. From 40rem up: the sidebar on the right, beside the editor and
-   results, sticky, scrolling on its own. */
-
-.workspace {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-}
-
-.workspace-main {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    min-width: 0;
-}
-
-.schema {
-    order: -1;
-    padding: 0 1rem 0.5rem 1rem;
-    min-width: 0;
-}
-
-.schema-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-height: 2rem;
-    padding: 0 0.5rem;
-    border: 1px solid var(--accent);
-    border-radius: 0.125rem;
-    background: transparent;
-    color: var(--accent);
-    font: inherit;
-    cursor: pointer;
-}
-
-.schema-toggle::before {
-    content: "\25B8";
-    display: inline-block;
-    transition: transform 0.1s;
-}
-
-.schema-toggle[aria-expanded="true"]::before {
-    transform: rotate(90deg);
-}
-
-.schema-toggle:hover {
-    background: var(--accent);
-    color: var(--on-accent);
-}
+/* The Schema tab (js/lab/schema.js), as drawn in docs/design/mockup/main-light.html: the
+   description, then "Tables" and "Views", each row a disclosure arrow, the name in the code
+   typeface and the row count; an expanded row lists its columns with their types and key marks. */
 
 .schema-panel {
     display: flex;
     flex-direction: column;
-    max-height: 50vh;
-    min-height: 0;
-    margin-top: 0.5rem;
-    border: 1px solid var(--rule);
-    background: var(--paper);
-}
-
-.schema-panel[hidden],
-.schema [hidden] {
-    display: none;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-3);
 }
 
 .schema-dataset {
-    flex: none;
-    padding: 0.5rem;
-    border-bottom: 1px solid var(--rule);
-    font-size: 90%;
-    overflow-wrap: anywhere;
+    padding: 0 var(--space-2);
 }
 
-.schema-dataset p {
-    margin: 0;
-}
-
-.schema-dataset-name {
-    font-weight: 600;
+.schema-dataset[hidden] {
+    display: none;
 }
 
 .schema-dataset-description {
-    margin-top: 0.25rem;
-    opacity: 0.75;
+    margin: 0;
+    color: var(--graphite);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+}
+
+/* two lines, and "Show more" when that cuts it */
+.schema-dataset-description--clamped {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+}
+
+.schema-more {
+    position: relative;
+    margin-top: var(--space-1);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: var(--text-xs);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* a 32 px target around the small link-like text, without moving anything (44 on a touch screen) */
+.schema-more::after {
+    content: "";
+    position: absolute;
+    inset: -8px -4px;
+}
+
+@media (pointer: coarse) {
+    .schema-more::after {
+        inset: -14px -4px;
+    }
+}
+
+.schema-more[hidden] {
+    display: none;
+}
+
+.schema-filter {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--control-height);
+    padding: 0 var(--space-2);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-control);
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+}
+
+.schema-filter[hidden] {
+    display: none;
 }
 
 .schema-scroll {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: auto;
-    padding: 0.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
 }
 
 .schema-message {
-    margin: 0.25rem;
-    opacity: 0.75;
+    margin: 0;
+    padding: 0 var(--space-2);
+    color: var(--graphite);
+}
+
+.schema-message[hidden],
+.schema-group[hidden],
+.schema-columns[hidden] {
+    display: none;
+}
+
+.schema-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.schema-group-title {
+    margin: 0;
+    padding: 0 var(--space-2);
+    color: var(--graphite);
+    font-size: var(--text-xs);
+    font-weight: 400;
 }
 
 .schema-list,
@@ -108,147 +117,109 @@
     list-style: none;
 }
 
-.schema-row,
-.schema-column {
+/* one row: the arrow, the name (it inserts itself at the caret) and the count */
+.schema-row {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
-    min-width: 0;
+    gap: 2px;
+    min-height: var(--control-height);
+    padding: 0 var(--space-2) 0 0;
+    border-radius: var(--radius-control);
+}
+
+.schema-row:hover,
+.schema-item--expanded > .schema-row {
+    background: var(--accent-subtle);
 }
 
 .schema-expand {
+    display: flex;
     flex: none;
-    width: 2rem;
-    height: 2rem;
+    align-items: center;
+    justify-content: center;
+    width: var(--control-height);
+    height: var(--control-height);
+    padding: 0;
     border: 0;
-    border-radius: 0.125rem;
+    border-radius: var(--radius-control);
     background: transparent;
-    color: var(--ink);
-    font: inherit;
+    color: var(--graphite);
     cursor: pointer;
 }
 
-.schema-expand::before {
-    content: "\25B8";
-    display: inline-block;
-    transition: transform 0.1s;
-}
-
-.schema-expand[aria-expanded="true"]::before {
-    transform: rotate(90deg);
-}
-
+/* as high as its row: the whole row height is the name's target (32 px, the plan's minimum) */
 .schema-insert {
     flex: 1 1 auto;
+    align-self: stretch;
     min-width: 0;
-    min-height: 2rem;
-    padding: 0 0.25rem;
+    padding: var(--space-1) var(--space-1);
     border: 0;
-    border-radius: 0.125rem;
+    border-radius: 4px;
     background: transparent;
     color: var(--ink);
     font-family: var(--font-mono);
-    font-size: 90%;
+    font-size: var(--text-sm);
     text-align: left;
     overflow-wrap: anywhere;
     cursor: pointer;
 }
 
-.schema-insert:hover,
-.schema-expand:hover {
-    background: var(--accent);
-    color: var(--on-accent);
+.schema-insert:hover {
+    text-decoration: underline;
 }
 
-.schema-toggle:focus-visible,
-.schema-expand:focus-visible,
-.schema-insert:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
-}
-
-.schema-kind,
-.schema-type,
-.schema-pk,
 .schema-count {
     flex: none;
-    font-size: 80%;
-    opacity: 0.75;
-}
-
-.schema-kind {
-    padding: 0 0.25rem;
-    border: 1px solid var(--rule);
-    border-radius: 0.125rem;
-}
-
-.schema-count {
+    color: var(--graphite);
+    font-size: var(--text-xs);
     font-variant-numeric: tabular-nums;
 }
 
+/* the columns of an expanded row */
 .schema-columns {
-    margin: 0 0 0.25rem 2.25rem;
+    display: flex;
+    flex-direction: column;
+    padding: 0 var(--space-2) var(--space-1) 30px;
 }
 
 .schema-column {
-    min-height: 1.75rem;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--control-height);
 }
 
-.schema-column .schema-insert {
-    min-height: 1.75rem;
-}
-
-.schema-type {
-    font-family: var(--font-mono);
-    text-transform: uppercase;
-}
-
-.schema-unavailable {
-    padding-left: 0.25rem;
-    opacity: 0.75;
-}
-
-@media only screen and (min-width: 40rem) {
-    .workspace {
-        flex-direction: row;
-        align-items: flex-start;
-        gap: 1rem;
-    }
-
-    .schema {
-        order: 0;
-        position: sticky;
-        top: 1rem;
-        display: flex;
-        flex: 0 0 16rem;
-        flex-direction: column;
-        width: 16rem;
-        max-height: calc(100vh - 2rem);
-        padding: 0;
-    }
-
-    .schema--collapsed {
-        flex-basis: auto;
-        width: auto;
-    }
-
-    .schema-panel {
-        max-height: none;
-    }
-
-    .schema-toggle,
-    .schema-expand,
-    .schema-insert {
-        min-height: 1.75rem;
+/* 44 px targets on a touch screen */
+@media (pointer: coarse) {
+    .schema-row,
+    .schema-column {
+        min-height: 44px;
     }
 
     .schema-expand {
-        width: 1.75rem;
-        height: 1.75rem;
+        width: 44px;
+        height: 44px;
     }
+}
 
-    /* a wide result scrolls inside its own column instead of pushing the page sideways */
-    .workspace-main .sqlime-result {
-        overflow-x: auto;
-    }
+.schema-insert-column {
+    padding-left: 0;
+}
+
+.schema-type {
+    flex: none;
+    color: var(--graphite);
+    font-size: var(--text-xs);
+}
+
+.schema-pk,
+.schema-fk {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    color: var(--graphite);
+}
+
+.schema-unavailable {
+    color: var(--graphite);
 }

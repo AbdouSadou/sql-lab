@@ -50,12 +50,6 @@ textarea {
     display: none;
 }
 
-.sqlime-disabled {
-    pointer-events: none;
-    filter: grayscale();
-    opacity: 0.625;
-}
-
 /* Text for assistive technology only. */
 .visually-hidden {
     position: absolute;
@@ -67,4 +61,14 @@ textarea {
     clip: rect(0 0 0 0);
     white-space: nowrap;
     border: 0;
+}
+
+/* Focus is always visible: a 2 px accent outline, 2 px out (UI plan, section 6). */
+:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-offset);
+}
+
+.hidden {
+    display: none !important;
 }

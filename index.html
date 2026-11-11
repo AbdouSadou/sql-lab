@@ -20,7 +20,9 @@
     <link rel="stylesheet" href="css/tokens.css">
     <link rel="stylesheet" href="css/fonts.css">
     <link rel="stylesheet" href="css/core.css">
-    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/buttons.css">
+    <link rel="stylesheet" href="css/shell.css">
+    <link rel="stylesheet" href="css/menu.css">
     <script type="module" src="js/lab/brand.js"></script>
 </head>
 
@@ -29,73 +31,181 @@
     <!-- Lucide icons (lucide-static 1.61.0, ISC licence: vendor/lucide.LICENSE.txt), written by tools/build-icons.mjs -->
     <svg xmlns="http://www.w3.org/2000/svg" class="icon-sprite" aria-hidden="true">
         <symbol id="icon-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+        <symbol id="icon-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+        <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+        <symbol id="icon-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></symbol>
+        <symbol id="icon-circle-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/></symbol>
+        <symbol id="icon-circle-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></symbol>
+        <symbol id="icon-circle-x" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></symbol>
+        <symbol id="icon-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></symbol>
+        <symbol id="icon-download" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></symbol>
+        <symbol id="icon-file-text" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+        <symbol id="icon-file-up" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></symbol>
+        <symbol id="icon-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+        <symbol id="icon-key" viewBox="0 0 24 24"><path d="m2 21 9.6-9.6"/><path d="m7.5 15.5 2.3 2.3a1 1 0 0 1 0 1.4l-2.1 2.1a1 1 0 0 1-1.4 0L4 19"/><circle cx="15.5" cy="7.5" r="5.5"/></symbol>
+        <symbol id="icon-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+        <symbol id="icon-link-2" viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></symbol>
         <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></symbol>
+        <symbol id="icon-play" viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></symbol>
+        <symbol id="icon-sheet" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="3" x2="21" y1="15" y2="15"/><line x1="9" x2="9" y1="9" y2="21"/><line x1="15" x2="15" y1="9" y2="21"/></symbol>
         <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
     </svg>
     <!-- icons:end -->
-    <div class="grid">
-        <link rel="stylesheet" href="css/header.css">
-        <link rel="stylesheet" href="css/buttons.css">
-        <link rel="stylesheet" href="css/toolbar.css">
-        <link rel="stylesheet" href="css/picker.css">
-        <link rel="stylesheet" href="css/menu.css">
-        <header class="header">
-            <h1>
-                <a id="reset" href="./" class="header-logo">
-                    <img src="img/favicon-64x64.png" alt="Home: open the default dataset">
+    <a class="skip-link" href="#editor">Skip to the editor</a>
+
+    <!-- The app shell (UI plan, section 4): top bar, sidebar, the query above its result, status
+         bar. It fills the window and only the panes scroll (css/shell.css); js/lab/layout.js
+         sizes the panes and keeps the sizes. -->
+    <div class="app" id="app">
+        <header class="topbar">
+            <h1 class="brand-heading">
+                <a id="reset" class="brand" href="./" data-app-label=", home: open the default database">
+                    <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <rect class="brand-mark-tile" width="24" height="24" rx="6"></rect>
+                        <ellipse class="brand-mark-line" cx="12" cy="8" rx="5.5" ry="2"></ellipse>
+                        <path class="brand-mark-line" d="M6.5 8v8c0 1.1 2.46 2 5.5 2s5.5-.9 5.5-2V8"></path>
+                        <path class="brand-mark-line" d="M6.5 12c0 1.1 2.46 2 5.5 2s5.5-.9 5.5-2"></path>
+                    </svg>
+                    <span data-app-name></span>
                 </a>
-                <span data-app-name></span> &nbsp;//
-                <db-name id="db-name" class="db-name"></db-name>
             </h1>
-            <tool-bar id="toolbar" class="toolbar"></tool-bar>
+
+            <!-- the database switcher (js/lab/database-switcher.js fills its menu) -->
+            <button id="database-button" class="button database-button" type="button">
+                <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-database"></use></svg>
+                <span class="database-button-name" id="database-button-name">Loading…</span>
+                <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-chevron-down"></use></svg>
+            </button>
+            <div id="database-menu" class="menu menu--wide" role="menu" aria-label="Databases"></div>
+            <input id="open-file-input" type="file" hidden>
+
+            <div class="topbar-actions">
+                <button id="copy-link" class="button button--quiet" type="button" data-action="copyLink" title="Copy a link that opens this query">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-link"></use></svg>
+                    <span>Copy link</span>
+                </button>
+
+                <button id="export-button" class="button button--quiet" type="button">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg>
+                    <span>Export</span>
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-chevron-down"></use></svg>
+                </button>
+                <!-- js/lab/export-menu.js -->
+                <div id="export-menu" class="menu menu--wide" role="menu" aria-label="Export"></div>
+
+                <span class="topbar-theme"></span>
+
+                <button id="help-button" class="button button--quiet" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="help-popover">
+                    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-circle-help"></use></svg>
+                    <span>Help</span>
+                </button>
+                <div id="help-popover" class="help-popover" popover role="dialog" aria-labelledby="help-title" tabindex="-1">
+                    <h2 id="help-title" class="help-title">Help</h2>
+                    <p class="help-privacy">Runs entirely in your browser. Your data and queries never leave this device.</p>
+                    <h3 class="help-subtitle">Keyboard shortcuts</h3>
+                    <dl class="help-keys">
+                        <dt><kbd data-mod>Ctrl</kbd> <kbd>Enter</kbd></dt>
+                        <dd>Run the query, or the part of it you selected</dd>
+                        <dt><kbd data-mod>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd></dt>
+                        <dd>Check your answer to an exercise</dd>
+                        <dt><kbd data-mod>Ctrl</kbd> <kbd>O</kbd></dt>
+                        <dd>Open a database file</dd>
+                        <dt><kbd data-mod>Ctrl</kbd> <kbd>U</kbd></dt>
+                        <dd>Open a database from a URL</dd>
+                        <dt><kbd>Tab</kbd></dt>
+                        <dd>Indent, in the editor</dd>
+                        <dt><kbd>Esc</kbd> then <kbd>Tab</kbd></dt>
+                        <dd>Leave the editor (<kbd>Shift</kbd> <kbd>Tab</kbd> to go back)</dd>
+                    </dl>
+                    <p class="help-about"><a href="about.html">About <span data-app-name></span></a> <span aria-hidden="true">&middot;</span> <a href="https://sqlite.org/lang_corefunc.html" target="_blank" rel="noopener noreferrer">SQLite functions</a></p>
+                </div>
+            </div>
         </header>
 
-        <link rel="stylesheet" href="css/schema.css">
-        <link rel="stylesheet" href="css/exercises.css">
-        <div class="workspace">
-            <div class="workspace-main">
-                <!-- Exercise mode (js/lab/exercise-panel.js fills this; hidden while no set is open) -->
-                <section id="exercise-panel" class="exercise-panel" aria-labelledby="exercise-set-title" hidden>
-                    <div class="exercise-head">
-                        <h2 id="exercise-set-title" class="exercise-set-title"></h2>
-                        <p id="exercise-progress" class="exercise-progress"></p>
-                        <button id="exercise-reset" type="button" class="button button--small"></button>
+        <div class="workbench">
+            <!-- the sidebar: Schema, Exercises and History tabs (js/lab/tabs.js), and the splitter
+                 that sizes and hides it, in one navigation landmark (the splitter stays usable
+                 while the sidebar itself is hidden and inert) -->
+            <nav class="sidebar-region" aria-label="Schema, exercises and history">
+                <div id="sidebar" class="sidebar">
+                    <div class="tabs" role="tablist" aria-label="Sidebar">
+                        <button id="tab-schema" class="tab" role="tab" type="button" aria-controls="panel-schema" aria-selected="true">Schema</button>
+                        <button id="tab-exercises" class="tab" role="tab" type="button" aria-controls="panel-exercises" aria-selected="false" tabindex="-1">Exercises</button>
+                        <button id="tab-history" class="tab" role="tab" type="button" aria-controls="panel-history" aria-selected="false" tabindex="-1">History</button>
                     </div>
-                    <ol id="exercise-list" class="exercise-list" role="list"></ol>
-                    <div id="exercise-prompt" class="exercise-prompt"></div>
-                    <button id="exercise-hint-button" type="button" class="button button--small" hidden></button>
+                    <link rel="stylesheet" href="css/schema.css">
+                    <div id="panel-schema" class="tab-panel" role="tabpanel" aria-labelledby="tab-schema">
+                        <div id="schema"></div>
+                    </div>
+                    <link rel="stylesheet" href="css/exercises.css">
+                    <div id="panel-exercises" class="tab-panel" role="tabpanel" aria-labelledby="tab-exercises" hidden>
+                        <div class="exercise-set">
+                            <!-- js/lab/exercise-panel.js: the set picker (a menu button), progress, reset, the list -->
+                            <div class="exercise-set-picker-slot"></div>
+                            <h2 id="exercise-set-title" class="visually-hidden" hidden></h2>
+                            <div class="exercise-progress-block" hidden>
+                                <p id="exercise-progress" class="exercise-progress"></p>
+                                <div class="exercise-progress-bar" aria-hidden="true"><div class="exercise-progress-fill"></div></div>
+                            </div>
+                            <ol id="exercise-list" class="exercise-list" role="list"></ol>
+                            <p class="exercise-reset-row"><button id="exercise-reset" type="button" class="button button--quiet" hidden></button></p>
+                            <p class="exercise-empty">Choose an exercise set to practise with. Check answer marks each exercise you get right, and your progress stays in this browser.</p>
+                        </div>
+                    </div>
+                    <link rel="stylesheet" href="css/run-log.css">
+                    <div id="panel-history" class="tab-panel" role="tabpanel" aria-labelledby="tab-history" hidden>
+                        <div id="run-history-list" class="run-history-list"></div>
+                    </div>
+                </div>
+                <div id="sidebar-splitter" class="splitter splitter--vertical" role="separator" aria-orientation="vertical" aria-controls="sidebar" aria-label="Sidebar width" tabindex="0" title="Drag, or use the arrow keys, to resize the sidebar; Enter or a double click hides or shows it"><span class="splitter-grip"></span></div>
+            </nav>
+
+            <main id="main" class="main" aria-label="Query and result">
+                <!-- Exercise mode: the prompt of the open exercise (js/lab/exercise-panel.js) -->
+                <section id="exercise-panel" class="exercise-panel" aria-labelledby="exercise-prompt-title" hidden>
+                    <div id="exercise-prompt"></div>
+                    <button id="exercise-hint-button" type="button" class="button" hidden></button>
                     <ol id="exercise-hints" class="exercise-hints" hidden></ol>
                     <p id="exercise-announce" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
                 </section>
+
                 <link rel="stylesheet" href="css/editor.css">
-                <link rel="stylesheet" href="css/commandbar.css">
-                <link rel="stylesheet" href="css/run-log.css">
-                <link rel="stylesheet" href="css/evidence.css">
-                <section class="sqlime-editor-section">
-                    <sqlime-editor id="editor" class="sqlime-editor" autocorrect="off" autocapitalize="off" aria-describedby="editor-hint"></sqlime-editor>
+                <div id="editor-toolbar" class="editor-toolbar" role="group" aria-label="Query">
+                    <button id="execute" class="button button--primary" type="button" data-action="executeCurrent" aria-keyshortcuts="Control+Enter Meta+Enter" disabled>
+                        <svg class="icon icon--filled" aria-hidden="true" focusable="false"><use href="#icon-play"></use></svg>
+                        <span>Run</span>
+                        <span class="shortcut" aria-hidden="true"><span data-mod>Ctrl</span> Enter</span>
+                    </button>
+                </div>
+                <section id="editor-pane" class="editor-pane" aria-label="SQL editor">
+                    <!-- tabindex="0" changes nothing for a contenteditable (it is a Tab stop already);
+                         it tells accessibility checkers that the scrolling pane holds one -->
+                    <sqlime-editor id="editor" class="sqlime-editor" autocorrect="off" autocapitalize="off" aria-describedby="editor-hint" tabindex="0"></sqlime-editor>
                     <p id="editor-hint" class="editor-hint">Press Tab to indent. To leave the editor, press Escape, then Tab or Shift+Tab.</p>
-                    <command-bar id="commandbar" class="sqlime-commandbar sqlime-disabled"></command-bar>
                 </section>
+                <div id="editor-splitter" class="splitter splitter--horizontal" role="separator" aria-orientation="horizontal" aria-controls="editor-pane" aria-label="Editor height" tabindex="0" title="Drag, or use the arrow keys, to share the height between the query and its result"><span class="splitter-grip"></span></div>
 
                 <link rel="stylesheet" href="css/result.css">
                 <link rel="stylesheet" href="css/status.css">
                 <link rel="stylesheet" href="css/share.css">
-                <section class="sqlime-result-section">
+                <link rel="stylesheet" href="css/evidence.css">
+                <section id="results-pane" class="results-pane" aria-label="Result">
                     <div id="exercise-feedback" class="exercise-feedback" role="status" aria-atomic="true" hidden></div>
-                    <sqlime-status id="status" class="sqlime-status" role="status"></sqlime-status>
+                    <div id="results-summary" class="results-summary">
+                        <sqlime-status id="status" class="sqlime-status" role="status"></sqlime-status>
+                    </div>
                     <sqlime-result id="result" class="sqlime-result"></sqlime-result>
                     <p id="result-scroll-note" class="result-scroll-note" hidden></p>
                 </section>
-            </div>
-            <aside id="schema"></aside>
+            </main>
         </div>
 
-        <link rel="stylesheet" href="css/footer.css">
-        <footer class="footer">
-            <span data-app-name></span>&nbsp;<span class="footer-sep" aria-hidden="true">&middot;</span>
-            <span>Made by Abdou Sadou, based on SQLime by Anton Zhiyanov</span>&nbsp;<span class="footer-sep" aria-hidden="true">&middot;</span>
-            <a href="about.html">About</a>&nbsp;<span class="footer-sep" aria-hidden="true">&middot;</span>
-            <span class="footer-theme"></span>
+        <!-- the status bar (js/lab/status-bar.js) -->
+        <footer class="statusbar">
+            <span id="status-database" class="statusbar-item"></span>
+            <span id="status-run" class="statusbar-item">No query run yet</span>
+            <span id="status-version" class="statusbar-item statusbar-version"></span>
+            <a class="statusbar-credit" href="about.html"><span data-app-name></span> <span aria-hidden="true">&middot;</span> Made by Abdou Sadou, based on SQLime by Anton Zhiyanov</a>
         </footer>
     </div>
 
@@ -103,10 +213,6 @@
     <script src="js/lab/engine-guard.js"></script>
     <script src="vendor/sqlite3.js"></script>
     <script src="vendor/lz-string.min.js"></script>
-    <script type="module" src="js/components/copy-link.js"></script>
-    <script type="module" src="js/components/db-name.js"></script>
-    <script type="module" src="js/components/toolbar.js"></script>
-    <script type="module" src="js/components/command-bar.js"></script>
     <script type="module" src="js/components/sqlime-editor.js"></script>
     <script type="module" src="js/components/sqlime-result.js"></script>
     <script type="module" src="js/components/sqlime-status.js"></script>

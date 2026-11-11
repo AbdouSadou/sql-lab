@@ -1,4 +1,4 @@
-const { test, expect, openFresh } = require("./helpers");
+const { test, expect, openFresh, tabTo } = require("./helpers");
 
 // Deterministic filler so the 20 KB statement does not compress to nothing.
 function filler(bytes) {
@@ -331,7 +331,7 @@ test.describe("shared SQL and storage", () => {
 
     test("a link made from a blank or whitespace-only editor carries no SQL", async ({ page, app }) => {
         await app.open();
-        await app.editor.fill("x"); // a keystroke enables the command bar
+        await app.editor.fill("x");
         for (const blank of ["", "   ", "\n\n  \t\n"]) {
             await app.editor.evaluate((el, text) => (el.value = text), blank);
             const link = await app.copyLink();
@@ -426,8 +426,9 @@ test.describe("damaged links", () => {
             await page.goto("about:blank");
             await page.goto("./" + fragment);
             await expect(app.status, name).toContainText("This link is damaged or incomplete");
-            // the default dataset is open (nothing in the link could be trusted)
-            await expect(app.picker, name).toHaveValue("northlight");
+            // the default database is open (nothing in the link could be trusted)
+            await expect(app.databaseLabel, name).toHaveText("Northlight Retail");
+            await expect(app.picker, name).toHaveAttribute("aria-label", "Database: Northlight Retail");
             // the app still works
             expect(await app.query("SELECT 5 AS five;"), name).toEqual({ columns: ["five"], rows: [["5"]] });
         }
@@ -522,7 +523,7 @@ test.describe("opening a link in an open tab", () => {
     test("a database path in the address still loads as before", async ({ page, app }) => {
         await page.goto("./#datasets/northlight_retail.db");
         await expect(app.status).toContainText(/rows?, took|Press Run/);
-        // a file path, not a dataset: the picker names the file instead
+        // a file path, not a course database: the switcher names the file instead
         expect(await app.pickedText()).toBe("northlight_retail.db");
     });
 });
@@ -593,7 +594,6 @@ test.describe("the copy link button", () => {
         await page.evaluate((text) => {
             document.querySelector("#editor").innerText = text;
         }, big);
-        await page.locator("#commandbar").evaluate((el) => el.classList.remove("sqlime-disabled"));
         await page.locator("#copy-link").click();
         await expect(app.status).toContainText("too long to put in a link");
         await expect(app.shareField).toHaveCount(0);
@@ -604,29 +604,25 @@ test.describe("the copy link button", () => {
         await expect(app.editor).toBeFocused();
         await page.keyboard.press("Control+A"); // replace the table preview
         await page.keyboard.type("SELECT 'keys' AS k;");
-        // out of the editor and along the command bar: Escape, Tab, then Tab to the button
+        // out of the editor with Escape, then back up the Tab order with Shift+Tab (Run, the
+        // sidebar's stops, the top bar) until Copy link; keys only
         await page.keyboard.press("Escape");
-        await page.keyboard.press("Tab");
-        let reached = false;
-        for (let i = 0; i < 6 && !reached; i++) {
-            reached = await page.evaluate(() => document.activeElement?.id === "copy-link");
-            if (!reached) await page.keyboard.press("Tab");
-        }
-        expect(reached, "copy link is reachable by Tab").toBe(true);
+        await page.keyboard.press("Shift+Tab");
+        await expect(page.locator("#execute")).toBeFocused();
+        expect(await tabTo(page, "#copy-link", { back: true }), "copy link is reachable by Shift+Tab from the editor").toBe(true);
         await page.keyboard.press("Enter");
         await expect(app.shareField).toBeFocused();
         const link = await app.shareField.inputValue();
         expect(link).toContain("#s=");
-        // the field is selected: Ctrl+C would copy it. Escape-free way back: Shift+Tab
-        // reaches the button, and Space activates it too. The table preview is still on
-        // screen, so the download csv button (M5) and the history button (M5 part 2) sit between
-        // the field and copy link.
-        await page.keyboard.press("Shift+Tab");
+        // the field is selected: Ctrl+C would copy it. The table preview is still on screen, so
+        // the Download CSV button (M5) sits right after the field in the Tab order; back up to
+        // Copy link again with keys (through the editor, left with Escape, as Tab indents there),
+        // and Space on it activates it too.
+        await page.keyboard.press("Tab");
         await expect(page.locator("#download-csv")).toBeFocused();
-        await page.keyboard.press("Shift+Tab");
-        await expect(page.locator("#run-history")).toBeFocused();
-        await page.keyboard.press("Shift+Tab");
-        await expect(page.locator("#copy-link")).toBeFocused();
+        expect(await tabTo(page, "#editor", { back: true }), "Shift+Tab from the result reaches the editor").toBe(true);
+        await page.keyboard.press("Escape");
+        expect(await tabTo(page, "#copy-link", { back: true }), "copy link is reachable by Shift+Tab from the result").toBe(true);
         await page.keyboard.press("Space");
         await expect(app.shareField).toBeFocused();
 

@@ -1,5 +1,5 @@
 // F6 run log: every Run is kept, per dataset, in localStorage, and can be put back in the
-// editor from a popup in the command bar. The log is also what the evidence export (F11,
+// editor from the History tab of the sidebar. The log is also what the evidence export (F11,
 // js/lab/evidence-dialog.js) writes out.
 //
 // Storage. One key per log: RUN_LOG_PREFIX + the log key. The log key is the dataset id for a
@@ -28,7 +28,7 @@
 // a navigation were lost). Keeping every Run is the promise; the same-millisecond tab race
 // is not. When the browser refuses a write (quota), the oldest entries of this log are dropped
 // from the stored copy until the new one fits, and the page keeps the whole capped log in
-// memory (readLog answers from it, so the popup and the export stay complete while the page
+// memory (readLog answers from it, so the History tab and the export stay complete while the page
 // is open); a "lab:storage-state" event makes storage-notice.js say so. The copy in memory is
 // merged with the stored log at every read and write, never written over it: entries another
 // tab stored meanwhile are kept (compared by time, SQL and outcome). A stored log that cannot
@@ -52,20 +52,18 @@
 //   isDatasetKey(key) -> boolean       true for a dataset id, false for "file:..."
 //   readLog(key) -> entry[]            oldest first
 //   appendLog(key, entry)              an entry is {t, sql, rows} or {t, sql, error}
-//   mountRunLog({ui}) -> {current()}   called once from index.js; current() is {key, entries}
+//   mountRunLog({ui, list, isShown}) -> {current(), refresh()}   called once from index.js;
+//   current() is {key, entries}; refresh() draws the list again (the History tab was shown)
 //
-// The popup. #run-history (aria-expanded) sits after #copy-link in the command bar and opens
-// #run-history-list, which is built when it opens (createElement and textContent only) and
-// holds one real button per entry, newest first. It is a button with a popup, not a <select>,
-// because a native select fires change on every arrow key in Chromium and Firefox, which would
-// overwrite the editor text while the student only browses. Choosing an entry puts its SQL in
-// the editor (never runs it, never saves it) and returns the focus to the editor; Escape closes
-// the popup and returns the focus to the toggle; a click or Tab outside closes it; ArrowDown,
-// ArrowUp, Home and End move through the entries.
+// The History tab of the sidebar (UI plan, section 5). #run-history-list holds one real button
+// per entry, newest first, built with createElement and textContent only: the first line of the
+// SQL (in the code typeface), when it ran (UTC) and its row count or an error mark (an icon and
+// the word, never colour alone). The list is one Tab stop; ArrowDown, ArrowUp, Home and End move
+// through it. Choosing an entry puts its SQL in the editor (never runs it, never saves it) and
+// moves the focus to the editor. The list is drawn while the tab is shown (isShown()), and again
+// after every run and every database load.
 
 import {
-    HISTORY_BUTTON_TEXT,
-    HISTORY_BUTTON_TITLE,
     HISTORY_EMPTY_MESSAGE,
     HISTORY_ERROR_WORD,
     HISTORY_LIST_LABEL,
@@ -83,6 +81,7 @@ import {
 } from "./config.js";
 import { utcTimestamp } from "./evidence.js";
 import { escapeHtml } from "./html.js";
+import { icon } from "./icons.js";
 import { reportStorage } from "./storage-notice.js";
 
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
@@ -238,7 +237,7 @@ function commit(key, added) {
             reportStorage("log", memory.size === 0);
         } else {
             // Storage could not take all of it (or any of it): this page keeps the whole log, so
-            // the popup and the export are complete for as long as it is open.
+            // the History tab and the export are complete for as long as it is open.
             memory.set(key, capped);
             reportStorage("log", false);
         }
@@ -259,12 +258,16 @@ export function appendLog(key, entry) {
 
 const oneLine = (text) => String(text).replace(/\s+/g, " ").trim();
 
+// sqlPreview is the first line of the SQL that holds anything, cut to HISTORY_SQL_PREVIEW_CHARS;
+// an ellipsis says there is more (a cut line, or more lines after it).
 function sqlPreview(sql) {
-    const line = oneLine(sql);
-    const chars = Array.from(line);
-    return chars.length <= HISTORY_SQL_PREVIEW_CHARS
-        ? line
-        : `${chars.slice(0, HISTORY_SQL_PREVIEW_CHARS).join("").trimEnd()}${STATEMENT_ELLIPSIS}`;
+    const lines = String(sql).split(/\r\n|\r|\n/).map(oneLine).filter(Boolean);
+    const first = lines[0] ?? "";
+    const chars = Array.from(first);
+    if (chars.length > HISTORY_SQL_PREVIEW_CHARS) {
+        return `${chars.slice(0, HISTORY_SQL_PREVIEW_CHARS).join("").trimEnd()}${STATEMENT_ELLIPSIS}`;
+    }
+    return lines.length > 1 ? `${first} ${STATEMENT_ELLIPSIS}` : first;
 }
 
 function span(className, text) {
@@ -274,38 +277,20 @@ function span(className, text) {
     return el;
 }
 
-export function mountRunLog({ ui }) {
+export function mountRunLog({ ui, list, isShown = () => true }) {
     const editor = ui.editor;
     const keys = new WeakMap(); // database -> log key, fixed when the database is opened
     let currentKey = null;
     let shown = [];
+    let roving = 0; // the entry (index in shown) that is the list's one Tab stop
 
-    const toggle = document.createElement("button");
-    toggle.type = "button";
-    toggle.id = "run-history";
-    toggle.textContent = HISTORY_BUTTON_TEXT;
-    toggle.title = HISTORY_BUTTON_TITLE;
-    toggle.setAttribute("aria-expanded", "false");
-    toggle.setAttribute("aria-controls", "run-history-list");
-
-    const list = document.createElement("div");
-    list.id = "run-history-list";
-    list.className = "run-history-list";
     list.setAttribute("role", "group");
     list.setAttribute("aria-label", HISTORY_LIST_LABEL);
-    list.hidden = true;
 
-    const copyLink = ui.commandbar.querySelector("#copy-link");
-    if (copyLink) {
-        copyLink.after(toggle, list);
-    } else {
-        ui.commandbar.append(toggle, list);
-    }
-
-    const isOpen = () => !list.hidden;
     const entryButtons = () => [...list.querySelectorAll("button.run-history-entry")];
 
     function render() {
+        const focusedIndex = list.contains(document.activeElement) ? Number(document.activeElement.dataset.index) : null;
         shown = currentKey === null ? [] : readLog(currentKey).reverse();
         list.replaceChildren();
         if (!shown.length) {
@@ -315,46 +300,32 @@ export function mountRunLog({ ui }) {
             list.append(empty);
             return;
         }
+        roving = Math.min(roving, shown.length - 1);
         shown.forEach((entry, index) => {
             const button = document.createElement("button");
             button.type = "button";
             button.className = "run-history-entry";
             button.dataset.index = String(index);
-            const outcome = entry.error !== undefined ? HISTORY_ERROR_WORD : historyRowsText(entry.rows);
-            button.append(
-                span("run-history-time", `${entry.t.slice(0, 10)} ${entry.t.slice(11, 19)} ${HISTORY_TIME_ZONE}`),
-                " ",
-                span(entry.error !== undefined ? "run-history-outcome run-history-outcome--error" : "run-history-outcome", outcome),
-                " ",
-                span("run-history-sql", sqlPreview(entry.sql))
-            );
+            button.tabIndex = index === roving ? 0 : -1;
+            const failed = entry.error !== undefined;
+            const outcome = span(failed ? "run-history-outcome run-history-outcome--error" : "run-history-outcome", "");
+            if (failed) {
+                outcome.append(icon("circle-x"));
+            }
+            outcome.append(failed ? HISTORY_ERROR_WORD : historyRowsText(entry.rows));
+            const meta = span("run-history-meta", "");
+            meta.append(span("run-history-time", `${entry.t.slice(0, 10)} ${entry.t.slice(11, 19)} ${HISTORY_TIME_ZONE}`), " ", outcome);
+            button.append(span("run-history-sql", sqlPreview(entry.sql)), meta);
             list.append(button);
         });
-    }
-
-    function open() {
-        render();
-        list.hidden = false;
-        toggle.setAttribute("aria-expanded", "true");
-        // the popup can sit below the fold on a phone
-        const first = entryButtons()[0];
-        (first ?? list).scrollIntoView?.({ block: "nearest" });
-        first?.focus();
-    }
-
-    // close hides the popup. focus: "toggle", "editor" or null (leave the focus where it is).
-    function close(focus = null) {
-        if (!isOpen()) {
-            return;
+        if (focusedIndex !== null) {
+            entryButtons()[Math.min(focusedIndex, shown.length - 1)]?.focus();
         }
-        list.hidden = true;
-        list.replaceChildren();
-        shown = [];
-        toggle.setAttribute("aria-expanded", "false");
-        if (focus === "toggle") {
-            toggle.focus();
-        } else if (focus === "editor") {
-            editor.focus();
+    }
+
+    function refresh() {
+        if (isShown()) {
+            render();
         }
     }
 
@@ -366,10 +337,8 @@ export function mountRunLog({ ui }) {
         // not run, and not saved as the student's last query: only a Run does that
         editor.value = entry.sql;
         ui.status.info(escapeHtml(HISTORY_RESTORED_MESSAGE));
-        close("editor");
+        editor.focus();
     }
-
-    toggle.addEventListener("click", () => (isOpen() ? close("toggle") : open()));
 
     list.addEventListener("click", (event) => {
         const button = event.target instanceof Element ? event.target.closest("button.run-history-entry") : null;
@@ -378,65 +347,35 @@ export function mountRunLog({ ui }) {
         }
     });
 
-    function onKeydown(event) {
-        if (!isOpen()) {
-            return;
-        }
-        if (event.key === "Escape") {
-            event.preventDefault();
-            event.stopPropagation();
-            close("toggle");
-            return;
-        }
-        const buttons = entryButtons();
-        if (!buttons.length) {
-            return;
-        }
-        const at = buttons.indexOf(document.activeElement);
-        let next = null;
-        if (event.key === "ArrowDown") {
-            next = at === -1 ? 0 : Math.min(at + 1, buttons.length - 1);
-        } else if (event.key === "ArrowUp") {
-            next = at === -1 ? buttons.length - 1 : Math.max(at - 1, 0);
-        } else if (event.key === "Home" && at !== -1) {
-            next = 0;
-        } else if (event.key === "End" && at !== -1) {
-            next = buttons.length - 1;
-        }
-        if (next !== null) {
-            event.preventDefault();
-            buttons[next].focus();
-        }
-    }
-    toggle.addEventListener("keydown", onKeydown);
-    list.addEventListener("keydown", onKeydown);
-
-    // Tab (or anything else) taking the focus out of the toggle and the popup closes it
-    const onFocusOut = (event) => {
-        const to = event.relatedTarget;
-        if (isOpen() && to instanceof Node && to !== toggle && !list.contains(to)) {
-            close();
-        }
-    };
-    toggle.addEventListener("focusout", onFocusOut);
-    list.addEventListener("focusout", onFocusOut);
-
-    // a click anywhere else
-    document.addEventListener(
-        "pointerdown",
-        (event) => {
-            if (isOpen() && event.target instanceof Node && event.target !== toggle && !toggle.contains(event.target) && !list.contains(event.target)) {
-                close();
+    list.addEventListener("focusin", (event) => {
+        const button = event.target instanceof Element ? event.target.closest("button.run-history-entry") : null;
+        if (button) {
+            roving = Number(button.dataset.index);
+            for (const other of entryButtons()) {
+                other.tabIndex = other === button ? 0 : -1;
             }
-        },
-        true
-    );
+        }
+    });
+
+    list.addEventListener("keydown", (event) => {
+        const buttons = entryButtons();
+        const at = buttons.indexOf(document.activeElement);
+        if (at === -1 || event.altKey || event.ctrlKey || event.metaKey) {
+            return;
+        }
+        const moves = { ArrowDown: Math.min(at + 1, buttons.length - 1), ArrowUp: Math.max(at - 1, 0), Home: 0, End: buttons.length - 1 };
+        if (event.key in moves) {
+            event.preventDefault();
+            buttons[moves[event.key]].focus();
+        }
+    });
 
     document.addEventListener("lab:database-loaded", (event) => {
         const { database, dataset } = event.detail;
         currentKey = logKeyFor(dataset, database.name);
         keys.set(database, currentKey);
-        close();
+        roving = 0;
+        refresh();
     });
 
     document.addEventListener("lab:run-finished", (event) => {
@@ -447,11 +386,14 @@ export function mountRunLog({ ui }) {
         const key = keys.get(database) ?? logKeyFor(null, database?.name);
         const t = utcTimestamp();
         appendLog(key, ok ? { t, sql, rows } : { t, sql, error: error || "unknown error" });
+        roving = 0;
+        refresh();
     });
 
     return {
         current() {
             return { key: currentKey, entries: currentKey === null ? [] : readLog(currentKey) };
         },
+        refresh: render,
     };
 }

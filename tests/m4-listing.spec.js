@@ -6,7 +6,9 @@ const { spawn, spawnSync } = require("node:child_process");
 const { test, expect, realSet, routeListing, routeSet } = require("./helpers");
 
 // Deployment of the exercise listing (M4): GitHub Pages cannot list a folder, so the workflow
-// writes exercises/index.html, and the app finds the sets by reading it (listSets).
+// writes exercises/index.html, and the app finds the sets by reading it (listSets). What the app
+// found shows in the set picker of the sidebar's Exercises tab: a menu button whose menu has one
+// menuitemradio entry per set (and "None").
 // The "List exercise sets" step is taken out of pages.yml and run with bash, so the test
 // breaks if the step is edited into something that no longer works.
 
@@ -124,7 +126,7 @@ test("a percent sign in a file name reaches the app as that name: no other name,
         { id: "week 3", ok: false },
         { id: "x%00", ok: false },
     ]);
-    await expect(app.setPicker.locator("option")).toHaveText([
+    await expect(app.setMenu.locator(".menu-item-label")).toHaveText([
         "None",
         "100%.json (not valid)",
         "a%2Fb.json (not valid)",
@@ -164,7 +166,10 @@ test("the test server answers exercises/ with the same output as the step", asyn
 });
 
 // listFromPage serves `listing` for exercises/ and the given sets for their files, then asks the
-// app what it lists (and what its set picker shows).
+// app what it lists (and what its set picker's menu shows: the ids of its entries after "None").
+// The picker is enabled exactly when something is listed (an invalid file too: it is a disabled
+// entry), and then its menu is opened; with nothing listed it is disabled and its menu holds
+// "None" alone.
 async function listFromPage(page, app, listing, sets) {
     await routeListing(page, listing);
     for (const [id, set] of Object.entries(sets)) {
@@ -175,7 +180,18 @@ async function listFromPage(page, app, listing, sets) {
         const { listSets } = await import("./js/lab/exercises.js");
         return (await listSets()).map((e) => ({ id: e.id, ok: e.ok }));
     });
-    const options = await app.setPicker.evaluate((s) => [...s.options].map((o) => o.value).filter(Boolean));
+    await app.openTab("exercises");
+    if (listed.length) {
+        await expect(app.setPicker).toBeEnabled();
+        await app.setPicker.click();
+        await expect(app.setMenu).toBeVisible();
+    } else {
+        await expect(app.setPicker).toBeDisabled();
+    }
+    const options = await app.setMenu.locator("[data-set-id]").evaluateAll((items) => items.map((i) => i.dataset.setId).filter(Boolean));
+    if (await app.setMenu.isVisible()) {
+        await page.keyboard.press("Escape");
+    }
     return { listed, options };
 }
 
@@ -189,7 +205,7 @@ test("the app lists exactly the sets of the page the workflow step wrote", async
         { id: "beta-2", ok: true },
     ]);
     expect(options).toEqual(["alpha", "beta-2"]);
-    await expect(app.setPicker.locator("option")).toHaveText(["None", "Alpha set", "Beta set"]);
+    await expect(app.setMenu.locator(".menu-item-label")).toHaveText(["None", "Alpha set", "Beta set"]);
 });
 
 test("an empty listing from the step gives an app with no sets and no errors", async ({ page, app, pageErrors }) => {
@@ -197,6 +213,8 @@ test("an empty listing from the step gives an app with no sets and no errors", a
     const { listed, options } = await listFromPage(page, app, html, {});
     expect(listed).toEqual([]);
     expect(options).toEqual([]);
+    await expect(app.setPicker).toBeDisabled(); // nothing to choose but "None"
+    await expect(app.setMenu.locator(".menu-item-label")).toHaveText(["None"]);
     expect(pageErrors).toEqual([]);
 });
 

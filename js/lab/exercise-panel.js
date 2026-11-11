@@ -1,5 +1,6 @@
-// F2/F7 on screen: the exercise set picker (toolbar), the exercise panel above the editor,
-// the Check button beside Run, and the verdict under the command bar.
+// F2/F7 on screen: the Exercises tab of the sidebar (the set picker, the progress line, the list
+// of exercises, Reset progress), the exercise prompt above the editor, Check answer beside Run,
+// and the verdict at the top of the result.
 //
 // Static markup lives in index.html (#exercise-panel and its parts, #exercise-feedback);
 // this module fills it, with createElement and textContent only: titles, prompts, hints and
@@ -7,14 +8,15 @@
 // hand the exercise object to the checker (js/lab/checker.js); it is not copied into the DOM,
 // an attribute, a message or the share link.
 //
-// mountExercises({toolbar, ui, execute, isLoading, openSet, closeSet}) -> controller
-//   toolbar    the <tool-bar>; the "Exercises" select is placed after the dataset picker
+// mountExercises({pickerSlot, ui, execute, isLoading, openSet, closeSet, showTab}) -> controller
+//   pickerSlot where the set picker (a menu button and its menu) goes, in the Exercises tab
 //   ui         index.js's element handles (editor, status, result)
 //   execute    index.js's execute(sql): the visible run. Check calls it with exactly the SQL
 //              Run would use (ui.editor.query), then calls the checker
 //   isLoading  () -> true while a database is loading (Check refuses, as Run does)
-//   openSet    (set) the student picked a set in the select
+//   openSet    (set) the student picked a set in the picker
 //   closeSet   () the student picked "None"
+//   showTab    () bring the Exercises tab forward (a set opened)
 // The controller:
 //   editorSql({set, exerciseId}, linkSql) -> string   what the editor holds when a set opens
 //                                                    over a freshly loaded database: the
@@ -23,7 +25,7 @@
 //   open(set, exerciseId)   open a set over the database that is already open (the editor
 //                           gets the draft of the exercise, or nothing)
 //   close()                 leave exercise mode, keeping the database
-//   syncPicker()            put the select back on the open set (a pick that failed)
+//   syncPicker()            show the open set in the picker again (a pick that failed)
 //
 // The panel follows the page through two events on the document:
 //   lab:database-loaded  detail.exercise = {set, exerciseId} opens the panel; without it the
@@ -50,6 +52,7 @@ import {
     EXERCISE_RESET_TITLE,
     SET_PARAM,
     SET_PICKER_LABEL,
+    SET_PICKER_MENU_LABEL,
     SET_PICKER_NONE,
     VERDICT_SCROLL_NOTE,
     exerciseAllCompleteText,
@@ -65,6 +68,9 @@ import {
 } from "./config.js";
 import { createChecker } from "./checker.js";
 import { listSets } from "./exercises.js";
+import { icon } from "./icons.js";
+import { MOD_KEY } from "./keys.js";
+import { mountMenu } from "./menu.js";
 import { getDraft, isPassed, markPassed, passedCount, resetSet, saveDraft } from "./progress.js";
 import { setShareContext } from "./share.js";
 import { MESSAGES } from "../sqlite/db.js";
@@ -87,12 +93,16 @@ function el(tag, className, text) {
     return node;
 }
 
-export function mountExercises({ toolbar, ui, execute, isLoading, openSet, closeSet }) {
+export function mountExercises({ pickerSlot, ui, execute, isLoading, openSet, closeSet, showTab }) {
     const $ = (id) => document.getElementById(id);
     const els = {
         panel: $("exercise-panel"),
         title: $("exercise-set-title"),
         progress: $("exercise-progress"),
+        progressBlock: document.querySelector(".exercise-progress-block"),
+        progressFill: document.querySelector(".exercise-progress-fill"),
+        empty: document.querySelector(".exercise-empty"),
+        toolbar: $("editor-toolbar"),
         reset: $("exercise-reset"),
         list: $("exercise-list"),
         prompt: $("exercise-prompt"),
@@ -113,59 +123,101 @@ export function mountExercises({ toolbar, ui, execute, isLoading, openSet, close
     const hintsShown = new Map(); // "<set>/<exercise>" -> hints revealed, for the page's lifetime
 
     // ---- the set picker --------------------------------------------------------------------
+    // A menu button, as drawn in the mockup: "None", then each set by its title; a set that
+    // failed validation, or a file whose name cannot be an id, is a disabled entry naming its file,
+    // with the problem under it; a set opened from an address but not listed is shown all the same.
 
-    const group = el("span", "dataset-picker exercise-set-picker");
-    const label = el("label", null, SET_PICKER_LABEL);
-    label.htmlFor = "exercise-set-picker";
-    const picker = el("select");
+    const picker = el("button", "button set-picker");
+    picker.type = "button";
     picker.id = "exercise-set-picker";
-    group.append(label, picker);
-    const datasetGroup = toolbar.querySelector(".dataset-picker");
-    if (datasetGroup) {
-        datasetGroup.after(group);
-    } else {
-        toolbar.prepend(group);
+    const pickerLabel = el("span", "set-picker-label");
+    picker.append(pickerLabel, icon("chevron-down"));
+    const menu = el("div", "menu menu--wide");
+    menu.id = "exercise-set-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", SET_PICKER_MENU_LABEL);
+    pickerSlot.append(picker, menu);
+
+    function pickerItem(value, text, { disabled = false, problem = "" } = {}) {
+        const item = el("button", "menu-item menu-item--two-line");
+        item.type = "button";
+        item.tabIndex = -1;
+        item.setAttribute("role", "menuitemradio");
+        item.dataset.setId = value;
+        const tick = icon("check");
+        tick.classList.add("menu-check");
+        const text_ = el("span", "menu-item-text");
+        text_.append(el("span", "menu-item-label", text));
+        if (problem) {
+            text_.append(el("span", "menu-item-description", problem));
+            item.title = problem;
+        }
+        item.append(tick, text_);
+        if (disabled) {
+            item.setAttribute("aria-disabled", "true");
+        }
+        return item;
     }
 
-    function option(value, text, { disabled = false, title = "" } = {}) {
-        const node = el("option", null, text);
-        node.value = value;
-        node.disabled = disabled;
-        if (title) {
-            node.title = title;
-        }
-        return node;
-    }
+    // the set last asked for while its database is still loading ("" for None), or null when
+    // what is open is what was asked for. The picker shows it, and choosing it again does
+    // nothing; choosing None (or another set) while it loads cancels that load, as with the old
+    // select, whose value was the student's last choice.
+    let asked = null;
+    const choice = () => asked ?? (set ? set.id : "");
 
     function renderPicker() {
-        picker.replaceChildren(option("", SET_PICKER_NONE));
+        const chosen = choice();
+        const items = [pickerItem("", SET_PICKER_NONE)];
         for (const entry of listed) {
-            picker.append(
+            items.push(
                 entry.ok
-                    ? option(entry.id, entry.set.title)
-                    : option(entry.id, setPickerBrokenLabel(entry.id), { disabled: true, title: entry.problem })
+                    ? pickerItem(entry.id, entry.set.title)
+                    : pickerItem(entry.id, setPickerBrokenLabel(entry.id), { disabled: true, problem: entry.problem })
             );
         }
         // a set opened from an address needs no listing: it is shown all the same
         if (set && !listed.some((e) => e.ok && e.id === set.id)) {
-            picker.append(option(set.id, set.title));
+            items.push(pickerItem(set.id, set.title));
         }
-        picker.value = set ? set.id : "";
-        picker.disabled = picker.options.length <= 1;
+        for (const item of items) {
+            item.setAttribute("aria-checked", String(item.dataset.setId === chosen));
+        }
+        if (!menu.matches(":popover-open")) {
+            menu.replaceChildren(...items);
+        } else {
+            for (const item of menu.querySelectorAll("[data-set-id]")) {
+                item.setAttribute("aria-checked", String(item.dataset.setId === chosen));
+            }
+        }
+        const shown = chosen === "" ? null : (listed.find((e) => e.ok && e.id === chosen)?.set ?? set);
+        const label = shown ? shown.title : SET_PICKER_NONE;
+        pickerLabel.textContent = label;
+        picker.setAttribute("aria-label", `${SET_PICKER_LABEL}: ${label}`);
+        picker.disabled = items.length <= 1;
     }
 
-    picker.addEventListener("change", () => {
-        if (picker.value === "") {
-            closeSet();
-            return;
-        }
-        const entry = listed.find((e) => e.ok && e.id === picker.value);
-        const chosen = entry ? entry.set : set && set.id === picker.value ? set : null;
-        if (chosen) {
-            openSet(chosen);
-        } else {
-            renderPicker();
-        }
+    mountMenu(picker, menu, {
+        onSelect(item) {
+            const value = item.dataset.setId;
+            if (value === undefined || value === choice()) {
+                return;
+            }
+            if (value === "") {
+                asked = set ? "" : null;
+                closeSet();
+                return;
+            }
+            const entry = listed.find((e) => e.ok && e.id === value);
+            const chosen = entry ? entry.set : set && set.id === value ? set : null;
+            if (chosen) {
+                asked = chosen.id;
+                renderPicker();
+                openSet(chosen);
+            } else {
+                renderPicker();
+            }
+        },
     });
 
     // listSets must not delay opening the database, so it is not awaited by anything
@@ -188,8 +240,20 @@ export function mountExercises({ toolbar, ui, execute, isLoading, openSet, close
                 button.type = "button";
                 button.dataset.exerciseId = exercise.id;
                 button.title = exercise.title;
-                button.append(el("span", "exercise-item-number"), el("span", "exercise-item-mark"));
-                button.lastChild.setAttribute("aria-hidden", "true");
+                // the mark (a ticked circle or an empty one), the number and the title; the
+                // button's name says all three in words (refreshList)
+                const mark = el("span", "exercise-item-mark");
+                mark.setAttribute("aria-hidden", "true");
+                const passedIcon = icon("circle-check");
+                passedIcon.classList.add("exercise-mark-passed");
+                const openIcon = icon("circle");
+                openIcon.classList.add("exercise-mark-open");
+                mark.append(passedIcon, openIcon);
+                // the number is drawn by css/exercises.css (a counter): the name says it as
+                // "Exercise N of M", and the visible text (the title) stays inside the name
+                const number = el("span", "exercise-item-number");
+                number.setAttribute("aria-hidden", "true");
+                button.append(mark, number, el("span", "exercise-item-title", exercise.title));
                 item.append(button);
                 return item;
             })
@@ -208,8 +272,8 @@ export function mountExercises({ toolbar, ui, execute, isLoading, openSet, close
             const exercise = set.exercises[index];
             const passed = isPassed(set.id, exercise.id);
             const active = exercise.id === current.id;
-            button.firstChild.textContent = String(index + 1);
-            button.lastChild.textContent = passed ? EXERCISE_PASSED_MARK : "";
+            button.querySelector(".exercise-mark-passed").classList.toggle("hidden", !passed);
+            button.querySelector(".exercise-mark-open").classList.toggle("hidden", passed);
             button.setAttribute("aria-label", exerciseButtonLabel(index + 1, total, exercise.title, passed));
             button.classList.toggle("exercise-item--passed", passed);
             if (active) {
@@ -222,10 +286,9 @@ export function mountExercises({ toolbar, ui, execute, isLoading, openSet, close
     }
 
     function refreshProgress() {
-        els.progress.textContent = exerciseProgressText(
-            passedCount(set.id, set.exercises.map((e) => e.id)),
-            set.exercises.length
-        );
+        const passed = passedCount(set.id, set.exercises.map((e) => e.id));
+        els.progress.textContent = exerciseProgressText(passed, set.exercises.length);
+        els.progressFill.style.width = `${(100 * passed) / set.exercises.length}%`;
     }
 
     els.list.addEventListener("click", (event) => {
@@ -276,11 +339,11 @@ export function mountExercises({ toolbar, ui, execute, isLoading, openSet, close
 
     function renderPrompt() {
         const position = set.exercises.indexOf(current) + 1;
-        els.prompt.replaceChildren(
-            el("p", "exercise-kicker", `Exercise ${position} of ${set.exercises.length}`),
-            el("h3", "exercise-title", current.title),
-            el("p", "exercise-text", current.prompt)
-        );
+        const heading = el("div", "exercise-heading");
+        const title = el("h2", "exercise-title", current.title);
+        title.id = "exercise-prompt-title";
+        heading.append(title, el("p", "exercise-kicker", `Exercise ${position} of ${set.exercises.length}`));
+        els.prompt.replaceChildren(heading, el("p", "exercise-text", current.prompt));
     }
 
     function renderHints() {
@@ -536,10 +599,15 @@ export function mountExercises({ toolbar, ui, execute, isLoading, openSet, close
         if (checkButton) {
             return;
         }
-        checkButton = el("button", null, CHECK_BUTTON_TEXT);
+        // the filled primary of exercise mode; Run stays beside it as a quiet button
+        checkButton = el("button", "button button--primary");
         checkButton.type = "button";
         checkButton.id = "exercise-check";
         checkButton.title = CHECK_BUTTON_TITLE;
+        const hint = el("span", "shortcut");
+        hint.setAttribute("aria-hidden", "true");
+        hint.append(el("span", null, MOD_KEY), " Shift Enter");
+        checkButton.append(icon("check"), el("span", null, CHECK_BUTTON_TEXT), hint);
         checkButton.setAttribute("aria-keyshortcuts", "Control+Shift+Enter Meta+Shift+Enter");
         // a plain click handler, not ActionController: that disables the button while the action
         // runs, and a browser moves the focus off a disabled button
@@ -547,11 +615,13 @@ export function mountExercises({ toolbar, ui, execute, isLoading, openSet, close
             runCheck();
         });
         document.getElementById("execute").after(checkButton);
+        els.toolbar.classList.add("editor-toolbar--exercise");
     }
 
     function removeCheckButton() {
         checkButton?.remove();
         checkButton = null;
+        els.toolbar.classList.remove("editor-toolbar--exercise");
     }
 
     // ---- opening, closing, selecting -------------------------------------------------------
@@ -565,11 +635,16 @@ export function mountExercises({ toolbar, ui, execute, isLoading, openSet, close
     // enter shows the panel for a set. The editor is not touched here.
     function enter(newSet, exerciseId) {
         generation++;
+        asked = null;
         set = newSet;
         current = chooseExercise(newSet, exerciseId);
         rovingId = current.id;
         els.title.textContent = set.title;
+        els.title.hidden = false;
         els.panel.hidden = false;
+        els.progressBlock.hidden = false;
+        els.reset.hidden = false;
+        els.empty.hidden = true;
         addCheckButton();
         buildList();
         refreshProgress();
@@ -578,14 +653,22 @@ export function mountExercises({ toolbar, ui, execute, isLoading, openSet, close
         clearFeedback();
         renderPicker();
         setShareContext({ set: set.id, exercise: current.id });
+        showTab();
     }
 
     function leave() {
         generation++;
+        asked = null;
         set = null;
         current = null;
         rovingId = null;
+        els.title.textContent = "";
+        // an empty heading would still be announced as one
+        els.title.hidden = true;
         els.panel.hidden = true;
+        els.progressBlock.hidden = true;
+        els.reset.hidden = true;
+        els.empty.hidden = false;
         removeCheckButton();
         els.list.replaceChildren();
         els.prompt.replaceChildren();
@@ -680,6 +763,10 @@ export function mountExercises({ toolbar, ui, execute, isLoading, openSet, close
             enter(openingSet, chosen.id);
         },
         close: leave,
-        syncPicker: renderPicker,
+        // a pick that failed or was cancelled: the picker shows what is open again
+        syncPicker() {
+            asked = null;
+            renderPicker();
+        },
     };
 }
