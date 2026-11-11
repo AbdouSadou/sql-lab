@@ -1,0 +1,60 @@
+/* Toasts (js/lab/toast.js; UI plan, section 5): bottom centre, over the status bar, one at a time.
+   Toasts are one of the three things that cast a shadow (with menus and dialogs); they fade in, and
+   reduced motion removes the fade. The region takes no pointer events, so a toast never stands
+   between the student and a control. */
+
+.toast-region {
+    position: fixed;
+    bottom: calc(28px + var(--space-4));
+    left: 50%;
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    width: max-content;
+    max-width: calc(100vw - 2 * var(--space-4));
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.toast {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    max-width: 36rem;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-float);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-float);
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    line-height: var(--leading-ui);
+    animation: menu-fade var(--motion-fade) ease-out;
+}
+
+.toast-icon {
+    margin-top: 2px;
+}
+
+.toast--problem .toast-icon {
+    color: var(--danger);
+}
+
+.toast-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* a phone: the page scrolls and the status bar is at its end, so the toast keeps to the bottom */
+@media (max-width: 699.98px) {
+    .toast-region {
+        bottom: var(--space-4);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .toast {
+        animation: none;
+    }
+}

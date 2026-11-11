@@ -29,7 +29,10 @@ const titleOf = (n) => SET.exercises[n - 1].title;
 // rows of each model query on Northlight (counted with the sqlite3 command-line tool)
 const MODEL_ROWS = { e01: 5, e02: 5, e03: 5, e04: 8, e05: 5, e06: 5, e07: 1, e08: 22, e09: 19, e10: 4 };
 const PROGRESS_KEY = "sqllab.progress.retail-basics";
-const rowsTook = (n) => `${n} ${n === 1 ? "row" : "rows"}, took`;
+// the summary line of a run that returned n rows: "5 rows in 3 ms" (anchored, so "905 rows" is not "5 rows")
+const rowsIn = (n) => new RegExp(`^${n} ${n === 1 ? "row" : "rows"} in \\d+ ms$`);
+// the notice of "no result yet" (a router notice: a set that could not be opened, a bad link)
+const notice = (app) => app.emptyState.locator(".results-empty-notice");
 
 // The set picker is a menu button: its label names the open set ("Exercise set: <title>", or
 // "None"), and its menu lists the entries as menuitemradio items.
@@ -70,7 +73,9 @@ test("AC4 a link restores SQL, dataset, set and exercise in a fresh context with
         await expect(f.exercisePanel).toBeVisible();
         await expect(f.exerciseButton(3)).toHaveAttribute("aria-current", "true");
         await expectSetPicked(f, SET.title);
-        await expect(f.status).toContainText("A shared query is in the editor");
+        // nothing ran: "no result yet" says the shared query waits for Run (where the status line did)
+        await expect(f.pane).toHaveAttribute("data-state", "empty");
+        await expect(f.emptyState.locator(".results-empty-text")).toContainText("A shared query is in the editor");
         expect(await f.pickedText()).toBe("Northlight Retail");
         expect((await editorValue(fresh.page)).trim()).toBe(sql);
         // the dataset really is open, and nothing was run or checked
@@ -100,7 +105,8 @@ test("AC5 the model answer for e01 passes, the wrong sort direction fails with r
     await expect(app.feedback).toContainText("Passed");
     await expect(app.progress).toHaveText("1 of 10 complete");
     // the student's own results are on screen as usual
-    await expect(app.status).toContainText("5 rows, took");
+    await app.settle();
+    await expect(app.status).toHaveText(rowsIn(5));
     expect((await app.read()).columns).toEqual(["product_name", "unit_price"]);
 
     const wrong = modelQuery("e01").replace("DESC", "ASC");
@@ -128,8 +134,10 @@ test("AC5 the model answer for e01 passes, the wrong sort direction fails with r
     await app.checkButton.click();
     await expect(app.feedback.locator(".verdict-message")).toHaveText('near "SELEC": syntax error');
     await expect(app.feedback.locator(".verdict-note")).toHaveCount(0);
-    // the status line still carries the run's own error, and the visible run did happen
-    await expect(app.status).toContainText('near "SELEC": syntax error');
+    // the results pane still carries the run's own error (in its error band), and the visible run did happen
+    await app.settle();
+    await expect(app.pane).toHaveAttribute("data-state", "error");
+    await expect(app.errorBand.locator(".results-band-message")).toContainText('near "SELEC": syntax error');
 });
 
 test("AC5 the model query appears nowhere in the page, for all ten exercises, whatever the student does", async ({
@@ -189,11 +197,13 @@ test("every model query in the shipped set passes its own check, with the expect
         await app.exerciseButton(i + 1).click();
         await app.editor.fill(modelQuery(id));
         await app.page.locator("#execute").click();
-        await expect(app.status).toContainText(rowsTook(MODEL_ROWS[id]));
+        await app.settle();
+        await expect(app.status).toHaveText(rowsIn(MODEL_ROWS[id]));
         await app.checkButton.click();
         await expect(app.feedback.locator(".verdict--pass")).toBeVisible();
         // Check ran the query visibly as well: the same count is still on screen
-        await expect(app.status).toContainText(rowsTook(MODEL_ROWS[id]));
+        await app.settle();
+        await expect(app.status).toHaveText(rowsIn(MODEL_ROWS[id]));
     }
     await expect(app.progress).toHaveText("10 of 10 complete");
 });
@@ -232,7 +242,8 @@ test("AC8 keyboard only: reach the editor, type, run, check with Ctrl+Shift+Ente
     await expect(app.editor).toBeFocused();
     await page.keyboard.type(modelQuery("e01"));
     await page.keyboard.press("Control+Enter");
-    await expect(app.status).toContainText("5 rows, took");
+    await app.settle();
+    await expect(app.status).toHaveText(rowsIn(5));
     // results are a real table
     await expect(page.locator("#result table > thead > tr > th")).toHaveCount(2);
     await expect(page.locator("#result table > tbody > tr")).toHaveCount(5);
@@ -323,10 +334,12 @@ test("a query that ran on the changed working copy but fails on the original dat
 }) => {
     await app.openSet();
     await app.run("CREATE TABLE mine (x); INSERT INTO mine VALUES (1);");
-    await expect(app.status).toContainText("rows, took");
+    // (no result set: the summary line says "Done. 1 row changed in N ms")
+    await expect(app.status).toHaveText(/^Done\. 1 row changed in \d+ ms$/);
     await app.editor.fill("SELECT x FROM mine;");
     await app.checkButton.click();
-    await expect(app.status).toContainText("1 row, took"); // it ran on the student's copy
+    await app.settle();
+    await expect(app.status).toHaveText(rowsIn(1)); // it ran on the student's copy
     const verdict = app.feedback.locator(".verdict--fail");
     await expect(verdict.locator(".verdict-message")).toHaveText("no such table: mine");
     await expect(verdict.locator(".verdict-note")).toContainText("working copy");
@@ -367,7 +380,8 @@ test("while a database is loading, Check refuses as Run does", async ({ page, ap
     await app.editor.fill(modelQuery("e01"));
     await app.pickDatabase("Sample Fruit"); // starts a slow load
     await app.checkButton.click();
-    await expect(app.status).toContainText("still loading");
+    // the refusal is a toast (it was the status line's text), and nothing was checked
+    await expect(app.toast).toContainText("still loading");
     await expect(app.feedback).toBeHidden();
     release();
     await expect(app.databaseLabel).toHaveText("Sample Fruit");
@@ -443,7 +457,7 @@ test("the panel and the Exercises tab: set title, numbered buttons with full nam
     await expect(app.exerciseButton(1)).toHaveAttribute("aria-current", "true");
     await expect(app.prompt).toContainText(titleOf(1));
     await expect(app.prompt).toContainText(SET.exercises[0].prompt);
-    // the prompt is above the editor, the verdict above the status
+    // the prompt is above the editor (and the verdict above the summary line)
     const order = await page.evaluate(() => {
         const y = (s) => document.querySelector(s).getBoundingClientRect().top;
         return [y("#exercise-prompt"), y("#editor"), y("#exercise-feedback") || -1, y("#status")];
@@ -539,11 +553,12 @@ test("every Run in exercise mode saves the full editor text as the draft, even w
     await app.editor.fill("SELECT 1 AS a; SELECT 2 AS b;");
     await editorSelect(page, 0, 14);
     await page.locator("#execute").click();
-    await expect(app.status).toContainText("1 row");
+    await app.settle();
+    await expect(app.status).toHaveText(rowsIn(1));
     expect((await readStore(page)).drafts.e03).toBe("SELECT 1 AS a; SELECT 2 AS b;");
 });
 
-test("in exercise mode the editor never shows the dataset's free-query SQL and never runs the preview", async ({ page, app }) => {
+test("in exercise mode the editor never shows the dataset's free-query SQL and nothing runs on load", async ({ page, app }) => {
     await app.open();
     await app.query("SELECT 'free' AS mode;"); // saved for the dataset
     await page.goto("./?set=retail-basics");
@@ -551,7 +566,13 @@ test("in exercise mode the editor never shows the dataset's free-query SQL and n
     await app.waitReady();
     expect((await editorValue(page)).trim()).toBe("");
     await expect(app.table).toHaveCount(0);
-    await expect(app.status).toContainText("Run SQL query to see the results");
+    // nothing ran on load: the results pane says "no result yet" (it was the invitation in the status line)
+    await expect(app.pane).toHaveAttribute("data-state", "empty");
+    await expect(app.emptyState.locator(".results-empty-title")).toHaveText("Run a query to see its result here.");
+    await expect(app.summary).toBeHidden();
+    // and in exercise mode it asks for an answer, with no sample queries to start from
+    await expect(app.emptyState.locator(".results-empty-text")).toHaveText("Write your answer in the editor, then press Check answer.");
+    await expect(app.samples).toHaveCount(0);
     // the query toolbar is enabled from the start
     await expect(page.locator("#execute")).toBeEnabled();
     // picking a set over the open dataset also shows the exercise's text, not the free query
@@ -710,7 +731,8 @@ test("a file whose name cannot be an id is a disabled menu entry that no way of 
     await expect(app.setMenu.locator("img")).toHaveCount(0);
     // choosing one of them (a press, or Enter on it from the keyboard) opens nothing and leaves the
     // picker on None
-    const statusBefore = await app.status.textContent();
+    const resultBefore = await app.result.textContent();
+    const toastBefore = await app.toast.textContent();
     await options.nth(3).click({ force: true });
     await options.nth(3).focus();
     await page.keyboard.press("Enter");
@@ -719,10 +741,12 @@ test("a file whose name cannot be an id is a disabled menu entry that no way of 
     await expect(app.setMenu).toBeVisible(); // a disabled entry does not even close the menu
     await page.keyboard.press("Escape");
     await expectSetPicked(app, "None");
-    // and the status line is as it was: the file name is not handed to the code that opens a set,
-    // which would name it in an error
-    expect(await app.status.textContent()).toBe(statusBefore);
-    expect(await app.status.textContent()).not.toContain("Week 3");
+    // and the results pane and the toasts are as they were: the file name is not handed to the code
+    // that opens a set, which would name it in an error
+    expect(await app.result.textContent()).toBe(resultBefore);
+    expect(await app.result.textContent()).not.toContain("Week 3");
+    expect(await app.toast.textContent()).toBe(toastBefore);
+    expect(await app.toast.textContent()).not.toContain("Week 3");
     // the good one opens; nothing was requested for the others, only the folder and that set
     await app.pickSet(SET.title);
     await expect(app.exercisePanel).toBeVisible();
@@ -737,7 +761,10 @@ test("listing the sets does not delay opening the database", async ({ page, app 
         await route.fulfill({ status: 200, contentType: "text/html", body: listingHtml(["retail-basics.json"]) });
     });
     await app.open(); // would time out if it waited for the listing
-    await expect(app.table).toBeVisible();
+    // the database is open (nothing ran: "no result yet" with the samples), the picker still waits
+    await expect(app.pane).toHaveAttribute("data-state", "empty");
+    await expect(app.samples.first()).toBeVisible();
+    expect(await page.evaluate(() => window.app.database.name)).toBe("northlight_retail.db");
     await expect(app.setPicker).toBeDisabled();
     release();
     await expect(app.setPicker).toBeEnabled();
@@ -761,7 +788,7 @@ test("picking a set over its open dataset keeps the database; picking one needin
 
     // the student's work in the open dataset survives opening its set
     await app.run("CREATE TABLE keep (x); INSERT INTO keep VALUES (7);");
-    await expect(app.status).toContainText("rows, took");
+    await expect(app.status).toHaveText(/^Done\. 1 row changed in \d+ ms$/);
     const database = await page.evaluateHandle(() => window.app.database);
     await app.pickSet(SET.title);
     await expect(app.exercisePanel).toBeVisible();
@@ -804,7 +831,7 @@ test("a pick that cannot be carried out leaves the picker where it was", async (
     await page.route(/\/datasets\/sample\.db(\?.*)?$/, (route) => route.fulfill({ status: 404, body: "no" }));
     await app.open();
     await app.pickSet("Fruit practice");
-    await expect(app.status).toContainText("could not be loaded");
+    await expect(app.errorBand.locator(".results-band-text")).toContainText("could not be loaded");
     await expect(app.exercisePanel).toBeHidden();
     await expectSetPicked(app, "None");
     await expect(app.databaseLabel).toHaveText("Northlight Retail");
@@ -826,7 +853,8 @@ test("None closes the panel, keeps the database open and pushes ?db=<id>", async
     await app.openSet();
     await app.editor.fill("CREATE TABLE keep (x); SELECT 1;");
     await page.locator("#execute").click();
-    await expect(app.status).toContainText(/rows?, took/);
+    await app.settle();
+    await expect(app.status).toHaveText(rowsIn(1));
     const database = await page.evaluateHandle(() => window.app.database);
     const before = await page.evaluate(() => history.length);
     await app.pickSet("None");
@@ -859,8 +887,12 @@ test("uploading a file closes the panel", async ({ page, app }) => {
 
 test("opening a URL closes the panel", async ({ page, app }) => {
     await app.openSet();
-    page.once("dialog", (dialog) => dialog.accept("datasets/northlight_retail.db"));
+    // Ctrl+U opens the dialog (it was window.prompt); the address goes in its field, Enter opens it
     await page.keyboard.press("Control+u");
+    await expect(page.locator("#open-url-dialog")).toBeVisible();
+    await page.locator("#open-url-input").fill("datasets/northlight_retail.db");
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#open-url-dialog")).toBeHidden();
     await expect(page).toHaveURL(/#datasets\/northlight_retail\.db$/);
     await expectClosed(page, app);
 });
@@ -891,7 +923,7 @@ test("back and forward restore the right state", async ({ page, app }) => {
 test("a failed upload leaves the panel on the database it belongs to", async ({ page, app }) => {
     await app.openSet();
     await app.upload({ name: "bad.db", mimeType: "application/octet-stream", buffer: Buffer.from("not a database at all") }, { ready: false });
-    await expect(app.status).toContainText("Failed to load");
+    await expect(app.errorBand.locator(".results-band-text")).toContainText("Failed to load");
     await expect(app.exercisePanel).toBeVisible();
     expect(await page.evaluate(() => window.app.database.name)).toBe("northlight_retail.db");
 });
@@ -902,7 +934,8 @@ test("Ctrl+Shift+Enter with no set open behaves as it does today: the editor run
     await app.open();
     await app.editor.fill("SELECT 42 AS answer;");
     await app.editor.press("Control+Shift+Enter");
-    await expect(app.status).toContainText("1 row, took");
+    await app.settle();
+    await expect(app.status).toHaveText(rowsIn(1));
     expect(await app.read()).toEqual({ columns: ["answer"], rows: [["42"]] });
     await expect(app.feedback).toBeHidden();
     await expect(page.locator("#exercise-check")).toHaveCount(0);
@@ -1123,11 +1156,11 @@ test("hostile ids and a routed set with markup in ids are refused without creati
     await page.keyboard.press("Escape");
     // routed by address: the set id and the exercise id are text, never markup
     await page.goto(`./?set=${encodeURIComponent(PAYLOAD)}&ex=${encodeURIComponent(PAYLOAD)}`);
-    await expect(app.status).toContainText("could not be opened");
+    await expect(notice(app)).toContainText("could not be opened");
     await expect(app.exercisePanel).toBeHidden();
     await app.expectInert();
     await page.goto("./?set=evil");
-    await expect(app.status).toContainText("is not valid");
+    await expect(notice(app)).toContainText("is not valid");
     await expect(app.exercisePanel).toBeHidden();
     await app.expectInert();
 });

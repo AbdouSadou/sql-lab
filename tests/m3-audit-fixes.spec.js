@@ -12,6 +12,20 @@ const NORTHLIGHT_URL = /\/datasets\/northlight_retail\.db(\?.*)?$/;
 const JUNK = { name: "junk.db", mimeType: "application/octet-stream", buffer: Buffer.from("this is not a database at all") };
 const CORRUPT = Buffer.concat([Buffer.from("SQLite format 3\0"), Buffer.alloc(200, 7)]);
 
+// the summary line of a run with no result set (a CREATE, an INSERT): "Done in 2 ms" or
+// "Done. 3 rows changed in 2 ms" (it was "0 rows, took 2 ms")
+const DONE_LINE = /^Done(\. [\d,]+ rows? changed)? in \d+ ms$/;
+
+// openFromUrl chooses "Open from URL…" with its shortcut, types the address into the dialog
+// (it was window.prompt) and presses Enter.
+async function openFromUrl(page, address) {
+    await page.keyboard.press("Control+u");
+    const input = page.locator("#open-url-input");
+    await expect(input).toBeVisible();
+    await input.fill(address);
+    await input.press("Enter");
+}
+
 function gate() {
     let open;
     const promise = new Promise((resolve) => (open = resolve));
@@ -23,6 +37,36 @@ const shareHash = (state) => "#s=" + LZString.compressToEncodedURIComponent(JSON
 
 const editorText = (app) => app.editorHost.evaluate((el) => el.value);
 const dbName = (page) => page.evaluate(() => window.app.database?.name);
+
+// A load that fails while a database is open (a pick, an upload, an address, back/forward) puts the
+// view from before it back (a result and its summary line, "Done", or "no result yet") and shows its
+// band above it, in .results-problem at the top of the pane, outside #result; the live region says
+// it. The band goes at the next state (a run, a load).
+const problemBand = (page) => page.locator("#results-pane .results-problem .results-band");
+
+// what the pane shows now, to compare with what it showed before a load that failed
+async function viewOf(app) {
+    const state = await app.pane.getAttribute("data-state");
+    if (state === "result") {
+        return { state, table: await app.read(), status: await app.status.textContent() };
+    }
+    if (state === "done") {
+        return { state, status: await app.status.textContent() };
+    }
+    return { state, empty: await app.emptyState.innerText() };
+}
+
+async function expectLoadProblem(page, app, text, kept) {
+    const band = problemBand(page);
+    await expect(band).toContainText(text);
+    await expect(band).toHaveCount(1);
+    await expect(page.locator("#result .results-band")).toHaveCount(0);
+    await expect(app.announcer).toHaveText(await band.locator(".results-band-text").textContent());
+    expect(await viewOf(app)).toEqual(kept);
+    if (kept.state === "result") {
+        await expect(app.csvButton).toBeVisible();
+    }
+}
 
 // The database switcher (the top bar's button and its menu) follows the open database: a course
 // database is ticked (aria-checked) in its menu and named on the button; an upload, a URL or the
@@ -60,10 +104,15 @@ test("a pick overtaken by an upload that fails leaves the switcher on the open d
     await withSampleDataset(page);
     await holdSample(page, held);
     await app.open();
+    await app.query("SELECT COUNT(*) AS n FROM orders;");
+    const kept = await viewOf(app);
 
     await app.pickDatabase("Sample Fruit"); // held
     await app.upload(JUNK, { ready: false });
-    await expect(app.status).toContainText("Failed to load database");
+    await expect(app.errorBand).toContainText("Failed to load database");
+    // the failed upload ends the whole series of loads: the result from before comes back, with the
+    // band over it
+    await expectLoadProblem(page, app, "Failed to load database", kept);
     await app.expectPicked("northlight");
     expect(await app.pickedText()).toBe("Northlight Retail");
     expect(await dbName(page)).toBe("northlight_retail.db");
@@ -72,10 +121,12 @@ test("a pick overtaken by an upload that fails leaves the switcher on the open d
     await page.waitForTimeout(400);
     await app.expectPicked("northlight");
     expect(await dbName(page)).toBe("northlight_retail.db");
+    await expectLoadProblem(page, app, "Failed to load database", kept);
     // and the dataset the switcher shows can be told apart from a stale selection: picking
     // the other one still works
     await app.pickDatabase("Sample Fruit");
     await expect(app.databaseLabel).toHaveText("Sample Fruit");
+    await expect(app.errorBand).toHaveCount(0); // the next state took the band away
 });
 
 test("a pick overtaken by an open-from-URL that fails leaves the switcher on the open database", async ({
@@ -86,24 +137,30 @@ test("a pick overtaken by an open-from-URL that fails leaves the switcher on the
     await withSampleDataset(page);
     await holdSample(page, held);
     await app.open();
+    await app.query("SELECT COUNT(*) AS n FROM orders;");
+    const kept = await viewOf(app);
 
     await app.pickDatabase("Sample Fruit"); // held
-    page.once("dialog", (dialog) => dialog.accept("datasets/gone.db"));
-    await page.keyboard.press("Control+u");
-    await expect(app.status).toContainText("Failed to load database");
+    await openFromUrl(page, "datasets/gone.db");
+    await expect(app.errorBand).toContainText("Failed to load database");
+    await expectLoadProblem(page, app, "Failed to load database", kept);
     await app.expectPicked("northlight");
     expect(await app.pickedText()).toBe("Northlight Retail");
     held.open();
     await page.waitForTimeout(400);
     await app.expectPicked("northlight");
     expect(await dbName(page)).toBe("northlight_retail.db");
+    await expectLoadProblem(page, app, "Failed to load database", kept);
 });
 
 test("a failed upload by itself leaves the switcher where it was", async ({ page, app }) => {
     await withSampleDataset(page);
     await app.open();
+    await app.query("SELECT COUNT(*) AS n FROM orders;");
+    const kept = await viewOf(app);
     await app.upload(JUNK, { ready: false });
-    await expect(app.status).toContainText("Failed to load database");
+    await expect(app.errorBand).toContainText("Failed to load database");
+    await expectLoadProblem(page, app, "Failed to load database", kept);
     await app.expectPicked("northlight");
 });
 
@@ -119,13 +176,17 @@ test("a pick that fails while an older pick is still loading does not leave the 
     await holdSample(page, held);
     await page.route(/\/datasets\/broken\.db$/, (route) => route.fulfill({ status: 500, body: "boom" }));
     await app.open();
+    await app.query("SELECT COUNT(*) AS n FROM orders;");
+    const kept = await viewOf(app);
     await app.pickDatabase("Sample Fruit");
     await app.pickDatabase("Broken");
-    await expect(app.status).toContainText('The dataset "Broken" could not be loaded');
+    await expect(app.errorBand).toContainText('The database "Broken" could not be loaded');
+    await expectLoadProblem(page, app, 'The database "Broken" could not be loaded', kept);
     await app.expectPicked("northlight");
     held.open();
     await page.waitForTimeout(400);
     await app.expectPicked("northlight");
+    await expectLoadProblem(page, app, 'The database "Broken" could not be loaded', kept);
     expect(await dbName(page)).toBe("northlight_retail.db");
 });
 
@@ -179,9 +240,9 @@ for (const [name, file] of [
         manifest.datasets[0].file = file;
         await routeManifest(page, manifest);
         await page.goto("./");
-        await expect(app.status).toContainText("is not valid");
-        await expect(app.status).toContainText('"file" of dataset "northlight"');
-        await expect(app.status).toContainText("must not start or end with a space");
+        await expect(app.errorBand).toContainText("is not valid");
+        await expect(app.errorBand).toContainText('"file" of dataset "northlight"');
+        await expect(app.errorBand).toContainText("must not start or end with a space");
         expect(net.paths.filter((p) => p.endsWith(".db"))).toEqual([]);
     });
 }
@@ -213,16 +274,17 @@ test.describe("the dataset flagged default is the one that opens, wherever it is
     test("an unknown ?db=", async ({ page, app }) => {
         await page.goto("./?db=nonesuch");
         await expect(app.databaseLabel).toHaveText("Northlight Retail");
-        await expect(app.status).toContainText("There is no dataset");
+        // a router notice, shown with the "no result yet" of the database that opened
+        await expect(app.emptyState.locator(".results-empty-notice")).toContainText("There is no database");
     });
 
     test("a link naming an unknown dataset, and a link naming none", async ({ page, app }) => {
         await page.goto("./" + shareHash({ d: "nonesuch", q: "select 1" }));
-        await expect(app.status).toContainText("There is no dataset");
+        await expect(app.emptyState.locator(".results-empty-notice")).toContainText("There is no database");
         await expect(app.databaseLabel).toHaveText("Northlight Retail");
         await page.goto("./" + shareHash({ q: "select 2" }));
         await page.reload();
-        await expect(app.status).toContainText("does not name a dataset");
+        await expect(app.emptyState.locator(".results-empty-notice")).toContainText("does not name a database");
         await expect(app.databaseLabel).toHaveText("Northlight Retail");
     });
 
@@ -244,12 +306,20 @@ test("back to a dataset that cannot be fetched keeps the open database and its t
     await app.pickDatabase("Sample Fruit");
     await expect(app.databaseLabel).toHaveText("Sample Fruit");
     await app.run("CREATE TABLE mywork (x); INSERT INTO mywork VALUES (42);");
-    await expect(app.status).toContainText(/rows?, took/);
+    await expect(app.status).toHaveText(DONE_LINE);
 
     await page.route(NORTHLIGHT_URL, (route) => route.fulfill({ status: 500, body: "boom" }));
+    const kept = await viewOf(app); // "Done in ..." (the run of the student's own tables)
+    expect(kept.state).toBe("done");
     await page.goBack(); // the Northlight entry
-    await expect(app.status).toContainText(
-        'The dataset "Northlight Retail" could not be loaded. The previous database is still open.'
+    await expect(app.errorBand).toContainText(
+        'The database "Northlight Retail" could not be loaded. The previous database is still open.'
+    );
+    await expectLoadProblem(
+        page,
+        app,
+        'The database "Northlight Retail" could not be loaded. The previous database is still open.',
+        kept
     );
     await expect(app.databaseLabel).toHaveText("Sample Fruit");
     await app.expectPicked("sample");
@@ -265,7 +335,7 @@ test("a corrupt default dataset on the first load starts on an empty database th
 }) => {
     await page.route(NORTHLIGHT_URL, (route) => route.fulfill({ status: 200, body: CORRUPT }));
     await page.goto("./");
-    await expect(app.status).toContainText('The dataset "Northlight Retail" could not be loaded, so an empty database is open');
+    await expect(app.errorBand).toContainText('The database "Northlight Retail" could not be loaded, so an empty database is open');
     expect(await dbName(page)).toBe("new.db");
     expect(await app.pickedText()).toBe("new.db");
     expect((await app.query("SELECT 1 AS one;")).rows).toEqual([["1"]]);
@@ -301,12 +371,12 @@ test("a corrupt dataset named by ?db= on the first load does the same, and a sha
     await routeManifest(page, manifest);
     await page.route(SAMPLE_URL, (route) => route.fulfill({ status: 200, body: CORRUPT }));
     await page.goto("./?db=sample");
-    await expect(app.status).toContainText('The dataset "Sample Fruit" could not be loaded, so an empty database is open');
+    await expect(app.errorBand).toContainText('The database "Sample Fruit" could not be loaded, so an empty database is open');
     expect(await dbName(page)).toBe("new.db");
 
     await page.goto("./" + shareHash({ d: "sample", q: "select 'kept' as k" }));
     await page.reload();
-    await expect(app.status).toContainText('The dataset "Sample Fruit" could not be loaded');
+    await expect(app.errorBand).toContainText('The database "Sample Fruit" could not be loaded');
     expect(await editorText(app)).toContain("select 'kept' as k");
 });
 
@@ -315,9 +385,12 @@ test("a corrupt dataset reached by back/forward keeps the open database", async 
     await app.open();
     await app.pickDatabase("Sample Fruit");
     await expect(app.databaseLabel).toHaveText("Sample Fruit");
+    await app.query("SELECT COUNT(*) AS n FROM fruit;");
+    const kept = await viewOf(app);
     await page.route(NORTHLIGHT_URL, (route) => route.fulfill({ status: 200, body: CORRUPT }));
     await page.goBack();
-    await expect(app.status).toContainText("Failed to load database");
+    await expect(app.errorBand).toContainText("Failed to load database");
+    await expectLoadProblem(page, app, "Failed to load database", kept);
     await expect(app.databaseLabel).toHaveText("Sample Fruit");
     await app.expectPicked("sample");
     expect((await app.query("SELECT COUNT(*) AS n FROM fruit;")).rows).toEqual([["4"]]);
@@ -329,7 +402,7 @@ test("with no database open (unsupported address) the Schema tab lists nothing a
     pageErrors,
 }) => {
     await page.goto("./#scheme:abc");
-    await expect(app.status).toContainText("Failed to load database");
+    await expect(app.errorBand).toContainText("Failed to load database");
     // no database: the Schema tab has no tables, so there are no table buttons to press; the old
     // "show tables" shortcut (Ctrl+/) and its window.app.actions entries are gone
     await expect(page.locator("#panel-schema")).toBeVisible();
@@ -363,7 +436,7 @@ test("with no database open (unsupported address) the Schema tab lists nothing a
     // no database, rather than throwing
     await expect(page.locator("#execute")).toBeDisabled();
     await app.run("SELECT 1;");
-    await expect(app.status).toContainText("No database is loaded");
+    await expect(app.errorBand).toContainText("No database is loaded");
     expect(pageErrors).toEqual([]);
 });
 
@@ -375,14 +448,22 @@ test("Run while a dataset switch is loading runs nothing, saves nothing, and say
     await holdSample(page, held);
     await app.open();
     await app.run("CREATE TABLE zz (n); INSERT INTO zz VALUES (7);");
-    await expect(app.status).toContainText(/rows?, took/);
+    await expect(app.status).toHaveText(DONE_LINE);
     const saved = await app.storedQueries();
 
     await app.pickDatabase("Sample Fruit"); // held
+    // the pane shows the switch loading: no result, no summary line
+    await expect(app.pane).toHaveAttribute("data-state", "loading");
     for (const via of ["keyboard", "button"]) {
+        // the refusal is a toast now (it was the status line); clear the one the first press left,
+        // so that the second press has to bring its own
+        await app.toast.evaluate((region) => region.replaceChildren());
         await app.run("SELECT COUNT(*) AS c FROM zz;", { via });
-        await expect(app.status).toContainText("still loading");
-        await expect(app.status).not.toContainText("took");
+        await expect(app.toast).toContainText("still loading");
+        // nothing ran: the pane is still loading, with no summary line and no result
+        await expect(app.pane).toHaveAttribute("data-state", "loading");
+        await expect(app.summary).toBeHidden();
+        await expect(app.status).not.toHaveText(/rows? in|^Done/);
     }
     await expect(page.locator("#result table")).toHaveCount(0);
     expect(await app.storedQueries()).toEqual(saved); // the SQL did not reach storage
@@ -398,15 +479,20 @@ test("Run works again after a switch that failed", async ({ page, app }) => {
     await page.route(SAMPLE_URL, (route) => route.fulfill({ status: 500, body: "boom" }));
     await app.open();
     await app.pickDatabase("Sample Fruit");
-    await expect(app.status).toContainText("could not be loaded");
+    await expect(app.errorBand).toContainText("could not be loaded");
+    await expect(problemBand(page)).toHaveCount(1);
     expect((await app.query("SELECT COUNT(*) AS n FROM orders;")).rows).toEqual([["450"]]);
+    // the Run is the next state: the load's band is gone, not left over the result
+    await expect(app.errorBand).toHaveCount(0);
 });
 
 test("Run works after an upload and after a failed upload", async ({ page, app }) => {
     await app.open();
     await app.upload(JUNK, { ready: false });
-    await expect(app.status).toContainText("Failed to load database");
+    await expect(app.errorBand).toContainText("Failed to load database");
+    await expect(problemBand(page)).toHaveCount(1);
     expect((await app.query("SELECT COUNT(*) AS n FROM orders;")).rows).toEqual([["450"]]);
+    await expect(app.errorBand).toHaveCount(0);
     await app.upload(SAMPLE_FILE);
     expect((await app.query("SELECT COUNT(*) AS n FROM fruit;")).rows).toEqual([["4"]]);
 });
@@ -447,6 +533,7 @@ test.describe("stale loads", () => {
     test("back twice: a slow first step that fails shows nothing", async ({ page, app }) => {
         const held = gate();
         await withSampleDataset(page);
+        await app.recordToasts({ fromStart: true });
         await threeEntries(app, page);
         await page.route(SAMPLE_URL, async (route) => {
             await held.promise;
@@ -463,7 +550,11 @@ test.describe("stale loads", () => {
         await app.query("SELECT 'newest' AS m;");
         held.open();
         await page.waitForTimeout(500);
-        await expect(app.status).not.toContainText("could not be loaded");
+        await expect(app.result).not.toContainText("could not be loaded");
+        await expect(app.errorBand).toHaveCount(0);
+        // the late failure said nothing (a toast that wrongly came would have been shown by now):
+        // the two picks that made the history are the only toasts
+        expect(await app.toasts()).toEqual(["Opened Sample Fruit", "Opened Northlight Retail"]);
         expect(await app.read()).toEqual({ columns: ["m"], rows: [["newest"]] });
         expect(await dbName(page)).toBe("northlight_retail.db");
     });
@@ -516,9 +607,8 @@ test.describe("stale loads", () => {
             await route.fulfill({ path: SAMPLE_FILE, contentType: "application/octet-stream" });
         });
         await app.open();
-        page.once("dialog", (dialog) => dialog.accept("datasets/slow.db"));
         const requested = page.waitForRequest(SLOW_URL);
-        await page.keyboard.press("Control+u");
+        await openFromUrl(page, "datasets/slow.db");
         await requested;
         await app.pickDatabase("Sample Fruit"); // opens at once
         await expect(app.databaseLabel).toHaveText("Sample Fruit");
@@ -544,10 +634,10 @@ test.describe("stale loads", () => {
                 await held.promise;
                 await route.fulfill(response);
             });
+            await app.recordToasts({ fromStart: true });
             await app.open();
-            page.once("dialog", (dialog) => dialog.accept("datasets/slow.db"));
             const requested = page.waitForRequest(SLOW_URL);
-            await page.keyboard.press("Control+u");
+            await openFromUrl(page, "datasets/slow.db");
             await requested;
             await app.pickDatabase("Sample Fruit");
             await expect(app.databaseLabel).toHaveText("Sample Fruit");
@@ -555,7 +645,10 @@ test.describe("stale loads", () => {
 
             held.open();
             await page.waitForTimeout(500);
-            await expect(app.status).not.toContainText("Failed to load database");
+            await expect(app.result).not.toContainText("Failed to load database");
+            await expect(app.errorBand).toHaveCount(0);
+            // the late failure said nothing: only the pick's own toast was shown
+            expect(await app.toasts()).toEqual(["Opened Sample Fruit"]);
             expect(await app.read()).toEqual({ columns: ["m"], rows: [["newest"]] });
             await app.expectPicked("sample");
         });
@@ -671,11 +764,13 @@ test("the Help button has a name and its icon is hidden from assistive technolog
 
 test("results and errors land in a live region", async ({ page, app }) => {
     await app.open();
-    const status = page.locator("#status");
-    await expect(status).toHaveAttribute("role", "status");
+    // the live region is the results pane's own (#results-announce), not the summary line
+    await expect(app.announcer).toHaveAttribute("role", "status");
+    await expect(app.announcer).toHaveAttribute("aria-live", "polite");
     await app.query("SELECT 1 AS one;");
-    await expect(page.getByRole("status").filter({ hasText: "1 row, took" })).toHaveCount(1);
+    await expect(page.getByRole("status").filter({ hasText: "1 row returned" })).toHaveCount(1);
     await app.run("SELEC nonsense");
+    await expect(page.getByRole("status").filter({ hasText: "This query has an error" })).toHaveCount(1);
     await expect(page.getByRole("status").filter({ hasText: "syntax error" })).toHaveCount(1);
 });
 
@@ -716,13 +811,13 @@ test("the note follows the width of the window", async ({ page, app }) => {
     await expect(page.locator("#result-scroll-note")).toBeHidden();
 });
 
-test("the stores preview that opens with the page is cut off at phone and tablet width, and says so", async ({
-    page,
-    app,
-}) => {
+test("the stores table is cut off at phone and tablet width, and says so", async ({ page, app }) => {
+    // nothing runs when the page opens any more (it used to preview the first table), so the test
+    // runs that query itself
     for (const width of [390, 768]) {
         await page.setViewportSize({ width, height: 900 });
         await app.open();
+        await app.query('select * from "stores" limit 10');
         expect(await app.result.evaluate((el) => el.scrollWidth > el.clientWidth + 1)).toBe(true);
         await expect(page.locator("#result-scroll-note")).toBeVisible();
     }

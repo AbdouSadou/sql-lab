@@ -60,7 +60,10 @@ test("no sharing: the top bar, editor toolbar and status bar carry no settings, 
     await expect(page.locator("#editor-toolbar button")).toHaveText([/Run/]);
     await expect(page.locator("footer.statusbar button")).toHaveCount(0);
     await expect(page.locator("footer.statusbar a")).toHaveAttribute("href", "about.html");
-    const text = (await page.locator("body").innerText()).toLowerCase();
+    // the page's whole text, less one phrase: Northlight's sample query "Revenue share by category"
+    // (course content in "no result yet", the mockup's label) uses "share" as a business term, not
+    // for a sharing feature; every other word of the page, the samples included, is read
+    const text = (await page.locator("body").innerText()).toLowerCase().replaceAll("revenue share by category", "");
     for (const word of ["settings", "sharing", "share", "gist", "token"]) {
         expect(text, word).not.toContain(word);
     }
@@ -89,18 +92,26 @@ test("no sharing: Ctrl+S does nothing harmful", async ({ page, app, net, pageErr
     expect(pageErrors).toEqual([]);
 });
 
-test("no sharing: the open-url prompt is empty, not a third-party example address", async ({ page, app, net }) => {
+test("no sharing: the open-url dialog is empty, not a third-party example address", async ({ page, app, net }) => {
     await app.open();
-    const seen = [];
+    // Open from URL is a dialog now (it was window.prompt); a native prompt would show up here
+    const prompts = [];
     page.on("dialog", async (dialog) => {
-        seen.push({ type: dialog.type(), message: dialog.message(), defaultValue: dialog.defaultValue() });
+        prompts.push(dialog.type());
         await dialog.dismiss();
     });
     await page.keyboard.press("Control+u");
-    await expect.poll(() => seen.length).toBe(1);
-    expect(seen[0].type).toBe("prompt");
-    expect(seen[0].defaultValue).toBe("");
-    expect(seen[0].message + seen[0].defaultValue).not.toMatch(/https?:|path\/to/);
+    const dialog = page.locator("#open-url-dialog");
+    await expect(dialog).toBeVisible();
+    const field = page.locator("#open-url-input");
+    await expect(field).toHaveValue("");
+    expect(await field.getAttribute("placeholder")).toBeFalsy();
+    // no example address in the dialog's text (the hint names the scheme, "https://", but no host)
+    const text = await dialog.innerText();
+    expect(text).not.toMatch(/https?:\/\/[\w-]+\.[\w.-]+|path\/to|example\.(com|org)/i);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    expect(prompts).toEqual([]);
     net.expectNoExternalRequests();
 });
 
@@ -126,9 +137,11 @@ for (const fragment of UNSUPPORTED) {
         pageErrors,
     }) => {
         await page.goto(`./#${fragment}`);
-        await expect(app.status).toContainText("Failed to load database from");
-        await expect(app.status).toContainText("unsupported address");
-        await expect(app.status.locator("div")).toHaveClass(/error/);
+        // a problem with the load, in the error band (no query's heading): not a result
+        await expect(app.errorBand).toContainText("Failed to load database from");
+        await expect(app.errorBand).toContainText("unsupported address");
+        await expect(app.errorBand).toHaveClass(/results-band--problem/);
+        await expect(app.pane).toHaveAttribute("data-state", "error");
 
         // no database was opened: the switcher says so, nothing is rendered, Run is still
         // not offered (it was the disabled command bar)
@@ -140,7 +153,8 @@ for (const fragment of UNSUPPORTED) {
         // and running SQL does not quietly work against a blank database
         await app.editor.click();
         await app.run("SELECT 1 AS one;");
-        await expect(app.status).toContainText("No database is loaded");
+        await expect(app.errorBand).toContainText("No database is loaded");
+        await expect(app.errorBand).toHaveClass(/results-band--problem/);
         await expect(page.locator("#result table")).toHaveCount(0);
 
         // nothing but this site's own files was requested, and not even a fetch for the address
@@ -155,7 +169,7 @@ test("no sharing: a failed load does not leave a half-loaded database behind", a
     await app.query("SELECT 1 AS one;");
     // moving to an unsupported address keeps the open (working) database
     await page.evaluate(() => (location.hash = "#gist:abc"));
-    await expect(app.status).toContainText("Failed to load database from");
+    await expect(app.errorBand).toContainText("Failed to load database from");
     expect(await app.query("SELECT 2 AS two;")).toEqual({ columns: ["two"], rows: [["2"]] });
 });
 

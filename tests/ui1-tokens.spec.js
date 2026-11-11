@@ -80,6 +80,9 @@ const PAIRS = [
     ["on-accent-muted", "accent", 4.5],
     ...["keyword", "string", "number", "function", "comment"].flatMap((k) => ["paper", "sunken"].map((bg) => [`syntax-${k}`, bg, 4.5])),
     ...["rule-strong", "accent"].flatMap((fg) => SURFACES.map((bg) => [fg, bg, 3])),
+    // Phase 4: the loading bar's fill on its track (css/result.css .results-progress), a graphic
+    // that carries the progress (WCAG 1.4.11)
+    ["accent", "rule", 3],
 ];
 
 test.describe("tokens", () => {
@@ -146,6 +149,8 @@ test.describe("tokens", () => {
         defined.add("--prompt-max");
         // set from script (js/lab/menu.js: the room beside a popover's button)
         defined.add("--popover-room");
+        // set from script (js/lab/results.js: the result table's header height), read with a fallback
+        defined.add("--result-head");
         const missing = css.flatMap((f) => [...read(f).matchAll(/var\((--[a-z0-9-]+)/g)].map((m) => m[1]).filter((v) => !defined.has(v)).map((v) => `${f}: ${v}`));
         expect(missing).toEqual([]);
     });
@@ -291,7 +296,7 @@ test.describe("theme", () => {
         await expect(menu).toBeHidden();
         await button.click();
         await expect(menu).toBeVisible();
-        await page.locator("#status").click();
+        await page.locator("#result .results-empty-title").click();
         await expect(menu).toBeHidden();
         await expect(button).toHaveAttribute("aria-expanded", "false");
     });

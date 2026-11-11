@@ -5,7 +5,21 @@
       "name": "Northlight Retail",
       "file": "datasets/northlight_retail.db",
       "description": "Fictional Yorkshire retail chain: 5 stores, 20 products, 60 customers, 450 orders, Jan 2025 – Oct 2026. Ships a v_sales reporting view.",
-      "default": true
+      "default": true,
+      "samples": [
+        {
+          "label": "Every product",
+          "sql": "SELECT * FROM products;"
+        },
+        {
+          "label": "Orders per store",
+          "sql": "SELECT s.store_name, COUNT(*) AS orders\nFROM orders o\nJOIN stores s ON s.store_id = o.store_id\nGROUP BY s.store_name;"
+        },
+        {
+          "label": "Revenue share by category",
+          "sql": "WITH category_revenue AS (\n  SELECT p.category,\n         SUM(oi.quantity * p.unit_price * (1 - oi.discount)) AS revenue\n  FROM orders o\n  JOIN order_items oi ON o.order_id = oi.order_id\n  JOIN products p ON oi.product_id = p.product_id\n  GROUP BY p.category\n)\nSELECT category, ROUND(revenue, 2) AS revenue,\n       ROUND(100.0 * revenue / SUM(revenue) OVER (), 1) AS contribution_pct\nFROM category_revenue\nORDER BY revenue DESC;"
+        }
+      ]
     }
   ]
 }

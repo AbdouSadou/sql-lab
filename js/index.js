@@ -3,11 +3,9 @@
 import manager from "./sqlite/manager.js";
 import storage from "./storage.js";
 
-import { actionButton } from "./components/action-button.js";
 import { ActionController } from "./controllers/actions.js";
 import { ShortcutController } from "./controllers/shortcuts.js";
 import { DatabasePath } from "./db-path.js";
-import { MESSAGES } from "./sqlite/db.js";
 
 import { titleFor } from "./lab/brand.js";
 import { caretToEnd } from "./lab/caret.js";
@@ -16,13 +14,11 @@ import {
     DATASET_PARAM,
     LOADING_BUSY_MESSAGE,
     NO_DATABASE_MESSAGE,
-    OPEN_URL_DEFAULT,
-    OPEN_URL_PROMPT,
-    RESTORED_MESSAGE,
     SET_PARAM,
-    SHARED_MESSAGE,
     datasetSwitchFailedMessage,
     datasetUnavailableMessage,
+    loadFailedMessage,
+    openedMessage,
 } from "./lab/config.js";
 import { createCopyLinkAction } from "./lab/copy-link.js";
 import {
@@ -40,23 +36,24 @@ import { mountExportDialog } from "./lab/export-dialog.js";
 import { mountExportMenu } from "./lab/export-menu.js";
 import { mountEvidence } from "./lab/evidence-dialog.js";
 import { mountHelp } from "./lab/help.js";
-import { escapeHtml } from "./lab/html.js";
 import { showPlatformKeys } from "./lab/keys.js";
 import { mountLayout } from "./lab/layout.js";
+import { mountOpenUrlDialog } from "./lab/open-url-dialog.js";
 import { errorText, mountResults } from "./lab/results.js";
 import { resolveRoute } from "./lab/router.js";
 import { mountRunLog } from "./lab/run-log.js";
-import { runSql } from "./lab/runner.js";
+import { runSql, splitStatements, stripLeadingNoise } from "./lab/runner.js";
 import { mountResultScroll } from "./lab/result-scroll.js";
+import { samplesFor } from "./lab/samples.js";
 import { mountSchema } from "./lab/schema.js";
 import { createSetActions } from "./lab/set-actions.js";
 import { setShareContext } from "./lab/share.js";
 import { guardFileDrops, mountPlainText } from "./lab/plain-text.js";
 import { mountStatusBar } from "./lab/status-bar.js";
 import { mountStorageNotice } from "./lab/storage-notice.js";
-import { tableContentSql } from "./lab/sql.js";
 import { mountTabs } from "./lab/tabs.js";
 import { mountThemeMenu } from "./lab/theme.js";
+import { toast } from "./lab/toast.js";
 
 const ui = {
     buttons: {
@@ -67,16 +64,21 @@ const ui = {
     toolbar: document.querySelector("#editor-toolbar"),
     fileInput: document.querySelector("#open-file-input"),
     editor: document.querySelector("#editor"),
+    // the summary line's text ("5 rows in 3 ms"), in #results-summary with Download CSV
     status: document.querySelector("#status"),
     summary: document.querySelector("#results-summary"),
+    pane: document.querySelector("#results-pane"),
     result: document.querySelector("#result"),
 };
 
 const actions = {
     executeCurrent: executeCurrent,
-    copyLink: createCopyLinkAction(ui),
-    exportDatabase: createExportAction(ui, () => database),
-    visit: visit,
+    copyLink: createCopyLinkAction({
+        editor: ui.editor,
+        button: document.querySelector("#copy-link"),
+        popover: document.querySelector("#copy-link-popover"),
+    }),
+    exportDatabase: createExportAction(() => database),
 };
 
 const shortcuts = {
@@ -90,10 +92,16 @@ const shortcuts = {
         }
         ui.fileInput.click();
     },
-    u: openUrl,
+    u: () => openUrl(document.activeElement),
 };
 
 let database;
+// the manifest entry of the open database, or null (an upload, a URL, the empty database): its
+// sample queries feed the results pane's "no result yet"
+let openDataset = null;
+// false until the page's first load has finished: the loads after it (the student's) end with a
+// toast that names the database
+let pageStarted = false;
 
 // Counts loads. Every way of opening a database takes a ticket when it begins; a load whose
 // ticket is no longer the latest by the time it has fetched or built its database is
@@ -127,12 +135,21 @@ function endLoad(ticket, opened) {
     }
 }
 
-// for testing purposes, and for the lab modules (js/lab/) that need the open database
+// Runs that have been asked for and have not finished (a run waits one frame before it starts,
+// see execute), and who is waiting for none to be left.
+let pendingRuns = 0;
+let idleWaiters = [];
+
+// for testing purposes, and for the lab modules (js/lab/) that need the open database.
+// whenIdle() resolves once no run is waiting or running (a test presses Run, then waits for it).
 window.app = {
     actions: actions,
     ui: ui,
     get database() {
         return database;
+    },
+    whenIdle() {
+        return pendingRuns === 0 ? Promise.resolve() : new Promise((resolve) => idleWaiters.push(resolve));
     },
 };
 
@@ -144,8 +161,11 @@ const picker = mountDatabaseSwitcher({
     menu: document.querySelector("#database-menu"),
     onSelect: startFromDataset,
     onOpenFile: () => ui.fileInput.click(),
-    onOpenUrl: openUrl,
+    onOpenUrl: () => openUrl(document.querySelector("#database-button")),
 });
+
+// "Open from URL…": its dialog (js/lab/open-url-dialog.js)
+const openUrlDialog = mountOpenUrlDialog({ onOpen: startFromUrl });
 
 // The theme menu (js/lab/theme.js) and Help (js/lab/help.js), in the top bar.
 mountThemeMenu(document.querySelector(".topbar-theme"), { buttonClass: "button button--quiet" });
@@ -165,7 +185,8 @@ const tabs = mountTabs(document.querySelector("#sidebar .tabs"), {
 const lab = mountExercises({
     pickerSlot: document.querySelector(".exercise-set-picker-slot"),
     ui: ui,
-    execute: (sql) => execute(sql),
+    // a Check's visible run: shown in the results pane, but the verdict is what is said
+    execute: (sql) => execute(sql, { quiet: true }),
     isLoading: () => loading,
     openSet: (set) => setActions.openSet(set),
     closeSet: () => setActions.closeSet(),
@@ -175,6 +196,9 @@ const lab = mountExercises({
         layout.showSidebar();
         tabs.show("tab-exercises");
     },
+    // the results pane (mounted below; these run later)
+    showIdle: () => results.showEmpty(),
+    modeChanged: () => results.refreshEmpty(),
 });
 
 // What choosing a set (or "None") does is decided in js/lab/set-actions.js; these are the
@@ -186,8 +210,9 @@ const setActions = createSetActions({
     cancelLoad: () => endLoad(beginLoad(), false),
     loadDataset: startFromDataset,
     pushUrl: (search) => history.pushState(database.name, null, search),
-    showError: (message) => ui.status.error(escapeHtml(message)),
-    showInvite: () => ui.status.info(MESSAGES.invite),
+    // (a set that cannot be opened is not a load of its own: a load on its way is left alone)
+    showError: (message) => results.loadFailed(message, { ownLoad: false }),
+    showInvite: () => results.loadCancelled(),
 });
 
 // The Schema tab (js/lab/schema.js) follows the page through the events below, and so do the
@@ -198,9 +223,17 @@ mountEditorSchema({ editor: ui.editor });
 // The "scroll sideways" note under a result that is wider than its box (js/lab/result-scroll.js).
 mountResultScroll({ result: ui.result, note: document.querySelector("#result-scroll-note") });
 
-// F5: the row cap, timing, the failing statement and Download CSV (js/lab/results.js);
-// showResult and showError below delegate to it.
-const results = mountResults({ ui, summary: ui.summary, getDatabase: () => database });
+// The results pane (js/lab/results.js): the ruled table and its summary line (the row cap, the
+// time, Download CSV), "Done.", the error band, "no result yet" with its sample queries, and a
+// database loading; showResult and showError below delegate to it.
+const results = mountResults({
+    ui,
+    pane: ui.pane,
+    summary: ui.summary,
+    getDatabase: () => database,
+    getSamples: () => samplesFor(openDataset, database),
+    isExercise: () => lab.isOpen(),
+});
 
 // F6 run log in the History tab (js/lab/run-log.js), and F11 evidence export
 // (js/lab/evidence-dialog.js); both follow the page through the events below.
@@ -210,7 +243,7 @@ const runLog = mountRunLog({
     list: document.querySelector("#run-history-list"),
     isShown: () => tabs.current() === "tab-history",
 });
-const evidence = mountEvidence({ ui, runLog, returnFocus: exportButton });
+const evidence = mountEvidence({ runLog, returnFocus: exportButton });
 // one line of notice while the browser cannot keep the run log or the progress
 mountStorageNotice({ ui, before: ui.summary });
 
@@ -226,8 +259,8 @@ const exportDialog = mountExportDialog({
         }
         actions.exportDatabase();
     },
-    // as the old export button: the reason in the status line, the result left as it is
-    onNoDatabase: (message) => ui.status.error(escapeHtml(message)),
+    // the menu entry's answer: a toast that says why nothing was done, the result left as it is
+    onNoDatabase: (message) => toast(message, { tone: "note" }),
 });
 mountExportMenu({ button: exportButton, menu: document.querySelector("#export-menu"), onDatabase: exportDialog.open, results, evidence });
 
@@ -270,11 +303,14 @@ guardFileDrops();
 //                        the manifest entry, or null for an upload, a URL or the empty
 //                        database; exercise is {set, exerciseId} when an exercise set was
 //                        opened with it, else null (the exercise panel closes)
-//   lab:run-finished     detail {database, sql, ok, rows, error, preview, elapsed}: after
-//                        every run, failed ones too (statements before the error stay
-//                        applied); rows is the full row count, error the engine's message alone
-//                        on one line; preview is true for the table preview the app runs on its
-//                        own; elapsed is how long a successful run took, in whole ms
+//   lab:run-finished     detail {database, sql, ok, rows, error, preview, elapsed, resultSet,
+//                        changes}: after every run, failed ones too (statements before the
+//                        error stay applied); rows is the full row count, error the engine's
+//                        message alone on one line; preview is false (no run is the app's own
+//                        any more; the field stays for the listeners that read it); elapsed is
+//                        how long a successful run took, in whole ms; resultSet whether a
+//                        statement returned a result set; changes, for a run with none, the rows
+//                        it changed by the engine's count (null for none to report)
 function announce(type, detail) {
     document.dispatchEvent(new CustomEvent(type, { detail }));
 }
@@ -286,25 +322,30 @@ function announce(type, detail) {
 // student's work).
 async function startFromCurrentUrl() {
     const ticket = beginLoad();
+    // the results pane shows the load from the start; the name follows once the route is known
+    const loader = results.showLoading();
     let started = null;
     try {
-        started = await openCurrentUrl(ticket);
+        started = await openCurrentUrl(ticket, loader);
     } finally {
         endLoad(ticket, started !== null);
     }
     if (started === null) {
+        pageStarted = true;
         return;
     }
-    showStarted({ shared: started.shared, notice: started.notice, exercise: started.exercise });
-    if (started.errors.length) {
-        ui.status.error(escapeHtml(started.errors.join(" ")));
-    }
+    showStarted({
+        shared: started.shared,
+        notice: started.notice,
+        exercise: started.exercise,
+        problem: started.errors.length ? started.errors.join(" ") : null,
+    });
 }
 
 // openCurrentUrl does the loading for startFromCurrentUrl. Returns what showStarted and
 // the error message need, or null when no database was opened (a newer load took over, or
 // the open database was kept).
-async function openCurrentUrl(ticket) {
+async function openCurrentUrl(ticket, loader) {
     const route = await resolveRoute(window.location);
     // the list of datasets is true whichever load wins, and the picker needs it
     picker.setManifest(route.manifest);
@@ -318,8 +359,9 @@ async function openCurrentUrl(ticket) {
     let pristine = null;
     let dataset = route.dataset;
     let problem = route.problem;
+    loader.name(dataset ? dataset.name : name);
     if (dataset) {
-        const fetched = await fetchDataset(dataset);
+        const fetched = await fetchDataset(dataset, { onProgress: loader.progress });
         if (ticket !== latestLoad) {
             return null;
         }
@@ -327,7 +369,7 @@ async function openCurrentUrl(ticket) {
             pristine = fetched.buffer;
             ({ path, name } = datasetSource(dataset, pristine));
         } else if (database) {
-            ui.status.error(escapeHtml(datasetSwitchFailedMessage(dataset.name)));
+            results.loadFailed(datasetSwitchFailedMessage(dataset.name));
             return null;
         } else {
             problem = datasetUnavailableMessage(dataset.name);
@@ -373,10 +415,10 @@ function datasetSource(dataset, buffer) {
 // exercise ({set, exerciseId}) opens an exercise set with the dataset: ?set=<id> instead.
 async function startFromDataset(dataset, exercise = null) {
     const ticket = beginLoad();
-    ui.status.info(MESSAGES.loading);
+    const loader = results.showLoading({ name: dataset.name });
     let success = false;
     try {
-        const fetched = await fetchDataset(dataset);
+        const fetched = await fetchDataset(dataset, { onProgress: loader.progress });
         if (ticket !== latestLoad) {
             return;
         }
@@ -390,7 +432,7 @@ async function startFromDataset(dataset, exercise = null) {
                 exercise,
             });
         } else {
-            ui.status.error(escapeHtml(datasetSwitchFailedMessage(dataset.name)));
+            results.loadFailed(datasetSwitchFailedMessage(dataset.name));
         }
     } finally {
         endLoad(ticket, success);
@@ -411,6 +453,8 @@ async function startFromUrl(url) {
     const ticket = beginLoad();
     const path = new DatabasePath(url);
     const name = path.extractName();
+    // the engine fetches it: the name is known, its size and progress are not
+    results.showLoading({ name: name || url });
     let success = false;
     try {
         success = await start(name, path, { ticket });
@@ -430,6 +474,8 @@ async function startFromFile(file, contents, fileType) {
     const ticket = beginLoad();
     const path = new DatabasePath(contents, fileType);
     const name = file.name;
+    // read from the device already: all of it is here
+    results.showLoading({ name, size: file.size }).progress(file.size, file.size);
     let success = false;
     try {
         success = await start(name, path, { ticket });
@@ -450,16 +496,15 @@ async function startFromFile(file, contents, fileType) {
 // keepFocus leaves the keyboard focus where it is (the picker), instead of moving it to
 // the editor.
 // A load that is no longer the latest (its ticket is old) is dropped without a trace.
+// The caller has put the results pane in its loading state; a failure shows the error band there
+// (with the database that stays open under it, if one does).
 async function start(
     name,
     path,
     { sql = null, dataset = null, pristine = null, ticket, keepFocus = false, exercise = null } = {}
 ) {
-    ui.result.clear();
-    ui.status.info(MESSAGES.loading);
-
-    // The path and the exception text come from the URL, a file or the engine, so they
-    // are escaped before they reach the status area (which renders HTML).
+    // The path and the exception text come from the URL, a file or the engine: the error band
+    // shows them as text.
     try {
         // An unsupported address (for example #scheme:id) is refused here. manager.init
         // would otherwise fall through to creating an empty database. The editor is given its
@@ -473,7 +518,7 @@ async function start(
             return false;
         }
         if (!loadedDatabase) {
-            ui.status.error(`Failed to load database from ${escapeHtml(path)}`);
+            results.loadFailed(loadFailedMessage(path));
             return false;
         }
         const previous = database;
@@ -482,7 +527,7 @@ async function start(
         closeDatabase(previous);
     } catch (exc) {
         if (ticket === latestLoad) {
-            ui.status.error(`Failed to load database from ${escapeHtml(path)}: ${escapeHtml(exc)}`);
+            results.loadFailed(loadFailedMessage(path, exc));
         }
         return false;
     }
@@ -493,6 +538,7 @@ async function start(
     } else {
         clearPristine();
     }
+    openDataset = dataset;
     setShareContext({ dataset: dataset ? dataset.id : null });
 
     // in exercise mode the editor holds the link's SQL or the exercise's draft, never the
@@ -502,7 +548,6 @@ async function start(
         : sql ?? (database.query || storage.get(database.name));
 
     document.title = titleFor(database.meaningfulName);
-    ui.status.info(MESSAGES.invite);
     ui.editor.value = database.query;
     if (!keepFocus) {
         ui.editor.focus();
@@ -523,18 +568,69 @@ function closeDatabase(old) {
     }
 }
 
-// executeCurrent runs the current SQL query
+// executeCurrent runs the current SQL query (the Run button). It answers at once: the run itself
+// starts a frame later (execute), and ActionController holds a button disabled until its action's
+// promise settles, which would take the keyboard focus off Run (a disabled button loses it).
 function executeCurrent() {
-    return execute(ui.editor.query);
+    execute(ui.editor.query).catch(ignoreRejection);
+    return Promise.resolve();
 }
+
+// afterPaint resolves once the browser has drawn a frame, or after AFTER_PAINT_MAX_MS in a tab that
+// draws none (a hidden one; a page starved of frames waits as long, so "Running…" still gets its
+// frame on a busy machine)
+const AFTER_PAINT_MAX_MS = 250;
+function afterPaint() {
+    return new Promise((resolve) => {
+        let done = false;
+        const go = () => {
+            if (!done) {
+                done = true;
+                resolve();
+            }
+        };
+        requestAnimationFrame(() => setTimeout(go, 0));
+        setTimeout(go, AFTER_PAINT_MAX_MS);
+    });
+}
+
+// changedRows: how many rows the run changed, for "Done. 3 rows changed" (the engine's count of
+// every row an INSERT, UPDATE or DELETE touched, triggers included); 0 for a run with one of those
+// that touched none; null for a run with none of them (CREATE TABLE ...): then "Done." alone.
+function changedRows(run, before, sql) {
+    let after = before;
+    try {
+        after = run.db.changes(true);
+    } catch {
+        return null;
+    }
+    if (after > before) {
+        return after - before;
+    }
+    try {
+        const writes = splitStatements(run.capi, sql).some((statement) =>
+            /^(insert|update|delete|replace)\b/i.test(stripLeadingNoise(statement))
+        );
+        return writes ? 0 : null;
+    } catch {
+        return null;
+    }
+}
+
+// What execute() rejects with when it dropped a run (nothing ran): js/lab/exercise-panel.js tells it
+// from a run that failed.
+const RUN_DROPPED = Object.freeze({ dropped: true });
 
 // execute runs SQL query on the database
 // and shows results
-// persist=false keeps the SQL out of storage (used for the built-in preview).
-function execute(sql, persist = true) {
+// The run waits for one frame first: it blocks the page while it runs, and "Running…" (armed in the
+// results pane) can only appear during a long run if the browser has drawn it before. A database
+// that was replaced in that frame is not run on: the request is dropped, as a stale load is.
+// quiet: the outcome is shown but not said (a Check's run: the exercise's verdict is said).
+function execute(sql, { quiet = false } = {}) {
     if (loading) {
         // nothing is run and nothing is saved: the database it would run on is going away
-        ui.status.info(escapeHtml(LOADING_BUSY_MESSAGE));
+        toast(LOADING_BUSY_MESSAGE, { tone: "note" });
         return Promise.reject();
     }
     if (!database) {
@@ -542,44 +638,64 @@ function execute(sql, persist = true) {
         return Promise.reject();
     }
     sql = sql.trim();
-    if (persist) {
-        storage.set(database.name, sql);
-    }
+    storage.set(database.name, sql);
     if (!sql) {
-        ui.status.info(MESSAGES.invite);
-        ui.result.clear();
+        // nothing to run: "no result yet", said, as the old status line said its invitation
+        results.showEmpty({ said: true });
         return Promise.resolve();
     }
     const run = database;
-    let outcome;
-    try {
-        ui.status.fadeOut();
-        ui.status.info(MESSAGES.executing);
-        const started = performance.now();
-        // runSql (js/lab/runner.js) is the one way user SQL runs; the exercise checker uses it too
-        const result = runSql(run, sql);
-        const elapsed = Math.round(performance.now() - started);
-        outcome = { ok: true, rows: result ? result.values.length : 0, elapsed };
-        showResult(result, elapsed);
-        return Promise.resolve();
-    } catch (exc) {
-        outcome = { ok: false, error: errorText(exc) };
-        showError(exc);
-        return Promise.reject(exc);
-    } finally {
-        ui.status.fadeIn();
-        // after every run, failed ones too: statements before the error stay applied
-        announce("lab:run-finished", { database: run, sql, preview: !persist, ...outcome });
-    }
+    const endRun = results.startRun();
+    pendingRuns++;
+    return afterPaint()
+        .then(() => {
+            // replaced in that frame, or about to be (a load began): the run would land on a database
+            // that is going away, so it is dropped, as Run is refused while a database loads; the
+            // rejection says so (a Check whose run was dropped checks nothing)
+            if (run !== database || loading) {
+                return Promise.reject(RUN_DROPPED);
+            }
+            let outcome;
+            try {
+                const before = run.db.changes(true);
+                const started = performance.now();
+                // runSql (js/lab/runner.js) is the one way user SQL runs; the exercise checker uses it too
+                const result = runSql(run, sql);
+                const elapsed = Math.round(performance.now() - started);
+                const changes = result ? null : changedRows(run, before, sql);
+                outcome = { ok: true, rows: result ? result.values.length : 0, elapsed, resultSet: Boolean(result), changes };
+                showResult(result, elapsed, { changes, quiet });
+                return undefined;
+            } catch (exc) {
+                outcome = { ok: false, error: errorText(exc) };
+                showError(exc, { quiet });
+                return Promise.reject(exc);
+            } finally {
+                // after every run, failed ones too: statements before the error stay applied
+                announce("lab:run-finished", { database: run, sql, preview: false, ...outcome });
+            }
+        })
+        .finally(() => {
+            endRun();
+            pendingRuns--;
+            if (pendingRuns === 0) {
+                const waiting = idleWaiters;
+                idleWaiters = [];
+                waiting.forEach((resolve) => resolve());
+            }
+        });
 }
 
-// openUrl loads database from local or remote url
-function openUrl() {
-    const url = prompt(OPEN_URL_PROMPT, OPEN_URL_DEFAULT);
-    if (!url) {
-        return;
+// openUrl asks for a database's address in a dialog (js/lab/open-url-dialog.js); the focus goes
+// back to returnFocus if the student cancels
+function openUrl(returnFocus) {
+    // a menu left open would sit above the dialog's backdrop
+    if (typeof HTMLElement.prototype.hidePopover === "function") {
+        for (const popover of document.querySelectorAll(":popover-open")) {
+            popover.hidePopover();
+        }
     }
-    startFromUrl(url);
+    openUrlDialog.open(returnFocus);
 }
 
 // changeName renames the database (from the export dialog)
@@ -587,9 +703,9 @@ function changeName(name) {
     if (name == database.name) {
         return;
     }
-    // Move what is *saved* under the old name. database.query is not that: it can be the
-    // preview, or SQL from a share link that has not been run, and neither is the
-    // student's work (js/lab/share.js: shared SQL reaches storage only through a Run).
+    // Move what is *saved* under the old name. database.query is not that: it can be SQL from a
+    // share link that has not been run, which is not the student's work (js/lab/share.js: shared
+    // SQL reaches storage only through a Run).
     const saved = storage.get(database.name);
     storage.remove(database.name);
     database.name = name;
@@ -601,72 +717,44 @@ function changeName(name) {
     statusBar.rename(name, { builtIn: getPristineId() !== null });
 }
 
-// showStarted shows the result of successful database load
-// notice is plain text from the router (a link named an unknown dataset, say) that goes
-// with the normal message. focus=false (a pick in the database switcher) leaves the focus on
-// the switcher's button, so a keyboard user can keep choosing; otherwise the caret ends up at
-// the end of the editor text, after the table preview has replaced that text.
-function showStarted({ shared = false, notice = null, focus = true, exercise = null } = {}) {
-    const prefix = notice ? `${notice} ` : "";
-    if (exercise) {
-        // no table preview in exercise mode: the editor holds the link's SQL, a draft or nothing
-        const message = database.query ? (shared ? SHARED_MESSAGE : RESTORED_MESSAGE) : MESSAGES.invite;
-        ui.status.info(escapeHtml(prefix + message));
-    } else if (database.query) {
-        // SQL restored from storage or from a share link goes in the editor (start()
-        // put it there) but is never run: a runaway query saved by an earlier session,
-        // or sent in a link, would hang the tab.
-        ui.status.info(escapeHtml(prefix + (shared ? SHARED_MESSAGE : RESTORED_MESSAGE)));
-    } else if (database.tables.length) {
-        showTableContent(database.tables[0]);
-        if (notice) {
-            ui.status.info(escapeHtml(notice));
-        }
-    } else {
-        showWelcome(notice);
+// showStarted shows the result of successful database load: the results pane's "no result yet"
+// (UI plan, section 5), whose line says whether the editor holds the student's last query or a
+// shared one, and whose sample queries fill the editor without running. Nothing runs on load:
+// SQL restored from storage or from a link is put in the editor (start() did) but never run, as a
+// runaway query saved by an earlier session, or sent in a link, would hang the tab; and the first
+// table's preview is now a sample the student chooses (inventory row 82).
+// notice is plain text from the router (a link named an unknown dataset, say); problem is the
+// error band above it (a damaged link, a dataset that could not be had). focus=false (a pick in
+// the database switcher) leaves the focus on the switcher's button, so a keyboard user can keep
+// choosing; otherwise the caret ends up at the end of the editor text.
+function showStarted({ shared = false, notice = null, focus = true, problem = null } = {}) {
+    const variant = database.query ? (shared ? "shared" : "restored") : "fresh";
+    results.showEmpty({ variant, notice, problem });
+    // a load the student asked for ends with a toast that names what is open now
+    if (pageStarted) {
+        toast(openedMessage(openDataset ? openDataset.name : database.name));
     }
+    pageStarted = true;
     if (focus) {
         caretToEnd(ui.editor);
     }
 }
 
-// showTableContent select data from specified table
-function showTableContent(table) {
-    const query = tableContentSql(table);
-    ui.editor.value = query;
-    // the preview is not the student's work, so it is not saved as their last query
-    execute(query, false).catch(ignoreRejection);
-}
-
-// showWelcome shows the message for an empty database
-function showWelcome(notice = null) {
-    let message = `<p>${notice ? `${escapeHtml(notice)}<br>` : ""}${MESSAGES.invite}</p>`;
-    const functions = `<a href="https://sqlite.org/lang_corefunc.html" class="sqlime-link" target="_blank" rel="noopener noreferrer">Functions</a>`;
-    const about = actionButton("visit", "About", "about");
-    message += `<p>${functions} • ${about}</p>`;
-    ui.status.info(message);
-}
-
 // showResult shows results and timing
 // of the SQL query execution
-function showResult(result, elapsed) {
-    results.showResult(result, elapsed);
+function showResult(result, elapsed, details) {
+    results.showResult(result, elapsed, details);
 }
 
 // showError shows an error occured
 // during SQL query execution
-function showError(exc) {
-    results.showError(exc);
+function showError(exc, details) {
+    results.showError(exc, details);
 }
 
 // ignoreRejection swallows the rejection of execute(): the error has already been
-// shown in the status area, so there is nothing left to report.
+// shown in the results pane, so there is nothing left to report.
 function ignoreRejection() {}
-
-function visit(page) {
-    window.location.assign(`${page}.html`);
-    return Promise.resolve();
-}
 
 // "Open a file…" (the database switcher, Ctrl/Cmd+O): the chosen file
 ui.fileInput.addEventListener("change", () => {
@@ -699,7 +787,16 @@ ui.editor.addEventListener("execute", (event) => {
 });
 
 // Handle user actions
-new ActionController(actions).listen(ui.topbar, ui.toolbar, ui.status, ui.result);
+new ActionController(actions).listen(ui.topbar, ui.toolbar);
 new ShortcutController(shortcuts).listen(document);
+// With Caps Lock on, Ctrl/Cmd+O and U arrive as "O" and "U", which ShortcutController (upstream's,
+// case-sensitive) does not know, and the browser would open its own view-source: the same
+// shortcuts, as long as Shift is not held (Ctrl+Shift+U is other software's).
+document.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && (event.key === "O" || event.key === "U")) {
+        event.preventDefault();
+        shortcuts[event.key.toLowerCase()]();
+    }
+});
 
 startFromCurrentUrl();

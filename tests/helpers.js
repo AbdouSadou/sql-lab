@@ -5,8 +5,16 @@
 //   app  drives the playground page: open, run SQL, read the result table,
 //        upload databases, pick datasets and export through the toolbar button.
 //
-// The default dataset (Northlight) opens on every visit. A test that needs the old empty
-// start uses app.openEmpty(); one that needs a second dataset uses withSampleDataset().
+// The default dataset (Northlight) opens on every visit, and nothing runs on its own: the results
+// pane shows "no result yet" with sample queries (UI plan, Phase 4). A test that needs the old
+// empty start uses app.openEmpty(); one that needs a second dataset uses withSampleDataset().
+//
+// The results pane (js/lab/results.js) shows one state at a time, named by #results-pane's
+// data-state: "loading", "empty" (no result yet), "result" (the summary line #results-summary
+// with #status, and the table), "done" (a run with no result set) and "error" (the error band).
+// A Run starts one frame after it is asked for (so "Running…" can show during a long one):
+// app.run() and app.settle() wait for it to finish, never for text a previous run could
+// already show. Toasts (#toast-region) answer actions: Copy link, the exports, a database opened.
 //
 // Import `test` and `expect` from here, not from @playwright/test:
 //
@@ -91,9 +99,9 @@ async function expectEditorTextOnly(page) {
     expect(stray).toEqual([]);
 }
 
-// "Run SQL query ..." is the empty-database welcome, "Press Run ..." is shown when saved
-// SQL was put back in the editor without being run.
-const READY_STATUS = /Run SQL query to see the results|Press Run to execute it|\d+ rows?, took \d+ ms/;
+// The results pane once a load has finished: anything but "loading" (and not the blank page
+// before the first load). "empty" is the usual end of a load; "error" a load that failed.
+const READY_PANE = '#results-pane:is([data-state="empty"], [data-state="result"], [data-state="done"], [data-state="error"])';
 
 // A payload that would create an element and run script if it ever reached innerHTML.
 // No quotes inside, so it can also sit in a SQL identifier or a URL.
@@ -315,9 +323,23 @@ class App {
         // the typing surface; editorHost is the element with the editor's methods (value, query)
         this.editor = page.locator(EDITOR_INPUT);
         this.editorHost = page.locator("#editor");
+        // the results pane and what it shows (js/lab/results.js)
+        this.pane = page.locator("#results-pane");
+        // the summary line's text: "5 rows in 3 ms", "Showing 500 of 906 rows in 3 ms", "Done ..."
         this.status = page.locator("#status");
+        this.summary = page.locator("#results-summary");
         this.result = page.locator("#result");
         this.table = page.locator("#result table");
+        // the error band (a failed run, or a problem with a load or a link: in #result, or, when a
+        // load failed and the view before it came back, at the top of the pane in .results-problem)
+        // and "no result yet"
+        this.errorBand = page.locator("#results-pane .results-band");
+        this.emptyState = page.locator("#result .results-empty");
+        this.samples = page.locator("#result .results-sample");
+        // the live region that says each outcome ("5 rows returned", "This query has an error: ...")
+        this.announcer = page.locator("#results-announce");
+        // the toast on screen (Copy link, an export, a database opened, a refused Run)
+        this.toast = page.locator("#toast-region");
     }
 
     // open navigates (relative URL only) and waits for the engine and database.
@@ -331,14 +353,23 @@ class App {
     async openEmpty(url = "./") {
         await routeManifest(this.page, "", { status: "abort" });
         await this.page.goto(url);
-        await expect(this.status).toContainText("could not be loaded");
+        await expect(this.errorBand).toContainText("could not be loaded");
+        await this.waitReady();
     }
 
+    // waitReady: a load has finished (the results pane is out of its loading state)
     async waitReady() {
-        await expect(this.status).toContainText(READY_STATUS);
+        await expect(this.page.locator(READY_PANE)).toHaveCount(1);
     }
 
-    // run types SQL into the editor and runs it with Ctrl+Enter (or the Run button).
+    // settle waits until no run is waiting or running (a Run starts one frame after it is asked
+    // for); call it after pressing Run or Ctrl+Enter some other way than app.run()
+    async settle() {
+        await this.page.evaluate(() => window.app?.whenIdle?.());
+    }
+
+    // run types SQL into the editor and runs it with Ctrl+Enter (or the Run button), and waits
+    // for the run to finish.
     async run(sql, { via = "keyboard" } = {}) {
         await this.editor.fill(sql);
         if (via === "button") {
@@ -346,6 +377,7 @@ class App {
         } else {
             await this.editor.press("Control+Enter");
         }
+        await this.settle();
     }
 
     // read returns the rendered result table as {columns, rows} of strings.
@@ -362,7 +394,7 @@ class App {
     // query runs SQL and returns the resulting table.
     async query(sql) {
         await this.run(sql);
-        await expect(this.status).toContainText(/\d+ rows?, took \d+ ms/);
+        await expect(this.pane).toHaveAttribute("data-state", "result");
         return this.read();
     }
 
@@ -491,14 +523,38 @@ class App {
         );
     }
 
-    // shareField is the read-only field that copy link fills in the status area.
+    // shareField is the read-only field of Copy link's popover, shown only when the browser kept
+    // the clipboard to itself (js/lab/copy-link.js).
     get shareField() {
-        return this.status.locator("input.share-link-field");
+        return this.page.locator("#copy-link-popover input.share-link-field");
     }
 
-    // copyLink clicks the copy link button (or presses Enter on it with via "keyboard")
-    // and returns the URL shown in the field.
+    // stubClipboard replaces the page's clipboard with a recorder (window.__copied, the texts
+    // written, in order), so a test reads what Copy link copied without the browser's clipboard
+    // permissions. It lasts until the page navigates.
+    async stubClipboard() {
+        await this.page.evaluate(() => {
+            if (window.__copyStub) {
+                return;
+            }
+            window.__copyStub = true;
+            window.__copied = [];
+            Object.defineProperty(navigator, "clipboard", {
+                configurable: true,
+                value: {
+                    writeText: async (text) => {
+                        window.__copied.push(String(text));
+                    },
+                },
+            });
+        });
+    }
+
+    // copyLink clicks the copy link button (or presses Enter on it with via "keyboard") and
+    // returns the link it put on the clipboard (stubbed: see stubClipboard); "Link copied" says so.
     async copyLink({ via = "mouse" } = {}) {
+        await this.stubClipboard();
+        const before = await this.page.evaluate(() => window.__copied.length);
         const button = this.page.locator("#copy-link");
         if (via === "keyboard") {
             await button.focus();
@@ -506,8 +562,59 @@ class App {
         } else {
             await button.click();
         }
-        await expect(this.shareField).toHaveCount(1);
-        return this.shareField.inputValue();
+        await this.page.waitForFunction((count) => window.__copied.length > count, before);
+        await expect(this.toast).toContainText("Link copied");
+        return this.page.evaluate(() => window.__copied.at(-1));
+    }
+
+    // ---- toasts (js/lab/toast.js)
+    //
+    // A toast shows about 60 ms after its action and removes itself after 4 s or more, so a negative
+    // check on the region (not.toContainText, toHaveCount(0)) retries until the toast has come and
+    // gone and cannot fail. Record instead: recordToasts() keeps every text the region shows in
+    // window.__toasts (fromStart: from before the page's own scripts run, for the first load; it is
+    // an init script, so call it before navigating), toasts() reads the list, and
+    // expectToasts(list, {settle}) waits `settle` ms (longer than the 60 ms gap) and then compares
+    // the whole list, once, without retrying.
+    async recordToasts({ fromStart = false } = {}) {
+        const install = () => {
+            const start = () => {
+                if (window.__toastsRecorded) {
+                    return;
+                }
+                const region = document.getElementById("toast-region");
+                if (!region) {
+                    return;
+                }
+                window.__toastsRecorded = true;
+                window.__toasts = [];
+                new MutationObserver(() => {
+                    const text = region.textContent;
+                    if (text) {
+                        window.__toasts.push(text);
+                    }
+                }).observe(region, { childList: true, subtree: true, characterData: true });
+            };
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", start);
+            } else {
+                start();
+            }
+        };
+        if (fromStart) {
+            await this.page.addInitScript(install);
+        } else {
+            await this.page.evaluate(install);
+        }
+    }
+
+    toasts() {
+        return this.page.evaluate(() => window.__toasts ?? null);
+    }
+
+    async expectToasts(list, { settle = 300 } = {}) {
+        await this.page.waitForTimeout(settle);
+        expect(await this.toasts()).toEqual(list);
     }
 
     // ---- F5 results (js/lab/results.js)

@@ -1,29 +1,64 @@
-.share-link {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.25rem 0.5rem;
-    margin-bottom: 0.25rem;
+/* Copy link's popover (js/lab/copy-link.js): shown only when the browser kept the clipboard to
+   itself, under the button, with the link selected in a read-only field. Drawn like Help. */
+
+.share-popover[popover] {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    box-sizing: border-box;
+    width: min(28rem, calc(100vw - 16px), var(--popover-room, 100vw));
+    overflow: auto;
+    padding: var(--space-4);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-float);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-float);
+}
+
+.share-popover[popover]:popover-open {
+    animation: menu-fade var(--motion-fade) ease-out;
+}
+
+.share-popover-title {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-md);
+}
+
+.share-popover-text {
+    margin: 0 0 var(--space-3);
+}
+
+.share-popover-text[hidden] {
+    display: none;
+}
+
+.share-popover-label {
+    display: block;
+    margin-bottom: var(--space-1);
+    font-weight: 600;
 }
 
 .share-link-field {
-    flex: 1 1 16rem;
-    min-width: 0;
-    height: 2rem;
-    padding: 0 0.5rem;
-    border: 1px solid var(--accent);
-    border-radius: 0.125rem;
-    background: transparent;
-    color: inherit;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--control-height);
+    margin-bottom: var(--space-3);
+    padding: 0 var(--space-2);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-control);
+    background: var(--paper);
+    color: var(--ink);
     font-family: var(--font-mono);
-    font-size: 0.875rem;
-}
-
-.share-link-note {
-    display: block;
+    font-size: var(--text-sm);
 }
 
 .share-link-warning {
-    display: block;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .share-popover[popover]:popover-open {
+        animation: none;
+    }
 }

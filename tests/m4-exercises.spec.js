@@ -544,7 +544,7 @@ test.describe("listSets", () => {
         await page.goto("?set=retail-basics");
         await app.waitReady();
         expect(await list(page)).toEqual([]);
-        await expect(app.status).not.toContainText("exercise set");
+        await expect(app.result).not.toContainText("exercise set");
     });
 });
 
@@ -932,7 +932,7 @@ test.describe("resolveRoute and exercise sets", () => {
         const none = await route(page, { hash: shareHash({ x: "no-such-set", q: "select 42" }) });
         expect(none).toMatchObject({ dataset: "northlight", sql: "select 42", exercise: null });
         expect(none.notice).toContain('"no-such-set"');
-        expect(none.notice).toContain("does not name a dataset");
+        expect(none.notice).toContain("does not name a database");
     });
 
     test("a share link's exercise that is not in the set: ignored with a notice", async ({ page, app }) => {
@@ -963,7 +963,9 @@ test.describe("resolveRoute and exercise sets", () => {
         try {
             const page = await context.newPage();
             await page.goto(`./${shareHash({ d: "northlight", x: "retail-basics", e: "e05", q: "select 5 as five" })}`);
-            await expect(page.locator("#status")).toContainText("A shared query is in the editor");
+            // (nothing ran: the results pane says so under "no result yet", where the status line did)
+            await expect(page.locator("#results-pane")).toHaveAttribute("data-state", "empty");
+            await expect(page.locator("#result .results-empty-text")).toContainText("A shared query is in the editor");
             expect(await editorValue(page)).toBe("select 5 as five");
             // the dataset is open: the switcher names it, and the engine holds its file
             await expect(page.locator("#database-button-name")).toHaveText("Northlight Retail");
@@ -984,14 +986,15 @@ test.describe("resolveRoute and exercise sets", () => {
         expect(await page.evaluate(() => window.app.database.name)).toBe("sample.db");
         expect(await app.pickedText()).toBe("Sample Fruit");
 
-        // a bad set: the default dataset opens and the status says why; the id is text only
+        // a bad set: the default dataset opens and the empty results pane's notice says why; the id
+        // is text only
         await page.goto("?set=no-such-set");
-        await expect(app.status).toContainText('The exercise set "no-such-set" could not be opened');
+        await expect(app.emptyState.locator(".results-empty-notice")).toContainText('The exercise set "no-such-set" could not be opened');
         await expect(app.databaseLabel).toHaveText("Northlight Retail");
         expect(await page.evaluate(() => window.app.database.name)).toBe("northlight_retail.db");
 
         await page.goto(`?set=${encodeURIComponent(PAYLOAD)}`);
-        await expect(app.status).toContainText("The exercise set in the address could not be opened");
+        await expect(app.emptyState.locator(".results-empty-notice")).toContainText("The exercise set in the address could not be opened");
         await app.expectInert();
         expect(pageErrors).toEqual([]);
     });

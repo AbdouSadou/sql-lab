@@ -12,9 +12,9 @@
 // this shape counts as an empty log, and an entry that is not this shape is skipped.
 //
 // What is logged. A Run: lab:run-finished with preview false (js/index.js execute). A Check
-// performs a visible run through the same function, so it is logged once. The table preview
-// the app runs itself (preview true) is not a Run. The checker's own runs never fire the
-// event.
+// performs a visible run through the same function, so it is logged once. A run announced with
+// preview true is not a Run (the app's own table preview was one, until the UI plan's Phase 4
+// removed it). The checker's own runs never fire the event.
 //
 // Writes. appendLog stores the entry in localStorage before it returns, so a Run that is on
 // screen is already stored, and a page that is left (a link, a reload, a closed tab) a
@@ -80,9 +80,9 @@ import {
     historyRowsText,
 } from "./config.js";
 import { utcTimestamp } from "./evidence.js";
-import { escapeHtml } from "./html.js";
 import { icon } from "./icons.js";
 import { reportStorage } from "./storage-notice.js";
+import { toast } from "./toast.js";
 
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
@@ -334,9 +334,10 @@ export function mountRunLog({ ui, list, isShown = () => true }) {
         if (!entry) {
             return;
         }
-        // not run, and not saved as the student's last query: only a Run does that
+        // not run, and not saved as the student's last query: only a Run does that. The result on
+        // screen stays with its summary line; a toast says what happened.
         editor.value = entry.sql;
-        ui.status.info(escapeHtml(HISTORY_RESTORED_MESSAGE));
+        toast(HISTORY_RESTORED_MESSAGE);
         editor.focus();
     }
 

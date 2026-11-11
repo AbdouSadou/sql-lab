@@ -36,7 +36,7 @@ test("AC10 three runs, one erroring: the exported file holds all three and verif
     await app.open();
     await app.query("SELECT category, COUNT(*) FROM products GROUP BY category;");
     await app.run("SELECT pric FROM products;");
-    await expect(app.status).toContainText("no such column: pric");
+    await expect(app.errorBand).toContainText("no such column: pric");
     await app.query("SELECT 1 AS one\nUNION ALL\nSELECT 2;");
 
     const file = await app.exportEvidence(STUDENT);
@@ -139,7 +139,7 @@ test("AC10 changing a single character of the exported file makes verify.html sa
     await app.open();
     await app.query("SELECT category, COUNT(*) FROM products GROUP BY category;");
     await app.run("SELECT pric FROM products;");
-    await expect(app.status).toContainText("no such column: pric");
+    await expect(app.errorBand).toContainText("no such column: pric");
     await app.query("SELECT 1 AS one\nUNION ALL\nSELECT 2;");
     const { text } = await app.exportEvidence(STUDENT);
 

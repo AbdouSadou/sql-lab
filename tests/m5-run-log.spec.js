@@ -40,8 +40,8 @@ test.describe("what a Run appends", () => {
     test("the row count is the full count, not the 500 shown", async ({ app }) => {
         await app.open();
         await app.run("select * from order_items");
-        await expect(app.status).toContainText(/showing 500 of \d+ rows/);
-        const total = Number((await app.status.innerText()).match(/of (\d+) rows/)[1]);
+        await expect(app.status).toContainText(/Showing 500 of [\d,]+ rows/);
+        const total = Number((await app.status.innerText()).match(/of ([\d,]+) rows/)[1].replaceAll(",", ""));
         expect(total).toBeGreaterThan(500);
         expect((await app.readLog("northlight"))[0].rows).toBe(total);
     });
@@ -49,7 +49,8 @@ test.describe("what a Run appends", () => {
     test("a statement that changes data, and a query with no rows, log their row count", async ({ app }) => {
         await app.open();
         await app.run("CREATE TABLE scratch (a); INSERT INTO scratch VALUES (1), (2);");
-        await expect(app.status).toContainText("0 rows");
+        // a run with no result set says "Done" and what it changed (it was "0 rows, took ...")
+        await expect(app.status).toContainText("Done. 2 rows changed");
         await app.run("SELECT * FROM scratch WHERE a > 5;");
         await expect(app.status).toContainText("0 rows");
         expect((await app.readLog("northlight")).map((e) => [e.sql, e.rows])).toEqual([
@@ -61,11 +62,11 @@ test.describe("what a Run appends", () => {
     test("an error is logged with the engine's message alone, on one line", async ({ app }) => {
         await app.open();
         await app.run("SELECT pric FROM products;");
-        await expect(app.status).toContainText("no such column: pric");
+        await expect(app.errorBand).toContainText("no such column: pric");
         await app.run("SELECT 1;\nSELECT * FROM nowhere;\nSELECT 3;");
-        await expect(app.status).toContainText("no such table: nowhere");
+        await expect(app.errorBand).toContainText("no such table: nowhere");
         await app.run("SELECT FROM;");
-        await expect(app.status).toContainText("syntax error");
+        await expect(app.errorBand).toContainText("syntax error");
         const log = await app.readLog("northlight");
         expect(log.map((e) => e.error)).toEqual(["no such column: pric", "no such table: nowhere", expect.stringMatching(/syntax error/)]);
         for (const entry of log) {
@@ -83,11 +84,13 @@ test.describe("what a Run appends", () => {
         expect((await app.readLog("northlight"))[0].sql).toBe(sql);
     });
 
-    test("the table preview the app runs on its own is not logged, and neither is an empty Run", async ({ page, app }) => {
-        // an upload with tables and nothing saved: the app shows a preview of the first table
+    test("nothing the app does on its own is logged (it runs nothing on load), and neither is an empty Run", async ({ page, app }) => {
+        // an upload with tables and nothing saved: the app runs nothing (no table preview any more),
+        // the results pane says "no result yet"
         await app.open();
         await app.upload({ name: "sample.db", mimeType: "application/octet-stream", buffer: fs.readFileSync(SAMPLE_FILE) });
-        await expect(app.table).toBeVisible();
+        await expect(app.pane).toHaveAttribute("data-state", "empty");
+        await expect(app.table).toBeHidden();
         expect(await logKeys(page)).toEqual([]);
         await app.run("   ");
         await page.locator("#execute").click();
@@ -119,7 +122,8 @@ test.describe("what a Run appends", () => {
         await expect(app.feedback).toContainText("Passed");
         expect(await app.readLog("northlight")).toHaveLength(1);
         await app.checkButton.click();
-        await expect(app.status).toContainText(/\d+ rows?, took/);
+        await app.settle();
+        await expect(app.status).toContainText(/^\d[\d,]* rows? in \d+ ms$/);
         await expect.poll(async () => (await app.readLog("northlight")).length).toBe(2);
         // a wrong query and a failing one are single entries too
         await app.editor.fill("SELECT product_name FROM products;");
@@ -261,7 +265,7 @@ test.describe("storage", () => {
         await app.open();
         await app.query("SELECT 'one' AS q;");
         await app.run("SELECT nope;");
-        await expect(app.status).toContainText("no such column: nope");
+        await expect(app.errorBand).toContainText("no such column: nope");
         await app.historyButton.click();
         await expect(app.historyEntries).toHaveCount(2);
         await expect(app.historyEntries.first()).toContainText("Error");
@@ -361,7 +365,7 @@ test.describe("the History tab", () => {
         await app.open();
         await app.query(FIVE[0]);
         await app.run(FIVE[1]);
-        await expect(app.status).toContainText("no such column: pric");
+        await expect(app.errorBand).toContainText("no such column: pric");
         await app.query(FIVE[2]);
         await app.run(FIVE[3]);
         await expect(app.status).toContainText("0 rows");
@@ -445,7 +449,9 @@ test.describe("the History tab", () => {
         expect(await app.readLog("northlight")).toEqual(before.log);
         expect(await app.storedQueries()).toEqual(before.stored);
         expect(await app.table.innerText()).toBe(before.table);
-        await expect(app.status).toContainText("Press Run to execute it");
+        // the restore is announced by a toast; the result and its summary stay as they were
+        await expect(app.toast).toContainText("Press Run to execute it");
+        expect(await app.status.innerText()).toBe(before.status);
         expect(before.status).not.toContain("Press Run to execute it");
         // Run then runs it, and logs it
         await app.editor.press("Control+Enter");
@@ -603,7 +609,7 @@ test.describe("the History tab", () => {
         await app.open();
         await app.query(`SELECT '${PAYLOAD}' AS "${PAYLOAD.replaceAll('"', "")}";`);
         await app.run(`SELECT * FROM "${PAYLOAD}";`);
-        await expect(app.status).toContainText("no such table");
+        await expect(app.errorBand).toContainText("no such table");
         await app.seedLog("northlight", [
             ...(await app.readLog("northlight")),
             { t: "2026-11-09T10:00:00Z", sql: `</button><img id=pwn src=x onerror=window.__pwned=1>`, error: PAYLOAD },

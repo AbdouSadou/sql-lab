@@ -78,7 +78,8 @@ test.describe("the plan's checks", () => {
         await expect(list).toBeHidden();
         expect(await editorValue(page)).toBe("SELECT * FROM products");
         await page.keyboard.press("Control+Enter");
-        await expect(app.status).toContainText("20 rows, took");
+        await app.settle();
+        await expect(app.status).toHaveText(/^20 rows in \d+ ms$/);
         expect(pageErrors).toEqual([]);
     });
 
@@ -119,6 +120,7 @@ test.describe("the plan's checks", () => {
         await page.keyboard.type("5 AS five;");
         expect(await editorValue(page)).toBe("SELECT  5 AS five;");
         await page.keyboard.press("Control+Enter");
+        await app.settle();
         expect(await app.read()).toEqual({ columns: ["five"], rows: [["5"]] });
         // Escape, then Tab leaves it
         await app.editor.focus();
@@ -130,7 +132,8 @@ test.describe("the plan's checks", () => {
         await app.schemaInsert("stores").click();
         expect(await editorValue(page)).toBe("SELECT * FROM stores");
         await page.locator("#execute").click();
-        await expect(app.status).toContainText("5 rows, took");
+        await app.settle();
+        await expect(app.status).toHaveText(/^5 rows in \d+ ms$/);
         expect(pageErrors).toEqual([]);
     });
 
@@ -156,6 +159,7 @@ test.describe("the plan's checks", () => {
         await page.keyboard.type("2");
         expect(await editorValue(page)).toBe("SELECT 21 AS one");
         await page.keyboard.press("Control+Enter");
+        await app.settle();
         expect(await app.read()).toEqual({ columns: ["one"], rows: [["21"]] });
         expect(pageErrors).toEqual([]);
     });
@@ -335,15 +339,18 @@ test.describe("the keys", () => {
         await app.editor.fill("SELECT 1 AS a;\nSELECT 2 AS b;");
         await editorSelect(page, 15, 29);
         await page.keyboard.press("Control+Enter");
+        await app.settle();
         expect(await app.read()).toEqual({ columns: ["b"], rows: [["2"]] });
         await editorSelect(page, 0, 13);
         await page.keyboard.press("Meta+Enter");
+        await app.settle();
         expect(await app.read()).toEqual({ columns: ["a"], rows: [["1"]] });
         await typeFresh(page, app, "SELECT COUNT(*) AS n FROM prod");
         await expect(page.getByRole("listbox")).toBeVisible();
         await page.keyboard.press("Control+Enter");
         await expect(page.getByRole("listbox")).toBeHidden();
-        await expect(app.status).toContainText("no such table: prod");
+        await app.settle();
+        await expect(app.errorBand.locator(".results-band-message")).toContainText("no such table: prod");
         expect(await editorValue(page)).toBe("SELECT COUNT(*) AS n FROM prod");
     });
 
@@ -357,6 +364,7 @@ test.describe("the keys", () => {
         await page.locator("#status-version").click({ clickCount: 3 });
         expect(await page.evaluate(() => getSelection().toString())).toMatch(/SQLite/);
         await page.locator("#execute").click();
+        await app.settle();
         expect(await app.read()).toEqual({ columns: ["b", "c"], rows: [["2", "3"]] });
     });
 
@@ -402,7 +410,8 @@ test.describe("completion", () => {
         await page.keyboard.type("ON o.order_id = oi.order_id LIMIT 1");
         expect(await editorValue(page)).toBe("SELECT *\nFROM orders o\nJOIN order_items oi\nON o.order_id = oi.order_id LIMIT 1");
         await page.keyboard.press("Control+Enter");
-        await expect(app.status).toContainText("1 row, took");
+        await app.settle();
+        await expect(app.status).toHaveText(/^1 row in \d+ ms$/);
     });
 
     test("a name typed in full is not offered back, so the list does not linger", async ({ page, app }) => {
@@ -621,6 +630,7 @@ test.describe("found in review", () => {
         await page.keyboard.press("Shift+Tab");
         await expect(page.locator("#execute")).toBeFocused();
         await page.keyboard.press("Enter");
+        await app.settle();
         expect(await app.read()).toEqual({ columns: ["b"], rows: [["2"]] });
         expect(await page.evaluate(() => localStorage.getItem("sqlime.query.northlight_retail.db"))).toBe("SELECT 2 AS b");
     });
@@ -744,7 +754,7 @@ test.describe("found in review", () => {
     test("an unsupported address says so at once, without waiting for the editor", async ({ page, app }) => {
         await page.route(`**/${BUNDLE}`, () => {}); // never answers
         await page.goto("./#scheme:abc");
-        await expect(app.status).toContainText("Failed to load database", { timeout: 1500 });
+        await expect(app.errorBand.locator(".results-band-text")).toContainText("Failed to load database", { timeout: 1500 });
     });
 
     test("names that begin outside ASCII are offered, and nothing is spliced onto them", async ({ page, app }) => {
@@ -758,7 +768,8 @@ test.describe("found in review", () => {
         // quoted, as the Schema tab inserts it, and nothing of the typed word left over
         expect(await editorValue(page)).toBe('SELECT * FROM "über"');
         await page.keyboard.press("Control+Enter");
-        await expect(app.status).toContainText("0 rows, took");
+        await app.settle();
+        await expect(app.status).toHaveText(/^0 rows in \d+ ms$/);
         await typeFresh(page, app, "SELECT * FROM 日");
         await expect(option(page, "日本")).toBeVisible();
         // a name that starts with _ is not cut either: no "products" offered for the "pr" of "__pr"
@@ -779,6 +790,7 @@ test.describe("found in review", () => {
         await page.keyboard.press("Enter");
         expect(await editorValue(page)).toBe('SELECT id FROM "q""uote"');
         await page.keyboard.press("Control+Enter");
+        await app.settle();
         expect(await app.read()).toEqual({ columns: ["id"], rows: [["7"]] });
     });
 
@@ -926,5 +938,6 @@ test("the plain box is still there to type into when the page has no CodeMirror"
     await expect(page.locator(EDITOR_INPUT)).toHaveAttribute("id", "editor");
     await app.editor.fill("SELECT 'plain' AS p;");
     await page.keyboard.press("Control+Enter");
+    await app.settle();
     expect(await app.read()).toEqual({ columns: ["p"], rows: [["plain"]] });
 });

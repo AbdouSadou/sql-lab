@@ -11,7 +11,7 @@ import {
     EXPORT_FALLBACK_NAME,
     exportedMessage,
 } from "./config.js";
-import { escapeHtml } from "./html.js";
+import { toast } from "./toast.js";
 
 const DB_EXTENSION = /\.(db|sqlite|sqlite3)$/i;
 
@@ -80,27 +80,27 @@ export function saveFile(data, filename, type) {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
-// createExportAction returns the handler for the export button. getDatabase gives the
-// current database (index.js keeps it private); ui.status shows the outcome.
-export function createExportAction(ui, getDatabase) {
+// createExportAction returns what the database export dialog's Export does. getDatabase gives the
+// current database (index.js keeps it private); a toast says how it went (js/lab/toast.js).
+export function createExportAction(getDatabase) {
     return function exportDatabase() {
         const database = getDatabase();
         if (!database) {
-            ui.status.error(escapeHtml(EXPORT_EMPTY_MESSAGE));
+            toast(EXPORT_EMPTY_MESSAGE, { tone: "problem" });
             return Promise.resolve();
         }
         const result = serializeDatabase(database);
         if (!result.ok) {
-            ui.status.error(escapeHtml(result.message));
+            toast(result.message, { tone: "problem" });
             return Promise.resolve();
         }
         try {
             saveFile(result.bytes, result.filename, "application/vnd.sqlite3");
         } catch {
-            ui.status.error(escapeHtml(EXPORT_FAILED_MESSAGE));
+            toast(EXPORT_FAILED_MESSAGE, { tone: "problem" });
             return Promise.resolve();
         }
-        ui.status.success(escapeHtml(exportedMessage(result.filename, result.bytes.length)));
+        toast(exportedMessage(result.filename));
         return Promise.resolve();
     };
 }

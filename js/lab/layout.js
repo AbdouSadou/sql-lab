@@ -140,7 +140,8 @@ export function mountLayout({ app, sidebar, sidebarSplitter, main, prompt, toolb
     function resultsNeed() {
         let fixed = 0;
         for (const child of resultsPane.children) {
-            if (child === result || child === feedback || child.hidden) {
+            // (a live region for screen readers, or a popover in the top layer, takes no room)
+            if (child === result || child === feedback || child.hidden || child.classList.contains("visually-hidden") || child.hasAttribute("popover")) {
                 continue;
             }
             const style = getComputedStyle(child);

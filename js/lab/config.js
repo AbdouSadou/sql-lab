@@ -9,9 +9,17 @@ export const APP_NAME = "SQL Lab";
 // has been put back in the editor. Restored SQL is never run automatically.
 export const RESTORED_MESSAGE = "Your last query is back in the editor. Press Run to execute it.";
 
-// The prompt for "open url". Deliberately empty: never suggest a third-party address.
-export const OPEN_URL_PROMPT = "Enter database file URL:";
-export const OPEN_URL_DEFAULT = "";
+// "Open from URL…" (the database switcher, Ctrl/Cmd+U): a dialog with one address field
+// (js/lab/open-url-dialog.js). The field starts empty: never suggest a third-party address.
+export const OPEN_URL_TITLE = "Open from URL";
+export const OPEN_URL_INTRO = "Opens a SQLite database, or a .sql script, from an address on the web.";
+export const OPEN_URL_LABEL = "Address";
+export const OPEN_URL_HINT = "It starts with https://, or is a path on this site. The site that holds the file must let other sites read it.";
+export const OPEN_URL_SUBMIT_TEXT = "Open";
+export const OPEN_URL_CANCEL_TEXT = "Cancel";
+export const OPEN_URL_EMPTY_MESSAGE = "Enter the address of a database file.";
+export const OPEN_URL_UNSUPPORTED_MESSAGE =
+    "This address cannot be opened. Use one that starts with https:// or http://, or a path on this site.";
 
 // F3 sharing. A link is the page URL plus "#s=<payload>"; the payload is the state as
 // JSON, compressed with lz-string. The fragment is never sent to a server.
@@ -31,8 +39,12 @@ export const SHARE_MAX_SQL_CHARS = 200000;
 export const SHARED_MESSAGE = "A shared query is in the editor. Press Run to execute it.";
 export const BAD_LINK_MESSAGE =
     "This link is damaged or incomplete, so its query could not be opened. Ask the sender for a new link.";
-export const LINK_COPIED_MESSAGE = "Link copied to the clipboard.";
-export const LINK_COPY_FAILED_MESSAGE = "Could not copy automatically. Copy the link below.";
+// Copy link (js/lab/copy-link.js): a toast says it worked; when the browser keeps the clipboard
+// to itself, a small popover under the button holds the link, selected, to copy by hand.
+export const LINK_COPIED_MESSAGE = "Link copied";
+export const LINK_COPY_FAILED_TITLE = "Copy this link";
+export const LINK_COPY_FAILED_MESSAGE = "The browser did not let the page copy it. Press Ctrl+C (⌘C on a Mac) to copy the link below.";
+export const LINK_FIELD_LABEL = "Link to this query";
 export const LINK_TOO_LONG_MESSAGE =
     "This query is too long to put in a link. Shorten it, or send the text itself.";
 
@@ -54,10 +66,15 @@ export const VACUUM_INTO_MESSAGE =
 export const SQL_NUL_MESSAGE =
     "The SQL contains a NUL character (U+0000), which SQLite does not accept in a statement, so nothing was run. Remove it and run again (pasting from a document or a web page is the usual way it gets in).";
 
-// Run while a database is still loading, and with no database at all.
+// Run while a database is still loading (a toast), and with no database at all (the results
+// pane's error band).
 export const LOADING_BUSY_MESSAGE =
     "A database is still loading, so nothing was run. Press Run again once it has opened.";
 export const NO_DATABASE_MESSAGE = "No database is loaded.";
+// A database could not be opened (the error band); the path and the reason come from the address,
+// a file or the engine (text only, never markup).
+export const loadFailedMessage = (path, reason) =>
+    reason ? `Failed to load database from ${path}: ${reason}` : `Failed to load database from ${path}`;
 
 // F1 datasets. The manifest lists the built-in databases (js/lab/datasets.js validates it).
 // Both paths are relative, so they resolve against the page and work under any subpath.
@@ -143,6 +160,8 @@ export const STATUS_RUN_FAILED = "Last run failed";
 // "5 rows in 3 ms": the rows part, then the time (a span of its own: the screenshot baselines give
 // it one value)
 export const statusRowsText = (rows) => `${rows.toLocaleString("en")} ${rows === 1 ? "row" : "rows"} in `;
+// a run whose statements returned no result set (CREATE, INSERT, ...) has the summary line's words,
+// resultDoneText below: "Done in 2 ms", "Done. 3 rows changed in 2 ms"
 export const statusTimeText = (ms) => `${ms} ms`;
 export const statusVersionText = (version) => `SQLite ${version}`;
 
@@ -157,40 +176,37 @@ export const THEME_OPTIONS = [
     { value: "device", label: "Match device" },
 ];
 
-// Messages about datasets (plain text; index.js escapes them, and some carry names from
-// the manifest or the address). Manifest problems are worded for the instructor who
-// edits datasets/manifest.json, because a student cannot fix them but can report them.
+// Messages about the course databases (plain text, shown with textContent; some carry names
+// from the manifest or the address). The interface says "database" (UI plan, section 3, Voice);
+// the folder and the manifest keep their names. Manifest problems are worded for the instructor
+// who edits datasets/manifest.json, because a student cannot fix them but can report them.
 const MANIFEST_NAME = "datasets/manifest.json";
 export const MANIFEST_UNREACHABLE_MESSAGE =
-    `The list of datasets (${MANIFEST_NAME}) could not be loaded, so no dataset is open. ` +
+    `The list of course databases (${MANIFEST_NAME}) could not be loaded, so an empty database is open. ` +
     "You can still open a database file of your own, or reload the page to try again.";
 export const manifestInvalidMessage = (problem) =>
-    `The list of datasets (${MANIFEST_NAME}) is not valid: ${problem} ` +
-    "No dataset is open. You can still open a database file of your own.";
+    `The list of course databases (${MANIFEST_NAME}) is not valid: ${problem} ` +
+    "An empty database is open. You can still open a database file of your own.";
 export const datasetUnavailableMessage = (name) =>
-    `The dataset "${name}" could not be loaded, so an empty database is open. ` +
+    `The database "${name}" could not be loaded, so an empty database is open. ` +
     "You can still open a database file of your own, or reload the page to try again.";
 export const datasetSwitchFailedMessage = (name) =>
-    `The dataset "${name}" could not be loaded. The previous database is still open.`;
+    `The database "${name}" could not be loaded. The previous database is still open.`;
 export const unknownDatasetMessage = (id) =>
-    (id ? `There is no dataset "${id}" on this site` : "The dataset in the address is not available") +
-    ", so the default dataset is open.";
+    (id ? `There is no database "${id}" on this site` : "The database in the address is not available") +
+    ", so the default database is open.";
 export const LINK_NO_DATASET_MESSAGE =
-    "This link does not name a dataset, so the default dataset is open.";
+    "This link does not name a database, so the default database is open.";
 export const NOT_IN_LINK_MESSAGE =
-    "This database is not built in, so the link will not include it. " +
-    "Whoever opens the link gets the default dataset.";
+    "This database is not one of the course databases, so the link cannot include it: " +
+    "whoever opens the link gets the default database.";
 
-// Export.
+// Export. A saved file is confirmed by a toast that names it (js/lab/toast.js); a failure is a
+// toast too, as the action's own answer.
 export const EXPORT_EMPTY_MESSAGE =
     "The database is empty, so there is nothing to export. Create a table first.";
 export const EXPORT_FAILED_MESSAGE = "The database could not be exported.";
-export const exportedMessage = (filename, size) =>
-    `Saved ${filename} (${formatSize(size)}). It holds the database as it is now, with your changes.`;
-
-function formatSize(bytes) {
-    return bytes < 1024 ? `${bytes} bytes` : `${(bytes / 1024).toFixed(1)} KB`;
-}
+export const exportedMessage = (filename) => `Exported ${filename}`;
 
 // Name of the exported file when the database has no usable name.
 export const EXPORT_FALLBACK_NAME = "database";
@@ -263,7 +279,7 @@ export const setNoticeMessage = (id, reason) =>
     (id ? `The exercise set "${id}"` : "The exercise set in the address") +
     ` could not be opened, so no exercises are shown. ${reason}`;
 export const setDatasetMissingReason = (dataset) =>
-    `It needs the dataset "${dataset}", which is not available on this site.`;
+    `It needs the database "${dataset}", which is not available on this site.`;
 export const unknownExerciseMessage = (id) =>
     (id ? `There is no exercise "${id}" in this set` : "The exercise in the address is not in this set") +
     ", so none is selected.";
@@ -351,20 +367,79 @@ export const setOpenFailedMessage = (id, reason) =>
 // for the checker, and every row count the page shows or announces is the full count.
 export const ROW_LIMIT = 500;
 
-// "5 rows, took 3 ms", "1 row, ...", or "showing 500 of 906 rows, took 3 ms" when capped.
-export const resultStatusMessage = (total, shown, ms) =>
-    total > shown
-        ? `showing ${shown} of ${total} rows, took ${ms} ms`
-        : `${total} ${total === 1 ? "row" : "rows"}, took ${ms} ms`;
+// Counts as the page writes them: thousands separated ("12,400").
+export const countText = (n) => Number(n).toLocaleString("en");
+const rowsWord = (n) => (n === 1 ? "row" : "rows");
 
-// The failing statement is named after the engine's message, cut to about this many characters.
-export const STATEMENT_PREVIEW_CHARS = 120;
+// The summary line above the table (UI plan, section 5): what the run returned and how long it
+// took; js/lab/results.js puts the time ("3 ms", resultTimeText) in a span of its own after
+// these. "5 rows in ", "Showing 500 of 12,400 rows in " when the table is cut at ROW_LIMIT (the
+// count is always the full one), and for a run with no result set "Done in " or "Done. 3 rows
+// changed in ".
+export const resultRowsText = (total) => `${countText(total)} ${rowsWord(total)} in `;
+export const resultCappedText = (shown, total) => `Showing ${countText(shown)} of ${countText(total)} rows in `;
+export const resultDoneText = (changes) =>
+    changes === null ? "Done in " : `Done. ${countText(changes)} ${rowsWord(changes)} changed in `;
+export const resultTimeText = (ms) => `${ms} ms`;
+// What the live region says for each outcome (section 6: "23 rows returned", the error heading).
+export const resultRowsAnnouncement = (total) => `${countText(total)} ${rowsWord(total)} returned`;
+export const resultCappedAnnouncement = (shown, total) =>
+    `${countText(total)} rows returned. The first ${countText(shown)} are shown.`;
+export const resultDoneAnnouncement = (changes) =>
+    changes === null ? "Done." : `Done. ${countText(changes)} ${rowsWord(changes)} changed.`;
+// "Running…" appears in the summary line once a run has taken this long (it cannot appear
+// earlier without flashing on every quick query; css/result.css draws it on that delay).
+export const RUNNING_TEXT = "Running…";
+
+// The error band: SQLite's message as it is, then the failing statement quoted. "In statement 1"
+// for a one-statement run (the mockup's wording), "In statement 2 of 3" otherwise. The quote is
+// the statement without the comments in front of it, cut at this many characters.
+export const ERROR_HEADING = "This query has an error";
+export const errorAnnouncement = (message) => `${ERROR_HEADING}: ${message}`;
+export const errorStatementText = (position, count) =>
+    count > 1 ? `In statement ${position} of ${count}` : `In statement ${position}`;
+export const STATEMENT_QUOTE_CHARS = 2000;
 export const STATEMENT_ELLIPSIS = "…";
-// "no such column: pric (statement 2 of 3: SELECT pric FROM t;)". `statement` is the text,
-// already on one line and cut; position and count are null for a failure that is not in a
-// statement of the run.
-export const failedStatementMessage = (message, position, count, statement) =>
-    `${message} (${count > 1 ? `statement ${position} of ${count}` : "statement"}: ${statement})`;
+
+// The table (section 3): NULL in graphite italics, and a cell longer than CELL_MAX_CHARS cut
+// with an ellipsis; pressing it shows the whole value in a popover.
+export const NULL_TEXT = "NULL";
+export const CELL_MAX_CHARS = 60;
+export const CELL_MORE_HINT = "Shows the whole value.";
+export const cellPopoverTitle = (column, row) => `${column}, row ${countText(row)}`;
+export const cellPopoverLength = (length) => `${countText(length)} characters`;
+
+// No result yet (section 5): a heading, a line that depends on how the page got here, and up to
+// three sample queries from the manifest's "samples" (else the first table's first rows).
+// Choosing a sample fills the editor; nothing runs.
+export const EMPTY_TITLE = "Run a query to see its result here.";
+export const EMPTY_SAMPLES_TEXT = "Or start from a sample. Choosing one fills the editor; nothing runs until you press Run.";
+export const EMPTY_SAMPLES_LABEL = "Sample queries";
+export const MAX_SAMPLES = 3;
+// a sample's SQL in its button is cut here (the line shows less at any width; the button's name is
+// what it shows, so this bounds what a screen reader reads)
+export const SAMPLE_SQL_CHARS = 120;
+// and its label here (a manifest's label is the instructor's text: a very long one would make a
+// very tall button and a very long name)
+export const SAMPLE_LABEL_CHARS = 60;
+export const firstRowsSampleLabel = (table) => `First 10 rows of ${table}`;
+export const EMPTY_EXERCISE_TEXT = "Write your answer in the editor, then press Check answer.";
+export const EMPTY_DATABASE_TEXT =
+    "This database has no tables yet. Create one with CREATE TABLE, or open another database from the database menu.";
+export const EMPTY_FUNCTIONS_TEXT = "SQLite functions";
+export const emptyAboutText = (appName) => `About ${appName}`;
+
+// Loading a database (section 5): its name and size, with a progress bar.
+export const loadingTitle = (name) => (name ? `Loading ${name}` : "Loading the database");
+const loadedSize = (bytes) =>
+    bytes >= 1_000_000 ? `${(bytes / 1_000_000).toFixed(1)} MB` : `${Math.round(bytes / 1000)} KB`;
+export const loadingSizeText = (loaded, total) =>
+    total ? `${loadedSize(loaded)} of ${loadedSize(total)}` : loaded ? loadedSize(loaded) : "";
+// The toast once a database the student asked for is open (not the page's first one).
+export const openedMessage = (name) => `Opened ${name}`;
+
+// Toasts (js/lab/toast.js): how long one stays, in ms (a problem stays twice as long).
+export const TOAST_MS = 4000;
 
 // Download CSV: the button in the result's summary row (and the Export menu), the file and what
 // a failure says.
@@ -431,13 +506,13 @@ export const EVIDENCE_NO_CRYPTO_MESSAGE =
     "Open the site over https.";
 export const EVIDENCE_FAILED_MESSAGE = "The evidence file could not be saved.";
 export const evidenceSavedMessage = (filename, count) =>
-    `Saved ${filename} with ${count} ${count === 1 ? "query" : "queries"}.`;
-export const EVIDENCE_DIALOG_TITLE = "Export your evidence";
-export const EVIDENCE_DIALOG_TEXT =
-    "The file lists the queries you ran on this dataset, with your student number and a checksum, " +
-    "so a marker can check it was not edited. Your number goes in the file only.";
+    `Exported ${filename} with ${count} ${count === 1 ? "query" : "queries"}`;
+// The dialog explains itself in one sentence and names the file it will save (UI plan, section 5).
+export const EVIDENCE_DIALOG_TITLE = "Export evidence";
+export const EVIDENCE_DIALOG_TEXT = "Creates a text record of the queries you ran, to attach to your assessment.";
+export const EVIDENCE_FILE_LABEL = "Saved as";
 export const EVIDENCE_LABEL = "Student number";
-export const EVIDENCE_HINT = "6 to 12 letters or digits, no spaces.";
+export const EVIDENCE_HINT = "6 to 12 letters or digits, no spaces. It goes in the file and nowhere else.";
 export const EVIDENCE_INVALID_MESSAGE =
     "That is not a valid student number. Use 6 to 12 letters or digits, with no spaces or punctuation.";
 export const EVIDENCE_SUBMIT_TEXT = "Export";

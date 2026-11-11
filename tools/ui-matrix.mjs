@@ -43,6 +43,31 @@ const only = args.only ? new Set(args.only.split(",")) : null;
 const viewports = args.viewports ? VIEWPORTS.filter((v) => args.viewports.split(",").includes(v.name)) : VIEWPORTS;
 const themes = args.themes ? args.themes.split(",") : THEMES;
 
+// To draw a page taller than the window (a full-page shot), Chromium leaves mobile emulation for
+// the capture: (pointer: coarse) and (hover: none) stop matching, so a phone shot taller than
+// 844 px would show the 32 px controls of a mouse rather than the 44 px of a touch screen. Before
+// the shot, every @media rule that tests the pointer or hover is pinned to what it matches now
+// ("all" or "not all"), in place, so the cascade is unchanged. The page's scripts read no
+// pointer or hover media (only the theme and the stacking width).
+async function pinInputMedia(page) {
+    await page.evaluate(() => {
+        const INPUT = /\b(any-)?(pointer|hover)\b/;
+        const pin = (rules) => {
+            for (const rule of rules) {
+                if (rule instanceof CSSMediaRule && INPUT.test(rule.media.mediaText)) {
+                    rule.media.mediaText = matchMedia(rule.media.mediaText).matches ? "all" : "not all";
+                }
+                if (rule.cssRules) {
+                    pin(rule.cssRules);
+                }
+            }
+        };
+        for (const sheet of [...document.styleSheets, ...document.adoptedStyleSheets]) {
+            pin(sheet.cssRules);
+        }
+    });
+}
+
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch();
 const failures = [];
@@ -68,6 +93,7 @@ for (const [state, recipe] of Object.entries(recipes.states)) {
             try {
                 await recipe(page);
                 await page.evaluate(() => document.fonts.ready);
+                await pinInputMedia(page);
                 await page.screenshot({ path: file, fullPage: true, animations: "disabled", caret: "hide" });
                 count += 1;
                 if (errors.length) failures.push(`${file}: page errors ${JSON.stringify(errors)}`);

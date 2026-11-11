@@ -4,6 +4,10 @@
 const fs = require("node:fs");
 const { test, expect, SAMPLE_FILE } = require("./helpers");
 
+// the summary line of a run with no result set (a CREATE, an INSERT, a DELETE): "Done in 2 ms" or
+// "Done. 3 rows changed in 2 ms" (it was "0 rows, took 2 ms")
+const DONE_LINE = /^Done(\. [\d,]+ rows? changed)? in \d+ ms$/;
+
 // chooseExportOfEmpty chooses "Database (.db)…" in the Export menu with an empty database open: as
 // the old export button did, it says at once that there is nothing to export; no dialog asks for a
 // name first (a name typed there would only rename a database that cannot be saved).
@@ -15,17 +19,23 @@ async function chooseExportOfEmpty(app) {
 
 test("export downloads the default dataset as a file named from the database", async ({ app }) => {
     await app.open();
+    // the dialog says what the file holds (the old status line said it after the save)
+    await app.openExportMenu();
+    await app.exportButton.click();
+    await expect(app.page.locator("#export-dialog")).toContainText("with your changes");
+    await app.page.keyboard.press("Escape");
+    await expect(app.page.locator("#export-dialog")).toBeHidden();
     const { name, buffer } = await app.exportFile();
     expect(name).toBe("northlight_retail.db");
     expect(buffer.subarray(0, 15).toString()).toBe("SQLite format 3");
-    await expect(app.status).toContainText("Saved northlight_retail.db");
-    await expect(app.status).toContainText("with your changes");
+    // a toast confirms it and names the file
+    await expect(app.toast).toContainText("Exported northlight_retail.db");
 });
 
 test("export holds the student's changes, and re-uploading the file brings them back", async ({ page, app }) => {
     await app.open();
     await app.run("CREATE TABLE notes (id INTEGER PRIMARY KEY, body TEXT); INSERT INTO notes (body) VALUES ('kept'); DELETE FROM order_items;");
-    await expect(app.status).toContainText("took");
+    await expect(app.status).toHaveText(DONE_LINE);
     const { buffer } = await app.exportFile();
 
     const second = await page.context().newPage();
@@ -58,7 +68,8 @@ test("exporting an empty database gives a clear message, not an error and not a 
     const title = await page.title();
     const before = await page.evaluate(() => window.app.database.name);
     await chooseExportOfEmpty(app);
-    await expect(app.status).toContainText("The database is empty, so there is nothing to export");
+    // the refusal is a toast now (it was the status line)
+    await expect(app.toast).toContainText("The database is empty, so there is nothing to export");
     // nothing was renamed on the way
     await expect(page).toHaveTitle(title);
     expect(await page.evaluate(() => window.app.database.name)).toBe(before);
@@ -68,13 +79,13 @@ test("exporting an empty database gives a clear message, not an error and not a 
 
     // once there is a table it exports; dropping everything makes it empty again
     await app.run("CREATE TABLE t (x); INSERT INTO t VALUES (1);");
-    await expect(app.status).toContainText("took");
+    await expect(app.status).toHaveText(DONE_LINE);
     const { name } = await app.exportFile();
     expect(name).toBe("new.db");
     await app.run("DROP TABLE t;");
-    await expect(app.status).toContainText("took");
+    await expect(app.status).toHaveText(DONE_LINE);
     await chooseExportOfEmpty(app);
-    await expect(app.status).toContainText("nothing to export");
+    await expect(app.toast).toContainText("nothing to export");
     expect(downloads).toBe(1);
 });
 

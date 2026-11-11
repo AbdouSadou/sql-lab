@@ -31,6 +31,32 @@ const CASES = {
 
 const NORMALISE = (s) => s.replace(/\r\n?/g, "\n");
 
+// What the results pane says on a share link's first visit (SHARED_MESSAGE), in "no result yet".
+const SHARED = "A shared query is in the editor";
+const RESTORED = "Your last query is back";
+// The summary line of a run that returned rows: "5 rows in 3 ms" (it was "5 rows, took 3 ms").
+const ROWS_SUMMARY = /\d[\d,]* rows? in \d+ ms/;
+
+// Copy link puts the link on the clipboard and a toast says "Link copied"; only when the browser
+// refuses the clipboard does a popover show the link in a field. These two make the browser refuse
+// (writeText rejects, or there is no clipboard API, and the old execCommand("copy") fails too).
+async function refuseClipboard(page, { missing = false } = {}) {
+    await page.addInitScript((missing) => {
+        Object.defineProperty(navigator, "clipboard", {
+            configurable: true,
+            value: missing ? undefined : { writeText: () => Promise.reject(new DOMException("denied", "NotAllowedError")) },
+        });
+        document.execCommand = () => false;
+    }, missing);
+}
+
+// pressing Copy link with the clipboard refused: returns the link the popover shows
+async function copyLinkByHand(page, app) {
+    await page.locator("#copy-link").click();
+    await expect(app.shareField).toBeVisible();
+    return app.shareField.inputValue();
+}
+
 async function editorText(app) {
     return NORMALISE(await app.editorHost.evaluate((el) => el.value));
 }
@@ -62,19 +88,22 @@ test.describe("AC4 (share link, the part that exists now)", () => {
             const fresh = await openFresh(browser, baseURL, link);
             try {
                 await fresh.app.waitReady().catch(() => {});
-                await expect(fresh.app.status).toContainText("A shared query is in the editor");
+                await expect(fresh.app.emptyState).toContainText(SHARED);
                 expect(await editorText(fresh.app)).toBe(sent);
-                // restored, not run
+                // restored, not run: no table, and no summary line ("5 rows in 3 ms")
                 await expect(fresh.app.table).toHaveCount(0);
-                await expect(fresh.app.status).not.toContainText("took");
+                await expect(fresh.app.pane).toHaveAttribute("data-state", "empty");
+                await expect(fresh.app.summary).toBeHidden();
+                await expect(fresh.app.status).not.toContainText(/ in \d+ ms/);
                 // the fragment stays, so a reload restores the same state
                 expect(new URL(fresh.page.url()).hash).toBe(url.hash);
                 await fresh.page.reload();
-                await expect(fresh.app.status).toContainText("A shared query is in the editor");
+                await expect(fresh.app.emptyState).toContainText(SHARED);
                 expect(await editorText(fresh.app)).toBe(sent);
                 // and Run runs it
                 await fresh.page.locator("#execute").click();
-                await expect(fresh.app.status).toContainText(/\d+ rows?, took/);
+                await fresh.app.settle();
+                await expect(fresh.app.status).toContainText(ROWS_SUMMARY);
                 await expect(fresh.app.table).toHaveCount(1);
                 expect(fresh.errors).toEqual([]);
 
@@ -104,7 +133,7 @@ test.describe("AC4 (share link, the part that exists now)", () => {
         const link = await app.copyLink({ via: "keyboard" });
         const fresh = await openFresh(browser, baseURL, link);
         try {
-            await expect(fresh.app.status).toContainText("A shared query is in the editor");
+            await expect(fresh.app.emptyState).toContainText(SHARED);
             expect(await editorText(fresh.app)).toBe(sql);
         } finally {
             await fresh.context.close();
@@ -119,9 +148,13 @@ test.describe("AC4 (share link, the part that exists now)", () => {
         const fresh = await openFresh(browser, baseURL, link);
         try {
             await fresh.app.waitReady();
-            // the dataset opens as for any visit: its table preview, not shared SQL
-            await expect(fresh.app.status).not.toContainText("A shared query");
-            expect((await editorText(fresh.app)).trim()).toBe('select * from "stores" limit 10');
+            // the dataset opens as for any visit: an empty editor and "no result yet" (nothing runs
+            // on load, there is no table preview any more), and no shared SQL
+            await expect(fresh.app.emptyState).toContainText("Run a query to see its result here.");
+            await expect(fresh.app.emptyState).not.toContainText("A shared query");
+            await expect(fresh.app.result).not.toContainText("A shared query");
+            expect((await editorText(fresh.app)).trim()).toBe("");
+            await expect(fresh.app.table).toHaveCount(0);
         } finally {
             await fresh.context.close();
         }
@@ -135,7 +168,7 @@ test.describe("AC4 (share link, the part that exists now)", () => {
         await app.editor.fill("SELECT 'saved' AS which;");
         await app.run("SELECT 'saved' AS which;");
         await page.goto(link.slice(new URL(page.url()).href.split("#")[0].length));
-        await expect(app.status).toContainText("A shared query is in the editor");
+        await expect(app.emptyState).toContainText(SHARED);
         expect(await editorText(app)).toBe("SELECT 'shared' AS which;");
         // nothing was saved by opening the link
         await page.goto("about:blank");
@@ -251,13 +284,15 @@ test.describe("share links that are written loosely", () => {
             net.clear();
             await page.goto("about:blank");
             await page.goto("./" + build(payload));
-            await expect(app.status).toContainText("A shared query is in the editor");
+            await expect(app.emptyState).toContainText(SHARED);
             expect(await editorText(app)).toBe(SQL);
             for (const entry of net.entries) {
                 const u = new URL(entry.url);
                 expect(u.pathname + u.search, `${entry.method} ${entry.url}`).not.toContain(payload.slice(0, 12));
             }
-            expect(await app.status.innerText()).not.toContain(payload.slice(0, 12));
+            // nothing on the results pane (the empty state, the live region) prints the payload
+            expect(await app.pane.innerText()).not.toContain(payload.slice(0, 12));
+            expect(await app.pane.textContent()).not.toContain(payload.slice(0, 12));
         });
 
         test(`${name}: a payload that does not decode is reported as damaged, never fetched`, async ({
@@ -272,8 +307,9 @@ test.describe("share links that are written loosely", () => {
             for (const p of [payload, garbage]) {
                 await page.goto("about:blank");
                 await page.goto("./" + build(p));
-                await expect(app.status).toContainText("This link is damaged or incomplete");
-                expect(await app.status.innerText()).not.toContain(p.slice(0, 12));
+                await expect(app.errorBand).toContainText("This link is damaged or incomplete");
+                expect(await app.pane.innerText()).not.toContain(p.slice(0, 12));
+                expect(await app.pane.textContent()).not.toContain(p.slice(0, 12));
             }
             for (const entry of net.entries) {
                 const u = new URL(entry.url);
@@ -304,7 +340,7 @@ test.describe("shared SQL and storage", () => {
         );
         await page.goto("about:blank");
         await page.goto(`./#s=${payload}`);
-        await expect(app.status).toContainText("A shared query is in the editor");
+        await expect(app.emptyState).toContainText(SHARED);
         expect(await app.storedQueries()).toEqual([]);
 
         await app.rename("mine.db");
@@ -314,7 +350,8 @@ test.describe("shared SQL and storage", () => {
         await page.goto("about:blank");
         await page.goto("./");
         await app.waitReady();
-        await expect(app.status).not.toContainText("Your last query is back");
+        await expect(app.emptyState).toContainText("Run a query to see its result here.");
+        await expect(app.result).not.toContainText(RESTORED);
     });
 
     test("a link opened over saved SQL: renaming moves the saved SQL, not the shared SQL", async ({ page, app }) => {
@@ -324,7 +361,7 @@ test.describe("shared SQL and storage", () => {
             LZString.compressToEncodedURIComponent(JSON.stringify({ v: 1, q: "SELECT 'SECRET_SHARED';" }))
         );
         await page.goto(`./#s=${payload}`);
-        await expect(app.status).toContainText("A shared query is in the editor");
+        await expect(app.emptyState).toContainText(SHARED);
         await app.rename("other.db");
         expect(await app.storedQueries()).toEqual([["sqlime.query.other.db", "SELECT 'MINE' AS who;"]]);
     });
@@ -358,8 +395,8 @@ test.describe("shared SQL and storage", () => {
             );
             await page.goto("about:blank");
             await page.goto(`./#s=${payload}`);
-            await expect(app.status).toContainText("Your last query is back");
-            await expect(app.status).not.toContainText("A shared query");
+            await expect(app.emptyState).toContainText(RESTORED);
+            await expect(app.result).not.toContainText("A shared query");
             expect(await editorText(app)).toBe("SELECT 'RECIPIENT_OWN';");
         }
     });
@@ -372,8 +409,9 @@ test.describe("shared SQL and storage", () => {
         await page.goto("about:blank");
         await page.goto(`./#s=${payload}`);
         await app.waitReady();
-        await expect(app.status).not.toContainText("A shared query");
-        await expect(app.status).not.toContainText("damaged");
+        await expect(app.emptyState).toContainText("Run a query to see its result here.");
+        await expect(app.result).not.toContainText("A shared query");
+        await expect(app.result).not.toContainText("damaged");
     });
 });
 
@@ -425,7 +463,7 @@ test.describe("damaged links", () => {
         for (const [name, fragment] of Object.entries(damaged)) {
             await page.goto("about:blank");
             await page.goto("./" + fragment);
-            await expect(app.status, name).toContainText("This link is damaged or incomplete");
+            await expect(app.errorBand, name).toContainText("This link is damaged or incomplete");
             // the default database is open (nothing in the link could be trusted)
             await expect(app.databaseLabel, name).toHaveText("Northlight Retail");
             await expect(app.picker, name).toHaveAttribute("aria-label", "Database: Northlight Retail");
@@ -481,7 +519,7 @@ test.describe("damaged links", () => {
     test("a damaged link's text is never turned into markup", async ({ page, app }) => {
         await app.open();
         await page.goto("./#s=%3Cimg%20id=pwn%20src=x%20onerror=window.__pwned=1%3E");
-        await expect(app.status).toContainText("damaged");
+        await expect(app.errorBand).toContainText("damaged");
         await app.expectInert();
     });
 });
@@ -504,16 +542,17 @@ test.describe("opening a link in an open tab", () => {
             // pasting into the address bar and pressing Enter is a navigation to the same
             // document with a different fragment
             await tab.goto(link.slice(baseURL.length));
-            await expect(tabApp.status).toContainText("A shared query is in the editor");
+            await expect(tabApp.emptyState).toContainText(SHARED);
             expect(await editorText(tabApp)).toBe("SELECT 'from the link' AS src;");
             await expect(tabApp.table).toHaveCount(0);
 
             await tab.locator("#execute").click();
+            await tabApp.settle();
             expect(await tabApp.read()).toEqual({ columns: ["src"], rows: [["from the link"]] });
 
             // a damaged link pasted afterwards is reported and the app keeps working
             await tab.goto("./#s=garbage");
-            await expect(tabApp.status).toContainText("damaged");
+            await expect(tabApp.errorBand).toContainText("damaged");
             expect(await tabApp.query("SELECT 9 AS n;")).toEqual({ columns: ["n"], rows: [["9"]] });
         } finally {
             await other.close();
@@ -522,59 +561,77 @@ test.describe("opening a link in an open tab", () => {
 
     test("a database path in the address still loads as before", async ({ page, app }) => {
         await page.goto("./#datasets/northlight_retail.db");
-        await expect(app.status).toContainText(/rows?, took|Press Run/);
+        // the database opens and nothing runs: "no result yet" with the first table as a sample
+        // (it used to open on a table preview, or say "Press Run")
+        await app.waitReady();
+        await expect(app.pane).toHaveAttribute("data-state", "empty");
+        await expect(app.samples.first()).toContainText("First 10 rows of");
         // a file path, not a course database: the switcher names the file instead
         expect(await app.pickedText()).toBe("northlight_retail.db");
     });
 });
 
 test.describe("the copy link button", () => {
-    test("it shows the link in a read-only focusable field with the text selected", async ({ page, app }) => {
+    test("when the browser keeps the clipboard, it shows the link in a read-only focusable field with the text selected", async ({
+        page,
+        app,
+    }) => {
+        await refuseClipboard(page);
         await app.open();
         await app.editor.fill("SELECT 1;");
-        const link = await app.copyLink();
+        const link = await copyLinkByHand(page, app);
         const field = app.shareField;
         await expect(field).toHaveAttribute("readonly", "");
         await expect(field).toBeFocused();
         const sel = await field.evaluate((el) => ({ start: el.selectionStart, end: el.selectionEnd, len: el.value.length }));
         expect(sel).toEqual({ start: 0, end: link.length, len: link.length });
         expect(link.length).toBeGreaterThan(20);
+        expect(link).toContain("#s=");
         // the button is usable again afterwards
         await expect(page.locator("#copy-link")).toBeEnabled();
     });
 
-    test("it writes the link to the clipboard", async ({ context, app, page, browserName }) => {
+    test("it writes the link to the clipboard and a toast says so", async ({ context, app, page, baseURL, browserName }) => {
         test.skip(browserName !== "chromium", "only Chromium lets a test grant clipboard permission");
         await context.grantPermissions(["clipboard-read", "clipboard-write"]);
         await app.open();
         await app.editor.fill("SELECT 'clip';");
-        const link = await app.copyLink();
-        await expect(app.status).toContainText("Link copied to the clipboard");
-        expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(link);
+        // the real clipboard (app.copyLink() stubs it), so the link is read back from it
+        await page.locator("#copy-link").click();
+        await expect(app.toast).toContainText("Link copied");
+        const copied = await page.evaluate(() => navigator.clipboard.readText());
+        expect(copied.startsWith(baseURL)).toBe(true);
+        expect(copied).toContain("#s=");
+        // it is the link of the editor's SQL
+        const expected = await page.evaluate(async () => {
+            const share = await import("./js/lab/share.js");
+            return share.shareUrl(document.querySelector("#editor").value);
+        });
+        expect(copied).toBe(expected);
+        // the link is on the clipboard, not in the fallback popover's field (the field is always in
+        // the page, built hidden, and only shown for a refused clipboard)
+        await expect(app.shareField).toBeHidden();
     });
 
     test("when the clipboard refuses, the link is still there to copy by hand", async ({ page, app }) => {
-        await page.addInitScript(() => {
-            Object.defineProperty(navigator, "clipboard", {
-                configurable: true,
-                value: { writeText: () => Promise.reject(new DOMException("denied", "NotAllowedError")) },
-            });
-        });
+        await refuseClipboard(page);
+        await app.recordToasts({ fromStart: true });
         await app.open();
         await app.editor.fill("SELECT 'refused';");
-        const link = await app.copyLink();
-        await expect(app.status).toContainText("Could not copy automatically");
+        const link = await copyLinkByHand(page, app);
+        await expect(page.locator("#copy-link-popover")).toContainText("The browser did not let the page copy it");
+        // no "Link copied" for a link that was not copied: no toast at all, recorded for as long
+        // as one would take to come
+        await app.expectToasts([]);
         await expect(app.shareField).toBeFocused();
         expect(link).toContain("#s=");
     });
 
     test("without a clipboard API the link is still shown", async ({ page, app }) => {
-        await page.addInitScript(() => {
-            Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
-        });
+        await refuseClipboard(page, { missing: true });
         await app.open();
         await app.editor.fill("SELECT 'none';");
-        const link = await app.copyLink();
+        const link = await copyLinkByHand(page, app);
         expect(link).toContain("#s=");
         await expect(app.shareField).toBeFocused();
     });
@@ -595,15 +652,21 @@ test.describe("the copy link button", () => {
             document.querySelector("#editor").value = text;
         }, big);
         await page.locator("#copy-link").click();
-        await expect(app.status).toContainText("too long to put in a link");
-        await expect(app.shareField).toHaveCount(0);
+        await expect(app.toast).toContainText("too long to put in a link");
+        // no link, so no popover with a field either (it is built hidden and stays so)
+        await expect(app.shareField).toBeHidden();
     });
 
     test("it works with the keyboard alone", async ({ page, app, browser, baseURL }) => {
         await app.open();
         await expect(app.editor).toBeFocused();
-        await page.keyboard.press("Control+A"); // replace the table preview
+        await app.stubClipboard();
+        await page.keyboard.press("Control+A"); // harmless: the editor starts empty
         await page.keyboard.type("SELECT 'keys' AS k;");
+        // run it, so a result (and its Download CSV button) is on screen
+        await page.keyboard.press("Control+Enter");
+        await app.settle();
+        await expect(app.pane).toHaveAttribute("data-state", "result");
         // out of the editor with Escape, then back up the Tab order with Shift+Tab (Run, the
         // sidebar's stops, the top bar) until Copy link; keys only
         await page.keyboard.press("Escape");
@@ -611,24 +674,36 @@ test.describe("the copy link button", () => {
         await expect(page.locator("#execute")).toBeFocused();
         expect(await tabTo(page, "#copy-link", { back: true }), "copy link is reachable by Shift+Tab from the editor").toBe(true);
         await page.keyboard.press("Enter");
-        await expect(app.shareField).toBeFocused();
-        const link = await app.shareField.inputValue();
+        await expect(app.toast).toContainText("Link copied");
+        await expect(page.locator("#copy-link")).toBeFocused();
+        const link = await page.evaluate(() => window.__copied.at(-1));
         expect(link).toContain("#s=");
-        // the field is selected: Ctrl+C would copy it. The table preview is still on screen, so
-        // the Download CSV button (M5) sits right after the field in the Tab order; back up to
-        // Copy link again with keys (through the editor, left with Escape, as Tab indents there),
-        // and Space on it activates it too.
-        await page.keyboard.press("Tab");
-        await expect(page.locator("#download-csv")).toBeFocused();
+        // the link is on the clipboard, so there is no field to land on. A result is on screen, so
+        // the Download CSV button (M5) is in the Tab order: forward to it with keys (leaving the
+        // editor with Escape on the way, as Tab indents there), back up to the editor with
+        // Shift+Tab, out of it with Escape and up to Copy link again, and Space on it copies too.
+        let reached = false;
+        for (let i = 0; i < 80 && !reached; i++) {
+            if (await page.evaluate(() => document.activeElement?.matches("#download-csv"))) {
+                reached = true;
+            } else {
+                if (await page.evaluate((s) => document.activeElement?.matches(s), EDITOR_INPUT)) {
+                    await page.keyboard.press("Escape");
+                }
+                await page.keyboard.press("Tab");
+            }
+        }
+        expect(reached, "Download CSV is reachable by Tab from Copy link").toBe(true);
         expect(await tabTo(page, EDITOR_INPUT, { back: true }), "Shift+Tab from the result reaches the editor").toBe(true);
         await page.keyboard.press("Escape");
         expect(await tabTo(page, "#copy-link", { back: true }), "copy link is reachable by Shift+Tab from the result").toBe(true);
         await page.keyboard.press("Space");
-        await expect(app.shareField).toBeFocused();
+        await expect.poll(() => page.evaluate(() => window.__copied.length)).toBe(2);
+        expect(await page.evaluate(() => window.__copied.at(-1))).toBe(link);
 
         const fresh = await openFresh(browser, baseURL, link);
         try {
-            await expect(fresh.app.status).toContainText("A shared query is in the editor");
+            await expect(fresh.app.emptyState).toContainText(SHARED);
             expect(await editorText(fresh.app)).toBe("SELECT 'keys' AS k;");
         } finally {
             await fresh.context.close();
@@ -649,12 +724,13 @@ test("AC6 a session that loads, runs, copies a link and opens it makes zero non-
 
     const second = await context.newPage();
     await second.goto(link.slice(baseURL.length));
-    await expect(second.locator("#status")).toContainText("A shared query is in the editor");
+    await expect(second.locator("#result .results-empty")).toContainText(SHARED);
     await second.locator("#execute").click();
-    await expect(second.locator("#status")).toContainText(/\d+ rows?, took/);
+    await second.evaluate(() => window.app.whenIdle());
+    await expect(second.locator("#status")).toContainText(ROWS_SUMMARY);
     // and a damaged one
     await second.goto("./#s=garbage");
-    await expect(second.locator("#status")).toContainText("damaged");
+    await expect(second.locator("#result .results-band")).toContainText("damaged");
 
     expect(net.network.length, "the session really made requests").toBeGreaterThan(5);
     net.expectNoExternalRequests();

@@ -1,5 +1,5 @@
 // M4 audit fixes: the SQL guard (heap limits, ATTACH, VACUUM INTO), unusable browser storage,
-// the status after cancelling a set load, accessibility of the verdict, hints and exercise
+// the results pane after cancelling a set load, accessibility of the verdict, hints and exercise
 // changes, the next step after a pass, the phone gutter, and the shipped exercise hints.
 const { test, expect, realSet, routeSet, routeListing, listingHtml, withSampleDataset, modelQuery, SAMPLE_FILE } = require("./helpers");
 
@@ -33,7 +33,10 @@ test.describe("the SQL guard", () => {
         for (const pragma of ["PRAGMA hard_heap_limit=300000", "pragma SOFT_HEAP_LIMIT = 1", "PRAGMA main.hard_heap_limit"]) {
             await app.editor.fill(pragma);
             await page.locator("#execute").click();
-            await expect(app.status).toContainText("not authorized");
+            await app.settle();
+            await expect(app.pane).toHaveAttribute("data-state", "error");
+            await expect(app.errorBand.locator(".results-band-message")).toContainText("not authorized");
+            await expect(app.announcer).toContainText("not authorized");
         }
         // Run and Check still work, on the same page, with no reload
         await app.editor.fill(modelQuery("e01"));
@@ -93,7 +96,9 @@ test.describe("the SQL guard", () => {
         // in a plain Run too
         await app.editor.fill("VACUUM INTO 'v.db'");
         await page.locator("#execute").click();
-        await expect(app.status).toContainText("VACUUM INTO a file is not available");
+        await app.settle();
+        await expect(app.pane).toHaveAttribute("data-state", "error");
+        await expect(app.errorBand.locator(".results-band-message")).toContainText("VACUUM INTO a file is not available");
     });
 
     test("isVacuumInto matches only a statement that starts with VACUUM and says INTO", async ({ page, app }) => {
@@ -114,9 +119,9 @@ test.describe("the SQL guard", () => {
         expect(verdicts).toEqual([false, false, false, false, false, false, true, true]);
         // a plain VACUUM, and a query that merely mentions the words, run
         expect((await app.query("SELECT 'vacuum into' AS s")).rows).toEqual([["vacuum into"]]);
-        await app.editor.fill("VACUUM");
-        await app.editor.press("Control+Enter");
-        await expect(app.status).toContainText("0 rows");
+        // (a plain VACUUM returns no result set: the summary line says "Done", not "0 rows")
+        await app.run("VACUUM");
+        await expect(app.status).toHaveText(/^Done in \d+ ms$/);
     });
 
     test("a Check that cannot open a connection says to reload; a failed model connection is not blamed on the exercise", async ({ page, app }) => {
@@ -178,7 +183,9 @@ test.describe("storage that throws", () => {
         test(`Run works when ${name}`, async ({ page, app, pageErrors }) => {
             await page.addInitScript(breaker);
             await app.open();
-            await expect(app.status).not.toContainText("Loading database");
+            // the load finished: the pane is not "loading" and no loading text is on screen
+            await expect(app.pane).not.toHaveAttribute("data-state", "loading");
+            await expect(app.result.locator(".results-loading")).toHaveCount(0);
             expect((await app.query("select count(*) as n from orders")).rows).toEqual([["450"]]);
             // and again: a second Run replaces the first result
             expect((await app.query("select count(*) as n from stores")).rows).toEqual([["5"]]);
@@ -213,7 +220,7 @@ test.describe("storage that throws", () => {
 
 // ---- choosing None while a set's dataset is loading --------------------------------------------
 
-test("None while a set's dataset is loading leaves the idle status, not 'Loading database...'", async ({ page, app }) => {
+test("None while a set's dataset is loading leaves the idle results pane, not 'Loading Sample Fruit'", async ({ page, app }) => {
     await withSampleDataset(page);
     await routeSet(page, "fruit", {
         id: "fruit",
@@ -228,12 +235,17 @@ test("None while a set's dataset is loading leaves the idle status, not 'Loading
     });
     await app.open();
     await app.pickSet("Fruit practice");
-    await expect(app.status).toContainText("Loading database");
+    await expect(app.pane).toHaveAttribute("data-state", "loading");
+    await expect(app.result.locator(".results-loading-title")).toContainText("Loading");
     await app.pickSet("None");
-    await expect(app.status).toHaveText("Run SQL query to see the results");
+    // the idle pane is "no result yet" (it was the invitation in the status line)
+    await expect(app.pane).toHaveAttribute("data-state", "empty");
+    await expect(app.emptyState.locator(".results-empty-title")).toHaveText("Run a query to see its result here.");
     // the late response changes nothing
     await page.waitForTimeout(2200);
-    await expect(app.status).toHaveText("Run SQL query to see the results");
+    await expect(app.pane).toHaveAttribute("data-state", "empty");
+    await expect(app.emptyState.locator(".results-empty-title")).toHaveText("Run a query to see its result here.");
+    await expect(app.result.locator(".results-loading")).toHaveCount(0);
     await expect(app.exercisePanel).toBeHidden();
     await expect(app.databaseLabel).toHaveText("Northlight Retail");
     expect(await page.evaluate(() => window.app.database.name)).toBe("northlight_retail.db");

@@ -9,12 +9,13 @@ test("AC8 a keyboard-only user can run a query and gets a real table", async ({ 
         await page.keyboard.press("Tab");
     }
     await expect(app.editor).toBeFocused();
-    // the editor holds the table preview of the default dataset: replace it
+    // nothing runs on load and the editor is empty; Ctrl+A is harmless and keeps the typing a replacement
     await page.keyboard.press("Control+A");
     await page.keyboard.type("SELECT 6 * 7 AS answer;");
     await page.keyboard.press("Control+Enter");
+    await app.settle();
 
-    await expect(app.status).toContainText("1 row, took");
+    await expect(app.status).toContainText("1 row in");
     await expect(page.locator("#result table")).toHaveCount(1);
     expect(await app.read()).toEqual({ columns: ["answer"], rows: [["42"]] });
 });

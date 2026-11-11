@@ -204,6 +204,25 @@ class SqlimeEditor extends HTMLElement {
         this.value = "";
     }
 
+    // fill replaces all the text with text the student chose (a sample query in the results pane):
+    // one edit that Ctrl/Cmd+Z takes back, an "input" event as for typing, then the focus and the
+    // caret at the end. (value is the app's own text: no undo back past it, and no "input".)
+    fill(text) {
+        if (this.code) {
+            this.code.fill(text);
+            return;
+        }
+        HTMLElement.prototype.focus.call(this);
+        document.execCommand("selectAll", false, null);
+        // insertText is undoable; an empty text is a delete, which is undoable too
+        if (text) {
+            document.execCommand("insertText", false, text);
+        } else {
+            document.execCommand("delete", false, null);
+        }
+        this.focus();
+    }
+
     onKeydown(event) {
         // Escape, then Tab leaves the editor (keyboard accessibility).
         if (leavesEditor(this, event)) return;

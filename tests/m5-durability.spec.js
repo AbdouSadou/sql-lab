@@ -317,7 +317,9 @@ test.describe("the storage notice", () => {
         // room again, and back to the first database: its next Run stores its whole log
         await setStorageFailing(page, false);
         await app.pickDatabase("Northlight Retail");
-        await expect(app.status).toContainText(/Run SQL query|Press Run|took/);
+        // the pick has finished loading: the pane is "no result yet" again (nothing runs on a pick)
+        await expect(app.pane).toHaveAttribute("data-state", "empty");
+        await expect(app.emptyState).toContainText("Run a query to see its result here.");
         await app.query("select 3 as a");
         await expect(notice(page)).toBeHidden();
         expect(await app.readLog("northlight")).toHaveLength(3);
@@ -743,8 +745,8 @@ test.describe("a bare /* at the end of the SQL", () => {
         expect(await split("select 1; /* a */ /*")).toEqual(["select 1;", "/* a */ /*"]);
         // the engine's own answer, naming the statement
         await app.run("select 1; /*");
-        await expect(app.status).toContainText('near "/": syntax error');
-        await expect(app.status).toContainText("statement 2 of 2");
+        await expect(app.errorBand.locator(".results-band-message")).toContainText('near "/": syntax error');
+        await expect(app.errorBand.locator(".results-band-where")).toHaveText("In statement 2 of 2");
         const log = await app.readLog("northlight");
         expect(log.at(-1).error).toContain("syntax error");
     });

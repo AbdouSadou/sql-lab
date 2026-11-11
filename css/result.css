@@ -1,90 +1,201 @@
-/* the result in the results pane, inset like its summary line (docs/design/mockup/main-light.html);
-   a wide or long table scrolls inside it (css/shell.css makes it the pane's scroller) */
+/* The results pane (js/lab/results.js; docs/design/mockup/main-light.html, first-visit.html and
+   error.html): one state at a time, named by #results-pane's data-state. css/shell.css makes #result
+   the pane's own scroller under the summary line; here, what each state draws. */
+
+/* ---- the summary line: "5 rows in 3 ms" at the left, Download CSV at the right ------------- */
+
+.results-summary {
+    position: relative;
+}
+
+.results-summary[hidden] {
+    display: none;
+}
+
+.results-summary-text {
+    flex: 1 1 16rem;
+    min-width: 0;
+    margin: 0;
+    color: var(--graphite);
+    /* a long file name in a message breaks instead of widening the page */
+    overflow-wrap: anywhere;
+}
+
+.results-download {
+    margin-left: auto;
+}
+
+/* ---- the result ----------------------------------------------------------------------------- */
+
 .sqlime-result {
+    position: relative;
     display: block;
     overflow-x: auto;
+}
+
+/* a table is inset like its summary line; the other states draw their own edges (the error band
+   reaches both sides). A control the focus moves to is scrolled clear of the sticky header, not
+   under it: --result-head is the header's height, measured by js/lab/results.js (a column name
+   with line breaks makes it taller); before that, one line's (two 8 px paddings, a line of code
+   text, its 2 px and 1 px rules). */
+.results-pane[data-state="result"] > .sqlime-result {
     padding: var(--space-1) var(--space-5) var(--space-5);
+    scroll-padding-top: var(--result-head, calc(2 * var(--space-2) + var(--leading-code) * var(--text-sm) + 3px));
 }
 
-/* "Scroll sideways" note, shown by js/lab/result-scroll.js while a result is wider than its box;
-   it sits under the result's box (the result scrolls inside that box) */
-.result-scroll-note {
-    margin: 0;
-    padding: var(--space-2) var(--space-5);
-    font-size: 0.8125rem;
-    opacity: 0.75;
-}
-
-.sqlime-result table {
-    width: 100%;
-    border: 1px solid var(--rule);
-    border-collapse: collapse;
-    background: var(--paper);
+/* The ruled table (plan, section 3): a 2 px ink rule above the header and under the last row, a
+   1 px ink rule under the header, hairlines between rows, no vertical lines and no stripes.
+   Numbers right-aligned in tabular figures, text left-aligned, NULL in graphite italics. The
+   header stays in view while the rows scroll under it; with separate borders its rules go with it
+   (collapsed borders stay behind). */
+.result-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    color: var(--ink);
     font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: var(--leading-code);
+    font-variant-numeric: tabular-nums;
 }
 
-.sqlime-result table th {
-    border-bottom: 1px solid var(--rule);
-    padding: 0.25rem 0.5rem;
+.result-table th,
+.result-table td {
+    padding: 6px 40px 6px var(--space-1);
     text-align: left;
+    vertical-align: top;
 }
 
-.sqlime-result table td {
-    padding: 0.25rem 0.5rem;
+.result-table th {
+    position: sticky;
+    /* the result box's 4 px top padding is kept clear by the sticky header too, so no row shows
+       above it while the rows scroll */
+    top: calc(-1 * var(--space-1));
+    z-index: 1;
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+    border-top: 2px solid var(--ink);
+    border-bottom: 1px solid var(--ink);
+    background: var(--paper);
+    font-weight: 600;
+    /* a column name as the query returned it, spaces included, on one line */
+    white-space: pre;
 }
 
-.sqlime-result pre {
-    font-family: var(--font-mono);
-    white-space: pre-wrap;
+.result-table td {
+    border-bottom: 1px solid var(--rule);
+    /* a value as it is: its line breaks and runs of spaces kept, and never wrapped (a long one is
+       cut at 60 characters; a wide table scrolls sideways instead of squeezing its columns) */
+    white-space: pre;
 }
 
-.sqlime-link {
+.result-table tbody tr:last-child td {
+    border-bottom: 2px solid var(--ink);
+}
+
+/* no rows: the header carries the closing rule */
+.result-table--empty th {
+    border-bottom-width: 2px;
+}
+
+.result-table .num {
+    padding-right: var(--space-1);
+    padding-left: 40px;
+    text-align: right;
+}
+
+/* text after a number column keeps the same 40 px from it */
+.result-table .num + :not(.num) {
+    padding-left: 40px;
+}
+
+/* the first column starts 4 px in from the rules, number or not */
+.result-table tr > :first-child {
+    padding-left: var(--space-1);
+}
+
+.cell-null {
+    color: var(--graphite);
+    font-style: italic;
+}
+
+/* a value longer than 60 characters: its start and an ellipsis, pressed to see all of it */
+.cell-more {
     display: inline;
-    border: none;
-    background: inherit;
     padding: 0;
+    border: 0;
+    border-radius: var(--radius-control);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+    white-space: pre;
+    text-decoration: underline dotted var(--graphite);
+    text-underline-offset: 3px;
     cursor: pointer;
-    text-decoration: none;
-    color: var(--accent);
-    font-size: 1em;
-}
-.sqlime-link:disabled {
-    pointer-events: none;
-    opacity: 0.5;
-    cursor: default;
 }
 
-.sqlime-spinner {
-    display: inline-block;
-    width: 1rem;
-    height: 1rem;
-    vertical-align: middle;
-    border: 3px solid color-mix(in srgb, var(--accent) 30%, transparent);
-    border-radius: 50%;
-    border-top-color: var(--accent);
-    animation: spin 1s ease-in-out infinite;
-    -webkit-animation: spin 1s ease-in-out infinite;
+.cell-more:hover {
+    background: var(--sunken);
 }
 
-@keyframes spin {
-    to {
-        -webkit-transform: rotate(360deg);
-    }
+/* the whole cell is the button's target (its own box is one line of text): at least 32 px, and 44
+   on a touch screen, where the row of a long value grows to it */
+.result-table td:has(> .cell-more) {
+    position: relative;
 }
-@-webkit-keyframes spin {
-    to {
-        -webkit-transform: rotate(360deg);
+
+.cell-more::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+}
+
+@media (pointer: coarse) {
+    .result-table td:has(> .cell-more) {
+        padding-top: 11px;
+        padding-bottom: 11px;
     }
 }
 
-@media only screen and (min-width: 40rem) {
-    .sqlime-result table {
-        width: auto;
-    }
+/* the whole value, in a popover under the cell (js/lab/result-table.js) */
+.cell-popover[popover] {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    box-sizing: border-box;
+    width: min(32rem, calc(100vw - 16px), var(--popover-room, 100vw));
+    max-height: min(60vh, 24rem);
+    overflow: auto;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-float);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-float);
+}
 
-    .sqlime-result pre {
-        max-width: 50rem;
-    }
+.cell-popover[popover]:popover-open {
+    animation: menu-fade var(--motion-fade) ease-out;
+}
+
+.cell-popover-title {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.cell-popover-length {
+    margin: 0 0 var(--space-2);
+    color: var(--graphite);
+    font-size: var(--text-xs);
+}
+
+.cell-popover-value {
+    font-family: var(--font-mono);
+    line-height: var(--leading-code);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 /* a result that scrolls is a Tab stop (js/lab/result-scroll.js); its ring is drawn inside the box,
@@ -92,4 +203,374 @@
 .sqlime-result:focus-visible {
     outline: var(--focus-ring);
     outline-offset: -2px;
+}
+
+/* "Scroll sideways" note, shown by js/lab/result-scroll.js while a result is wider than its box;
+   it sits under the result's box (the result scrolls inside that box) */
+.result-scroll-note {
+    margin: 0;
+    padding: var(--space-2) var(--space-5);
+    color: var(--graphite);
+    font-size: var(--text-xs);
+}
+
+/* ---- running: "Running…" once a run has taken 300 ms ---------------------------------------
+   Armed over the summary line (or the top of the pane) just before the run, which blocks the
+   page; only the compositor still draws then, so the delay is an opacity animation, which it runs
+   on its own. A quicker run removes it before it ever shows. */
+
+.results-running {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 6px var(--space-4) 6px var(--space-5);
+    background: var(--paper);
+    color: var(--graphite);
+    pointer-events: none;
+    will-change: opacity;
+    animation: results-running-in var(--motion-fade) ease-out 300ms both;
+}
+
+/* over the summary line, where the plan puts "Running…": the table under it stays until the new one
+   replaces it; with no summary line (no result yet, an error), over the whole pane, whose content
+   is about to be replaced, the words where the summary line would be */
+.results-summary > .results-running,
+.sqlime-result > .results-running {
+    bottom: 0;
+}
+
+.sqlime-result > .results-running {
+    align-items: flex-start;
+    padding-top: var(--space-3);
+}
+
+@keyframes results-running-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* ---- no result yet: a heading, a line, the sample queries ---------------------------------- */
+
+/* the mockup's 760 px of content, inside its 24 px sides (the mockup sizes the content box) */
+.results-empty {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    max-width: calc(760px + 2 * var(--space-5));
+    padding: var(--space-6) var(--space-5);
+}
+
+.results-empty-intro {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.results-empty-title {
+    margin: 0;
+    font-size: var(--text-md);
+    font-weight: 600;
+}
+
+.results-empty-text {
+    margin: 0;
+    color: var(--graphite);
+}
+
+/* a notice from the address (a database that is not on this site, say): the student's to read */
+.results-empty-notice {
+    color: var(--ink);
+    overflow-wrap: anywhere;
+}
+
+.results-samples {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--rule);
+    list-style: none;
+}
+
+.results-sample {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px var(--space-5);
+    width: 100%;
+    min-height: 44px;
+    padding: 10px var(--space-1);
+    border: 0;
+    border-bottom: 1px solid var(--rule);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.results-sample:hover {
+    background: var(--sunken);
+}
+
+.results-sample-label {
+    flex: 0 0 200px;
+    min-width: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.results-sample-sql {
+    flex: 1 1 280px;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--graphite);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.results-empty-links {
+    margin: 0;
+}
+
+/* ---- loading: the database's name and size, and a progress bar ----------------------------- */
+
+.results-loading {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-width: calc(760px + 2 * var(--space-5));
+    padding: var(--space-6) var(--space-5);
+}
+
+.results-loading-title {
+    margin: 0;
+    font-size: var(--text-md);
+    font-weight: 600;
+    /* a file name or an address with no space in it breaks rather than widening the pane */
+    overflow-wrap: anywhere;
+}
+
+.results-loading-size {
+    min-height: calc(var(--leading-ui) * 1em);
+    margin: 0;
+    color: var(--graphite);
+    font-variant-numeric: tabular-nums;
+}
+
+/* the bar fills as the bytes arrive; with no size it waits, empty and still (nothing animates
+   but the menus, the toasts and the feedback banner) */
+.results-progress {
+    appearance: none;
+    width: min(320px, 100%);
+    height: 8px;
+    overflow: hidden;
+    border: 0;
+    border-radius: 4px;
+    background: var(--rule);
+    color: var(--accent);
+}
+
+.results-progress::-webkit-progress-bar {
+    border-radius: 4px;
+    background: var(--rule);
+}
+
+.results-progress::-webkit-progress-value {
+    border-radius: 4px;
+    background: var(--accent);
+}
+
+.results-progress::-moz-progress-bar {
+    border-radius: 4px;
+    background: var(--accent);
+}
+
+.results-progress:indeterminate::-moz-progress-bar {
+    width: 0;
+    animation: none;
+}
+
+/* forced colours drop background colours, so the bar draws its edge and fill in system colours */
+@media (forced-colors: active) {
+    .results-progress {
+        border: 1px solid CanvasText;
+        background: Canvas;
+        forced-color-adjust: none;
+    }
+
+    .results-progress::-webkit-progress-bar {
+        background: Canvas;
+    }
+
+    .results-progress::-webkit-progress-value {
+        background: Highlight;
+    }
+
+    .results-progress::-moz-progress-bar {
+        background: Highlight;
+    }
+}
+
+/* ---- the error band (plan, section 5): no coloured edge, the same band pattern as an
+   exercise's feedback ------------------------------------------------------------------------ */
+
+.results-band {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    background: var(--danger-subtle);
+    color: var(--ink);
+}
+
+.results-band-icon {
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+    color: var(--danger);
+}
+
+.results-band-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+.results-band-title {
+    margin: 0;
+    font-size: var(--text-md);
+    font-weight: 600;
+}
+
+/* SQLite's message as it is */
+.results-band-message {
+    margin: 0;
+    font-family: var(--font-mono);
+    line-height: var(--leading-code);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.results-band-statement {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.results-band-where {
+    margin: 0;
+    color: var(--graphite);
+    font-size: var(--text-xs);
+}
+
+/* the failing statement, quoted on paper; long lines wrap, so the box never scrolls */
+.results-band-quote {
+    max-width: 640px;
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-control);
+    background: var(--paper);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: var(--leading-code);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.results-band-text {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+/* ---- the notice while the browser cannot keep the log or the progress (js/lab/storage-notice.js):
+   a warning band that stays while saving fails ----------------------------------------------- */
+
+.storage-notice {
+    margin: 0;
+    padding: var(--space-3) var(--space-5);
+    background: var(--warning-subtle);
+    color: var(--ink);
+}
+
+.storage-notice[hidden] {
+    display: none;
+}
+
+/* ---- a phone: the phone mockup's tighter insets --------------------------------------------- */
+
+@media (max-width: 699.98px) {
+    /* the phone mockup's summary line: one row, the text on the table's 16 px edge, Download CSV
+       at the right; a long summary ("Showing 500 of 12,400 rows in 13 ms") wraps inside its own
+       box rather than pushing the button onto a row of its own */
+    .results-summary {
+        flex-wrap: nowrap;
+        min-height: 52px;
+        padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+    }
+
+    .results-summary-text {
+        flex: 1 1 0;
+    }
+
+    .results-download {
+        flex: none;
+    }
+
+    .results-summary > .results-running {
+        padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+    }
+
+    .sqlime-result > .results-running {
+        padding-left: var(--space-4);
+    }
+
+    .results-pane[data-state="result"] > .sqlime-result {
+        padding: var(--space-1) var(--space-4) var(--space-4);
+    }
+
+    .result-table th,
+    .result-table td {
+        padding-right: var(--space-5);
+    }
+
+    .result-table .num,
+    .result-table .num + :not(.num) {
+        padding-left: var(--space-5);
+    }
+
+    .results-empty,
+    .results-loading {
+        padding: var(--space-5) var(--space-4);
+    }
+
+    .results-band,
+    .storage-notice,
+    .result-scroll-note {
+        padding-right: var(--space-4);
+        padding-left: var(--space-4);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cell-popover[popover]:popover-open {
+        animation: none;
+    }
+
+    /* still shown after 300 ms, at once instead of fading in */
+    .results-running {
+        animation-duration: 1ms;
+    }
 }

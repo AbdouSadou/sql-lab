@@ -8,7 +8,7 @@
 //   tracker.forget();           // the editor's text was replaced by the app (also done on the
 //                               // editor's "replace" event, which value = fires)
 //
-// The app replaces the editor's text itself (the table preview after a database opens), and
+// The app replaces the editor's text itself (a restored query when a database opens, a sample), and
 // the browser then parks the caret at the start. That must not look like a caret the student
 // chose, so forget() drops the remembered selection and nothing is remembered again until the
 // student acts in the editor (keys, pointer, typing) or inserts something. Until then the text
@@ -110,7 +110,7 @@ export function trackEditorSelection(editor) {
         seen = null;
     }
 
-    // the app put text in the editor (an exercise's draft, a History entry, the table preview):
+    // the app put text in the editor (an exercise's draft, a History entry, a sample):
     // where the browser or CodeMirror parks the caret then is not a place the student chose
     editor.addEventListener("replace", forget);
 

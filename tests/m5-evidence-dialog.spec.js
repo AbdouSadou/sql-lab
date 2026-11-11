@@ -129,6 +129,7 @@ test.describe("the dialog", () => {
                     return window.__held;
                 };
             });
+            await app.recordToasts({ fromStart: true });
             await app.open();
             await app.query("SELECT 1;");
             let downloads = 0;
@@ -153,7 +154,9 @@ test.describe("the dialog", () => {
                 await new Promise((resolve) => setTimeout(resolve, 0));
             });
             await expect(app.evidenceDialog).toBeVisible();
-            await expect(app.status).not.toContainText("Saved");
+            // the cancelled export finished without a word: no toast at all (not on opening the
+            // dialog twice, not when the checksum came back)
+            await app.expectToasts([]);
             expect(downloads).toBe(0);
             expect(await app.evidenceInput.inputValue()).toBe("");
             // the dialog works afterwards: a new export goes through
@@ -163,6 +166,8 @@ test.describe("the dialog", () => {
             expect(download.suggestedFilename()).toBe("evidence-northlight.txt");
             await expect(app.evidenceDialog).toBeHidden();
             expect(downloads).toBe(1);
+            await expect(app.toast).toHaveText("Exported evidence-northlight.txt with 1 query");
+            expect(await app.toasts()).toEqual(["Exported evidence-northlight.txt with 1 query"]);
         });
     }
 
@@ -184,6 +189,7 @@ test.describe("the dialog", () => {
                     return window.__rejected;
                 };
             });
+            await app.recordToasts({ fromStart: true });
             await app.open();
             await app.query("SELECT 1;");
             await app.openEvidence();
@@ -207,10 +213,13 @@ test.describe("the dialog", () => {
             // the dialog the student reopened is theirs: still open, the number still typed, no error
             await expect(app.evidenceDialog).toBeVisible();
             expect(await app.evidenceInput.inputValue()).toBe(STUDENT);
-            await expect(app.status).not.toContainText("could not be saved");
+            // the failure of the export the student gave up says nothing (no "could not be saved")
+            await app.expectToasts([]);
             // and it still exports
             const [download] = await Promise.all([page.waitForEvent("download"), app.evidenceDialog.locator("button[type=submit]").click()]);
             expect(download.suggestedFilename()).toBe("evidence-northlight.txt");
+            await expect(app.toast).toHaveText("Exported evidence-northlight.txt with 1 query");
+            expect(await app.toasts()).toEqual(["Exported evidence-northlight.txt with 1 query"]);
         });
     }
 
@@ -253,7 +262,7 @@ test.describe("the dialog", () => {
             ]);
             expect(download.suggestedFilename()).toBe("evidence-northlight.txt");
             await expect(app.evidenceDialog).toBeHidden();
-            await expect(app.status).toContainText("Saved");
+            await expect(app.toast).toContainText("Exported evidence-northlight.txt");
             expect(downloads).toBe(1); // the cancelled one saved nothing
             expect(await app.evidenceInput.inputValue()).toBe("");
         });
@@ -264,17 +273,17 @@ test.describe("the dialog", () => {
         await app.query("SELECT 1;");
         const file = await app.exportEvidence(STUDENT);
         await expect(app.exportMenuButton).toBeFocused();
-        await expect(app.status).toContainText(`Saved ${file.name} with 1 query.`);
+        await expect(app.toast).toContainText(`Exported ${file.name} with 1 query`);
         expect(await app.evidenceInput.inputValue()).toBe("");
     });
 
     test("an empty log gives a short message and no dialog", async ({ page, app }) => {
         await app.open();
-        // the table preview the app ran itself is not a Run
+        // nothing runs on load, so the log is empty
         await app.openEvidence();
         await expect(app.evidenceDialog).toBeHidden();
         expect(await page.evaluate(() => document.querySelector("dialog[open]"))).toBeNull();
-        await expect(app.status).toContainText("Nothing to export yet");
+        await expect(app.toast).toContainText("Nothing to export yet");
     });
 
     test("the dialog works by keyboard alone", async ({ page, app }) => {
@@ -332,7 +341,7 @@ test.describe("the student number goes into the file only", () => {
         await app.open();
         await app.query("SELECT 1 AS one;");
         await app.run("SELECT nope FROM nowhere;");
-        await expect(app.status).toContainText("no such table");
+        await expect(app.errorBand).toContainText("no such table");
 
         const number = "Zq9xK2m7R4tP"; // 12 characters, unlike any text the app writes
         const file = await app.exportEvidence(number);
@@ -590,6 +599,6 @@ test.describe("what the file holds", () => {
         await app.query("SELECT 1;");
         await app.openEvidence();
         await expect(app.evidenceDialog).toBeHidden();
-        await expect(app.status).toContainText("cannot make the checksum");
+        await expect(app.toast).toContainText("cannot make the checksum");
     });
 });

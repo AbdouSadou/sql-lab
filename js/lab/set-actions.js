@@ -11,14 +11,15 @@
 //   loadDataset    (dataset, {set, exerciseId}) -> Promise: load a manifest dataset and open
 //                  the set with it
 //   pushUrl        (search) put "?..." (or "./") in the address bar as a new history entry
-//   showError      (message) plain text to the status line, as an error
-//   showInvite     () the status line's idle message
+//   showError      (message) plain text for the results pane's error band (a problem that is not
+//                  a query's)
+//   showInvite     () the results pane's "no result yet"
 //
 // openSet: if the set's dataset is the one already open it is kept, because reloading it would
 // discard the student's work; otherwise the dataset loads with the set. A dataset the manifest
 // does not have is an error, and the picker goes back to what is open.
-// closeSet: leaves exercise mode and keeps the database. A cancelled load leaves its
-// "Loading database..." message behind, so the idle message replaces it.
+// closeSet: leaves exercise mode and keeps the database. A cancelled load leaves its loading state
+// behind in the results pane, so "no result yet" replaces it.
 
 import { DATASET_PARAM, SET_PARAM, setDatasetMissingReason, setOpenFailedMessage } from "./config.js";
 import { findDataset, getManifest, getPristineId } from "./datasets.js";

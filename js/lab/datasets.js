@@ -1,7 +1,11 @@
 // F1 datasets: the manifest, the dataset files and the pristine copy of the open dataset.
 //
 // datasets/manifest.json lists the built-in databases:
-//   {"datasets": [{id, name, file, description?, default?}, ...]}
+//   {"datasets": [{id, name, file, description?, default?, samples?}, ...]}
+// samples (UI plan, section 5) is an optional list of {label, sql}: the sample queries the results
+// pane offers before anything has run. It is a teaching aid, not something the app needs, so a
+// sample that is not two pieces of text is left out (with a warning in the console for the
+// instructor) instead of making the whole manifest invalid.
 // Everything in it is untrusted text (a typo, or a bad merge, is the likeliest source, but
 // callers still escape or use textContent), and every problem becomes a specific message
 // instead of an exception, so the app can start on an empty database and say why.
@@ -77,6 +81,7 @@ export function validateManifest(data) {
             file,
             description: description ?? "",
             default: raw.default === true,
+            samples: validSamples(raw.samples, id),
         });
     }
 
@@ -89,6 +94,36 @@ export function validateManifest(data) {
         return fail(`more than one dataset has "default": true (${ids}); exactly one must.`);
     }
     return { ok: true, datasets };
+}
+
+// validSamples keeps the samples that are {label, sql} with both non-blank text (the label
+// trimmed, the SQL as written), and says in the console which ones it left out.
+function validSamples(list, id) {
+    if (list === undefined) {
+        return [];
+    }
+    if (!Array.isArray(list)) {
+        console.warn(`datasets/manifest.json: the "samples" of dataset "${id}" is not a list, so it has no samples.`);
+        return [];
+    }
+    const samples = [];
+    list.forEach((sample, index) => {
+        const ok =
+            sample !== null &&
+            typeof sample === "object" &&
+            typeof sample.label === "string" &&
+            sample.label.trim() !== "" &&
+            typeof sample.sql === "string" &&
+            sample.sql.trim() !== "";
+        if (ok) {
+            samples.push({ label: sample.label.trim(), sql: sample.sql });
+        } else {
+            console.warn(
+                `datasets/manifest.json: sample ${index + 1} of dataset "${id}" needs a "label" and an "sql", both text, so it is left out.`
+            );
+        }
+    });
+    return samples;
 }
 
 // filePathProblem returns why a path is not a relative path on this site, or "" if it is.
@@ -192,14 +227,17 @@ export function datasetFileName(entry) {
 // fetchDataset fetches a dataset's .db file (a relative URL). Never throws.
 // Returns {ok: true, buffer: ArrayBuffer} or {ok: false}; the caller words the message,
 // because it depends on whether a database is already open.
-export async function fetchDataset(entry) {
+// onProgress(loaded, total), if given, is called as the bytes arrive (total is the response's
+// Content-Length, 0 when there is none or the body is compressed, since then it does not count
+// what arrives); the bytes are the same either way.
+export async function fetchDataset(entry, { onProgress = null } = {}) {
     const failure = { ok: false };
     try {
         const response = await fetch(entry.file);
         if (!response.ok) {
             return failure;
         }
-        const buffer = await response.arrayBuffer();
+        const buffer = onProgress && response.body?.getReader ? await readWithProgress(response, onProgress) : await response.arrayBuffer();
         if (!hasSqliteHeader(buffer)) {
             return failure;
         }
@@ -207,6 +245,31 @@ export async function fetchDataset(entry) {
     } catch {
         return failure;
     }
+}
+
+async function readWithProgress(response, onProgress) {
+    const declared = Number(response.headers.get("content-length"));
+    const total = Number.isFinite(declared) && declared > 0 && !response.headers.get("content-encoding") ? declared : 0;
+    const reader = response.body.getReader();
+    const chunks = [];
+    let loaded = 0;
+    onProgress(0, total);
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) {
+            break;
+        }
+        chunks.push(value);
+        loaded += value.byteLength;
+        onProgress(loaded, total);
+    }
+    const bytes = new Uint8Array(loaded);
+    let offset = 0;
+    for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+    }
+    return bytes.buffer;
 }
 
 function hasSqliteHeader(buffer) {

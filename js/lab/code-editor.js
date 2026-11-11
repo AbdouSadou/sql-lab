@@ -16,6 +16,8 @@
 // editor.selectedText()         the selected text if the page's selection is in the editor
 // editor.caretToEnd()           the focus to the editor and the caret after the last character
 // editor.insert(text, {atCaret})   puts text at the caret (or at the end), one undo step
+// editor.fill(text)             replaces all the text, as one undo step (a sample query the
+//                               student chose), then the focus and the caret at the end
 // editor.setSchema(schema)      new names to complete (a database switch, or DDL)
 //
 // Keys, as with the plain box: Ctrl/Cmd+Enter fires "execute" (the selection, else all of it);
@@ -409,7 +411,13 @@ export function createCodeEditor(cm, host, { doc = "", anchor = 0, head = anchor
             completion.of(completionFor(objects)),
             // Escape is not bound: CodeMirror's default (simplifySelection) would collapse the
             // selection, and Escape is the first key of the way out to Run, which runs the selection
-            cm.keymap.of([...cm.defaultKeymap.filter((binding) => binding.key !== "Escape"), ...cm.historyKeymap]),
+            // CodeMirror's Mod-U (undo the last change or selection) and its Alt-U pair are left
+            // out: Ctrl/Cmd+U is the page's "Open from URL…", and with them the key also undid the
+            // student's last edit
+            cm.keymap.of([
+                ...cm.defaultKeymap.filter((binding) => binding.key !== "Escape"),
+                ...cm.historyKeymap.filter((binding) => binding.key !== "Mod-u" && binding.key !== "Alt-u"),
+            ]),
             // while text is selected the caret's line is not tinted: the tint would cover the
             // selection, which CodeMirror draws under the text
             cm.EditorView.editorAttributes.of((view) => (view.state.selection.ranges.some((range) => !range.empty) ? { class: "sql-selecting" } : null)),
@@ -499,6 +507,19 @@ export function createCodeEditor(cm, host, { doc = "", anchor = 0, head = anchor
             view.dispatch({
                 changes: { from: range.from, to: range.to, insert: lead + text + trail },
                 selection: { anchor: range.from + lead.length + text.length },
+                scrollIntoView: true,
+                userEvent: "input",
+            });
+        },
+
+        // The student chose this text (a sample query): it replaces the document as an edit of
+        // their own, which Ctrl/Cmd+Z takes back, not as the app's (value, which starts afresh).
+        fill(text) {
+            const insert = String(text ?? "");
+            view.focus();
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert },
+                selection: { anchor: insert.length },
                 scrollIntoView: true,
                 userEvent: "input",
             });

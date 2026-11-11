@@ -22,10 +22,13 @@ const VIEWPORTS = [
     { width: 390, height: 844 },
 ];
 
-async function settle(page) {
+async function settle(page, { busy = false } = {}) {
     await page.evaluate(() => document.fonts.ready);
-    // the switcher's sizes come from a HEAD request after the menu opens
-    await page.waitForLoadState("networkidle");
+    // the switcher's sizes come from a HEAD request after the menu opens (a state that holds a
+    // request back on purpose, the loading one, never goes quiet)
+    if (!busy) {
+        await page.waitForLoadState("networkidle");
+    }
     // What differs from one run to the next (how long a query took, when it ran) is given one
     // value, so that everything else, the rest of each line included, is compared as it is.
     await page.evaluate(() => {
@@ -46,7 +49,7 @@ for (const viewport of VIEWPORTS) {
                     await page.setViewportSize(viewport);
                     await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
                     await recipe(page);
-                    await settle(page);
+                    await settle(page, { busy: Boolean(recipe.busy) });
                     // a few pixels of slack for anti-aliasing, no more: a restyled line of text
                     // changes hundreds
                     await expect(page).toHaveScreenshot(`${state}--${viewport.width}x${viewport.height}--${theme}.png`, {

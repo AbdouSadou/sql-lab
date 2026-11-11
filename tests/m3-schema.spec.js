@@ -191,7 +191,7 @@ test.describe("schema sidebar: inserting", () => {
         await editorSelect(page, 7);
         await settle(page);
         // the student clicks elsewhere on the page, then on text in the sidebar, then on a name there
-        await page.locator("#status").click();
+        await app.emptyState.locator(".results-empty-title").click();
         await page.locator("#schema .schema-dataset-description").click();
         await expect(app.editor).not.toBeFocused();
         await app.schemaInsert("customers").click();
@@ -247,18 +247,28 @@ test.describe("schema sidebar: inserting", () => {
         await app.editor.fill("SELECT * FROM ");
         await app.schemaInsert("we\"ird").click();
         await app.editor.press("Control+Enter");
-        await expect(app.status).toContainText("0 rows, took");
+        await app.settle();
+        await expect(app.status).toContainText(/^0 rows in \d+ ms$/);
         await app.editor.fill("SELECT * FROM ");
         await app.schemaInsert("order").click();
         await app.editor.press("Control+Enter");
-        await expect(app.status).toContainText("0 rows, took");
+        await app.settle();
+        await expect(app.status).toContainText(/^0 rows in \d+ ms$/);
     });
 
-    test("a fresh page: a click without placing the caret appends cleanly after the preview SQL", async ({ app, page }) => {
+    test("a fresh page: the editor is empty and a click inserts the bare name; after a sample it appends cleanly", async ({ app, page }) => {
         await app.open();
-        expect(await editorText(page)).toBe('select * from "stores" limit 10');
+        // nothing runs on load and the editor starts empty (Phase 4): the name goes in alone
+        expect(await editorText(page)).toBe("");
         await app.schemaInsert("orders").click();
-        expect(await editorText(page)).toBe('select * from "stores" limit 10 orders');
+        expect(await editorText(page)).toBe("orders");
+        await expect(app.editor).toBeFocused();
+        // a sample fills the editor without placing the caret there; a click appends cleanly after it
+        await app.samples.first().click();
+        const sample = await editorText(page);
+        expect(sample).toBe("SELECT * FROM products;");
+        await app.schemaInsert("stores").click();
+        expect(await editorText(page)).toBe("SELECT * FROM products; stores");
         await expect(app.editor).toBeFocused();
     });
 
@@ -266,9 +276,12 @@ test.describe("schema sidebar: inserting", () => {
         await withSampleDataset(page);
         await app.open();
         await app.pickDatabase("Sample Fruit");
-        await expect(app.status).toContainText(/\d+ rows?, took/);
+        // nothing runs on a switch; the first table's rows are the sample
+        await expect(page.locator("#schema .schema-dataset-name")).toHaveText("Sample Fruit");
+        await expect(app.pane).toHaveAttribute("data-state", "empty");
+        await app.samples.first().click();
         const preview = await editorText(page);
-        expect(preview).toMatch(/^select \* from /);
+        expect(preview).toMatch(/^SELECT \* FROM /);
         const first = await page.locator("#schema .schema-insert").first().textContent();
         await page.locator("#schema .schema-insert").first().click();
         expect((await editorText(page)).replace(/\s+$/, "")).toBe(`${preview.trim()} ${first}`);
@@ -359,7 +372,7 @@ test.describe("schema sidebar: collapsing", () => {
         await app.openTab("history");
         await expect(page.locator("#schema-panel")).toBeHidden();
         await app.run("CREATE TABLE phone_t (a)");
-        await expect(app.status).toContainText(/Executing|rows?, took/);
+        await expect(app.status).toContainText(/^Done in \d+ ms$/);
         await app.openTab("schema");
         await expect(app.schemaInsert("phone_t")).toBeVisible();
     });
@@ -391,10 +404,10 @@ test.describe("schema sidebar: refresh", () => {
     test("a run whose second statement fails still refreshes the statements before it", async ({ app }) => {
         await app.open();
         await app.run("CREATE TABLE before_error (a); SELECT nope FROM before_error");
-        await expect(app.status).toContainText("no such column: nope");
+        await expect(app.errorBand).toContainText("no such column: nope");
         await expect(app.schemaItem("before_error")).toHaveCount(1);
         await app.run("INSERT INTO before_error VALUES (1); INSERT INTO missing_table VALUES (2)");
-        await expect(app.status).toContainText("no such table");
+        await expect(app.errorBand).toContainText("no such table");
         await expect(app.schemaItem("before_error").locator(".schema-count")).toContainText("1");
     });
 
@@ -407,7 +420,7 @@ test.describe("schema sidebar: refresh", () => {
         await app.query("SELECT COUNT(*) FROM orders");
         expect(await marked()).toBe(true);
         await app.run("PRAGMA table_info(orders)");
-        await expect(app.status).toContainText(/rows?, took/);
+        await expect(app.status).toContainText(/^\d[\d,]* rows? in \d+ ms$/);
         expect(await marked()).toBe(true);
         await app.run("INSERT INTO stores VALUES (6, 'Hull', 'Hull', 'East Yorkshire', '2026-01-01')");
         await expect(app.schemaItem("stores").locator(".schema-count")).toContainText("6");
@@ -494,6 +507,7 @@ test.describe("schema sidebar: hostile names", () => {
         await expectEditorTextOnly(page);
         await app.expectInert();
         await app.editor.press("Control+Enter");
+        await app.settle();
         await app.expectInert();
         // a hostile run does not break the refresh
         await app.run(`DROP TABLE ${quoteIdent(PAYLOAD)}`);
@@ -538,7 +552,7 @@ test.describe("schema sidebar: layout", () => {
                 await expect(app.schemaToggle).toHaveAttribute("aria-selected", "true");
                 await app.schemaExpand(long).click();
                 await app.run("SELECT " + Array.from({ length: 12 }, (_, i) => `'cell value number ${i}' AS c${i}`).join(", "));
-                await expect(app.status).toContainText(/rows?, took/);
+                await expect(app.status).toContainText(/^\d[\d,]* rows? in \d+ ms$/);
                 const m = await page.evaluate(() => ({
                     scroll: document.documentElement.scrollWidth,
                     client: document.documentElement.clientWidth,

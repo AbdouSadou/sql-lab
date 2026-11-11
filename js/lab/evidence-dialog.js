@@ -2,7 +2,7 @@
 // asks for the student number, and the download. The file format and checksum are
 // js/lab/evidence.js; the entries come from the run log (js/lab/run-log.js).
 //
-//   mountEvidence({ui, runLog, returnFocus}) -> {open()}
+//   mountEvidence({runLog, returnFocus}) -> {open()}
 //       Called once from js/index.js. Builds a real <dialog> (opened with showModal) with a
 //       labelled input for the student number; the Export menu's "Evidence (.txt)…" calls
 //       open(). runLog.current() gives the log key and the entries of the open dataset. When it
@@ -33,13 +33,17 @@ import {
     EVIDENCE_NO_CRYPTO_MESSAGE,
     EVIDENCE_SUBMIT_TEXT,
     STUDENT_ID_PATTERN,
+    EVIDENCE_FILE_LABEL,
     evidenceSavedMessage,
 } from "./config.js";
 import { buildEvidence, hasCrypto, utcTimestamp } from "./evidence.js";
 import { safeBaseName, saveFile } from "./export.js";
-import { escapeHtml } from "./html.js";
 import { isDatasetKey } from "./run-log.js";
 import { decodeShare, shareFragment } from "./share.js";
+import { toast } from "./toast.js";
+
+// the evidence file's name for a log key
+const evidenceFileName = (key) => `evidence-${safeBaseName(key)}.txt`;
 
 // linkFor is the F3 link for one entry, or null when it should have none.
 export function linkFor(key, entry, pageUrl = globalThis.location.href) {
@@ -71,31 +75,38 @@ function el(tag, props = {}, text = "") {
 }
 
 // returnFocus is the element the focus goes back to when the dialog closes: the Export menu's
-// button, whose "Evidence (.txt)…" entry calls open().
-export function mountEvidence({ ui, runLog, returnFocus }) {
+// button, whose "Evidence (.txt)…" entry calls open(). The refusals and the outcome are toasts
+// (js/lab/toast.js), the answer of the Export menu's entry.
+export function mountEvidence({ runLog, returnFocus }) {
     const button = returnFocus;
 
-    const dialog = el("dialog", { id: "evidence-dialog", className: "evidence-dialog" });
+    // drawn like the database export dialog (css/evidence.css, .app-dialog); the evidence-* names
+    // stay for the tests and the rules of this dialog alone
+    const dialog = el("dialog", { id: "evidence-dialog", className: "app-dialog evidence-dialog" });
     dialog.setAttribute("aria-labelledby", "evidence-title");
+    dialog.setAttribute("aria-describedby", "evidence-text");
     const form = el("form", { id: "evidence-form", noValidate: true });
-    const label = el("label", { htmlFor: "evidence-student", className: "evidence-label" }, EVIDENCE_LABEL);
-    const input = el("input", { id: "evidence-student", type: "text", autocomplete: "off", spellcheck: false });
+    const label = el("label", { htmlFor: "evidence-student", className: "app-dialog-label evidence-label" }, EVIDENCE_LABEL);
+    const input = el("input", { id: "evidence-student", type: "text", autocomplete: "off", spellcheck: false, className: "app-dialog-input" });
     input.setAttribute("autocapitalize", "off");
     input.setAttribute("autocorrect", "off");
     input.setAttribute("aria-describedby", "evidence-hint");
-    const hint = el("p", { id: "evidence-hint", className: "evidence-hint" }, EVIDENCE_HINT);
-    const error = el("p", { id: "evidence-error", className: "evidence-error", hidden: true });
+    const hint = el("p", { id: "evidence-hint", className: "app-dialog-hint evidence-hint" }, EVIDENCE_HINT);
+    const error = el("p", { id: "evidence-error", className: "app-dialog-error evidence-error", hidden: true });
     error.setAttribute("role", "alert");
-    const submit = el("button", { type: "submit", className: "evidence-submit" }, EVIDENCE_SUBMIT_TEXT);
-    const cancel = el("button", { type: "button", className: "evidence-cancel" }, EVIDENCE_CANCEL_TEXT);
+    // the file it will save, named before the student presses Export
+    const file = el("p", { id: "evidence-file", className: "app-dialog-file evidence-file" });
+    const submit = el("button", { type: "submit", className: "button button--primary evidence-submit" }, EVIDENCE_SUBMIT_TEXT);
+    const cancel = el("button", { type: "button", className: "button evidence-cancel" }, EVIDENCE_CANCEL_TEXT);
     form.append(
-        el("h2", { id: "evidence-title", className: "evidence-title" }, EVIDENCE_DIALOG_TITLE),
-        el("p", { className: "evidence-text" }, EVIDENCE_DIALOG_TEXT),
+        el("h2", { id: "evidence-title", className: "app-dialog-title evidence-title" }, EVIDENCE_DIALOG_TITLE),
+        el("p", { id: "evidence-text", className: "app-dialog-text evidence-text" }, EVIDENCE_DIALOG_TEXT),
         label,
         input,
         hint,
         error,
-        el("div", { className: "evidence-actions" }),
+        file,
+        el("div", { className: "app-dialog-actions evidence-actions" }),
     );
     form.lastElementChild.append(submit, cancel);
     dialog.append(form);
@@ -116,17 +127,21 @@ export function mountEvidence({ ui, runLog, returnFocus }) {
     }
 
     function open() {
-        const { entries } = runLog.current();
+        const { key, entries } = runLog.current();
         if (!entries.length) {
-            ui.status.info(escapeHtml(EVIDENCE_EMPTY_MESSAGE));
+            toast(EVIDENCE_EMPTY_MESSAGE, { tone: "note" });
             return;
         }
         if (!hasCrypto()) {
-            ui.status.error(escapeHtml(EVIDENCE_NO_CRYPTO_MESSAGE));
+            toast(EVIDENCE_NO_CRYPTO_MESSAGE, { tone: "problem" });
             return;
         }
         clearError();
         input.value = "";
+        const filename = document.createElement("span");
+        filename.className = "app-dialog-filename";
+        filename.textContent = evidenceFileName(key);
+        file.replaceChildren(`${EVIDENCE_FILE_LABEL} `, filename);
         if (!dialog.open) {
             dialog.showModal();
         }
@@ -172,7 +187,7 @@ export function mountEvidence({ ui, runLog, returnFocus }) {
             const { key, entries } = runLog.current();
             if (!entries.length) {
                 closeDialog();
-                ui.status.info(escapeHtml(EVIDENCE_EMPTY_MESSAGE));
+                toast(EVIDENCE_EMPTY_MESSAGE, { tone: "note" });
                 return;
             }
             const text = await buildEvidence({
@@ -185,10 +200,10 @@ export function mountEvidence({ ui, runLog, returnFocus }) {
                 // cancelled while the checksum was being made (and perhaps opened again since)
                 return;
             }
-            const filename = `evidence-${safeBaseName(key)}.txt`;
+            const filename = evidenceFileName(key);
             saveFile(text, filename, "text/plain;charset=utf-8");
             closeDialog();
-            ui.status.success(escapeHtml(evidenceSavedMessage(filename, entries.length)));
+            toast(evidenceSavedMessage(filename, entries.length));
         } catch {
             if (token !== exportToken) {
                 // cancelled before it failed (and perhaps opened again since): the dialog on the
@@ -197,7 +212,7 @@ export function mountEvidence({ ui, runLog, returnFocus }) {
             }
             // no detail on purpose: nothing about the file or the student number may be logged
             closeDialog();
-            ui.status.error(escapeHtml(EVIDENCE_FAILED_MESSAGE));
+            toast(EVIDENCE_FAILED_MESSAGE, { tone: "problem" });
         } finally {
             if (busyToken === token) {
                 busyToken = null;

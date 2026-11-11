@@ -13,8 +13,11 @@ test("AC3 uploading a .db file works", async ({ app }) => {
     await app.open();
     await app.upload(FIXTURE);
 
-    await expect(app.status).toContainText("4 rows, took");
+    // an opened database runs nothing: the student sees "Opened sample.db" and runs the query
+    await expect(app.toast).toContainText("Opened sample.db");
+    await expect(app.pane).toHaveAttribute("data-state", "empty");
     const fruit = await app.query(QUERIES.fruit);
+    await expect(app.status).toContainText("4 rows in");
     expect(fruit.columns).toEqual(["id", "name", "price", "note"]);
     expect(fruit.rows).toHaveLength(4);
     expect(fruit.rows[0]).toEqual(["1", "apple", "0.5", "crisp"]);

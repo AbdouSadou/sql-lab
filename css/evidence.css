@@ -1,7 +1,7 @@
-/* Dialogs: the evidence export (js/lab/evidence-dialog.js) and the database export
-   (js/lab/export-dialog.js). Native <dialog>s: radius 10 and a shadow, as menus have. */
+/* Dialogs: the database export (js/lab/export-dialog.js), the evidence export
+   (js/lab/evidence-dialog.js) and Open from URL (js/lab/open-url-dialog.js), all .app-dialog.
+   Native <dialog>s: radius 10 and a shadow, as menus have. */
 
-.evidence-dialog,
 .app-dialog {
     box-sizing: border-box;
     width: min(28rem, calc(100vw - 2rem));
@@ -14,7 +14,17 @@
     box-shadow: var(--shadow-float);
 }
 
-.evidence-dialog::backdrop,
+/* A fixed way down from the top of the window (12% of its height, 32 to 128 px), not in its
+   middle as a <dialog> is by default: a refusal shown inline (an address that cannot be opened, a
+   student number that is missing) makes the dialog taller downward, so the field being typed in
+   does not jump up under the caret, and on a phone the dialog keeps above most of the on-screen
+   keyboard. Taller than the room left, it scrolls. */
+.app-dialog:modal {
+    --dialog-top: clamp(var(--space-6), 12vh, 128px);
+    margin-block: var(--dialog-top) auto;
+    max-height: calc(100% - var(--dialog-top) - var(--space-6));
+}
+
 .app-dialog::backdrop {
     background: var(--scrim);
 }
@@ -47,89 +57,39 @@
     font-size: var(--text-sm);
 }
 
+/* a value the dialog refused: a thicker edge in the error colour, and the message under it */
+.app-dialog-input[aria-invalid="true"] {
+    border: 2px solid var(--danger);
+}
+
 .app-dialog-hint {
     margin: var(--space-1) 0 var(--space-4);
     color: var(--graphite);
     font-size: var(--text-xs);
 }
 
+.app-dialog-error {
+    margin: calc(-1 * var(--space-2)) 0 var(--space-4);
+    color: var(--danger);
+    font-weight: 600;
+}
+
+.app-dialog-error[hidden] {
+    display: none;
+}
+
+/* the file the dialog will save: "Saved as" and the name in the code face */
+.app-dialog-file {
+    margin: 0 0 var(--space-4);
+    overflow-wrap: anywhere;
+}
+
+.app-dialog-filename {
+    font-family: var(--font-mono);
+}
+
 .app-dialog-actions {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
-}
-
-.evidence-title {
-    margin: 0 0 0.5rem;
-    font-size: 1.125rem;
-}
-
-.evidence-text {
-    margin: 0 0 0.75rem;
-    font-size: 0.9rem;
-    line-height: 1.4;
-}
-
-.evidence-label {
-    display: block;
-    margin-bottom: 0.25rem;
-    font-weight: 600;
-}
-
-.evidence-dialog input[type="text"] {
-    box-sizing: border-box;
-    width: 100%;
-    height: 2.25rem;
-    padding: 0 0.5rem;
-    border: 1px solid var(--accent);
-    border-radius: 0.125rem;
-    background: var(--paper);
-    color: inherit;
-    font: inherit;
-}
-
-.evidence-dialog input[aria-invalid="true"] {
-    border-color: var(--danger);
-    border-width: 2px;
-}
-
-.evidence-hint {
-    margin: 0.25rem 0 0;
-    font-size: 0.8125rem;
-    opacity: 0.8;
-}
-
-.evidence-error {
-    margin: 0.5rem 0 0;
-    color: var(--danger);
-    font-size: 0.875rem;
-    font-weight: 600;
-}
-
-.evidence-error[hidden] {
-    display: none;
-}
-
-.evidence-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    margin-top: 1rem;
-}
-
-.evidence-actions button {
-    min-height: 2.25rem;
-    padding: 0 1rem;
-    border: 1px solid var(--accent);
-    border-radius: 0.125rem;
-    background: transparent;
-    color: var(--accent);
-    font: inherit;
-    cursor: pointer;
-}
-
-.evidence-actions .evidence-submit {
-    background: var(--accent);
-    color: var(--on-accent);
 }

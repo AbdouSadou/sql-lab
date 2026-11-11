@@ -12,21 +12,29 @@ CREATE TABLE "it's $& $1 a ""b"" table" (code TEXT, qty INTEGER, note TEXT);
 INSERT INTO "it's $& $1 a ""b"" table" VALUES ('x', 3, NULL);
 `;
 
-test("table names: a table named with spaces and quotes previews correctly", async ({ app, page }) => {
+test("table names: a table named with spaces and quotes is quoted in its sample and runs correctly", async ({ app, page }) => {
     await app.open();
     await app.upload(sqlFile("names.sql", SQL));
 
-    await expect(app.status).toContainText("2 rows, took");
-    expect((await editorValue(page)).trim()).toBe('select * from "my ""quoted"" table" limit 10');
+    // nothing runs on load: the first table's rows are a sample, its name quoted because it needs it
+    await expect(app.pane).toHaveAttribute("data-state", "empty");
+    await expect(app.table).toHaveCount(0);
+    await expect(app.samples.first()).toContainText(`First 10 rows of ${SPACED}`);
+    await app.samples.first().click();
+    expect((await editorValue(page)).trim()).toBe('SELECT * FROM "my ""quoted"" table" LIMIT 10;');
+    await page.locator("#execute").click();
+    await app.settle();
+    await expect(app.status).toContainText(/^2 rows in \d+ ms$/);
     expect(await app.read()).toEqual({ columns: ["id", "label"], rows: [["1", "one"], ["2", "two"]] });
 });
 
 test("table names: the Schema tab lists tables with awkward names, shows their columns and inserts their quoted names", async ({ app, page }) => {
     await app.open();
     await app.upload(sqlFile("names.sql", SQL));
-    await expect(app.status).toContainText("2 rows, took");
-    const statusBefore = await app.status.textContent();
-    const resultBefore = await app.read();
+    // nothing has run, so there is no result and no summary yet
+    await expect(app.pane).toHaveAttribute("data-state", "empty");
+    await expect(app.table).toHaveCount(0);
+    await expect(app.summary).toBeHidden();
 
     // the names are on the rows as text, in the order the tab sorts them (case-insensitive)
     await expect(page.locator("#schema .schema-row .schema-insert")).toHaveText([TRICKY, SPACED]);
@@ -54,15 +62,18 @@ test("table names: the Schema tab lists tables with awkward names, shows their c
     await app.schemaColumn(TRICKY, "qty").click();
     expect((await editorValue(page)).trim()).toBe('"it\'s $& $1 a ""b"" table" qty');
 
-    // nothing ran: the status and the result are what the upload's preview left
-    await expect(app.status).toHaveText(statusBefore);
-    expect(await app.read()).toEqual(resultBefore);
+    // nothing ran: there is still no result and no summary
+    await expect(app.pane).toHaveAttribute("data-state", "empty");
+    await expect(app.table).toHaveCount(0);
+    await expect(app.summary).toBeHidden();
 
     // and the inserted text is a name the database accepts
     await app.editor.fill("select * from ");
     await app.schemaInsert(TRICKY).click();
     await app.editor.press("Control+Enter");
-    await expect(app.status).toContainText("1 row, took");
-    expect((await app.read()).rows).toEqual([["x", "3", ""]]); // a NULL is drawn as an empty cell
+    await app.settle();
+    await expect(app.status).toContainText(/^1 row in \d+ ms$/);
+    expect((await app.read()).rows).toEqual([["x", "3", "NULL"]]); // a NULL is drawn as the word NULL
+    await expect(app.table.locator("td .cell-null")).toHaveCount(1);
     await app.expectInert();
 });

@@ -23,26 +23,39 @@ test("injection: markup in cell values is shown as text", async ({ app }) => {
     await app.run(`SELECT '${PAYLOAD}' AS v, 'line1\nline2' AS multi, NULL AS n, x'0102' AS b;`);
     const { rows } = await app.read();
     expect(rows[0][0]).toBe(PAYLOAD);
-    expect(rows[0][1]).toBe("line1line2"); // the line break is a <br>
-    await expect(app.table.locator("td br")).toHaveCount(1);
+    // the line break stays a line break in the text (the cell keeps it: white-space: pre); no element is made for it
+    expect(rows[0][1]).toBe("line1\nline2");
+    await expect(app.table.locator("td br")).toHaveCount(0);
+    expect(await app.table.locator("td").nth(1).evaluate((td) => getComputedStyle(td).whiteSpace)).toBe("pre");
+    // NULL reads as the word NULL in its own span; a blob as a blob literal
+    expect(rows[0][2]).toBe("NULL");
+    await expect(app.table.locator("td .cell-null")).toHaveCount(1);
+    expect(rows[0][3]).toBe("x'0102'");
     await app.expectInert();
 });
 
 test("injection: markup echoed in an error message is shown as text", async ({ app, pageErrors }) => {
     await app.open();
+    // the error band shows SQLite's message verbatim, and the statement as written, both as text
     await app.run(`SELECT * FROM ${quoteIdent(PAYLOAD)};`);
-    await expect(app.status).toContainText(`no such table: ${PAYLOAD}`);
+    await expect(app.pane).toHaveAttribute("data-state", "error");
+    await expect(app.errorBand.locator(".results-band-message")).toContainText(`no such table: ${PAYLOAD}`);
+    await expect(app.errorBand.locator(".results-band-quote")).toHaveText(`SELECT * FROM ${quoteIdent(PAYLOAD)};`);
+    await expect(app.announcer).toContainText(`This query has an error: no such table: ${PAYLOAD}`);
     await app.expectInert();
 
     await app.run(`SELECT * FROM ${quoteIdent(ATTR_PAYLOAD)};`);
-    await expect(app.status).toContainText(`no such table: ${ATTR_PAYLOAD}`);
+    await expect(app.pane).toHaveAttribute("data-state", "error");
+    await expect(app.errorBand.locator(".results-band-message")).toContainText(`no such table: ${ATTR_PAYLOAD}`);
+    await expect(app.errorBand.locator(".results-band-quote")).toHaveText(`SELECT * FROM ${quoteIdent(ATTR_PAYLOAD)};`);
+    await expect(app.announcer).toContainText(`This query has an error: no such table: ${ATTR_PAYLOAD}`);
     await app.expectInert();
 
-    // a failing run is reported in the status area only; nothing is thrown at the page
+    // a failing run is reported in the results pane only; nothing is thrown at the page
     expect(pageErrors).toEqual([]);
 });
 
-test("injection: markup in table names is shown as text in the Schema tab and the preview", async ({
+test("injection: markup in table names is shown as text in the Schema tab and the sample", async ({
     app,
     page,
     pageErrors,
@@ -51,8 +64,21 @@ test("injection: markup in table names is shown as text in the Schema tab and th
     const sql = names.map((n) => `CREATE TABLE ${quoteIdent(n)} (id INTEGER, label TEXT); INSERT INTO ${quoteIdent(n)} VALUES (1, 'x');`).join("\n");
     await app.open();
     await app.upload(sqlFile("evil.sql", sql));
-    // the built-in preview of the first table ran, with the name quoted
-    await expect(app.status).toContainText("1 row, took");
+    // nothing ran on its own; the first table is offered as a sample, with the name quoted, as text
+    await expect(app.pane).toHaveAttribute("data-state", "empty");
+    await expect(app.samples).toHaveCount(1);
+    await expect(app.samples.locator(".results-sample-label")).toHaveText(`First 10 rows of ${PAYLOAD}`);
+    await expect(app.samples.locator(".results-sample-sql")).toHaveText(`SELECT * FROM ${quoteIdent(PAYLOAD)} LIMIT 10;`);
+    await app.expectInert();
+    // choosing it fills the editor (as text) and runs nothing; Run then shows the one row
+    await app.samples.click();
+    expect((await editorValue(page)).trim()).toBe(`SELECT * FROM ${quoteIdent(PAYLOAD)} LIMIT 10;`);
+    await expectEditorTextOnly(page);
+    await expect(app.pane).toHaveAttribute("data-state", "empty");
+    await app.editor.press("Control+Enter");
+    await app.settle();
+    await expect(app.status).toHaveText(/^1 row in \d+ ms$/);
+    expect((await app.read()).rows).toEqual([[`1`, "x"]]);
     await app.expectInert();
 
     // the Schema tab (shown by default) lists both names as text
@@ -99,30 +125,48 @@ test("injection: markup in uploaded file names is shown as text or not at all", 
 
     // an upload that is not a database: the engine's error, plus the file's name, shown as text
     await app.upload({ name: `${ATTR_PAYLOAD}.db`, mimeType: "application/octet-stream", buffer: Buffer.from("not a database, just some text that is long enough") }, { ready: false });
-    await expect(app.status).toContainText("Failed to load database");
+    await expect(app.errorBand.locator(".results-band-text")).toContainText("Failed to load database");
     await app.expectInert();
 
     await page.waitForTimeout(200);
     await app.expectInert();
 });
 
-test("injection: markup in URL fragments and in the open-url prompt is shown as text", async ({ app, page, net }) => {
+test("injection: markup in URL fragments and in the open-url dialog is shown as text", async ({ app, page, net }) => {
     // a fragment typed into the address bar (the browser percent-encodes it)
     await page.goto(`./#${PAYLOAD}`);
-    await expect(app.status).toContainText("Failed to load database from");
+    await expect(app.errorBand.locator(".results-band-text")).toContainText("Failed to load database from");
     await app.expectInert();
 
-    // the same through the prompt, which hands the raw string to the page
+    // the same through the Open from URL dialog, which hands the typed string to the page
     await page.goto("./");
     await app.waitReady();
-    page.on("dialog", (dialog) => dialog.accept(PAYLOAD + ".db"));
     await page.keyboard.press("Control+u");
-    await expect(app.status).toContainText(`Failed to load database from URL ${PAYLOAD}.db`);
+    const dialog = page.locator("#open-url-dialog");
+    await expect(dialog).toBeVisible();
+    await page.locator("#open-url-input").fill(PAYLOAD + ".db");
+    await page.keyboard.press("Enter");
+    await expect(app.errorBand.locator(".results-band-text")).toContainText(`Failed to load database from URL ${PAYLOAD}.db`);
     await app.expectInert();
 
-    // unsupported addresses echo the value too
+    // an unsupported address typed into the dialog is refused inline, as text, and nothing is requested
+    await page.goto("./");
+    await app.waitReady();
+    net.clear();
+    await page.keyboard.press("Control+u");
+    await expect(dialog).toBeVisible();
+    await page.locator("#open-url-input").fill(`gist:${PAYLOAD}`);
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#open-url-error")).toContainText("This address cannot be opened");
+    await expect(dialog).toBeVisible();
+    await app.expectInert();
+    expect(net.network).toEqual([]);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+
+    // unsupported addresses in the page's own address echo the value too
     await page.evaluate((p) => (location.hash = `#gist:${p}`), PAYLOAD);
-    await expect(app.status).toContainText("unsupported address");
+    await expect(app.errorBand.locator(".results-band-text")).toContainText("unsupported address");
     await app.expectInert();
     await page.waitForTimeout(200);
     await app.expectInert();
@@ -150,6 +194,7 @@ test(`injection: pasting markup into the editor inserts text, not elements${plai
     await expectEditorTextOnly(page);
     await app.expectInert();
     await page.keyboard.press("Control+Enter");
+    await app.settle();
     expect((await app.read()).rows).toEqual([[PAYLOAD]]);
     await app.expectInert();
 });
@@ -171,11 +216,11 @@ test("injection: markup echoed by the engine while a .sql file loads is shown as
     await app.open();
     // The script fails on a table that does not exist; the engine's message repeats the
     // name, and start() puts "Failed to load database from sql script: <message>" in the
-    // status area.
+    // error band.
     for (const payload of [PAYLOAD, ATTR_PAYLOAD]) {
         await app.upload(sqlFile("bad.sql", `SELECT * FROM ${quoteIdent(payload)};`), { ready: false });
-        await expect(app.status).toContainText(`Failed to load database from sql script`);
-        await expect(app.status).toContainText(`no such table: ${payload}`);
+        await expect(app.errorBand.locator(".results-band-text")).toContainText(`Failed to load database from sql script`);
+        await expect(app.errorBand.locator(".results-band-text")).toContainText(`no such table: ${payload}`);
         await app.expectInert();
     }
 });

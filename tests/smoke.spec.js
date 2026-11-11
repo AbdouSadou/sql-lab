@@ -11,7 +11,7 @@ test("smoke: page loads, engine initialises, SELECT 1 shows a result", async ({ 
 
     const result = await app.query("SELECT 1 AS one;");
     expect(result).toEqual({ columns: ["one"], rows: [["1"]] });
-    await expect(app.status).toContainText("1 row, took");
+    await expect(app.status).toContainText("1 row in");
 
     expect(pageErrors).toEqual([]);
     net.expectNoSameOriginFailures();

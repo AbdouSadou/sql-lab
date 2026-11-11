@@ -8,9 +8,13 @@
 // hand the exercise object to the checker (js/lab/checker.js); it is not copied into the DOM,
 // an attribute, a message or the share link.
 //
-// mountExercises({pickerSlot, ui, execute, isLoading, openSet, closeSet, showTab}) -> controller
+// mountExercises({pickerSlot, ui, execute, isLoading, openSet, closeSet, showTab, showIdle}) -> controller
 //   pickerSlot where the set picker (a menu button and its menu) goes, in the Exercises tab
-//   ui         index.js's element handles (editor, status, result)
+//   ui         index.js's element handles (the editor, the toolbar)
+//   showIdle   () the results pane's "no result yet" (js/lab/results.js showEmpty): what the
+//              last run showed belonged to another exercise or set
+//   modeChanged () exercise mode began or ended: the results pane's "no result yet", if it shows,
+//              is drawn again (it offers sample queries only outside exercise mode)
 //   execute    index.js's execute(sql): the visible run. Check calls it with exactly the SQL
 //              Run would use (ui.editor.query), then calls the checker
 //   isLoading  () -> true while a database is loading (Check refuses, as Run does)
@@ -26,6 +30,7 @@
 //                           gets the draft of the exercise, or nothing)
 //   close()                 leave exercise mode, keeping the database
 //   syncPicker()            show the open set in the picker again (a pick that failed)
+//   isOpen()                true while a set is open (the results pane offers no samples then)
 //
 // The panel follows the page through two events on the document:
 //   lab:database-loaded  detail.exercise = {set, exerciseId} opens the panel; without it the
@@ -73,7 +78,6 @@ import { MOD_KEY } from "./keys.js";
 import { mountMenu } from "./menu.js";
 import { getDraft, isPassed, markPassed, passedCount, resetSet, saveDraft } from "./progress.js";
 import { setShareContext } from "./share.js";
-import { MESSAGES } from "../sqlite/db.js";
 
 // chooseExercise picks the exercise a set opens on: the one the link named, else the first
 // not yet passed, else the first.
@@ -93,7 +97,17 @@ function el(tag, className, text) {
     return node;
 }
 
-export function mountExercises({ pickerSlot, ui, execute, isLoading, openSet, closeSet, showTab }) {
+export function mountExercises({
+    pickerSlot,
+    ui,
+    execute,
+    isLoading,
+    openSet,
+    closeSet,
+    showTab,
+    showIdle = () => {},
+    modeChanged = () => {},
+}) {
     const $ = (id) => document.getElementById(id);
     const els = {
         panel: $("exercise-panel"),
@@ -552,11 +566,15 @@ export function mountExercises({ pickerSlot, ui, execute, isLoading, openSet, cl
         checking = token;
         checkButton?.setAttribute("aria-busy", "true");
         try {
-            // the student sees their own results first; a failed run does not stop the check
+            // the student sees their own results first; a failed run does not stop the check, but a
+            // run that was dropped (a database began loading before it started) checks nothing
             let ran = true;
             try {
                 await execute(sql);
-            } catch {
+            } catch (exc) {
+                if (exc?.dropped) {
+                    return;
+                }
                 ran = false;
             }
             const outcome = await checker.check(checkedSet, exercise, sql);
@@ -628,8 +646,7 @@ export function mountExercises({ pickerSlot, ui, execute, isLoading, openSet, cl
 
     // resetWorkArea clears what the last run showed: it belonged to another exercise or set
     function resetWorkArea() {
-        ui.result.clear();
-        ui.status.info(MESSAGES.invite);
+        showIdle();
     }
 
     // enter shows the panel for a set. The editor is not touched here.
@@ -654,6 +671,7 @@ export function mountExercises({ pickerSlot, ui, execute, isLoading, openSet, cl
         renderPicker();
         setShareContext({ set: set.id, exercise: current.id });
         showTab();
+        modeChanged();
     }
 
     function leave() {
@@ -676,6 +694,7 @@ export function mountExercises({ pickerSlot, ui, execute, isLoading, openSet, cl
         clearFeedback();
         renderPicker();
         setShareContext({ set: null, exercise: null });
+        modeChanged();
     }
 
     // announceExercise puts the new exercise in the polite live region, so a screen reader says
@@ -759,10 +778,11 @@ export function mountExercises({ pickerSlot, ui, execute, isLoading, openSet, cl
         open(openingSet, exerciseId) {
             const chosen = chooseExercise(openingSet, exerciseId);
             ui.editor.value = getDraft(openingSet.id, chosen.id) ?? "";
-            resetWorkArea();
             enter(openingSet, chosen.id);
+            resetWorkArea();
         },
         close: leave,
+        isOpen: () => Boolean(set),
         // a pick that failed or was cancelled: the picker shows what is open again
         syncPicker() {
             asked = null;

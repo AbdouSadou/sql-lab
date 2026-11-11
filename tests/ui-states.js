@@ -129,24 +129,168 @@ legacy.states = {
     },
 };
 
-// The app shell of Phase 2: a top bar with menus, a sidebar with tabs, the query above its result.
+// The app shell of Phase 2: a top bar with menus, a sidebar with tabs, the query above its result;
+// from Phase 4 the results pane has its states (js/lab/results.js), named by #results-pane's
+// data-state, and a run starts one frame after it is asked for, so a recipe waits for it to finish
+// (window.app.whenIdle) rather than for text.
+const READY_PANE = '#results-pane:is([data-state="empty"], [data-state="result"], [data-state="done"], [data-state="error"])';
+
+// a query whose first column holds a value longer than 60 characters (the product names, joined)
+const LONG_CELL_SQL = "SELECT group_concat(product_name, ', ') AS names, COUNT(*) AS products, NULL AS discontinued FROM products;";
+// a run with no result set that changes rows
+const DONE_SQL = `CREATE TABLE notes (id INTEGER PRIMARY KEY, body TEXT);
+INSERT INTO notes (body) VALUES ('Restock the Leeds store'), ('Call the York supplier');`;
+
 const shell = {
-    open: legacy.open,
-    run: legacy.run,
+    async open(page, url = "./") {
+        await page.goto(url);
+        await page.locator(READY_PANE).waitFor();
+    },
+    // run puts SQL in the editor, runs it with Ctrl+Enter, and waits until the results pane shows
+    // `state` ("result", "done" or "error")
+    async run(page, sql, state = "result") {
+        await page.locator(EDITOR_INPUT).fill(sql);
+        await page.locator(EDITOR_INPUT).press("Control+Enter");
+        await page.evaluate(() => window.app.whenIdle());
+        await page.locator(`#results-pane[data-state="${state}"]`).waitFor();
+    },
     async menu(page, button, menu) {
         await page.locator(button).click();
         await page.locator(menu).waitFor({ state: "visible" });
         // the switcher's sizes arrive with a HEAD request after it opens
         await page.waitForTimeout(150);
     },
+    // a clipboard that takes the link (headless browsers may refuse the real one)
+    async clipboard(page, { refuse = false } = {}) {
+        await page.evaluate((no) => {
+            Object.defineProperty(navigator, "clipboard", {
+                configurable: true,
+                value: { writeText: async () => (no ? Promise.reject(new Error("refused")) : undefined) },
+            });
+            if (no) {
+                document.execCommand = () => false;
+            }
+        }, refuse);
+    },
+    async exerciseOpen(page) {
+        await shell.open(page, `./?set=${EXERCISE.set}&ex=${EXERCISE.ex}`);
+        await page.locator("#exercise-panel").waitFor({ state: "visible" });
+    },
+    async check(page, sql) {
+        await page.locator(EDITOR_INPUT).fill(sql);
+        await page.locator("#exercise-check").click();
+    },
 };
 
 shell.states = {
-    // Phase 4 brings the empty state; until then a first visit runs a preview of the first table.
-    "first-visit": legacy.states["first-visit"],
-    "no-result": legacy.states["no-result"],
-    result: legacy.states.result,
-    error: legacy.states.error,
+    // From Phase 4 a first visit runs nothing: "no result yet" with Northlight's three samples
+    "first-visit": async (page) => {
+        await shell.open(page);
+    },
+    // after a reload the last query is back in the editor, not run
+    "no-result": async (page) => {
+        await shell.open(page);
+        await shell.run(page, "SELECT * FROM products;");
+        await page.reload();
+        await page.locator(READY_PANE).waitFor();
+    },
+    // From Phase 4: a database on its way (its request held, so the bar waits)
+    loading: Object.assign(
+        async (page) => {
+            await page.route(/\/datasets\/northlight_retail\.db(\?.*)?$/, () => {});
+            await page.goto("./");
+            await page.locator('#results-pane[data-state="loading"] .results-loading-title').filter({ hasText: "Northlight Retail" }).waitFor();
+        },
+        { busy: true }
+    ),
+    // From Phase 4: the database half way: its file is served in full but handed to the page half
+    // (a stream that stops), so the bar and the size line show where it is
+    "loading-progress": async (page) => {
+        await page.addInitScript(() => {
+            const original = window.fetch;
+            window.fetch = async (input, init) => {
+                const url = String(input instanceof Request ? input.url : input);
+                if (!/northlight_retail\.db(\?.*)?$/.test(url) || init?.method === "HEAD") {
+                    return original(input, init);
+                }
+                const bytes = new Uint8Array(await (await original(input, init)).arrayBuffer());
+                const half = bytes.slice(0, Math.floor(bytes.length / 2));
+                const body = new ReadableStream({
+                    start(controller) {
+                        controller.enqueue(half);
+                    },
+                });
+                return new Response(body, { headers: { "content-length": String(bytes.length) } });
+            };
+        });
+        await page.goto("./");
+        await page.locator(".results-loading-size").filter({ hasText: / of / }).waitFor();
+    },
+    result: async (page) => {
+        await shell.open(page);
+        await shell.run(page, RESULT_SQL);
+    },
+    // From Phase 4: a result cut at 500 rows, and a result with no rows (the header and its rules)
+    capped: async (page) => {
+        await shell.open(page);
+        await shell.run(page, "SELECT * FROM order_items;");
+    },
+    "zero-rows": async (page) => {
+        await shell.open(page);
+        await shell.run(page, "SELECT product_name, unit_price FROM products WHERE unit_price > 1000;");
+    },
+    // From Phase 4: a value longer than 60 characters, pressed: the whole of it in a popover
+    "long-cell": async (page) => {
+        await shell.open(page);
+        await shell.run(page, LONG_CELL_SQL);
+        // pressed where it is, as a student presses it: Playwright's own click first scrolls the
+        // button into view, and a value wider than a phone's pane makes that slide the table
+        // sideways, which no press, Tab or Escape does
+        const button = page.locator("#result .cell-more").first();
+        let box = await button.boundingBox();
+        const { height } = page.viewportSize();
+        if (box.y + box.height > height) {
+            await page.evaluate((by) => window.scrollBy(0, by), box.y + box.height - height + 16);
+            box = await button.boundingBox();
+        }
+        await page.mouse.click(box.x + 40, box.y + box.height / 2);
+        await page.locator("#cell-popover").waitFor({ state: "visible" });
+    },
+    // From Phase 4: a run with no result set
+    done: async (page) => {
+        await shell.open(page);
+        await shell.run(page, DONE_SQL, "done");
+    },
+    error: async (page) => {
+        await shell.open(page);
+        await shell.run(page, ERROR_SQL, "error");
+    },
+    // From Phase 4: a damaged link: the error band over "no result yet" (the default database opened)
+    "load-problem": async (page) => {
+        await shell.open(page, "./#s=N4Ig_damaged");
+        await page.locator("#result .results-band").waitFor();
+    },
+    // From Phase 4: no list of databases, so an empty database: the band, and what to do next
+    "empty-database": async (page) => {
+        await page.route(/\/datasets\/manifest\.json(\?.*)?$/, (route) => route.abort());
+        await shell.open(page);
+        await page.locator("#result .results-empty-links").waitFor();
+    },
+    // From Phase 4: Copy link's toast, and its popover when the browser keeps the clipboard
+    toast: async (page) => {
+        await shell.open(page);
+        await shell.run(page, RESULT_SQL);
+        await shell.clipboard(page);
+        await page.locator("#copy-link").click();
+        await page.locator("#toast-region .toast").waitFor();
+    },
+    "link-popover": async (page) => {
+        await shell.open(page);
+        await shell.run(page, RESULT_SQL);
+        await shell.clipboard(page, { refuse: true });
+        await page.locator("#copy-link").click();
+        await page.locator("#copy-link-popover").waitFor({ state: "visible" });
+    },
     "schema-expanded": async (page) => {
         await shell.open(page);
         await page.getByRole("button", { name: "Columns of table products", exact: true }).click();
@@ -170,7 +314,7 @@ shell.states = {
         await shell.menu(page, "#help-button", "#help-popover");
     },
     "menu-exercise-set": async (page) => {
-        await shell.open(page, `./?set=${EXERCISE.set}&ex=${EXERCISE.ex}`);
+        await shell.exerciseOpen(page);
         await shell.menu(page, "#exercise-set-picker", "#exercise-set-menu");
     },
     // From Phase 3: the editor's list of names, open as a student types a table's name
@@ -184,10 +328,26 @@ shell.states = {
     history: async (page) => {
         await shell.open(page);
         await shell.run(page, "SELECT * FROM stores;");
-        await shell.run(page, ERROR_SQL, /no such column/);
+        await shell.run(page, ERROR_SQL, "error");
         await shell.run(page, RESULT_SQL);
         await page.locator("#tab-history").click();
         await page.locator("#run-history-list button").first().waitFor();
+    },
+    // From Phase 4: Open from URL is a dialog (it was window.prompt)
+    "open-url-dialog": async (page) => {
+        await shell.open(page);
+        await shell.menu(page, "#database-button", "#database-menu");
+        await page.locator("#open-url").click();
+        await page.locator("#open-url-dialog").waitFor({ state: "visible" });
+    },
+    // the same, with an address it cannot open: refused on the spot
+    "open-url-error": async (page) => {
+        await shell.open(page);
+        await page.locator(EDITOR_INPUT).focus();
+        await page.keyboard.press("Control+u");
+        await page.locator("#open-url-input").fill("gist:abc123");
+        await page.locator("#open-url-input").press("Enter");
+        await page.locator("#open-url-error").waitFor({ state: "visible" });
     },
     "evidence-dialog": async (page) => {
         await shell.open(page);
@@ -196,9 +356,19 @@ shell.states = {
         await page.locator("#export-evidence").click();
         await page.locator("#evidence-dialog").waitFor({ state: "visible" });
     },
-    "exercise-prompt": legacy.states["exercise-prompt"],
-    "exercise-correct": legacy.states["exercise-correct"],
-    "exercise-wrong": legacy.states["exercise-wrong"],
+    "exercise-prompt": async (page) => {
+        await shell.exerciseOpen(page);
+    },
+    "exercise-correct": async (page) => {
+        await shell.exerciseOpen(page);
+        await shell.check(page, CORRECT_SQL);
+        await page.locator("#exercise-feedback").filter({ hasText: "Passed" }).waitFor();
+    },
+    "exercise-wrong": async (page) => {
+        await shell.exerciseOpen(page);
+        await shell.check(page, WRONG_SQL);
+        await page.locator("#exercise-feedback table").first().waitFor();
+    },
 };
 
 // The theme menu (menu-theme) exists only from Phase 1; the before shots were taken without it.

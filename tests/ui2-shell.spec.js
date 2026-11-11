@@ -34,7 +34,7 @@ test.describe("the shell fills the window", () => {
             await page.setViewportSize(size);
             await app.open();
             await app.run(MANY_ROWS);
-            await expect(app.status).toContainText("400 rows, took");
+            await expect(app.status).toContainText("400 rows in");
             const scroll = await pageScroll(page);
             expect(scroll.height).toBeLessThanOrEqual(scroll.innerHeight);
             expect(scroll.width).toBeLessThanOrEqual(scroll.innerWidth);
@@ -58,7 +58,7 @@ test.describe("the shell fills the window", () => {
         await app.open();
         for (let i = 0; i < 30; i++) {
             await app.run(`SELECT ${i} AS n;`);
-            await expect(app.status).toContainText("1 row, took");
+            await expect(app.status).toContainText("1 row in");
         }
         for (const name of ["customers", "order_items", "orders", "products", "stores"]) {
             await app.schemaExpand(name).click();
@@ -81,7 +81,7 @@ test.describe("the shell fills the window", () => {
         await page.setViewportSize({ width: 1366, height: 768 });
         await app.openSet("retail-basics", { ex: "e05" });
         await app.run(MANY_ROWS);
-        await expect(app.status).toContainText("400 rows, took");
+        await expect(app.status).toContainText("400 rows in");
         const scroll = await pageScroll(page);
         expect(scroll.height).toBeLessThanOrEqual(scroll.innerHeight);
         // the prompt sits above the toolbar, the toolbar above the editor
@@ -432,14 +432,17 @@ test.describe("the database switcher", () => {
         expect(chooser.isMultiple()).toBe(false);
         await expect(app.databaseMenu).toBeHidden();
 
-        let asked = null;
-        page.once("dialog", async (dialog) => {
-            asked = { type: dialog.type(), message: dialog.message() };
-            await dialog.dismiss();
-        });
+        // Open from URL… is a dialog with one labelled, empty address field (it was window.prompt)
         await app.databaseButton.click();
         await page.locator("#open-url").click();
-        await expect.poll(() => asked).toEqual({ type: "prompt", message: "Enter database file URL:" });
+        const dialog = page.locator("#open-url-dialog");
+        await expect(dialog).toBeVisible();
+        await expect(page.locator("#open-url-input")).toHaveAccessibleName("Address");
+        await expect(page.locator("#open-url-input")).toHaveValue("");
+        // dismissing it (Escape) opens nothing and gives the focus back
+        await page.keyboard.press("Escape");
+        await expect(dialog).toBeHidden();
+        await expect(app.databaseButton).toBeFocused();
         await expect(app.databaseLabel).toHaveText("Northlight Retail");
     });
 });
@@ -448,7 +451,7 @@ test.describe("the Export menu", () => {
     test("offers the database, the result as CSV and the evidence; Results is unavailable until a query returns rows", async ({ page, app }) => {
         await app.open();
         await app.run("SELECT 1 AS one WHERE 0;");
-        await expect(app.status).toContainText("0 rows, took");
+        await expect(app.status).toContainText("0 rows in");
         await page.locator("#export-button").click();
         const menu = page.locator("#export-menu");
         await expect(menu).toBeVisible();
@@ -472,7 +475,7 @@ test.describe("the Export menu", () => {
         await expect(page.locator("#export-button")).toBeFocused();
 
         await app.run("SELECT 1 AS one UNION ALL SELECT 2;");
-        await expect(app.status).toContainText("2 rows, took");
+        await expect(app.status).toContainText("2 rows in");
         await page.locator("#export-button").click();
         await expect(page.locator("#export-csv")).not.toHaveAttribute("aria-disabled", "true");
         await expect(page.locator("#export-csv")).toContainText("The whole result on screen, for a spreadsheet");
@@ -557,7 +560,8 @@ test.describe("Help", () => {
             Object.defineProperty(Navigator.prototype, "userAgentData", { get: () => ({ platform: "macOS", brands: [], mobile: false }) });
         });
         await page.goto("./");
-        await expect(page.locator("#status")).toContainText(/Run SQL query to see the results|Press Run to execute it|\d+ rows?, took \d+ ms/);
+        // the page has loaded (nothing runs on load: the results pane shows "no result yet")
+        await expect(page.locator("#results-pane")).toHaveAttribute("data-state", "empty");
         await expect(page.locator("#execute .shortcut")).toHaveText(/^⌘\s+Enter$/);
         await expect(page.locator("#help-popover .help-keys dt").first()).toHaveText(/^⌘\s+Enter$/);
         await context.close();
@@ -575,16 +579,18 @@ test.describe("the status bar", () => {
         await app.run("SELECT 1 AS a;");
         await expect(page.locator("#status-run")).toHaveText(/^1 row in \d+ ms$/);
         await app.run("SELECT nope FROM nowhere;");
-        await expect(app.status).toContainText("no such table");
+        await expect(app.errorBand).toContainText("no such table");
         await expect(page.locator("#status-run")).toHaveText("Last run failed");
         // the credit, after the app name as on About and verify, links to About
         const credit = bar.getByRole("link", { name: "SQL Lab Made by Abdou Sadou, based on SQLime by Anton Zhiyanov" });
         await expect(credit).toHaveAttribute("href", "about.html");
         await expect(credit).toHaveText(/^SQL Lab · Made by Abdou Sadou, based on SQLime by Anton Zhiyanov$/);
-        // an uploaded database goes by its file name; the preview of its first table (4 rows) is
-        // what ran last, as the result pane shows
+        // an uploaded database goes by its file name; nothing runs on opening it, so no run is
+        // claimed until the student runs one (the first table's sample, 4 rows)
         await app.upload(SAMPLE_FILE);
         await expect(page.locator("#status-database")).toHaveText("sample.db");
+        await expect(page.locator("#status-run")).toHaveText("No query run yet");
+        await app.run("SELECT * FROM fruit LIMIT 10;");
         await expect(page.locator("#status-run")).toHaveText(/^4 rows in \d+ ms$/);
     });
 });
@@ -708,7 +714,7 @@ test.describe("short and narrow windows", () => {
             await page.setViewportSize(size);
             await app.openSet("retail-basics", { ex: "e05" });
             await app.run("SELECT category, COUNT(*) AS n FROM products GROUP BY category;");
-            await expect(app.status).toContainText("rows, took");
+            await expect(app.status).toContainText("rows in");
             expect((await box(page.locator("#results-pane"))).height).toBeGreaterThanOrEqual(96);
             expect((await box(page.locator("#editor-pane"))).height).toBeGreaterThanOrEqual(120);
             const scroll = await pageScroll(page);
@@ -724,7 +730,7 @@ test.describe("short and narrow windows", () => {
         await app.open();
         const columns = Array.from({ length: 40 }, (_, i) => `'value of column ${i}' AS column_${i}`).join(", ");
         await app.run(`SELECT ${columns};`);
-        await expect(app.status).toContainText("1 row, took");
+        await expect(app.status).toContainText("1 row in");
         await expect(app.result).toHaveAttribute("tabindex", "0");
         await expect(page.locator("#result-scroll-note")).toBeVisible();
         const summary = await box(page.locator("#results-summary"));
@@ -758,7 +764,7 @@ test.describe("short and narrow windows", () => {
             await app.open();
             const columns = Array.from({ length: 30 }, (_, i) => `'value of column ${i}' AS column_${i}`).join(", ");
             await app.run(`SELECT ${columns};`);
-            await expect(app.status).toContainText("1 row, took");
+            await expect(app.status).toContainText("1 row in");
             const scroll = await pageScroll(page);
             expect(scroll.width).toBeLessThanOrEqual(scroll.innerWidth);
             expect(await app.result.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
@@ -875,8 +881,11 @@ test.describe("keyboard and pointer details", () => {
             await pressOn(part);
             await expect(app.table).toContainText(part);
         }
+        // Copy link puts the link on the clipboard (stubbed here) and a toast says so
+        await app.stubClipboard();
         await pressOn("#copy-link .icon");
-        await expect(app.shareField).toBeVisible();
+        await expect(app.toast).toContainText("Link copied");
+        expect(await page.evaluate(() => window.__copied.length)).toBe(1);
     });
 
     test("Ctrl+O opens the file chooser, as the menu entry says", async ({ page, app }) => {
@@ -894,7 +903,7 @@ test.describe("keyboard and pointer details", () => {
     test("a disabled Run is drawn plainly, not grey on blue", async ({ page }) => {
         // before any database is open (an unsupported address never opens one)
         await page.goto("./#scheme:abc");
-        await expect(page.locator("#status")).toContainText("Failed to load database");
+        await expect(page.locator("#result .results-band-text")).toContainText("Failed to load database");
         const run = page.locator("#execute");
         await expect(run).toBeDisabled();
         const colours = await run.evaluate((el) => {
@@ -1003,7 +1012,7 @@ test.describe("checked again", () => {
         await app.open();
         const columns = Array.from({ length: 30 }, (_, i) => `'value of column ${i}' AS column_${i}`).join(", ");
         await app.run(`WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 60) SELECT ${columns} FROM n;`);
-        await expect(app.status).toContainText("60 rows, took");
+        await expect(app.status).toContainText("60 rows in");
         await expect(page.locator("#result-scroll-note")).toBeVisible();
         const result = await box(app.result);
         const note = await box(page.locator("#result-scroll-note"));
@@ -1014,7 +1023,7 @@ test.describe("checked again", () => {
         await page.setViewportSize({ width: 390, height: 844 });
         await app.open();
         await app.rename(`${"renamed_".repeat(12)}name.db`);
-        await expect(app.status).toContainText("Saved renamed_");
+        await expect(app.toast).toContainText("Exported renamed_");
         const scroll = await pageScroll(page);
         expect(scroll.width).toBeLessThanOrEqual(scroll.innerWidth);
     });

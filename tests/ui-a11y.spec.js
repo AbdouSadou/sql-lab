@@ -69,7 +69,8 @@ test("keyboard only: load the page, open a database, run a query, complete one e
     await page.keyboard.press("Control+A");
     await page.keyboard.type("SELECT count(*) AS n FROM fruit;");
     await page.keyboard.press("Control+Enter");
-    await expect(app.status).toContainText(/1 row, took/);
+    await app.settle();
+    await expect(app.status).toHaveText(/^1 row in \d+ ms$/);
     await expect(app.table).toBeVisible();
 
     // complete one exercise: the Exercises tab (arrow keys along the tabs), its set picker, the

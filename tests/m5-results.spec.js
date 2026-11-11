@@ -1,8 +1,9 @@
 const { test, expect, App, routeSet, withSampleDataset, PAYLOAD } = require("./helpers");
 
-// M5 part 1, F5 Results UX (js/lab/results.js): the 500-row cap, the status line, the failing
-// statement, Download CSV, and the status icons. The statement annotation in runSql is
-// covered here too, through the real page.
+// M5 part 1, F5 Results UX (js/lab/results.js): the 500-row cap, the summary line ("5 rows in 3
+// ms", #status), the error band that names the failing statement, Download CSV, and how success
+// and failure differ on screen. The statement annotation in runSql is covered here too, through
+// the real page. Nothing runs on load (UI plan, Phase 4): a test that needs a result runs it.
 
 const ORDER_ITEMS = "select * from order_items";
 
@@ -57,33 +58,34 @@ async function recordRuns(page) {
 
 const runs = (page) => page.evaluate(() => window.__runs);
 
-test.describe("the row cap and the status line", () => {
+test.describe("the row cap and the summary line", () => {
     test.beforeEach(async ({ app }) => {
         await app.open();
     });
 
     test("exactly 500 rows render for a 906-row query, and the status says showing 500 of 906 rows", async ({ app }) => {
         await app.run(ORDER_ITEMS);
-        await expect(app.status).toContainText("showing 500 of 906 rows, took");
+        await expect(app.status).toContainText("Showing 500 of 906 rows in");
+        await expect(app.status).toHaveText(/^Showing 500 of 906 rows in \d+ ms$/);
         await expect(app.table.locator("tbody tr")).toHaveCount(500);
         await expect(app.table.locator("thead th")).not.toHaveCount(0);
     });
 
     test("a result of exactly 500 rows has no 'showing'", async ({ app }) => {
         await app.run(`${ORDER_ITEMS} limit 500`);
-        await expect(app.status).toContainText(/^\s*500 rows, took \d+ ms/);
+        await expect(app.status).toContainText(/^\s*500 rows in \d+ ms/);
         await expect(app.table.locator("tbody tr")).toHaveCount(500);
-        await expect(app.status).not.toContainText("showing");
+        await expect(app.status).not.toContainText("Showing");
         // one more row is capped
         await app.run(`${ORDER_ITEMS} limit 501`);
-        await expect(app.status).toContainText("showing 500 of 501 rows, took");
+        await expect(app.status).toContainText("Showing 500 of 501 rows in");
         await expect(app.table.locator("tbody tr")).toHaveCount(500);
     });
 
     test("the table is the first rows of the result, in order", async ({ app }) => {
         const all = await app.page.evaluate(() => window.app.database.db.selectArrays("select rowid from order_items order by rowid"));
         await app.run("select rowid from order_items order by rowid");
-        await expect(app.status).toContainText("showing 500 of 906 rows");
+        await expect(app.status).toContainText("Showing 500 of 906 rows");
         const { rows } = await app.read();
         expect(rows.length).toBe(500);
         expect(rows[0]).toEqual([String(all[0][0])]);
@@ -92,13 +94,15 @@ test.describe("the row cap and the status line", () => {
 
     test("the row count is singular for one row and plural otherwise; the time appears", async ({ app }) => {
         await app.run("select 1 as a");
-        await expect(app.status).toContainText(/^\s*1 row, took \d+ ms\s*$/);
+        await expect(app.status).toContainText(/^\s*1 row in \d+ ms\s*$/);
         await expect(app.status).not.toContainText("1 rows");
         await app.run("select 1 as a union all select 2");
-        await expect(app.status).toContainText(/^\s*2 rows, took \d+ ms\s*$/);
+        await expect(app.status).toContainText(/^\s*2 rows in \d+ ms\s*$/);
         await app.run("select 1 as a where 0");
-        await expect(app.status).toContainText(/^\s*0 rows, took \d+ ms\s*$/);
-        await expect(app.table).toHaveCount(0);
+        await expect(app.status).toContainText(/^\s*0 rows in \d+ ms\s*$/);
+        // a result with no rows prints its header and no body rows (it used to print no table)
+        await expect(app.table.locator("thead th")).toHaveText(["a"]);
+        await expect(app.table.locator("tbody tr")).toHaveCount(0);
     });
 
     test("the time is a measured number of milliseconds", async ({ app }) => {
@@ -106,7 +110,7 @@ test.describe("the row cap and the status line", () => {
             "with recursive c(n) as (select 1 union all select n + 1 from c where n < 300000) select count(*) as n from c"
         );
         const text = await app.status.innerText();
-        const ms = Number(/took (\d+) ms/.exec(text)?.[1]);
+        const ms = Number(/in (\d+) ms/.exec(text)?.[1]);
         expect(ms).toBeGreaterThan(0);
         expect(ms).toBeLessThan(30000);
     });
@@ -114,21 +118,23 @@ test.describe("the row cap and the status line", () => {
     test("lab:run-finished reports the full row count, and the engine's message alone on one line", async ({ app, page }) => {
         await recordRuns(page);
         await app.run(ORDER_ITEMS);
-        await expect(app.status).toContainText("showing 500 of 906 rows");
+        await expect(app.status).toContainText("Showing 500 of 906 rows");
         await app.run("select pric from products");
-        await expect(app.status).toContainText("no such column: pric");
+        await expect(app.errorBand.locator(".results-band-message")).toHaveText("no such column: pric");
         expect(await runs(page)).toEqual([
             { ok: true, rows: 906, error: undefined, preview: false },
             { ok: false, rows: undefined, error: "no such column: pric", preview: false },
         ]);
-        // a message with line breaks collapses to spaces, in the event and in the status line
+        // a message with line breaks collapses to spaces, in the event and in what the live region
+        // says (the band shows SQLite's message as it is, so its text only has to read the same)
         await app.run(
             "create table t(a); create trigger tr before insert on t begin select raise(abort, 'line one\nline two'); end; insert into t values (1)"
         );
-        await expect(app.status).toContainText("line one line two");
+        await expect(app.errorBand.locator(".results-band-message")).toContainText("line one line two");
         const last = (await runs(page)).at(-1);
         expect(last.error).toBe("line one line two");
-        expect(await app.status.locator("div").innerHTML()).not.toMatch(/[\r\n]/);
+        await expect(app.announcer).toHaveText("This query has an error: line one line two");
+        expect(await app.announcer.innerHTML()).not.toMatch(/[\r\n]/);
     });
 });
 
@@ -137,73 +143,103 @@ test.describe("errors name the failing statement", () => {
         await app.open();
     });
 
-    const statusHtml = (app) => app.status.locator("div").innerHTML();
+    // the error band of a failed run: SQLite's message, where it happened, the statement quoted
+    const message = (app) => app.errorBand.locator(".results-band-message");
+    const where = (app) => app.errorBand.locator(".results-band-where");
+    const quote = (app) => app.errorBand.locator(".results-band-quote");
 
     test("one statement: the engine's message, then the statement", async ({ app }) => {
         await app.run("select pric from products");
-        await expect(app.status).toContainText("no such column: pric (statement: select pric from products)");
-        await expect(app.status).not.toContainText("SQLite3Error");
-        await expect(app.status).not.toContainText("result code");
+        await expect(app.pane).toHaveAttribute("data-state", "error");
+        await expect(app.errorBand.locator(".results-band-title")).toHaveText("This query has an error");
+        await expect(message(app)).toHaveText("no such column: pric");
+        await expect(where(app)).toHaveText("In statement 1");
+        await expect(quote(app)).toHaveText("select pric from products");
+        await expect(app.errorBand).not.toContainText("SQLite3Error");
+        await expect(app.errorBand).not.toContainText("result code");
         await expect(app.table).toHaveCount(0);
-        expect(await statusHtml(app)).not.toMatch(/[\r\n]/);
+        expect(await message(app).innerHTML()).not.toMatch(/[\r\n]/);
+        // the live region says it too
+        await expect(app.announcer).toHaveText("This query has an error: no such column: pric");
     });
 
     test("the second of three statements is named by position and text", async ({ app }) => {
         await app.run("select 1; select pric from products; select 3;");
-        await expect(app.status).toContainText(
-            "no such column: pric (statement 2 of 3: select pric from products;)"
-        );
+        await expect(message(app)).toHaveText("no such column: pric");
+        await expect(where(app)).toHaveText("In statement 2 of 3");
+        await expect(quote(app)).toHaveText("select pric from products;");
         // the statement before it ran, the one after did not
         await expect(app.table).toHaveCount(0);
     });
 
-    test("whitespace in the statement collapses, and a long statement is cut with an ellipsis", async ({ app }) => {
+    // The statement is quoted as written (the old status line collapsed it onto one line and cut it
+    // at 120 characters); the quote is cut at 2,000 characters with an ellipsis.
+    test("a statement is quoted as written, line breaks kept, and a long one is cut with an ellipsis", async ({ app }) => {
         await app.run("select\n   pric\n\n\tfrom   products");
-        await expect(app.status).toContainText("(statement: select pric from products)");
-        const long = `select ${Array.from({ length: 40 }, (_, i) => `pric${i}`).join(",\n    ")} from products`;
+        await expect(message(app)).toHaveText("no such column: pric");
+        expect(await quote(app).evaluate((el) => el.textContent)).toBe("select\n   pric\n\n\tfrom   products");
+        const long = `select ${Array.from({ length: 400 }, (_, i) => `pric${i}`).join(",\n    ")} from products`;
+        expect(long.length).toBeGreaterThan(2000);
         await app.run(long);
-        await expect(app.status).toContainText("no such column: pric0 (statement: select pric0, pric1");
-        const text = (await app.status.innerText()).trim();
-        const named = /\(statement: (.*)\)$/.exec(text)[1];
+        await expect(message(app)).toHaveText("no such column: pric0");
+        const named = await quote(app).evaluate((el) => el.textContent);
+        expect(named.startsWith("select pric0,\n    pric1")).toBe(true);
         expect(named.endsWith("…")).toBe(true);
-        expect(named.length).toBeLessThanOrEqual(121);
-        expect(named.length).toBeGreaterThan(100);
-        expect(named).not.toMatch(/\s{2}|[\r\n\t]/);
-        expect(await statusHtml(app)).not.toMatch(/[\r\n]/);
+        expect(named.length).toBeLessThanOrEqual(2001);
+        expect(named.length).toBeGreaterThan(1900);
+        expect(named).not.toContain("from products");
+        // a statement that fits whole is not cut
+        const fits = `select ${Array.from({ length: 200 }, (_, i) => `pric${i}`).join(", ")} from products`;
+        expect(fits.length).toBeLessThan(2000);
+        await app.run(fits);
+        await expect(message(app)).toHaveText("no such column: pric0");
+        expect(await quote(app).evaluate((el) => el.textContent)).toBe(fits);
     });
 
-    test("comments in front of the failing statement are left out of the line, so the SQL shows", async ({ app }) => {
+    test("comments in front of the failing statement are left out of the quote, so the SQL shows", async ({ app }) => {
         await app.run("select 1;\n-- note\nselect * from nosuch");
-        await expect(app.status).toContainText("no such table: nosuch (statement 2 of 2: select * from nosuch)");
-        await expect(app.status).not.toContainText("-- note");
+        await expect(message(app)).toHaveText("no such table: nosuch");
+        await expect(where(app)).toHaveText("In statement 2 of 2");
+        await expect(quote(app)).toHaveText("select * from nosuch");
+        await expect(app.errorBand).not.toContainText("-- note");
         await app.run("/* block */ -- line\n  select pric from products");
-        await expect(app.status).toContainText("(statement: select pric from products)");
-        // a note that is itself longer than the line would have left no SQL at all
+        await expect(message(app)).toHaveText("no such column: pric");
+        await expect(quote(app)).toHaveText("select pric from products");
+        await expect(app.errorBand).not.toContainText("block");
+        // a note that is itself longer than the quote would have left no SQL at all
         const note = `-- Task 3: ${"find the top customers by revenue in each region, ".repeat(3)}`;
         await app.run(`${note}\nselect * from nosuch where a = 1`);
-        await expect(app.status).toContainText("(statement: select * from nosuch where a = 1)");
+        await expect(quote(app)).toHaveText("select * from nosuch where a = 1");
         // a comment inside the statement stays
         await app.run("select * from nosuch -- why");
-        await expect(app.status).toContainText("(statement: select * from nosuch -- why)");
+        await expect(quote(app)).toHaveText("select * from nosuch -- why");
     });
 
     test("a comment after the last statement does not count as a statement", async ({ app }) => {
         await app.run("select * from nosuch; -- trailing");
-        await expect(app.status).toContainText("no such table: nosuch (statement: select * from nosuch;)");
+        await expect(message(app)).toHaveText("no such table: nosuch");
+        await expect(where(app)).toHaveText("In statement 1");
+        await expect(quote(app)).toHaveText("select * from nosuch;");
         await app.run("select 1; select * from nosuch; /* and so on */");
-        await expect(app.status).toContainText("(statement 2 of 2: select * from nosuch;)");
+        await expect(where(app)).toHaveText("In statement 2 of 2");
+        await expect(quote(app)).toHaveText("select * from nosuch;");
         await app.run("select 1; -- trailing");
-        await expect(app.status).toContainText(/1 row, took \d+ ms/);
+        await expect(app.status).toHaveText(/^1 row in \d+ ms$/);
     });
 
     test("markup in the statement and in the message stays inert", async ({ app }) => {
         await app.run(`select 1; select '${PAYLOAD}' from nope_${PAYLOAD.replaceAll(/[^a-z]/g, "")}; select 3`);
-        await expect(app.status).toContainText("statement 2 of 3: select '<img id=pwn");
-        await expect(app.status.locator("img")).toHaveCount(0);
+        await expect(where(app)).toHaveText("In statement 2 of 3");
+        await expect(quote(app)).toContainText("select '<img id=pwn");
+        await expect(app.errorBand.locator("img")).toHaveCount(0);
+        await expect(app.announcer.locator("img")).toHaveCount(0);
         await app.expectInert();
         await app.run(`select "${PAYLOAD}" from products`);
-        await expect(app.status).toContainText("statement: select");
-        await expect(app.status.locator("img")).toHaveCount(0);
+        await expect(where(app)).toHaveText("In statement 1");
+        await expect(message(app)).toContainText("<img id=pwn");
+        await expect(quote(app)).toContainText("select");
+        await expect(app.errorBand.locator("img")).toHaveCount(0);
+        await expect(app.announcer.locator("img")).toHaveCount(0);
         await app.expectInert();
     });
 
@@ -268,14 +304,16 @@ test.describe("Download CSV", () => {
             return nodes.sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1)).map((n) => n.id);
         });
         expect(order).toEqual(["copy-link", "tab-history", "execute", "download-csv"]);
-        // the table preview of the default dataset is a query result with rows
+        // nothing runs on load, so there is no result and no button yet; a run brings it
+        await expect(app.csvButton).toBeHidden();
+        await app.run("select 1 as a");
         await expect(app.csvButton).toBeVisible();
         await expect(app.csvButton).toHaveText("Download CSV");
     });
 
     test("the Export menu's Results (.csv) item downloads the same file, and is disabled when there is nothing to download", async ({ app, page }) => {
         await app.run("select 1 as a, 'x' as b");
-        await expect(app.status).toContainText("1 row, took");
+        await expect(app.status).toContainText(/^1 row in \d+ ms$/);
         await app.openExportMenu();
         const item = page.locator("#export-csv");
         await expect(item).toHaveText(/Results \(\.csv\)/);
@@ -287,7 +325,7 @@ test.describe("Download CSV", () => {
         expect(Buffer.concat(chunks).toString("utf8")).toBe("a,b\r\n1,x\r\n");
         // a result with no rows leaves nothing to download: the item says so
         await app.run("select 1 as a where 0");
-        await expect(app.status).toContainText("0 rows, took");
+        await expect(app.status).toContainText(/^0 rows in \d+ ms$/);
         await app.openExportMenu();
         await expect(item).toHaveAttribute("aria-disabled", "true");
         await page.keyboard.press("Escape");
@@ -296,7 +334,7 @@ test.describe("Download CSV", () => {
 
     test("a capped result downloads in full: all 906 rows and the header", async ({ app, page }) => {
         await app.run(ORDER_ITEMS);
-        await expect(app.status).toContainText("showing 500 of 906 rows");
+        await expect(app.status).toContainText("Showing 500 of 906 rows");
         const file = await app.downloadCsv();
         expect(file.name).toBe("northlight_retail-result.csv");
         const records = parseCsv(file.text);
@@ -322,15 +360,19 @@ test.describe("Download CSV", () => {
 
     test("a BLOB cell is shown as x'<hex>' on screen, the same text as in the file", async ({ app }) => {
         await app.run(`select x'00ff10' as b, x'' as e, null as n, 7 as i, '<i>t</i>' || char(10) || 'u' as t`);
-        await expect(app.status).toContainText("1 row, took");
+        await expect(app.status).toContainText(/^1 row in \d+ ms$/);
         const cells = app.table.locator("tbody tr td");
         await expect(cells.nth(0)).toHaveText("x'00ff10'");
         await expect(cells.nth(1)).toHaveText("x''");
-        await expect(cells.nth(2)).toHaveText("");
+        // NULL reads NULL on screen (an empty cell before) and is an empty field in the file
+        await expect(cells.nth(2)).toHaveText("NULL");
+        await expect(cells.nth(2).locator(".cell-null")).toHaveCount(1);
         await expect(cells.nth(3)).toHaveText("7");
-        // text is still escaped, and a line break still becomes <br>
-        await expect(cells.nth(4)).toHaveText("<i>t</i>u");
-        await expect(cells.nth(4).locator("br")).toHaveCount(1);
+        // text is still escaped, and its line break is kept as a line break (the cell is
+        // white-space: pre; it used to become a <br>)
+        expect(await cells.nth(4).evaluate((td) => td.textContent)).toBe("<i>t</i>\nu");
+        expect(await cells.nth(4).evaluate((td) => getComputedStyle(td).whiteSpace)).toBe("pre");
+        await expect(cells.nth(4).locator("br")).toHaveCount(0);
         await expect(app.table.locator("tbody i")).toHaveCount(0);
         const { text } = await app.downloadCsv();
         expect(text.split("\r\n")[1].startsWith("x'00ff10',x'',,7,")).toBe(true);
@@ -345,7 +387,7 @@ test.describe("Download CSV", () => {
                 `'' as e, ' padded ' as p, 'a' as d, 'b' as d`,
             ].join(" ")
         );
-        await expect(app.status).toContainText("1 row, took");
+        await expect(app.status).toContainText(/^1 row in \d+ ms$/);
         const { text } = await app.downloadCsv();
         const header = ['"c,1"', "q", "nl", "cr", "n", "b", "big", "r", "w", "s", "f1", "f2", "f3", "f4", "e", "p", "d", "d"];
         const row = [
@@ -440,7 +482,7 @@ test.describe("Download CSV", () => {
 
     test("keyboard path: Tab from the editor's splitter reaches the button, Enter and Space download", async ({ app, page }) => {
         await app.run("select 1 as a, 'x' as b");
-        await expect(app.status).toContainText("1 row, took");
+        await expect(app.status).toContainText(/^1 row in \d+ ms$/);
         // the button follows the editor and its splitter in the Tab order, and nothing sits between
         await page.locator("#editor-splitter").focus();
         await page.keyboard.press("Tab");
@@ -472,14 +514,17 @@ test.describe("the button follows the table on screen", () => {
     test("it is hidden for a result with no rows, an empty run and a run that changes data", async ({ app }) => {
         await showResult(app);
         await app.run("select 1 as a where 0");
-        await expect(app.status).toContainText("0 rows, took");
+        await expect(app.status).toContainText(/^0 rows in \d+ ms$/);
         await expect(app.csvButton).toBeHidden();
         await showResult(app);
+        // a run that returns no result set says "Done. 1 row changed" (it used to say "0 rows")
         await app.run("create table z(a); insert into z values (1)");
-        await expect(app.status).toContainText("0 rows, took");
+        await expect(app.pane).toHaveAttribute("data-state", "done");
+        await expect(app.status).toContainText(/^Done\. 1 row changed in \d+ ms$/);
         await expect(app.csvButton).toBeHidden();
         await showResult(app);
         await app.run("   ");
+        await expect(app.pane).toHaveAttribute("data-state", "empty");
         await expect(app.table).toHaveCount(0);
         await expect(app.csvButton).toBeHidden();
     });
@@ -502,14 +547,16 @@ test.describe("the button follows the table on screen", () => {
     test("a restored history entry puts SQL in the editor and leaves the result on screen with its button", async ({ app, page }) => {
         await showResult(app);
         await app.run("select nope");
-        await expect(app.status).toContainText("no such column: nope");
+        await expect(app.errorBand).toContainText("no such column: nope");
         await expect(app.csvButton).toBeHidden();
         await showResult(app);
         await app.openHistory();
         // newest first: [select 1 as a, 2 as b], [select nope], [select 1 as a, 2 as b]
         await app.historyEntries.nth(1).click();
         await expect(app.editor).toHaveText("select nope");
-        await expect(app.status).toContainText("Press Run");
+        // a toast says so (it used to be the status line)
+        await expect(app.toast).toContainText("Press Run");
+        await expect(app.status).toHaveText(/^1 row in \d+ ms$/);
         // nothing was run: the result on screen is still the one that was run, and so is its file
         await expect(app.table).toBeVisible();
         await expect(app.csvButton).toBeVisible();
@@ -519,7 +566,7 @@ test.describe("the button follows the table on screen", () => {
     test("it goes with an error", async ({ app }) => {
         await showResult(app);
         await app.run("select nope");
-        await expect(app.status).toContainText("no such column: nope");
+        await expect(app.errorBand).toContainText("no such column: nope");
         await expect(app.csvButton).toBeHidden();
         // a later good run brings it back, with the new result
         await showResult(app);
@@ -534,12 +581,20 @@ test.describe("the button follows the table on screen", () => {
         await app.pickDatabase("Sample Fruit");
         await expect(page.locator("#schema")).toContainText("Sample Fruit");
         await app.waitReady();
-        // the sample's table preview is on screen; the file is that table, not order_items
+        // nothing runs on the switch: no result, no button, and the first table is a sample to start from
+        await expect(app.pane).toHaveAttribute("data-state", "empty");
+        await expect(app.table).toHaveCount(0);
+        await expect(app.csvButton).toBeHidden();
+        await app.samples.first().click();
+        await app.editor.press("Control+Enter");
+        await app.settle();
+        await expect(app.pane).toHaveAttribute("data-state", "result");
+        // the file is that table, not order_items
         const { columns } = await app.read();
         const file = await app.downloadCsv();
         expect(file.name).toBe("sample-result.csv");
         expect(file.text.replace(/^\uFEFF/, "").split("\r\n")[0]).toBe(columns.join(","));
-        // an upload with nothing to preview leaves no result and no button
+        // an upload whose SQL returns nothing leaves no result and no button
         await app.run("select 1 as a");
         await expect(app.csvButton).toBeVisible();
         await app.upload(App.sqlFile("empty.sql", "select 1 where 0;"));
@@ -591,27 +646,36 @@ test.describe("the button follows the table on screen", () => {
     });
 });
 
-test.describe("status icons", () => {
+// The status line's tick and cross (the <sqlime-status> component) are gone with it. What they were
+// for, a success and a failure that differ by more than their colour, is now the error band: an
+// alert sign and a heading in words, where a success has the plain summary line and none of them.
+test.describe("success and failure differ by more than colour", () => {
     test.beforeEach(async ({ app }) => {
         await app.open();
     });
 
-    const icon = (app) =>
-        app.status.locator("div").evaluate((el) => {
-            const style = getComputedStyle(el, "::before");
-            return { className: el.className, content: style.content, display: style.display };
-        });
-
-    test("a success shows a tick and an error a cross, from the classes the component sets", async ({ app }) => {
+    test("a success is the plain summary line; an error is a band with an alert sign and a heading", async ({ app }) => {
         await app.run("select 1 as a");
-        await expect(app.status).toContainText("1 row, took");
-        expect(await icon(app)).toEqual({ className: "sql-status--success", content: '"✓"', display: "inline-block" });
+        await expect(app.status).toHaveText(/^1 row in \d+ ms$/);
+        await expect(app.summary).toBeVisible();
+        await expect(app.errorBand).toHaveCount(0);
+        const before = await app.status.evaluate((el) => ({
+            tag: el.localName,
+            role: el.getAttribute("role"),
+            className: el.className,
+            content: getComputedStyle(el, "::before").content,
+        }));
+        expect(before).toEqual({ tag: "p", role: null, className: "results-summary-text", content: expect.stringMatching(/^(none|normal)$/) });
         await app.run("select nope");
-        await expect(app.status).toContainText("no such column: nope");
-        expect(await icon(app)).toEqual({ className: "sql-status--error", content: '"✕"', display: "inline-block" });
-        // a plain message has neither
+        await expect(app.errorBand).toBeVisible();
+        await expect(app.errorBand.locator("svg.results-band-icon")).toBeVisible();
+        await expect(app.errorBand.locator(".results-band-title")).toHaveText("This query has an error");
+        await expect(app.summary).toBeHidden();
+        // a plain message (an empty run) has neither the band nor the summary line
         await app.run("   ");
-        expect((await icon(app)).content).toMatch(/^(none|normal)$/);
+        await expect(app.pane).toHaveAttribute("data-state", "empty");
+        await expect(app.errorBand).toHaveCount(0);
+        await expect(app.summary).toBeHidden();
     });
 });
 
@@ -657,12 +721,14 @@ test.describe("Check compares the full result, not the capped table", () => {
         await app.editor.fill(SAME);
         await app.checkButton.click();
         await expect(app.feedback.locator(".verdict--pass")).toBeVisible();
-        await expect(app.status).toContainText("showing 500 of 906 rows, took");
+        await app.settle();
+        await expect(app.status).toContainText("Showing 500 of 906 rows in");
         await expect(app.table.locator("tbody tr")).toHaveCount(500);
 
         await app.editor.fill(LATE);
         await app.checkButton.click();
         await expect(app.feedback).toContainText("Row 800 is the first that differs");
-        await expect(app.status).toContainText("showing 500 of 906 rows, took");
+        await app.settle();
+        await expect(app.status).toContainText("Showing 500 of 906 rows in");
     });
 });

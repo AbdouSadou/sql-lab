@@ -4,7 +4,7 @@
 //
 // mountStatusBar({database, run, version}) takes the three elements to fill.
 
-import { STATUS_NO_RUN, STATUS_RUN_FAILED, statusRowsText, statusTimeText, statusVersionText } from "./config.js";
+import { STATUS_NO_RUN, STATUS_RUN_FAILED, resultDoneText, statusRowsText, statusTimeText, statusVersionText } from "./config.js";
 
 export function mountStatusBar({ database: databaseEl, run: runEl, version: versionEl }) {
     function showName(name) {
@@ -28,16 +28,19 @@ export function mountStatusBar({ database: databaseEl, run: runEl, version: vers
     });
 
     document.addEventListener("lab:run-finished", (event) => {
-        const { ok, rows, elapsed } = event.detail;
+        const { ok, rows, elapsed, resultSet, changes } = event.detail;
         if (!ok) {
             runEl.textContent = STATUS_RUN_FAILED;
             return;
         }
-        // "5 rows in 3 ms", the time in a span of its own (it differs from run to run)
+        // "5 rows in 3 ms"; when no statement returned a result set, the summary line's own words
+        // (plan, section 5: "Done.", and the rows changed when the engine reports them): "Done in
+        // 2 ms" or "Done. 3 rows changed in 2 ms". The time is in a span of its own (it differs
+        // from run to run).
         const time = document.createElement("span");
         time.className = "status-time";
         time.textContent = statusTimeText(elapsed ?? 0);
-        runEl.replaceChildren(statusRowsText(rows ?? 0), time);
+        runEl.replaceChildren(resultSet === false ? resultDoneText(changes ?? null) : statusRowsText(rows ?? 0), time);
     });
 
     return {

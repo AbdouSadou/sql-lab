@@ -363,7 +363,9 @@ test.describe("runSql", () => {
         // the Run button shows the message and the database stays usable
         await app.editorHost.evaluate((el) => (el.value = "select 1;\u0000select 2"));
         await app.editor.press("Control+Enter");
-        await expect(app.status).toContainText("NUL character");
+        await app.settle();
+        await expect(app.errorBand).toContainText("NUL character");
+        await expect(app.announcer).toContainText("NUL character");
         expect((await app.query("select 5 as five")).rows).toEqual([["5"]]);
     });
 
@@ -432,19 +434,28 @@ test.describe("Run uses runSql (the seam in index.js)", () => {
         expect(await app.query("select 5 as five; create table kept(x)")).toEqual({ columns: ["five"], rows: [["5"]] });
     });
 
-    test("a final SELECT with no rows clears the table and says 0 rows", async ({ app }) => {
+    test("a final SELECT with no rows replaces the table (header only) and says 0 rows", async ({ app }) => {
         await app.open();
         await app.query("select 1 as a");
         await app.run("select 1 as a; select 2 as b where 0");
-        await expect(app.status).toContainText("0 rows, took");
-        await expect(app.table).toHaveCount(0);
+        await expect(app.status).toHaveText(/^0 rows in \d+ ms$/);
+        // the earlier table is gone: the new one prints its header and has no body rows
+        expect(await app.read()).toEqual({ columns: ["b"], rows: [] });
+        await expect(app.table.locator("tbody tr")).toHaveCount(0);
+        await expect(app.csvButton).toBeHidden();
     });
 
-    test("an error shows the engine's message and the failing statement in the status area (F5)", async ({ app }) => {
+    test("an error shows the engine's message and the failing statement in the error band (F5)", async ({ app }) => {
         await app.open();
         await app.run("select pric from products");
-        await expect(app.status).toContainText("no such column: pric (statement: select pric from products)");
-        await expect(app.status).not.toContainText("SQLite3Error");
+        await expect(app.pane).toHaveAttribute("data-state", "error");
+        await expect(app.errorBand.locator(".results-band-title")).toHaveText("This query has an error");
+        await expect(app.errorBand.locator(".results-band-message")).toHaveText("no such column: pric");
+        await expect(app.errorBand.locator(".results-band-where")).toHaveText("In statement 1");
+        await expect(app.errorBand.locator(".results-band-quote")).toHaveText("select pric from products");
+        await expect(app.errorBand).not.toContainText("SQLite3Error");
+        await expect(app.announcer).toHaveText("This query has an error: no such column: pric");
+        await expect(app.table).toHaveCount(0);
     });
 
     test("a script with a trigger and a semicolon in a string runs", async ({ app }) => {

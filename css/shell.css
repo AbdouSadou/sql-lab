@@ -446,15 +446,6 @@ body {
     padding: 6px var(--space-4) 6px var(--space-5);
 }
 
-.results-summary .sqlime-status {
-    flex: 1 1 16rem;
-    min-width: 0;
-    /* centred on the row with Download CSV (the status keeps a margin elsewhere) */
-    margin: 0;
-    /* a long file name in a message ("Saved ...") breaks instead of widening the page */
-    overflow-wrap: anywhere;
-}
-
 /* ---- status bar --------------------------------------------------------------------------- */
 
 .statusbar {

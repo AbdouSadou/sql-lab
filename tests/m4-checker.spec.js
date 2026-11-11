@@ -378,17 +378,18 @@ test.describe("check() on the Northlight dataset", () => {
 
     test("a student's DROP TABLE on the working database does not affect a check", async ({ app }) => {
         await app.run("DROP TABLE products; DELETE FROM customers; DROP VIEW v_sales;");
-        await expect(app.status).toContainText("took");
+        // the run worked (no result set: the summary line says "Done ... changed in N ms")
+        await expect(app.status).toHaveText(/^Done(\. [\d,]+ rows? changed)? in \d+ ms$/);
         // the working database is really damaged ...
         await app.run("select * from products");
-        await expect(app.status).toContainText("no such table: products");
+        await expect(app.errorBand.locator(".results-band-message")).toContainText("no such table: products");
         // ... and checks still run on the pristine data
         expect(await app.check("e01", model("e01"))).toEqual({ status: "pass" });
         expect(await app.check("e02", model("e02"))).toEqual({ status: "pass" });
         expect(await app.check("e08", model("e08"))).toEqual({ status: "pass" });
         // the check did not repair the working database either
         await app.run("select * from products");
-        await expect(app.status).toContainText("no such table: products");
+        await expect(app.errorBand.locator(".results-band-message")).toContainText("no such table: products");
     });
 
     test("a mutating student query does not affect the next check", async ({ app }) => {

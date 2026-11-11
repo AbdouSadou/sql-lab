@@ -16,11 +16,6 @@ export function quoteLiteral(text) {
 // The replacers are functions on purpose: String.replace would otherwise read "$&"
 // and friends inside a table name as replacement patterns.
 
-// tableContentSql is the built-in preview: the first 10 rows of a table.
-export function tableContentSql(table) {
-    return QUERIES.tableContent.replace("{}", () => quoteIdent(table));
-}
-
 // tableInfoSql lists the columns of a table. The template already wraps {} in single
 // quotes, so only the quotes inside the name are doubled.
 export function tableInfoSql(table) {

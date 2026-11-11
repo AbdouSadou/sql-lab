@@ -42,7 +42,7 @@ test.describe("engine address overrides", () => {
     test("the share fragment survives and still restores its SQL", async ({ page, app, net }) => {
         const hash = shareHash({ d: "northlight", q: "select 'shared' as s" });
         await page.goto(`./?db=northlight&sqlite3.dir=${enc(ELSEWHERE)}${hash}`);
-        await expect(app.status).toContainText("Press Run");
+        await expect(app.emptyState).toContainText("Press Run");
         expect(await editorValue(page)).toContain("select 'shared' as s");
         net.expectNoExternalRequests();
         const url = new URL(page.url());
@@ -61,7 +61,7 @@ test.describe("engine address overrides", () => {
         });
         const hash = shareHash({ d: "northlight", q: "select 1" });
         await page.goto(`./?db=northlight&sqlite4.dir=x&sqlite3=1${hash}`);
-        await expect(app.status).toContainText("Press Run");
+        await expect(app.emptyState).toContainText("Press Run");
         expect(await page.evaluate(() => window.__replaced)).toBe(0);
         expect(new URL(page.url()).search).toBe("?db=northlight&sqlite4.dir=x&sqlite3=1");
         expect(new URL(page.url()).hash).toBe(hash);
@@ -254,8 +254,8 @@ test.describe("sql scripts and the guard", () => {
         test(`an uploaded script with ${label} is refused, and a Run works afterwards`, async ({ app }) => {
             await app.open();
             await app.upload(sqlFile("evil.sql", sql), { ready: false });
-            await expect(app.status).toContainText(FAILED);
-            await expect(app.status).toContainText(message);
+            await expect(app.errorBand).toContainText(FAILED);
+            await expect(app.errorBand).toContainText(message);
             // the database that was open stays open and usable
             expect((await app.query("SELECT 41 + 1 AS answer;")).rows).toEqual([["42"]]);
             // and a later script still loads: no heap limit, no leftover file
@@ -284,16 +284,16 @@ test.describe("sql scripts and the guard", () => {
         );
         await app.open();
         await page.evaluate(() => (location.hash = "#scripts/evil.sql"));
-        await expect(app.status).toContainText("Failed to load database from");
-        await expect(app.status).toContainText("not authorized");
+        await expect(app.errorBand).toContainText("Failed to load database from");
+        await expect(app.errorBand).toContainText("not authorized");
         expect((await app.query("SELECT 5 AS five;")).rows).toEqual([["5"]]);
     });
 
     test("a statement that fails in the script shows the engine's message", async ({ app }) => {
         await app.open();
         await app.upload(sqlFile("broken.sql", "CREATE TABLE t (a); INSERT INTO nowhere VALUES (1);"), { ready: false });
-        await expect(app.status).toContainText(`${FAILED}:`);
-        await expect(app.status).toContainText("no such table: nowhere");
+        await expect(app.errorBand).toContainText(`${FAILED}:`);
+        await expect(app.errorBand).toContainText("no such table: nowhere");
     });
 });
 

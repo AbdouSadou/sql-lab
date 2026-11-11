@@ -210,8 +210,10 @@ test("brand: the status bar is visible, inside the screen, and links to About at
     expect(box.x + box.width).toBeLessThanOrEqual(360);
     // no sideways scrolling, and the status bar sits below the editor and the results
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    const status = await page.locator("#status").boundingBox();
-    expect(box.y).toBeGreaterThanOrEqual(status.y);
+    // (the summary line is hidden until a run, so the results pane stands for "the results"; the
+    // footer comes after the pane, so it starts at the pane's bottom edge, not inside it)
+    const results = await page.locator("#results-pane").boundingBox();
+    expect(box.y).toBeGreaterThanOrEqual(results.y + results.height - 1);
 
     await footer.locator('a[href="about.html"]').click();
     await expect(page).toHaveURL(/about\.html$/);

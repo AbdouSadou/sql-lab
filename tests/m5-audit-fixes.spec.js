@@ -32,9 +32,9 @@ const limitStorage = (page, prefix, limit) =>
 
 test.describe("the run log under load", () => {
     // Leaving the page the moment the result is on screen must not lose the Run. The wait for
-    // the status polls every animation frame, so the page is left as early as a test can.
+    // the summary line ("1 row in 3 ms") polls every animation frame, so the page is left as early as a test can.
     const resultShown = (page) =>
-        page.waitForFunction(() => /\d+ rows?, took \d+ ms/.test(document.querySelector("#status").textContent), null, {
+        page.waitForFunction(() => /\d+ rows? in \d+ ms/.test(document.querySelector("#status").textContent), null, {
             polling: "raf",
         });
 
@@ -212,7 +212,7 @@ test.describe("the history times", () => {
         await app.open();
         await app.query("select 1 as a");
         await app.run("select nope");
-        await expect(app.status).toContainText("no such column");
+        await expect(app.errorBand).toContainText("no such column");
         await app.openHistory();
         await expect(app.historyEntries).toHaveCount(2);
         // each entry shows its SQL, then its time (the part under test), then its outcome
