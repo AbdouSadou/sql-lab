@@ -1,0 +1,3385 @@
+/* index.html's stylesheets in one file, joined in the order the page linked them, built from css/ by tools/build-app.mjs. Do not edit: change css/, then run npm run build:app. */
+
+/* ---- css/tokens.css ---- */
+
+/* Design tokens: the only place a colour is written. Every other stylesheet and script uses these
+   custom properties (tests/ui1-tokens.spec.js fails on a raw colour anywhere else in the site's CSS
+   or JS). Values are those of the UI plan, section 3 (docs/design).
+
+   Themes. The light palette is on :root; the dark one applies on a dark device unless the student
+   pinned Light, and whenever they pinned Dark: js/lab/theme.js puts data-theme="light" or "dark" on
+   <html> (js/lab/theme-boot.js does it before the first paint from the stored choice). Plain values,
+   not light-dark(), so the colours hold in every browser with custom properties. The two dark blocks
+   must stay identical; a test compares them. */
+
+:root {
+    color-scheme: light;
+
+    /* Surfaces and text */
+    --desk: #EEF1F0;
+    --paper: #FCFDFC;
+    --sunken: #F3F6F5;
+    --rule: #D5DCDD;
+    --rule-strong: #7C8891;
+    --ink: #14213D;
+    --graphite: #55606E;
+
+    /* Accent: primary button, links, focus ring */
+    --accent: #2647C8;
+    --accent-hover: #1D3AA8;
+    --accent-subtle: #E6ECFB;
+    --on-accent: #FFFFFF;
+    /* the shortcut hint inside a filled primary button (the mockup's "Ctrl Enter") */
+    --on-accent-muted: #DCE4FB;
+
+    /* Outcomes: green and red are reserved for correct and wrong */
+    --success: #1B7A43;
+    --success-subtle: #E4F3E9;
+    --danger: #B42318;
+    --danger-subtle: #FBE9E7;
+    --warning: #8A5A00;
+    --warning-subtle: #FBF1D9;
+
+    /* Syntax, each at least 4.5:1 on --paper */
+    --syntax-keyword: #2647C8;
+    --syntax-string: #1B6B4A;
+    --syntax-number: #9A3412;
+    --syntax-function: #6D3FC0;
+    --syntax-comment: #5F6B78;
+
+    /* Shadow, for menus, dialogs and toasts only (never panes), and the veil behind a dialog */
+    --shadow-float: 0 8px 24px #14213D29, 0 1px 3px #14213D1F;
+    --scrim: #14213D80;
+
+    /* Type */
+    --font-ui: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+    --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, monospace;
+    --text-xs: 12px;
+    --text-sm: 14px;
+    --text-md: 16px;
+    --text-lg: 20px;
+    --leading-ui: 1.45;
+    --leading-code: 1.6;
+    /* the size of the SQL and of the results, which the student can change from 12 to 24 px
+       (js/lab/text-size.js sets it on <html>; js/lab/theme-boot.js before the first paint) */
+    --code-size: var(--text-sm);
+
+    /* Shape and space */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --radius-control: 6px;
+    --radius-float: 10px;
+    --control-height: 32px;
+    --icon-size: 16px;
+    --focus-ring: 2px solid var(--accent);
+    --focus-offset: 2px;
+    --motion-fade: 120ms;
+}
+
+@media (pointer: coarse) {
+    :root {
+        --control-height: 44px;
+    }
+}
+
+/* dark: a dark device, unless the student pinned Light */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --desk: #10141B;
+        --paper: #171C25;
+        --sunken: #1C222D;
+        --rule: #2C3542;
+        --rule-strong: #6B7889;
+        --ink: #E7EAF0;
+        --graphite: #A0AAB8;
+        --accent: #8FAEFF;
+        --accent-hover: #A9C1FF;
+        --accent-subtle: #1E2B4D;
+        --on-accent: #0E1630;
+        --on-accent-muted: #22315F;
+        --success: #5BC98B;
+        --success-subtle: #15301F;
+        --danger: #FF8A80;
+        --danger-subtle: #3A1A18;
+        --warning: #E8B84A;
+        --warning-subtle: #33280F;
+        --syntax-keyword: #9DB8FF;
+        --syntax-string: #7DD6AC;
+        --syntax-number: #F0A677;
+        --syntax-function: #C9A8FF;
+        --syntax-comment: #8793A3;
+        --shadow-float: 0 8px 24px #00000080, 0 1px 3px #00000066;
+        --scrim: #000000A6;
+    }
+}
+
+/* dark: pinned by the student, whatever the device */
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --desk: #10141B;
+    --paper: #171C25;
+    --sunken: #1C222D;
+    --rule: #2C3542;
+    --rule-strong: #6B7889;
+    --ink: #E7EAF0;
+    --graphite: #A0AAB8;
+    --accent: #8FAEFF;
+    --accent-hover: #A9C1FF;
+    --accent-subtle: #1E2B4D;
+    --on-accent: #0E1630;
+    --on-accent-muted: #22315F;
+    --success: #5BC98B;
+    --success-subtle: #15301F;
+    --danger: #FF8A80;
+    --danger-subtle: #3A1A18;
+    --warning: #E8B84A;
+    --warning-subtle: #33280F;
+    --syntax-keyword: #9DB8FF;
+    --syntax-string: #7DD6AC;
+    --syntax-number: #F0A677;
+    --syntax-function: #C9A8FF;
+    --syntax-comment: #8793A3;
+    --shadow-float: 0 8px 24px #00000080, 0 1px 3px #00000066;
+    --scrim: #000000A6;
+}
+
+/* ---- css/fonts.css ---- */
+
+/* Generated by tools/vendor-fonts.mjs from @fontsource-variable packages; do not edit by hand.
+   The files are in vendor/fonts/ with their licence (SIL Open Font License 1.1). The fallbacks
+   (system-ui, ui-monospace) are in the --font-ui and --font-mono tokens (css/tokens.css). */
+
+/* Atkinson Hyperlegible Next 5.3.0, latin, normal */
+@font-face {
+    font-family: "Atkinson Hyperlegible Next";
+    font-style: normal;
+    font-weight: 200 800;
+    font-display: swap;
+    src: url("../vendor/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2") format("woff2");
+    unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+/* Atkinson Hyperlegible Next 5.3.0, latin-ext, normal */
+@font-face {
+    font-family: "Atkinson Hyperlegible Next";
+    font-style: normal;
+    font-weight: 200 800;
+    font-display: swap;
+    src: url("../vendor/fonts/atkinson-hyperlegible-next-latin-ext-wght-normal.woff2") format("woff2");
+    unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
+/* Atkinson Hyperlegible Next 5.3.0, latin, italic */
+@font-face {
+    font-family: "Atkinson Hyperlegible Next";
+    font-style: italic;
+    font-weight: 200 800;
+    font-display: swap;
+    src: url("../vendor/fonts/atkinson-hyperlegible-next-latin-wght-italic.woff2") format("woff2");
+    unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+/* Atkinson Hyperlegible Next 5.3.0, latin-ext, italic */
+@font-face {
+    font-family: "Atkinson Hyperlegible Next";
+    font-style: italic;
+    font-weight: 200 800;
+    font-display: swap;
+    src: url("../vendor/fonts/atkinson-hyperlegible-next-latin-ext-wght-italic.woff2") format("woff2");
+    unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
+/* Atkinson Hyperlegible Mono 5.3.0, latin, normal */
+@font-face {
+    font-family: "Atkinson Hyperlegible Mono";
+    font-style: normal;
+    font-weight: 200 800;
+    font-display: swap;
+    src: url("../vendor/fonts/atkinson-hyperlegible-mono-latin-wght-normal.woff2") format("woff2");
+    unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+/* Atkinson Hyperlegible Mono 5.3.0, latin-ext, normal */
+@font-face {
+    font-family: "Atkinson Hyperlegible Mono";
+    font-style: normal;
+    font-weight: 200 800;
+    font-display: swap;
+    src: url("../vendor/fonts/atkinson-hyperlegible-mono-latin-ext-wght-normal.woff2") format("woff2");
+    unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
+/* Atkinson Hyperlegible Mono 5.3.0, latin, italic */
+@font-face {
+    font-family: "Atkinson Hyperlegible Mono";
+    font-style: italic;
+    font-weight: 200 800;
+    font-display: swap;
+    src: url("../vendor/fonts/atkinson-hyperlegible-mono-latin-wght-italic.woff2") format("woff2");
+    unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+/* Atkinson Hyperlegible Mono 5.3.0, latin-ext, italic */
+@font-face {
+    font-family: "Atkinson Hyperlegible Mono";
+    font-style: italic;
+    font-weight: 200 800;
+    font-display: swap;
+    src: url("../vendor/fonts/atkinson-hyperlegible-mono-latin-ext-wght-italic.woff2") format("woff2");
+    unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
+/* ---- css/core.css ---- */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* Weights 400 and 600 only (UI plan, section 3): what browsers draw bold is 600. */
+b,
+strong,
+th,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-weight: 600;
+}
+
+/* Form controls take the interface typeface (browsers give them their own); only the family, so
+   no size changes with it. */
+button,
+input,
+select,
+textarea {
+    font-family: inherit;
+}
+
+/* Icons (js/lab/icons.js): Lucide symbols from the sprite in index.html, 16 px with a 1.5 px stroke
+   (2.25 in the 24-unit drawing) in the colour of the text beside them. */
+.icon {
+    flex: none;
+    width: var(--icon-size);
+    height: var(--icon-size);
+    vertical-align: -0.1875em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.25;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.icon--filled {
+    fill: currentColor;
+    stroke: none;
+}
+
+/* the sprite itself (tools/build-icons.mjs) draws nothing; <use> still reaches its symbols */
+.icon-sprite {
+    display: none;
+}
+
+/* Text for assistive technology only. */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Focus is always visible: a 2 px accent outline, 2 px out (UI plan, section 6). */
+:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-offset);
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* ---- css/buttons.css ---- */
+
+/* Buttons (UI plan, section 3): 32 px high (44 on a touch screen), radius 6, a text label always,
+   an icon only beside it. One filled primary per context (Run, or Check answer in an exercise);
+   the default is outlined; quiet buttons have no outline until hovered. */
+
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: var(--control-height);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-control);
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+    line-height: 1.2;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.button:hover {
+    background: var(--sunken);
+}
+
+/* A press on a button's icon or shortcut hint is a press on the button: the click delegation of
+   js/controllers/actions.js (upstream's) takes the element pressed, or its parent, as the button. */
+.button > * {
+    pointer-events: none;
+}
+
+.button:disabled,
+.button[aria-disabled="true"] {
+    color: var(--graphite);
+    cursor: default;
+}
+
+.button:disabled:hover,
+.button[aria-disabled="true"]:hover {
+    background: var(--paper);
+}
+
+.button[hidden] {
+    display: none;
+}
+
+.button--primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+}
+
+.button--primary:hover {
+    border-color: var(--accent-hover);
+    background: var(--accent-hover);
+}
+
+/* the key that does the same, inside the primary button ("Ctrl Enter") */
+.button .shortcut {
+    font-size: var(--text-xs);
+    font-weight: 400;
+}
+
+.button--primary .shortcut {
+    color: var(--on-accent-muted);
+}
+
+/* a primary button that cannot be used (Run before a database is open) is drawn as the plain kind,
+   not as grey on blue */
+.button--primary:disabled,
+.button--primary:disabled:hover {
+    border-color: var(--rule-strong);
+    background: var(--sunken);
+    color: var(--graphite);
+}
+
+.button--primary:disabled .shortcut {
+    color: var(--graphite);
+}
+
+.button:not(.button--primary) .shortcut {
+    color: var(--graphite);
+}
+
+.button--quiet {
+    gap: 6px;
+    padding: 0 10px;
+    border-color: transparent;
+    background: transparent;
+}
+
+.button--quiet:hover {
+    background: var(--sunken);
+}
+
+.button--small {
+    min-height: 28px;
+    padding: 0 var(--space-2);
+    font-size: var(--text-xs);
+}
+
+@media (pointer: coarse) {
+    .button--small {
+        min-height: 44px;
+    }
+}
+
+/* ---- css/shell.css ---- */
+
+/* The app shell (UI plan, section 4; looks from docs/design/mockup/): a top bar, the sidebar, the
+   query above its result, and a status bar. It fills the window (100dvh) and the page itself never
+   scrolls; the panes do. js/lab/layout.js sets --sidebar-width and --editor-height from the
+   splitters and keeps them in localStorage.
+
+   The breakpoints (UI plan, section 6; js/lab/layout.js has the same numbers): from 1100 px three
+   panes. Under 1100 px the sidebar is a drawer over the page, opened from the top bar's Sidebar
+   button. Under 700 px (docs/design/mockup/phone.html) the top bar is 56 px with the database
+   switcher and the More menu, the query and its result are two views under the Editor and Result
+   buttons, Run stays in a bar at the bottom, and the status bar keeps only the credit. */
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    background: var(--desk);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    line-height: var(--leading-ui);
+}
+
+/* Positioned, like each scrolling pane below, so that absolutely positioned content (the
+   visually hidden texts of css/core.css) is clipped and scrolled by its pane: with the initial
+   containing block as theirs they would lengthen the page itself. */
+.app {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+/* ---- skip link --------------------------------------------------------------------------- */
+
+.skip-link {
+    position: absolute;
+    top: var(--space-2);
+    left: var(--space-2);
+    z-index: 100;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-control);
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+    transform: translateY(-200%);
+}
+
+.skip-link:focus {
+    transform: none;
+}
+
+/* ---- top bar ------------------------------------------------------------------------------ */
+
+.topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+    min-height: 48px;
+    box-sizing: border-box;
+    /* 7 + 32 + 7 + the 1 px rule: 48 px */
+    padding: 7px var(--space-4);
+    border-bottom: 1px solid var(--rule);
+}
+
+.brand-heading {
+    margin: 0;
+    font-size: var(--text-md);
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--control-height);
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.brand-mark {
+    flex: none;
+    width: 24px;
+    height: 24px;
+}
+
+.brand-mark-tile {
+    fill: var(--accent);
+}
+
+.brand-mark-line {
+    fill: none;
+    stroke: var(--on-accent);
+    stroke-width: 1.5;
+}
+
+/* a long name is cut with an ellipsis rather than widening the bar */
+.database-button {
+    min-width: 0;
+    max-width: min(22rem, 100%);
+    padding: 0 10px;
+}
+
+.database-button-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: auto;
+}
+
+.topbar-theme {
+    display: contents;
+}
+
+/* shown under 1100 px (the Sidebar button, the drawer's Close) and under 700 px (More, the two
+   views); see the media queries at the end */
+.topbar-sidebar,
+.topbar-more,
+.sidebar-close,
+.view-switch {
+    display: none;
+}
+
+/* ---- the help popover --------------------------------------------------------------------- */
+
+.help-popover[popover] {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    box-sizing: border-box;
+    width: min(24rem, calc(100vw - 16px), var(--popover-room, 100vw));
+    overflow: auto;
+    padding: var(--space-4);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-float);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-float);
+}
+
+.help-popover[popover]:popover-open {
+    animation: menu-fade var(--motion-fade) ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .help-popover[popover]:popover-open {
+        animation: none;
+    }
+}
+
+.help-title {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-md);
+}
+
+.help-privacy {
+    margin: 0 0 var(--space-4);
+}
+
+.help-subtitle {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-sm);
+}
+
+.help-keys {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-2) var(--space-3);
+    margin: 0 0 var(--space-4);
+}
+
+.help-keys dt {
+    white-space: nowrap;
+}
+
+.help-keys dd {
+    margin: 0;
+    color: var(--graphite);
+}
+
+.help-popover kbd {
+    display: inline-block;
+    min-width: 1.5em;
+    padding: 0 var(--space-1);
+    border: 1px solid var(--rule-strong);
+    border-radius: 4px;
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+    text-align: center;
+}
+
+.help-about {
+    margin: 0;
+}
+
+.help-about a {
+    color: var(--accent);
+}
+
+/* ---- the workbench: [sidebar | splitter] main ------------------------------------------ */
+
+.workbench {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    min-height: 0;
+}
+
+/* the navigation landmark: the sidebar and the splitter that sizes it */
+.sidebar-region {
+    display: grid;
+    grid-template-columns: var(--sidebar-width, 280px) auto;
+    min-width: 0;
+    min-height: 0;
+}
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.app--sidebar-collapsed .sidebar-region {
+    grid-template-columns: 0 auto;
+}
+
+.app--sidebar-collapsed .sidebar {
+    visibility: hidden;
+}
+
+/* the sidebar's head: the tabs (js/lab/tabs.js), and in the drawer its Close button */
+.sidebar-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-right: var(--space-2);
+    border-bottom: 1px solid var(--rule);
+}
+
+.tabs {
+    display: flex;
+    flex: 1 1 auto;
+    gap: var(--space-1);
+    min-width: 0;
+    padding: 0 var(--space-3);
+}
+
+.sidebar-close {
+    flex: none;
+    margin-left: auto;
+}
+
+.tab {
+    height: 40px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--graphite);
+    font: inherit;
+    cursor: pointer;
+}
+
+.tab[aria-selected="true"] {
+    border-bottom-color: var(--accent);
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.tab:hover {
+    color: var(--ink);
+}
+
+@media (pointer: coarse) {
+    .tab {
+        height: 44px;
+    }
+}
+
+.tab-panel {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
+
+.tab-panel[hidden] {
+    display: none;
+}
+
+/* ---- splitters (js/lab/layout.js): focusable separators ------------------------------- */
+
+.splitter {
+    position: relative;
+    z-index: 2;
+    touch-action: none;
+}
+
+.splitter:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 0;
+}
+
+/* between the sidebar and the main area: the 1 px rule of the plan, with a grip mark and a 13 px
+   area to press, on the main area's side (the sidebar's scrollbar stays the scrollbar's) */
+.splitter--vertical {
+    width: 1px;
+    background: var(--rule);
+    cursor: col-resize;
+}
+
+.splitter--vertical::after {
+    content: "";
+    position: absolute;
+    inset: 0 -12px 0 0;
+}
+
+.splitter--vertical .splitter-grip {
+    position: absolute;
+    top: 50%;
+    left: -1px;
+    width: 3px;
+    height: 32px;
+    transform: translateY(-50%);
+}
+
+/* a hidden sidebar leaves a handle, with its grip, to bring it back */
+.app--sidebar-collapsed .splitter--vertical {
+    width: 12px;
+    border-right: 1px solid var(--rule);
+    background: var(--desk);
+}
+
+.app--sidebar-collapsed .splitter--vertical .splitter-grip {
+    left: 4px;
+}
+
+.splitter--horizontal {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 8px;
+    box-sizing: border-box;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    background: var(--desk);
+    cursor: row-resize;
+}
+
+/* 16 px to press: the 8 px bar and 4 px on either side (the inset counts from inside the borders) */
+.splitter--horizontal::after {
+    content: "";
+    position: absolute;
+    inset: -5px 0;
+}
+
+.splitter-grip {
+    width: 32px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--rule-strong);
+}
+
+/* on a touch screen: as wide as the panes' padding allows, never over a control beside it */
+@media (pointer: coarse) {
+    .splitter--horizontal {
+        height: 16px;
+    }
+
+    .splitter--horizontal::after {
+        inset: -7px 0;
+    }
+
+    .splitter--vertical::after {
+        inset: 0 -16px 0 -6px;
+    }
+}
+
+.app--resizing,
+.app--resizing * {
+    user-select: none;
+}
+
+/* ---- main: [exercise prompt] toolbar / editor / splitter / result ---------------------------- */
+
+.main {
+    display: grid;
+    grid-template-areas:
+        "prompt"
+        "toolbar"
+        "editor"
+        "splitter"
+        "results";
+    grid-template-rows: auto auto var(--editor-height, 40%) auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+    background: var(--paper);
+}
+
+.exercise-panel {
+    grid-area: prompt;
+}
+
+.editor-toolbar {
+    grid-area: toolbar;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 6px var(--space-4);
+    border-bottom: 1px solid var(--rule);
+}
+
+/* A− and A+ at the toolbar's far right (js/lab/text-size.js; the mockup's 32 px squares, the
+   letters 12 and 16 px), placed over the toolbar's row from the end of the main area, where they
+   come last in the Tab order */
+.text-size {
+    grid-area: toolbar;
+    align-self: center;
+    justify-self: end;
+    display: flex;
+    gap: var(--space-1);
+    margin-right: var(--space-4);
+}
+
+.text-size-button {
+    width: var(--control-height);
+    padding: 0;
+}
+
+.text-size-button--smaller {
+    font-size: var(--text-xs);
+}
+
+.text-size-button--larger {
+    font-size: var(--text-md);
+}
+
+.editor-pane {
+    position: relative;
+    grid-area: editor;
+    display: flex;
+    flex-direction: column;
+    min-height: 120px;
+    overflow: auto;
+}
+
+#editor-splitter {
+    grid-area: splitter;
+}
+
+/* The result scrolls inside its own box, both ways, under its summary line, so the line and
+   Download CSV stay in view and a wide table never widens the page (css/result.css). The pane
+   itself scrolls only when the verdict and the summary leave the result less than its minimum. */
+.results-pane {
+    position: relative;
+    grid-area: results;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
+}
+
+.results-pane > * {
+    flex: none;
+}
+
+.results-pane > .sqlime-result {
+    flex: 1 1 auto;
+    min-height: 6rem;
+    overflow: auto;
+}
+
+.results-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: 6px var(--space-4) 6px var(--space-5);
+}
+
+/* ---- status bar --------------------------------------------------------------------------- */
+
+.statusbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-5);
+    min-height: 28px;
+    box-sizing: border-box;
+    padding: var(--space-1) var(--space-4);
+    border-top: 1px solid var(--rule);
+    color: var(--graphite);
+    font-size: var(--text-xs);
+}
+
+/* One 28 px row from 700 px up: the database name gives way (cut with an ellipsis, its title has
+   it whole), everything else keeps its size. Under 700 px the bar wraps instead. */
+.statusbar-item {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.statusbar > #status-database {
+    min-width: 0;
+}
+
+/* (from 700 px, unless the phone's layout applies: a touch screen less than 500 px tall) */
+@media (min-width: 700px) and (min-height: 500px), (min-width: 700px) and (pointer: fine), (min-width: 700px) and (pointer: none) {
+    .statusbar {
+        flex-wrap: nowrap;
+    }
+
+    .statusbar > * {
+        flex: none;
+    }
+
+    .statusbar > #status-database {
+        flex: 0 1 auto;
+    }
+}
+
+.statusbar-version {
+    margin-left: auto;
+}
+
+.statusbar-credit {
+    position: relative;
+    color: var(--graphite);
+}
+
+/* a 32 px target in the 28 px bar, without making the bar taller: it reaches up, not past the
+   window's bottom edge (44 px on a touch screen) */
+.statusbar-credit::after {
+    content: "";
+    position: absolute;
+    inset: -12px 0 -4px;
+}
+
+@media (pointer: coarse) {
+    .statusbar-credit::after {
+        inset: -24px 0 -4px;
+    }
+}
+
+.statusbar-credit:hover {
+    color: var(--ink);
+}
+
+/* ---- under 1100 px: the sidebar is a drawer over the page -------------------------------- */
+/* (and on a touch screen less than 500 px tall, a phone held sideways, as under 700 px below;
+   js/lab/config.js DRAWER_QUERY and PHONE_QUERY are the same queries) */
+
+@media (max-width: 1099.98px), (max-height: 499.98px) and (pointer: coarse) {
+    .topbar-sidebar,
+    .sidebar-close {
+        display: inline-flex;
+    }
+
+    .workbench,
+    .sidebar-region,
+    .app--sidebar-collapsed .sidebar-region {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* the navigation landmark stays, at no size: the drawer inside it is drawn in the top layer */
+    .sidebar-region {
+        position: absolute;
+        width: 0;
+        height: 0;
+    }
+
+    .sidebar-region > .splitter {
+        display: none;
+    }
+
+    /* the drawer (the popover attribute, js/lab/layout.js): the whole height at the left, over the
+       page, on the desk like the sidebar, its edge a 1 px rule (a pane: no shadow, section 3),
+       and a veil over the rest of the page, which a press closes */
+    .sidebar[popover] {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: min(320px, calc(100vw - 56px));
+        height: 100%;
+        max-height: none;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-right: 1px solid var(--rule);
+        background: var(--desk);
+        color: var(--ink);
+    }
+
+    /* the author's display: flex would otherwise show it shut */
+    .sidebar[popover]:not(:popover-open) {
+        display: none;
+    }
+
+    .sidebar[popover]::backdrop {
+        background: var(--scrim);
+    }
+
+    /* the wide window's choice to hide the sidebar does not hide the drawer */
+    .app--sidebar-collapsed .sidebar {
+        visibility: visible;
+    }
+}
+
+/* ---- under 700 px: the phone (docs/design/mockup/phone.html) ----------------------------- */
+
+@media (max-width: 699.98px), (max-height: 499.98px) and (pointer: coarse) {
+    /* the bar at the bottom (the editor toolbar, fixed there) keeps its room */
+    .app {
+        padding-bottom: 64px;
+    }
+
+    /* the mockup's 56 px: 5 + the 44 px controls + 6 + the 1 px rule */
+    .topbar {
+        flex-wrap: nowrap;
+        gap: var(--space-2);
+        min-height: 56px;
+        padding: 5px var(--space-3) 6px;
+    }
+
+    /* the brand is the mark alone (its name stays, for a screen reader), in a target of the
+       controls' size */
+    .brand {
+        justify-content: center;
+        min-width: var(--control-height);
+    }
+
+    .brand-mark {
+        width: 28px;
+        height: 28px;
+    }
+
+    .brand [data-app-name] {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    /* the database switcher takes the room between the brand and More, 44 px high as the
+       mockup's (and as the Sidebar and More buttons beside it) */
+    .database-button {
+        flex: 1 1 auto;
+        justify-content: flex-start;
+        max-width: none;
+        min-height: 44px;
+    }
+
+    .database-button-name {
+        flex: 1 1 auto;
+        text-align: left;
+    }
+
+    /* the actions' buttons are in the More menu; their menus and popovers stay where they are
+       (drawn in the top layer, and only while nothing around them is display: none) */
+    .topbar-actions {
+        position: absolute;
+        width: 0;
+        height: 0;
+        margin: 0;
+    }
+
+    .topbar-actions .button {
+        display: none;
+    }
+
+    /* the Sidebar and More buttons are their icons alone, 44 px squares */
+    .topbar-sidebar,
+    .topbar-more {
+        display: inline-flex;
+        flex: none;
+        width: 44px;
+        min-height: 44px;
+        padding: 0;
+    }
+
+    .topbar-sidebar-text {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    .topbar-more .icon {
+        width: 20px;
+        height: 20px;
+    }
+
+    /* the two views: one shows, the other is not drawn */
+    .view-switch {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        border-bottom: 1px solid var(--rule);
+        background: var(--desk);
+    }
+
+    .main {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .main[data-view="editor"] > .results-pane,
+    .main[data-view="result"] > .exercise-panel,
+    .main[data-view="result"] > .editor-pane {
+        display: none;
+    }
+
+    .main > .editor-pane,
+    .main > .results-pane {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    .exercise-panel {
+        flex: none;
+    }
+
+    .splitter {
+        display: none;
+    }
+
+    /* Run (and Check answer, in an exercise) in a bar at the bottom, in reach of a thumb; the text
+       size is the browser's own there (its zoom), and a keyboard's shortcuts are not shown */
+    .editor-toolbar {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 3;
+        flex-wrap: nowrap;
+        height: 64px;
+        box-sizing: border-box;
+        padding: 10px var(--space-3);
+        border-top: 1px solid var(--rule);
+        border-bottom: 0;
+        background: var(--desk);
+    }
+
+    .editor-toolbar > .button {
+        flex: 1 1 0;
+        min-width: 0;
+        min-height: 44px;
+        font-size: var(--text-md);
+    }
+
+    .editor-toolbar .shortcut,
+    .text-size {
+        display: none;
+    }
+
+    /* the status bar keeps the credit: the database's name is the switcher's, the last run is
+       the result's summary line; the credit is "Made by ..." alone, on one line (the app's name,
+       which the brand's mark stands for, stays for a screen reader) */
+    .statusbar-item,
+    .statusbar-credit > [aria-hidden="true"] {
+        display: none;
+    }
+
+    .statusbar-credit > [data-app-name] {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    /* the text size is the browser's own here (its zoom; A- and A+ are not shown): the default,
+       whatever was chosen on a wider window, which keeps it */
+    :root {
+        --code-size: var(--text-sm) !important;
+    }
+}
+
+/* the two view buttons (under 700 px): as the sidebar's tabs, the shown one marked */
+.view-switch-button {
+    height: 48px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--graphite);
+    font: inherit;
+    cursor: pointer;
+}
+
+.view-switch-button[aria-current="true"] {
+    border-bottom-color: var(--accent);
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.view-switch-button:focus-visible {
+    outline-offset: -2px;
+}
+
+.view-switch-button:hover {
+    color: var(--ink);
+}
+
+/* the top bar keeps one row from 700 px up: the database button gives way, its name cut with an
+   ellipsis, before anything wraps (not where the phone's layout applies, as above) */
+@media (min-width: 700px) and (min-height: 500px), (min-width: 700px) and (pointer: fine), (min-width: 700px) and (pointer: none) {
+    .topbar {
+        flex-wrap: nowrap;
+    }
+
+    .brand-heading,
+    .topbar-actions {
+        flex: none;
+    }
+
+    .database-button {
+        flex: 0 1 auto;
+    }
+}
+
+@media (min-width: 700px) and (max-width: 899.98px) and (min-height: 500px), (min-width: 700px) and (max-width: 899.98px) and (pointer: fine), (min-width: 700px) and (max-width: 899.98px) and (pointer: none) {
+    .topbar-sidebar {
+        width: var(--control-height);
+        padding: 0;
+    }
+
+    .topbar-sidebar-text,
+    .brand [data-app-name] {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+}
+
+@media (min-width: 700px) and (max-width: 799.98px) and (min-height: 500px), (min-width: 700px) and (max-width: 799.98px) and (pointer: fine), (min-width: 700px) and (max-width: 799.98px) and (pointer: none) {
+    .topbar {
+        column-gap: var(--space-3);
+    }
+
+    .topbar-actions .button--quiet {
+        padding: 0 var(--space-2);
+    }
+}
+
+/* ---- css/menu.css ---- */
+
+/* Menus (js/lab/menu.js): a popover in the top layer, placed under or over its button by script
+   (top/left or right/bottom), so here only its look. Menus are one of the three things that cast a
+   shadow (with dialogs and toasts); they fade in, and reduced motion removes the fade. */
+
+.menu[popover] {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    box-sizing: border-box;
+    min-width: min(12rem, var(--popover-room, 100vw));
+    max-width: min(24rem, calc(100vw - 16px), var(--popover-room, 100vw));
+    overflow: auto;
+    padding: var(--space-1);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-float);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-float);
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    line-height: var(--leading-ui);
+}
+
+.menu[popover]:popover-open {
+    animation: menu-fade var(--motion-fade) ease-out;
+}
+
+@keyframes menu-fade {
+    from {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .menu[popover]:popover-open {
+        animation: none;
+    }
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: var(--control-height);
+    padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-control);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.menu-item:hover,
+.menu-item:focus-visible {
+    background: var(--accent-subtle);
+}
+
+.menu-item:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: calc(-1 * var(--focus-offset));
+}
+
+.menu-item[aria-disabled="true"] {
+    color: var(--graphite);
+    cursor: default;
+}
+
+.menu-item[aria-disabled="true"]:hover {
+    background: transparent;
+}
+
+/* the tick of a radio item shows only on the chosen one, and keeps its room on the others */
+.menu-item[role="menuitemradio"][aria-checked="false"] .menu-check {
+    visibility: hidden;
+}
+
+.menu-separator {
+    height: 1px;
+    margin: var(--space-1) 0;
+    background: var(--rule);
+}
+
+/* a group's name over its entries (the More menu's Export and Theme) */
+.menu-heading {
+    margin: 0;
+    padding: var(--space-1) var(--space-2) 0;
+    color: var(--graphite);
+    font-size: var(--text-xs);
+}
+
+/* a wider menu whose entries carry a second line (the database switcher, Export) */
+.menu--wide[popover] {
+    min-width: min(16rem, var(--popover-room, 100vw));
+    max-width: min(28rem, calc(100vw - 16px), var(--popover-room, 100vw));
+}
+
+.menu-item--two-line {
+    align-items: flex-start;
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+}
+
+.menu-item--two-line > .icon {
+    margin-top: 2px;
+}
+
+.menu-item-text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.menu-item-label {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* one line saying what an entry is for (the plan's "one-line description"): a longer one is cut
+   with an ellipsis, its whole text in the title (and, for a course database, in the Schema tab) */
+.menu-item-description {
+    overflow: hidden;
+    color: var(--graphite);
+    font-size: var(--text-xs);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* the More menu's (a phone's) are short sentences with no title: they wrap */
+#more-menu .menu-item-description {
+    overflow: visible;
+    white-space: normal;
+}
+
+/* the shortcut of an entry ("Ctrl O"), at its end */
+.menu-item-shortcut {
+    flex: none;
+    align-self: center;
+    margin-left: var(--space-3);
+    color: var(--graphite);
+    font-size: var(--text-xs);
+    white-space: nowrap;
+}
+
+.menu-item-size {
+    flex: none;
+    color: var(--graphite);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+}
+
+/* A browser without the popover attribute (before Safari 17, Firefox 125, Chrome 114) would draw a
+   closed menu in the page; there the menu is hidden, and js/lab/menu.js hides its button. */
+@supports not selector(:popover-open) {
+    .menu,
+    .help-popover {
+        display: none;
+    }
+}
+
+/* ---- css/share.css ---- */
+
+/* Copy link's popover (js/lab/copy-link.js): shown only when the browser kept the clipboard to
+   itself, under the button, with the link selected in a read-only field. Drawn like Help. */
+
+.share-popover[popover] {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    box-sizing: border-box;
+    width: min(28rem, calc(100vw - 16px), var(--popover-room, 100vw));
+    overflow: auto;
+    padding: var(--space-4);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-float);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-float);
+}
+
+.share-popover[popover]:popover-open {
+    animation: menu-fade var(--motion-fade) ease-out;
+}
+
+.share-popover-title {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-md);
+}
+
+.share-popover-text {
+    margin: 0 0 var(--space-3);
+}
+
+.share-popover-text[hidden] {
+    display: none;
+}
+
+.share-popover-label {
+    display: block;
+    margin-bottom: var(--space-1);
+    font-weight: 600;
+}
+
+.share-link-field {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--control-height);
+    margin-bottom: var(--space-3);
+    padding: 0 var(--space-2);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-control);
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+}
+
+.share-link-warning {
+    margin-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .share-popover[popover]:popover-open {
+        animation: none;
+    }
+}
+
+/* ---- css/schema.css ---- */
+
+/* The Schema tab (js/lab/schema.js), as drawn in docs/design/mockup/main-light.html: the
+   description, then "Tables" and "Views", each row a disclosure arrow, the name in the code
+   typeface and the row count; an expanded row lists its columns with their types and key marks. */
+
+.schema-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-3);
+}
+
+.schema-dataset {
+    padding: 0 var(--space-2);
+}
+
+.schema-dataset[hidden] {
+    display: none;
+}
+
+.schema-dataset-description {
+    margin: 0;
+    color: var(--graphite);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+}
+
+/* two lines, and "Show more" when that cuts it */
+.schema-dataset-description--clamped {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+}
+
+.schema-more {
+    position: relative;
+    margin-top: var(--space-1);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: var(--text-xs);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* a 32 px target around the small link-like text, without moving anything (44 on a touch screen) */
+.schema-more::after {
+    content: "";
+    position: absolute;
+    inset: -8px -4px;
+}
+
+@media (pointer: coarse) {
+    .schema-more::after {
+        inset: -14px -4px;
+    }
+}
+
+.schema-more[hidden] {
+    display: none;
+}
+
+.schema-filter {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--control-height);
+    padding: 0 var(--space-2);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-control);
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+}
+
+.schema-filter[hidden] {
+    display: none;
+}
+
+.schema-scroll {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.schema-message {
+    margin: 0;
+    padding: 0 var(--space-2);
+    color: var(--graphite);
+}
+
+.schema-message[hidden],
+.schema-group[hidden],
+.schema-columns[hidden] {
+    display: none;
+}
+
+.schema-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.schema-group-title {
+    margin: 0;
+    padding: 0 var(--space-2);
+    color: var(--graphite);
+    font-size: var(--text-xs);
+    font-weight: 400;
+}
+
+.schema-list,
+.schema-columns {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* one row: the arrow, the name (it inserts itself at the caret) and the count */
+.schema-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-height: var(--control-height);
+    padding: 0 var(--space-2) 0 0;
+    border-radius: var(--radius-control);
+}
+
+.schema-row:hover,
+.schema-item--expanded > .schema-row {
+    background: var(--accent-subtle);
+}
+
+.schema-expand {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: var(--control-height);
+    height: var(--control-height);
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-control);
+    background: transparent;
+    color: var(--graphite);
+    cursor: pointer;
+}
+
+/* as high as its row: the whole row height is the name's target (32 px, the plan's minimum) */
+.schema-insert {
+    flex: 1 1 auto;
+    align-self: stretch;
+    min-width: 0;
+    padding: var(--space-1) var(--space-1);
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    text-align: left;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+
+.schema-insert:hover {
+    text-decoration: underline;
+}
+
+.schema-count {
+    flex: none;
+    color: var(--graphite);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+}
+
+/* the columns of an expanded row */
+.schema-columns {
+    display: flex;
+    flex-direction: column;
+    padding: 0 var(--space-2) var(--space-1) 30px;
+}
+
+.schema-column {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--control-height);
+}
+
+/* 44 px targets on a touch screen */
+@media (pointer: coarse) {
+    .schema-row,
+    .schema-column {
+        min-height: 44px;
+    }
+
+    .schema-expand {
+        width: 44px;
+        height: 44px;
+    }
+}
+
+.schema-insert-column {
+    padding-left: 0;
+}
+
+.schema-type {
+    flex: none;
+    color: var(--graphite);
+    font-size: var(--text-xs);
+}
+
+.schema-pk,
+.schema-fk {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    color: var(--graphite);
+}
+
+.schema-unavailable {
+    color: var(--graphite);
+}
+
+/* ---- css/exercises.css ---- */
+
+/* Exercise mode (js/lab/exercise-panel.js): the Exercises tab of the sidebar (set picker,
+   progress, list, Reset progress), the exercise prompt above the editor (with its hint button,
+   Previous and Next), Check answer in the editor toolbar, and the feedback banner at the top of
+   the result, with Expected and Yours under it for a row that differs. Looks from
+   docs/design/mockup/exercise-correct.html and exercise-wrong.html. State is never shown by colour
+   alone: an icon and words go with it. */
+
+.exercise-panel[hidden],
+.exercise-feedback[hidden],
+.exercise-hints[hidden],
+.exercise-progress-block[hidden],
+.exercise-empty[hidden],
+#exercise-hint-button[hidden] {
+    display: none !important;
+}
+
+/* ---- the Exercises tab ---------------------------------------------------------------------- */
+
+.exercise-set {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-3);
+}
+
+.set-picker {
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 10px;
+}
+
+.set-picker-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.exercise-progress-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 var(--space-2);
+}
+
+.exercise-progress {
+    margin: 0;
+    color: var(--graphite);
+    font-size: var(--text-xs);
+}
+
+.exercise-progress-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--rule);
+}
+
+.exercise-progress-fill {
+    width: 0;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--success);
+}
+
+.exercise-empty {
+    margin: 0;
+    padding: 0 var(--space-2);
+    color: var(--graphite);
+}
+
+.exercise-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: exercise;
+}
+
+.exercise-list-item {
+    margin: 0;
+    padding: 0;
+    counter-increment: exercise;
+}
+
+.exercise-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: 36px;
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-control);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+@media (pointer: coarse) {
+    .exercise-item {
+        min-height: 44px;
+    }
+}
+
+.exercise-item:hover {
+    background: var(--sunken);
+}
+
+/* the open exercise: the selection tint and a heavier title */
+.exercise-item[aria-current="true"] {
+    background: var(--accent-subtle);
+    font-weight: 600;
+}
+
+.exercise-item-mark {
+    display: flex;
+    flex: none;
+}
+
+.exercise-mark-passed {
+    color: var(--success);
+}
+
+.exercise-mark-open {
+    color: var(--rule-strong);
+}
+
+/* the exercise's number, a counter: the button's name says it in words ("Exercise 2 of 10: ..."),
+   so the only text of the button is the title, which its name contains (label in name) */
+.exercise-item-number {
+    flex: none;
+    width: 18px;
+    color: var(--graphite);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+}
+
+.exercise-item-number::before {
+    content: counter(exercise);
+}
+
+.exercise-item-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.exercise-reset-row {
+    margin: 0;
+}
+
+/* ---- the prompt, above the editor toolbar ---------------------------------------------------- */
+
+/* At most 40 percent of the window, and less on a short one: js/lab/layout.js sets --prompt-max so
+   that the toolbar, the smallest editor (120 px) and the smallest result (96 px) keep their room;
+   the prompt scrolls inside the rest. */
+.exercise-panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    max-height: var(--prompt-max, 40vh);
+    overflow: auto;
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid var(--rule);
+    background: var(--sunken);
+}
+
+.exercise-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-3);
+}
+
+.exercise-title {
+    margin: 0;
+    font-size: var(--text-md);
+    overflow-wrap: anywhere;
+}
+
+.exercise-kicker {
+    margin: 0;
+    color: var(--graphite);
+    font-size: var(--text-xs);
+}
+
+.exercise-text {
+    max-width: 76ch;
+    /* 12 px under the title, the panel's own gap (the mockup's section is a column with that gap) */
+    margin: var(--space-3) 0 0 0;
+    font-size: var(--text-md);
+    line-height: var(--leading-code);
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+/* the hint button at the left, Previous and Next at the right (the mockup); they wrap under it
+   when the panel is narrow */
+.exercise-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.exercise-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: auto;
+}
+
+/* the hints shown so far, under the buttons, so that Show hint stays where it was pressed. Their
+   numbers stand on the panel's left edge, with the prompt and the buttons, and a hint's lines hang
+   after its number (a counter, not the list's own markers, which hang outside the edge). The list
+   keeps role="list" (index.html): some browsers drop the role of a list without markers. */
+.exercise-hints {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: hint;
+    line-height: var(--leading-code);
+}
+
+.exercise-hint {
+    display: flex;
+    gap: var(--space-2);
+    margin: var(--space-1) 0;
+    counter-increment: hint;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.exercise-hint::before {
+    flex: none;
+    min-width: 1.5ch;
+    content: counter(hint) ".";
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- Check answer: the filled primary of exercise mode; Run stays beside it, quiet ------------ */
+
+.editor-toolbar--exercise #execute {
+    border-color: var(--rule-strong);
+    background: var(--paper);
+    color: var(--ink);
+    font-weight: 400;
+}
+
+.editor-toolbar--exercise #execute:hover {
+    background: var(--sunken);
+}
+
+.editor-toolbar--exercise #execute .shortcut {
+    color: var(--graphite);
+}
+
+#exercise-check[aria-busy="true"] {
+    cursor: progress;
+}
+
+/* ---- the feedback banner, at the top of the result ------------------------------------------- */
+
+/* the banner spans the results pane, as the error band does; under it, the result as usual */
+.exercise-feedback {
+    margin: 0;
+}
+
+.verdict p {
+    margin: 0;
+}
+
+/* the banner holds the focus when a Check from the keyboard replaced what had it: the ring goes
+   inside, as the banner reaches both sides of its pane */
+.verdict:focus-visible {
+    outline-offset: -2px;
+}
+
+/* The band (plan, section 5; the same band pattern as the error band of css/result.css): no
+   border, no edge, a tinted ground. An icon, the words, and Next exercise at the end. It fades in
+   over 120 ms; the tick of a pass then draws itself over 300 ms. */
+.verdict {
+    animation: menu-fade var(--motion-fade) ease-out;
+}
+
+.verdict-band {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-3) var(--space-5);
+    color: var(--ink);
+}
+
+.verdict--pass .verdict-band {
+    background: var(--success-subtle);
+}
+
+.verdict--fail .verdict-band {
+    background: var(--danger-subtle);
+}
+
+.verdict--warning .verdict-band {
+    background: var(--warning-subtle);
+}
+
+/* "Nothing to check.": a note, not an outcome */
+.verdict--info .verdict-band {
+    background: var(--sunken);
+}
+
+.verdict-mark {
+    width: 20px;
+    height: 20px;
+}
+
+.verdict--pass .verdict-mark {
+    color: var(--success);
+}
+
+.verdict--fail .verdict-mark {
+    color: var(--danger);
+}
+
+.verdict--warning .verdict-mark {
+    color: var(--warning);
+}
+
+.verdict--info .verdict-mark {
+    color: var(--graphite);
+}
+
+.verdict-text {
+    flex: 1 1 240px;
+    min-width: 0;
+    font-size: var(--text-md);
+    overflow-wrap: anywhere;
+}
+
+/* the headline, then the sentence on the same line */
+.verdict-head {
+    display: inline;
+}
+
+.verdict-headline {
+    font-weight: 600;
+}
+
+.verdict-text > .verdict-message {
+    display: inline;
+}
+
+/* the checker's sentence is written for reading after a headline on a line of its own
+   ("expected 2 columns, got 1"): here it runs on from "Not quite.", so it starts with a capital.
+   (A box of its own on the line: an inline sentence has no first letter to style.) */
+.verdict-text > .verdict-message--checker {
+    display: inline-block;
+}
+
+.verdict-message--checker::first-letter {
+    text-transform: uppercase;
+}
+
+.verdict-message--fragment::after {
+    content: ".";
+}
+
+/* the engine's message, as the error band shows it */
+.verdict-engine {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+}
+
+/* a line of its own: "All 10 exercises complete.", a note */
+.verdict-text > .verdict-complete,
+.verdict-text > .verdict-note {
+    display: block;
+}
+
+.verdict-note {
+    color: var(--ink);
+    font-size: var(--text-xs);
+    overflow-wrap: anywhere;
+}
+
+.verdict-text > .verdict-note {
+    margin-top: var(--space-1);
+}
+
+/* the drawn tick: the circle, then the tick, each stroked in (js/lab/exercise-panel.js gives each
+   shape a length of 1). The dash pattern starts just off the shape, so its round cap leaves no dot
+   before the stroke begins. */
+.verdict-tick > * {
+    stroke-dasharray: 1 1.2;
+    stroke-dashoffset: 1.1;
+    animation: verdict-draw 200ms ease-out forwards;
+}
+
+.verdict-tick > :last-child:not(:first-child) {
+    animation-duration: 150ms;
+    animation-delay: 150ms;
+}
+
+@keyframes verdict-draw {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .verdict {
+        animation: none;
+    }
+
+    .verdict-tick > * {
+        stroke-dashoffset: 0;
+        animation: none;
+    }
+}
+
+/* ---- Expected and Yours: the rows that differ, side by side (exercise-wrong.html) ------------- */
+
+.verdict-diff {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-5) 64px;
+    padding: var(--space-4) var(--space-5) 0;
+}
+
+.verdict-side {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* positioned: the visually hidden "(differs)" of an outlined cell is placed in it, and so stays
+   inside the box it scrolls in instead of widening the page */
+.verdict-scroll {
+    position: relative;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.verdict-scroll-note[hidden] {
+    display: none !important;
+}
+
+.verdict-diff-note,
+.verdict > .verdict-scroll-note {
+    color: var(--graphite);
+}
+
+.verdict > .verdict-scroll-note {
+    padding: var(--space-2) var(--space-5) 0;
+}
+
+/* the last thing of the banner keeps the result's 24 px off it */
+.verdict:has(.verdict-diff) {
+    padding-bottom: var(--space-4);
+}
+
+/* Ruled like the result table (css/result.css; plan, section 3): a 2 px ink rule above the
+   header and under the last row, 1 px under the header, hairlines between rows, no vertical lines.
+   Numbers right-aligned in tabular figures. The row numbers, which say where in the result these
+   rows are, are graphite. */
+.verdict-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: var(--code-size);
+    line-height: var(--leading-code);
+    font-variant-numeric: tabular-nums;
+}
+
+.verdict-table caption {
+    padding-bottom: var(--space-2);
+    font-family: var(--font-ui);
+    /* a heading, at the interface's size whatever size the rows are drawn at */
+    font-size: var(--text-sm);
+    font-weight: 600;
+    line-height: var(--leading-ui);
+    text-align: left;
+}
+
+.verdict-table th,
+.verdict-table td {
+    padding: 6px 40px 6px 6px;
+    border-bottom: 1px solid var(--rule);
+    text-align: left;
+    vertical-align: top;
+    white-space: pre;
+}
+
+.verdict-table thead th {
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+    border-top: 2px solid var(--ink);
+    border-bottom-color: var(--ink);
+    font-weight: 600;
+}
+
+.verdict-table tbody tr:last-child > * {
+    border-bottom: 2px solid var(--ink);
+}
+
+.verdict-table .num {
+    padding-right: 6px;
+    padding-left: 40px;
+    text-align: right;
+}
+
+.verdict-table .verdict-row-number {
+    padding-right: var(--space-4);
+    color: var(--graphite);
+    font-weight: 400;
+    text-align: right;
+}
+
+/* a cell of Yours that differs from Expected (its words say so too, for a screen reader) */
+.verdict-table .verdict-cell--differs {
+    outline: 2px solid var(--danger);
+    outline-offset: -2px;
+}
+
+@media (max-width: 699.98px), (max-height: 499.98px) and (pointer: coarse) {
+    /* in the Editor view, above the editor: at most 45 percent of the view, scrolling inside */
+    .exercise-panel {
+        max-height: 45%;
+        padding: var(--space-3) var(--space-4);
+    }
+
+    .verdict-band,
+    .verdict-diff,
+    .verdict > .verdict-scroll-note {
+        padding-right: var(--space-4);
+        padding-left: var(--space-4);
+    }
+}
+
+/* ---- css/run-log.css ---- */
+
+/* The History tab (js/lab/run-log.js): past runs, newest first, each the first line of its SQL in
+   the code typeface, when it ran and its row count or an error mark (an icon and the word). */
+
+.run-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-3);
+}
+
+.run-history-entry {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    width: 100%;
+    min-height: 44px;
+    padding: 6px var(--space-2);
+    border: 0;
+    border-radius: var(--radius-control);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.run-history-entry:hover {
+    background: var(--sunken);
+}
+
+.run-history-sql {
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.run-history-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 var(--space-2);
+    color: var(--graphite);
+    font-size: var(--text-xs);
+}
+
+/* the times line up, one under the other */
+.run-history-time {
+    font-variant-numeric: tabular-nums;
+}
+
+.run-history-outcome {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-variant-numeric: tabular-nums;
+}
+
+.run-history-outcome--error {
+    color: var(--danger);
+}
+
+.run-history-outcome .icon {
+    width: 14px;
+    height: 14px;
+}
+
+.run-history-empty {
+    margin: 0;
+    padding: var(--space-1) var(--space-2);
+    color: var(--graphite);
+}
+
+/* ---- css/editor.css ---- */
+
+/* The SQL editor (js/components/sqlime-editor.js). CodeMirror draws it (js/lab/code-editor.js),
+   as the mockup does: a 48 px column of line numbers in graphite, then the SQL in the code face
+   with the five syntax colours; the line with the caret is tinted while the editor has the focus.
+   If CodeMirror does not load, the element stays a plain editable box (data-editor="plain").
+   The rules for CodeMirror's parts start with #editor: CodeMirror's own base styles come later
+   in the page (it adds them when it starts) with selectors of up to five classes. */
+
+/* the editor fills the pane; longer SQL scrolls inside it */
+.sqlime-editor {
+    flex: 1 0 auto;
+    display: block;
+    box-sizing: border-box;
+    min-height: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    /* the student's size for the SQL, 12 to 24 px (js/lab/text-size.js) */
+    font-size: var(--code-size);
+    line-height: var(--leading-code);
+}
+
+/* ---- the plain box (before CodeMirror arrives, or for good if it does not) ---------------- */
+
+.sqlime-editor:not([data-editor="code"]) {
+    padding: var(--space-3) var(--space-4);
+    white-space: pre-wrap;
+    /* a long word with no space (a string literal, a list of numbers) breaks instead of widening the pane */
+    overflow-wrap: anywhere;
+}
+
+/* the editor has the focus when the page opens, so the focus must be visible */
+.sqlime-editor:not([data-editor="code"]):focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+/* the placeholder, once it is clear that CodeMirror (which draws its own) is not coming */
+.sqlime-editor[data-editor="plain"]:empty::before {
+    display: inline-block;
+    content: attr(data-placeholder);
+    color: var(--graphite);
+}
+
+/* ---- CodeMirror --------------------------------------------------------------------------- */
+
+.sqlime-editor[data-editor="code"] {
+    display: flex;
+    flex: 1 1 auto;
+}
+
+#editor .cm-editor {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    background: var(--paper);
+    color: var(--ink);
+}
+
+/* The focus ring is drawn over the editor rather than as its outline: the line numbers stay put
+   while the SQL scrolls sideways (CodeMirror stacks them above the rest), so they would cover the
+   ring's left side. It follows :focus-within, which changes with the focus itself (CodeMirror's
+   cm-focused class follows a moment later). */
+#editor .cm-editor.cm-focused {
+    outline: 0;
+}
+
+#editor .cm-editor:focus-within::after {
+    content: "";
+    position: absolute;
+    z-index: 300;
+    inset: 0;
+    border: 2px solid var(--accent);
+    pointer-events: none;
+}
+
+#editor .cm-scroller {
+    font-family: var(--font-mono);
+    line-height: var(--leading-code);
+}
+
+#editor .cm-content {
+    padding: var(--space-3) 0;
+    caret-color: var(--ink);
+}
+
+#editor .cm-line {
+    padding: 0 var(--space-4) 0 0;
+}
+
+#editor .cm-placeholder {
+    color: var(--graphite);
+}
+
+/* the line numbers: 48 px with the number 12 px from the SQL, as in the mockup */
+#editor .cm-gutters {
+    border: 0;
+    background: var(--paper);
+    color: var(--graphite);
+}
+
+#editor .cm-lineNumbers .cm-gutterElement {
+    box-sizing: border-box;
+    min-width: 48px;
+    padding: 0 var(--space-3) 0 var(--space-2);
+}
+
+/* the caret's line, while the editor has the focus; not while text is selected (sql-selecting,
+   js/lab/code-editor.js): CodeMirror draws the selection under the text, so the tint would hide it */
+#editor .cm-activeLine,
+#editor .cm-activeLineGutter {
+    background: transparent;
+}
+
+#editor .cm-editor:focus-within:not(.sql-selecting) .cm-activeLine,
+#editor .cm-editor:focus-within .cm-activeLineGutter {
+    background: var(--sunken);
+}
+
+#editor .cm-editor:focus-within .cm-activeLineGutter {
+    color: var(--ink);
+}
+
+#editor .cm-cursor,
+#editor .cm-dropCursor {
+    border-left: 2px solid var(--ink);
+    margin-left: -1px;
+}
+
+/* the caret does not blink when the student asks for less motion (UI plan, section 3) */
+@media (prefers-reduced-motion: reduce) {
+    #editor .cm-cursorLayer {
+        animation: none !important;
+    }
+}
+
+#editor .cm-selectionBackground,
+#editor .cm-editor:focus-within .cm-selectionBackground {
+    background: var(--accent-subtle);
+}
+
+#editor .cm-matchingBracket {
+    background: var(--accent-subtle);
+    color: inherit;
+    outline: 1px solid var(--rule-strong);
+}
+
+#editor .cm-nonmatchingBracket {
+    background: var(--warning-subtle);
+    color: var(--warning);
+}
+
+/* the five syntax roles (UI plan, section 3) */
+#editor .sql-keyword {
+    color: var(--syntax-keyword);
+    font-weight: 600;
+}
+
+#editor .sql-function {
+    color: var(--syntax-function);
+}
+
+#editor .sql-string {
+    color: var(--syntax-string);
+}
+
+#editor .sql-number {
+    color: var(--syntax-number);
+}
+
+#editor .sql-comment {
+    color: var(--syntax-comment);
+    font-style: italic;
+}
+
+/* the completion list: a menu, as the top bar's menus look */
+#editor .cm-tooltip {
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-float);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-float);
+    overflow: hidden;
+}
+
+#editor .cm-tooltip.cm-tooltip-autocomplete > ul {
+    max-height: calc(8 * 32px + 2 * var(--space-1));
+    min-width: 16rem;
+    padding: var(--space-1);
+    font-family: var(--font-mono);
+    /* a list like the menus, at their size, whatever size the SQL is drawn at */
+    font-size: var(--text-sm);
+}
+
+/* rows as the menus' items (css/menu.css): 32 px, rounded, inside the list's padding */
+#editor .cm-tooltip.cm-tooltip-autocomplete > ul > li {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    box-sizing: border-box;
+    min-height: var(--control-height);
+    padding: 6px var(--space-3) 6px var(--space-2);
+    border-radius: var(--radius-control);
+    line-height: var(--leading-ui);
+}
+
+#editor .cm-tooltip-autocomplete ul li:hover,
+#editor .cm-tooltip-autocomplete ul li[aria-selected] {
+    background: var(--accent-subtle);
+    color: var(--ink);
+}
+
+#editor .cm-completionLabel {
+    flex: none;
+}
+
+#editor .cm-completionMatchedText {
+    text-decoration: none;
+    font-weight: 600;
+}
+
+#editor .cm-completionDetail {
+    margin: 0 0 0 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--graphite);
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+    font-style: normal;
+}
+
+/* Windows high contrast and other forced colours: the user's colours replace the backgrounds that
+   mark the picked name and the selection, so both are outlined in the system's highlight colour
+   instead (the selected text keeps the user's text colour on their background) */
+@media (forced-colors: active) {
+    #editor .cm-tooltip-autocomplete ul li[aria-selected] {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+    }
+
+    #editor .cm-selectionBackground,
+    #editor .cm-editor:focus-within .cm-selectionBackground {
+        forced-color-adjust: none;
+        background: transparent;
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+    }
+}
+
+@media (pointer: coarse) {
+    #editor .cm-tooltip.cm-tooltip-autocomplete > ul {
+        max-height: calc(6 * 44px + 2 * var(--space-1));
+    }
+
+    #editor .cm-tooltip.cm-tooltip-autocomplete > ul > li {
+        min-height: 44px;
+        padding-block: 12px;
+    }
+}
+
+/* ---- css/result.css ---- */
+
+/* The results pane (js/lab/results.js; docs/design/mockup/main-light.html, first-visit.html and
+   error.html): one state at a time, named by #results-pane's data-state. css/shell.css makes #result
+   the pane's own scroller under the summary line; here, what each state draws. */
+
+/* ---- the summary line: "5 rows in 3 ms" at the left, Download CSV at the right ------------- */
+
+.results-summary {
+    position: relative;
+}
+
+.results-summary[hidden] {
+    display: none;
+}
+
+.results-summary-text {
+    flex: 1 1 16rem;
+    min-width: 0;
+    margin: 0;
+    color: var(--graphite);
+    /* a long file name in a message breaks instead of widening the page */
+    overflow-wrap: anywhere;
+}
+
+.results-download {
+    margin-left: auto;
+}
+
+/* ---- the result ----------------------------------------------------------------------------- */
+
+.sqlime-result {
+    position: relative;
+    display: block;
+    overflow-x: auto;
+}
+
+/* a table is inset like its summary line; the other states draw their own edges (the error band
+   reaches both sides). A control the focus moves to is scrolled clear of the sticky header, not
+   under it: --result-head is the header's height, measured by js/lab/results.js (a column name
+   with line breaks makes it taller); before that, one line's (two 8 px paddings, a line of code
+   text, its 2 px and 1 px rules). */
+.results-pane[data-state="result"] > .sqlime-result {
+    padding: var(--space-1) var(--space-5) var(--space-5);
+    scroll-padding-top: var(--result-head, calc(2 * var(--space-2) + var(--leading-code) * var(--code-size) + 3px));
+}
+
+/* The ruled table (plan, section 3): a 2 px ink rule above the header and under the last row, a
+   1 px ink rule under the header, hairlines between rows, no vertical lines and no stripes.
+   Numbers right-aligned in tabular figures, text left-aligned, NULL in graphite italics. The
+   header stays in view while the rows scroll under it; with separate borders its rules go with it
+   (collapsed borders stay behind). */
+.result-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    color: var(--ink);
+    font-family: var(--font-mono);
+    /* the student's size for the results, 12 to 24 px (js/lab/text-size.js) */
+    font-size: var(--code-size);
+    line-height: var(--leading-code);
+    font-variant-numeric: tabular-nums;
+}
+
+.result-table th,
+.result-table td {
+    padding: 6px 40px 6px var(--space-1);
+    text-align: left;
+    vertical-align: top;
+}
+
+.result-table th {
+    position: sticky;
+    /* the result box's 4 px top padding is kept clear by the sticky header too, so no row shows
+       above it while the rows scroll */
+    top: calc(-1 * var(--space-1));
+    z-index: 1;
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+    border-top: 2px solid var(--ink);
+    border-bottom: 1px solid var(--ink);
+    background: var(--paper);
+    font-weight: 600;
+    /* a column name as the query returned it, spaces included, on one line */
+    white-space: pre;
+}
+
+.result-table td {
+    border-bottom: 1px solid var(--rule);
+    /* a value as it is: its line breaks and runs of spaces kept, and never wrapped (a long one is
+       cut at 60 characters; a wide table scrolls sideways instead of squeezing its columns) */
+    white-space: pre;
+}
+
+.result-table tbody tr:last-child td {
+    border-bottom: 2px solid var(--ink);
+}
+
+/* no rows: the header carries the closing rule */
+.result-table--empty th {
+    border-bottom-width: 2px;
+}
+
+.result-table .num {
+    padding-right: var(--space-1);
+    padding-left: 40px;
+    text-align: right;
+}
+
+/* text after a number column keeps the same 40 px from it */
+.result-table .num + :not(.num) {
+    padding-left: 40px;
+}
+
+/* the first column starts 4 px in from the rules, number or not */
+.result-table tr > :first-child {
+    padding-left: var(--space-1);
+}
+
+.cell-null {
+    color: var(--graphite);
+    font-style: italic;
+}
+
+/* a value longer than 60 characters: its start and an ellipsis, pressed to see all of it */
+.cell-more {
+    display: inline;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-control);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+    white-space: pre;
+    text-decoration: underline dotted var(--graphite);
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.cell-more:hover {
+    background: var(--sunken);
+}
+
+/* the whole cell is the button's target (its own box is one line of text): at least 32 px, and 44
+   on a touch screen, where the row of a long value grows to it */
+.result-table td:has(> .cell-more) {
+    position: relative;
+}
+
+.cell-more::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+}
+
+@media (pointer: coarse) {
+    .result-table td:has(> .cell-more) {
+        padding-top: 11px;
+        padding-bottom: 11px;
+    }
+}
+
+/* the whole value, in a popover under the cell (js/lab/result-table.js) */
+.cell-popover[popover] {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    box-sizing: border-box;
+    width: min(32rem, calc(100vw - 16px), var(--popover-room, 100vw));
+    max-height: min(60vh, 24rem);
+    overflow: auto;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-float);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-float);
+}
+
+.cell-popover[popover]:popover-open {
+    animation: menu-fade var(--motion-fade) ease-out;
+}
+
+.cell-popover-title {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.cell-popover-length {
+    margin: 0 0 var(--space-2);
+    color: var(--graphite);
+    font-size: var(--text-xs);
+}
+
+.cell-popover-value {
+    font-family: var(--font-mono);
+    font-size: var(--code-size);
+    line-height: var(--leading-code);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* a result that scrolls is a Tab stop (js/lab/result-scroll.js); its ring is drawn inside the box,
+   so the pane's edges do not cut it */
+.sqlime-result:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: -2px;
+}
+
+/* "Scroll sideways" note, shown by js/lab/result-scroll.js while a result is wider than its box;
+   it sits under the result's box (the result scrolls inside that box) */
+.result-scroll-note {
+    margin: 0;
+    padding: var(--space-2) var(--space-5);
+    color: var(--graphite);
+    font-size: var(--text-xs);
+}
+
+/* ---- running: "Running…" once a run has taken 300 ms ---------------------------------------
+   Armed over the summary line (or the top of the pane) just before the run, which blocks the
+   page; only the compositor still draws then, so the delay is an opacity animation, which it runs
+   on its own. A quicker run removes it before it ever shows. */
+
+.results-running {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 6px var(--space-4) 6px var(--space-5);
+    background: var(--paper);
+    color: var(--graphite);
+    pointer-events: none;
+    will-change: opacity;
+    animation: results-running-in var(--motion-fade) ease-out 300ms both;
+}
+
+/* over the summary line, where the plan puts "Running…": the table under it stays until the new one
+   replaces it; with no summary line (no result yet, an error), over the whole pane, whose content
+   is about to be replaced, the words where the summary line would be */
+.results-summary > .results-running,
+.sqlime-result > .results-running {
+    bottom: 0;
+}
+
+.sqlime-result > .results-running {
+    align-items: flex-start;
+    padding-top: var(--space-3);
+}
+
+@keyframes results-running-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* ---- no result yet: a heading, a line, the sample queries ---------------------------------- */
+
+/* the mockup's 760 px of content, inside its 24 px sides (the mockup sizes the content box) */
+.results-empty {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    max-width: calc(760px + 2 * var(--space-5));
+    padding: var(--space-6) var(--space-5);
+}
+
+.results-empty-intro {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.results-empty-title {
+    margin: 0;
+    font-size: var(--text-md);
+    font-weight: 600;
+}
+
+.results-empty-text {
+    margin: 0;
+    color: var(--graphite);
+}
+
+/* a notice from the address (a database that is not on this site, say): the student's to read */
+.results-empty-notice {
+    color: var(--ink);
+    overflow-wrap: anywhere;
+}
+
+.results-samples {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--rule);
+    list-style: none;
+}
+
+.results-sample {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px var(--space-5);
+    width: 100%;
+    min-height: 44px;
+    padding: 10px var(--space-1);
+    border: 0;
+    border-bottom: 1px solid var(--rule);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.results-sample:hover {
+    background: var(--sunken);
+}
+
+.results-sample-label {
+    flex: 0 0 200px;
+    min-width: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.results-sample-sql {
+    flex: 1 1 280px;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--graphite);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.results-empty-links {
+    margin: 0;
+}
+
+/* ---- loading: the database's name and size, and a progress bar ----------------------------- */
+
+.results-loading {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-width: calc(760px + 2 * var(--space-5));
+    padding: var(--space-6) var(--space-5);
+}
+
+.results-loading-title {
+    margin: 0;
+    font-size: var(--text-md);
+    font-weight: 600;
+    /* a file name or an address with no space in it breaks rather than widening the pane */
+    overflow-wrap: anywhere;
+}
+
+.results-loading-size {
+    min-height: calc(var(--leading-ui) * 1em);
+    margin: 0;
+    color: var(--graphite);
+    font-variant-numeric: tabular-nums;
+}
+
+/* the bar fills as the bytes arrive; with no size it waits, empty and still (nothing animates
+   but the menus, the toasts and the feedback banner) */
+.results-progress {
+    appearance: none;
+    width: min(320px, 100%);
+    height: 8px;
+    overflow: hidden;
+    border: 0;
+    border-radius: 4px;
+    background: var(--rule);
+    color: var(--accent);
+}
+
+.results-progress::-webkit-progress-bar {
+    border-radius: 4px;
+    background: var(--rule);
+}
+
+.results-progress::-webkit-progress-value {
+    border-radius: 4px;
+    background: var(--accent);
+}
+
+.results-progress::-moz-progress-bar {
+    border-radius: 4px;
+    background: var(--accent);
+}
+
+.results-progress:indeterminate::-moz-progress-bar {
+    width: 0;
+    animation: none;
+}
+
+/* forced colours drop background colours, so the bar draws its edge and fill in system colours */
+@media (forced-colors: active) {
+    .results-progress {
+        border: 1px solid CanvasText;
+        background: Canvas;
+        forced-color-adjust: none;
+    }
+
+    .results-progress::-webkit-progress-bar {
+        background: Canvas;
+    }
+
+    .results-progress::-webkit-progress-value {
+        background: Highlight;
+    }
+
+    .results-progress::-moz-progress-bar {
+        background: Highlight;
+    }
+}
+
+/* ---- the error band (plan, section 5): no coloured edge, the same band pattern as an
+   exercise's feedback ------------------------------------------------------------------------ */
+
+.results-band {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    background: var(--danger-subtle);
+    color: var(--ink);
+}
+
+.results-band-icon {
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+    color: var(--danger);
+}
+
+.results-band-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+.results-band-title {
+    margin: 0;
+    font-size: var(--text-md);
+    font-weight: 600;
+}
+
+/* SQLite's message as it is */
+.results-band-message {
+    margin: 0;
+    font-family: var(--font-mono);
+    line-height: var(--leading-code);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.results-band-statement {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.results-band-where {
+    margin: 0;
+    color: var(--graphite);
+    font-size: var(--text-xs);
+}
+
+/* the failing statement, quoted on paper; long lines wrap, so the box never scrolls */
+.results-band-quote {
+    max-width: 640px;
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-control);
+    background: var(--paper);
+    font-family: var(--font-mono);
+    font-size: var(--code-size);
+    line-height: var(--leading-code);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.results-band-text {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+/* ---- the notice while the browser cannot keep the log or the progress (js/lab/storage-notice.js):
+   a warning band that stays while saving fails ----------------------------------------------- */
+
+.storage-notice {
+    margin: 0;
+    padding: var(--space-3) var(--space-5);
+    background: var(--warning-subtle);
+    color: var(--ink);
+}
+
+.storage-notice[hidden] {
+    display: none;
+}
+
+/* ---- a phone: the phone mockup's tighter insets --------------------------------------------- */
+
+@media (max-width: 699.98px), (max-height: 499.98px) and (pointer: coarse) {
+    /* the phone mockup's summary line: one row, the text on the table's 16 px edge, Download CSV
+       at the right; a long summary ("Showing 500 of 12,400 rows in 13 ms") wraps inside its own
+       box rather than pushing the button onto a row of its own */
+    .results-summary {
+        flex-wrap: nowrap;
+        min-height: 52px;
+        padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+    }
+
+    .results-summary-text {
+        flex: 1 1 0;
+    }
+
+    .results-download {
+        flex: none;
+    }
+
+    .results-summary > .results-running {
+        padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+    }
+
+    .sqlime-result > .results-running {
+        padding-left: var(--space-4);
+    }
+
+    .results-pane[data-state="result"] > .sqlime-result {
+        padding: var(--space-1) var(--space-4) var(--space-4);
+    }
+
+    .result-table th,
+    .result-table td {
+        padding-right: var(--space-5);
+    }
+
+    .result-table .num,
+    .result-table .num + :not(.num) {
+        padding-left: var(--space-5);
+    }
+
+    .results-empty,
+    .results-loading {
+        padding: var(--space-5) var(--space-4);
+    }
+
+    .results-band,
+    .storage-notice,
+    .result-scroll-note {
+        padding-right: var(--space-4);
+        padding-left: var(--space-4);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cell-popover[popover]:popover-open {
+        animation: none;
+    }
+
+    /* still shown after 300 ms, at once instead of fading in */
+    .results-running {
+        animation-duration: 1ms;
+    }
+}
+
+/* ---- css/evidence.css ---- */
+
+/* Dialogs: the database export (js/lab/export-dialog.js), the evidence export
+   (js/lab/evidence-dialog.js) and Open from URL (js/lab/open-url-dialog.js), all .app-dialog.
+   Native <dialog>s: radius 10 and a shadow, as menus have. */
+
+.app-dialog {
+    box-sizing: border-box;
+    width: min(28rem, calc(100vw - 2rem));
+    max-width: calc(100vw - 2rem);
+    padding: var(--space-5);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-float);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-float);
+}
+
+/* A fixed way down from the top of the window (12% of its height, 32 to 128 px), not in its
+   middle as a <dialog> is by default: a refusal shown inline (an address that cannot be opened, a
+   student number that is missing) makes the dialog taller downward, so the field being typed in
+   does not jump up under the caret, and on a phone the dialog keeps above most of the on-screen
+   keyboard. Taller than the room left, it scrolls. */
+.app-dialog:modal {
+    --dialog-top: clamp(var(--space-6), 12vh, 128px);
+    margin-block: var(--dialog-top) auto;
+    max-height: calc(100% - var(--dialog-top) - var(--space-6));
+}
+
+.app-dialog::backdrop {
+    background: var(--scrim);
+}
+
+.app-dialog-title {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-md);
+}
+
+.app-dialog-text {
+    margin: 0 0 var(--space-4);
+}
+
+.app-dialog-label {
+    display: block;
+    margin-bottom: var(--space-1);
+    font-weight: 600;
+}
+
+.app-dialog-input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--control-height);
+    padding: 0 var(--space-2);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-control);
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+}
+
+/* a value the dialog refused: a thicker edge in the error colour, and the message under it */
+.app-dialog-input[aria-invalid="true"] {
+    border: 2px solid var(--danger);
+}
+
+.app-dialog-hint {
+    margin: var(--space-1) 0 var(--space-4);
+    color: var(--graphite);
+    font-size: var(--text-xs);
+}
+
+.app-dialog-error {
+    margin: calc(-1 * var(--space-2)) 0 var(--space-4);
+    color: var(--danger);
+    font-weight: 600;
+}
+
+.app-dialog-error[hidden] {
+    display: none;
+}
+
+/* the file the dialog will save: "Saved as" and the name in the code face */
+.app-dialog-file {
+    margin: 0 0 var(--space-4);
+    overflow-wrap: anywhere;
+}
+
+.app-dialog-filename {
+    font-family: var(--font-mono);
+}
+
+.app-dialog-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+/* ---- css/toast.css ---- */
+
+/* Toasts (js/lab/toast.js; UI plan, section 5): bottom centre, over the status bar, one at a time.
+   Toasts are one of the three things that cast a shadow (with menus and dialogs); they fade in, and
+   reduced motion removes the fade. The region takes no pointer events, so a toast never stands
+   between the student and a control. */
+
+.toast-region {
+    position: fixed;
+    bottom: calc(28px + var(--space-4));
+    left: 50%;
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    width: max-content;
+    max-width: calc(100vw - 2 * var(--space-4));
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.toast {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    max-width: 36rem;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-float);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-float);
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    line-height: var(--leading-ui);
+    animation: menu-fade var(--motion-fade) ease-out;
+}
+
+.toast-icon {
+    margin-top: 2px;
+}
+
+.toast--problem .toast-icon {
+    color: var(--danger);
+}
+
+.toast-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* a phone: over the bar at the bottom (64 px, Run) and the credit above it (one 28 px line),
+   which the toast leaves readable */
+@media (max-width: 699.98px), (max-height: 499.98px) and (pointer: coarse) {
+    .toast-region {
+        bottom: calc(64px + 28px + var(--space-2));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .toast {
+        animation: none;
+    }
+}

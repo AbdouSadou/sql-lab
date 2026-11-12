@@ -15,6 +15,7 @@ function walkShipped() {
     };
     walk("js");
     walk("css");
+    walk("bundle");
     for (const f of fs.readdirSync(ROOT).filter((f) => f.endsWith(".html"))) files.push(f);
     return files;
 }
@@ -193,7 +194,7 @@ test("no sharing: same-site relative addresses still load, and other http(s) add
 }) => {
     await page.goto("./");
     const types = await page.evaluate(async () => {
-        const { DatabasePath } = await import("./js/db-path.js");
+        const { DatabasePath } = await import("./bundle/app.js").then((bundle) => bundle.dbPath);
         const out = {};
         for (const v of ["demo.db", "datasets/x.db", "../x.db", "a b.db", "folder/a:b", "https://example.com/x.db", "HTTP://example.com/x.db", "", "gist:abc"]) {
             out[v] = new DatabasePath(v).type;

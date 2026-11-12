@@ -177,7 +177,7 @@ async function listFromPage(page, app, listing, sets) {
     }
     await app.open();
     const listed = await page.evaluate(async () => {
-        const { listSets } = await import("./js/lab/exercises.js");
+        const { listSets } = await import("./bundle/app.js").then((bundle) => bundle.exercises);
         return (await listSets()).map((e) => ({ id: e.id, ok: e.ok }));
     });
     await app.openTab("exercises");

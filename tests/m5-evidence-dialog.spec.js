@@ -472,7 +472,7 @@ test.describe("what the file holds", () => {
             expect(link).not.toContain("db=");
         }
         const decoded = await page.evaluate(async (hashes) => {
-            const { decodeShare } = await import("./js/lab/share.js");
+            const { decodeShare } = await import("./bundle/app.js").then((bundle) => bundle.share);
             return hashes.map((h) => decodeShare(h));
         }, links.map((l) => `#${l.split("#")[1]}`));
         expect(decoded).toEqual([

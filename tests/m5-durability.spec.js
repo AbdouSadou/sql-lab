@@ -729,7 +729,7 @@ test.describe("a bare /* at the end of the SQL", () => {
         await app.open();
         const split = (sql) =>
             page.evaluate(async (sql) => {
-                const { splitStatements } = await import("./js/lab/runner.js");
+                const { splitStatements } = await import("./bundle/app.js").then((bundle) => bundle.runner);
                 return splitStatements(window.app.database.capi, sql);
             }, sql);
         expect(await split("select 1; /*")).toEqual(["select 1;", "/*"]);
@@ -785,7 +785,7 @@ test.describe("a bare /* at the end of the SQL", () => {
     test("runs and refuses what SQLite runs and refuses, whitespace after /* included", async ({ page, app }) => {
         await app.open();
         const outcomes = await page.evaluate(async (cases) => {
-            const { runSql } = await import("./js/lab/runner.js");
+            const { runSql } = await import("./bundle/app.js").then((bundle) => bundle.runner);
             return cases.map(([sql]) => {
                 try {
                     runSql(window.app.database, sql);

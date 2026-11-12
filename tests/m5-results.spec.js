@@ -245,7 +245,7 @@ test.describe("errors name the failing statement", () => {
 
     test("runSql rethrows the engine's own exception with the statement attached", async ({ page }) => {
         const info = await page.evaluate(async () => {
-            const { runSql, engineMessage } = await import("./js/lab/runner.js");
+            const { runSql, engineMessage } = await import("./bundle/app.js").then((bundle) => bundle.runner);
             try {
                 runSql(window.app.database, "select 1; selct 2; select 3");
             } catch (exc) {
@@ -421,7 +421,7 @@ test.describe("Download CSV", () => {
 
     test("toCsv is pure: header only for no rows, NULL empty, bytes as hex, quoting rules", async ({ page }) => {
         const out = await page.evaluate(async () => {
-            const { toCsv } = await import("./js/lab/results.js");
+            const { toCsv } = await import("./bundle/app.js").then((bundle) => bundle.results);
             return {
                 none: toCsv({ columns: ["a", "b"], values: [] }),
                 mixed: toCsv({
@@ -458,7 +458,7 @@ test.describe("Download CSV", () => {
 
     test("the file name is the database name without its extension, sanitised, plus -result.csv", async ({ app, page }) => {
         const names = await page.evaluate(async () => {
-            const { csvFileName } = await import("./js/lab/results.js");
+            const { csvFileName } = await import("./bundle/app.js").then((bundle) => bundle.results);
             return ["northlight_retail.db", "a.sqlite3", "x.sql", 'we:ird/na*me?.db', "", "new.db", "report", "...", "a.b.db"].map(
                 csvFileName
             );

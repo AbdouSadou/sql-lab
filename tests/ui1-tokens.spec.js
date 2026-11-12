@@ -16,7 +16,9 @@ const COLOUR_FUNCTION_JS = /\b(?:rgba?|hsla?)\(/g;
 const COLOUR_NAME = /:[^;{}]*\b(white|black|red|green|blue|gray|grey|silver|yellow|orange|purple|navy|maroon|teal|olive|lime|aqua|fuchsia|pink|brown)\b/gi;
 const stripComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
-// the site's own CSS and JS (not vendor/, which is third-party and holds no styles)
+// the site's own CSS and JS (not vendor/, which is third-party and holds no styles; not bundle/,
+// which is css/ and js/ joined, as tools/build-app.mjs --check keeps it: tokens.css and fonts.css
+// are in bundle/app.css by design, and the rules below hold for it through its sources)
 function ownFiles() {
     const files = [];
     const walk = (dir) => {

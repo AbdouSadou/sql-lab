@@ -37,7 +37,7 @@ test.describe("validateSet", () => {
     const validate = (page, data, expectedId = "s1") =>
         page.evaluate(
             async ([data, expectedId]) => {
-                const { validateSet } = await import("./js/lab/exercises.js");
+                const { validateSet } = await import("./bundle/app.js").then((bundle) => bundle.exercises);
                 return validateSet(data, expectedId);
             },
             [data, expectedId]
@@ -143,7 +143,7 @@ test.describe("validateSet", () => {
 
     test("a pattern-valid id is echoed, and the input is not shared with the result", async ({ page }) => {
         const shared = await page.evaluate(async () => {
-            const { validateSet } = await import("./js/lab/exercises.js");
+            const { validateSet } = await import("./bundle/app.js").then((bundle) => bundle.exercises);
             const data = { id: "s1", title: "T", dataset: "d", exercises: [{ id: "e1", title: "A", prompt: "P", model_query: "select 1", hints: ["h"] }] };
             const out = validateSet(data, "s1");
             out.set.exercises[0].hints.push("x");
@@ -177,7 +177,7 @@ test.describe("loadSet", () => {
         page.evaluate(() => window.__fetches.filter((f) => f.url.includes("exercises")));
     const load = (page, id) =>
         page.evaluate(async (id) => {
-            const { loadSet } = await import("./js/lab/exercises.js");
+            const { loadSet } = await import("./bundle/app.js").then((bundle) => bundle.exercises);
             return loadSet(id);
         }, id);
 
@@ -195,7 +195,7 @@ test.describe("loadSet", () => {
         await page.goto("./");
         await spy(page);
         const same = await page.evaluate(async () => {
-            const { loadSet } = await import("./js/lab/exercises.js");
+            const { loadSet } = await import("./bundle/app.js").then((bundle) => bundle.exercises);
             const [a, b] = await Promise.all([loadSet("retail-basics"), loadSet("retail-basics")]);
             const c = await loadSet("retail-basics");
             return a === b && a.set === c.set;
@@ -260,7 +260,7 @@ test.describe("loadSet", () => {
 
 test.describe("badNamesInListing", () => {
     const names = (page, html) =>
-        page.evaluate(async (html) => (await import("./js/lab/exercises.js")).badNamesInListing(html), html);
+        page.evaluate(async (html) => (await import("./bundle/app.js").then((bundle) => bundle.exercises)).badNamesInListing(html), html);
 
     test.beforeEach(async ({ app }) => {
         await app.open();
@@ -311,7 +311,7 @@ test.describe("badNamesInListing", () => {
 
     test("idsInListing is as it was: the file names that cannot be ids are not ids", async ({ page }) => {
         const html = listingHtml(["Week%203.json", "week1.v2.json", "ok.json"]);
-        const ids = await page.evaluate(async (html) => (await import("./js/lab/exercises.js")).idsInListing(html), html);
+        const ids = await page.evaluate(async (html) => (await import("./bundle/app.js").then((bundle) => bundle.exercises)).idsInListing(html), html);
         expect(ids).toEqual(["ok"]);
     });
 });
@@ -319,7 +319,7 @@ test.describe("badNamesInListing", () => {
 test.describe("listSets", () => {
     const list = (page) =>
         page.evaluate(async () => {
-            const { listSets } = await import("./js/lab/exercises.js");
+            const { listSets } = await import("./bundle/app.js").then((bundle) => bundle.exercises);
             const entries = await listSets();
             return entries.map((e) => (e.ok ? { id: e.id, ok: true, title: e.set.title, count: e.set.exercises.length } : e));
         });
@@ -375,7 +375,7 @@ test.describe("listSets", () => {
                 calls.push({ url: String(url), cache: init?.cache });
                 return original(url, init);
             };
-            const { listSets } = await import("./js/lab/exercises.js");
+            const { listSets } = await import("./bundle/app.js").then((bundle) => bundle.exercises);
             await listSets();
             return calls;
         });
@@ -560,7 +560,7 @@ test.describe("progress", () => {
     const p = (page, body, arg) =>
         page.evaluate(
             async ({ body, arg }) => {
-                const progress = await import("./js/lab/progress.js");
+                const progress = await import("./bundle/app.js").then((bundle) => bundle.progress);
                 return new Function("progress", "arg", `return (async () => { ${body} })()`)(progress, arg);
             },
             { body, arg }
@@ -753,7 +753,7 @@ test.describe("resolveRoute and exercise sets", () => {
     const route = (page, { search = "", hash = "" } = {}) =>
         page.evaluate(
             async ({ search, hash }) => {
-                const { resolveRoute } = await import("./js/lab/router.js");
+                const { resolveRoute } = await import("./bundle/app.js").then((bundle) => bundle.router);
                 const r = await resolveRoute({ search, hash });
                 return {
                     database: r.database,

@@ -8,7 +8,9 @@ const FOOTER_CREDIT = "Made by Abdou Sadou, based on SQLime by Anton Zhiyanov";
 const CREDIT = "Based on SQLime by Anton Zhiyanov";
 const SAMPLE = path.join(__dirname, "fixtures", "sample.db");
 
-// shipped lists the HTML, CSS and JS the site serves (not the vendored engine, not dev files).
+// shipped lists the HTML, CSS and JS the site serves (not the vendored engine, not dev files, and
+// not bundle/: it is js/ and css/ joined, which tools/build-app.mjs --check keeps it, so the name is
+// in it only through js/lab/config.js; the rename below proves the page takes it from there).
 function shipped() {
     const files = [];
     const walk = (dir) => {
@@ -25,13 +27,16 @@ function shipped() {
     return files;
 }
 
-// Reads the real js/lab/config.js and serves a copy that names the app differently.
+// Reads the real js/lab/config.js and serves a copy that names the app differently: the file itself
+// (About and the evidence check page load it), and bundle/app.js, where the app's page has it.
 async function renameApp(page, newName) {
-    await page.route("**/js/lab/config.js", async (route) => {
-        const response = await route.fetch();
-        const body = (await response.text()).replace(/APP_NAME = "[^"]*"/, `APP_NAME = "${newName}"`);
-        await route.fulfill({ response, body });
-    });
+    for (const file of ["**/js/lab/config.js", "**/bundle/app.js"]) {
+        await page.route(file, async (route) => {
+            const response = await route.fetch();
+            const body = (await response.text()).replace(/APP_NAME = "[^"]*"/, `APP_NAME = "${newName}"`);
+            await route.fulfill({ response, body });
+        });
+    }
 }
 
 test("brand: the app name is written in js/lab/config.js and nowhere else", () => {

@@ -104,7 +104,7 @@ test.describe("the SQL guard", () => {
     test("isVacuumInto matches only a statement that starts with VACUUM and says INTO", async ({ page, app }) => {
         await app.open();
         const verdicts = await page.evaluate(async () => {
-            const { isVacuumInto } = await import("./js/lab/runner.js");
+            const { isVacuumInto } = await import("./bundle/app.js").then((bundle) => bundle.runner);
             return [
                 "VACUUM",
                 "vacuum;",
@@ -127,8 +127,8 @@ test.describe("the SQL guard", () => {
     test("a Check that cannot open a connection says to reload; a failed model connection is not blamed on the exercise", async ({ page, app }) => {
         await app.open();
         const out = await page.evaluate(async () => {
-            const { createChecker } = await import("./js/lab/checker.js");
-            const manager = (await import("./js/sqlite/manager.js")).default;
+            const { createChecker } = await import("./bundle/app.js").then((bundle) => bundle.checker);
+            const manager = (await import("./bundle/app.js").then((bundle) => bundle.manager)).default;
             const original = manager.init;
             const checker = createChecker();
             const set = { id: "mini", dataset: "northlight" };
@@ -208,7 +208,7 @@ test.describe("storage that throws", () => {
         await page.addInitScript(BREAKERS["setItem throws QuotaExceededError"]);
         await app.open();
         const got = await page.evaluate(async () => {
-            const storage = (await import("./js/storage.js")).default;
+            const storage = (await import("./bundle/app.js").then((bundle) => bundle.storage)).default;
             storage.set("db.sqlite", "select 1");
             const kept = storage.get("db.sqlite");
             storage.remove("db.sqlite");

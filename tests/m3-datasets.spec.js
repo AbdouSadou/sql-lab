@@ -380,7 +380,7 @@ test("the demo and 'start from scratch' text and files are gone", async ({ page,
     }
     // nothing shipped mentions them either
     const offenders = [];
-    for (const dir of ["js", "css", "."]) {
+    for (const dir of ["js", "css", "bundle", "."]) {
         for (const entry of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
             if (!entry.isFile() || !/\.(html|css|js)$/.test(entry.name)) continue;
             const file = path.join(dir, entry.name);
@@ -1293,7 +1293,7 @@ async function routeSampleOk(page) {
 test.describe("pristine bytes", () => {
     const pristineInfo = (page) =>
         page.evaluate(async () => {
-            const { getPristineBytes, getPristineId } = await import("./js/lab/datasets.js");
+            const { getPristineBytes, getPristineId } = await import("./bundle/app.js").then((bundle) => bundle.datasets);
             const bytes = getPristineBytes();
             if (!bytes) return null;
             const digest = async (b) =>

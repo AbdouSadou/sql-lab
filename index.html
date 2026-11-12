@@ -21,16 +21,14 @@
          js/lab/config.js, by tools/site-meta.mjs -->
     <!-- social:end -->
 
-    <link rel="stylesheet" href="css/tokens.css">
-    <link rel="stylesheet" href="css/fonts.css">
-    <link rel="stylesheet" href="css/core.css">
-    <link rel="stylesheet" href="css/buttons.css">
-    <link rel="stylesheet" href="css/shell.css">
-    <link rel="stylesheet" href="css/menu.css">
-    <!-- the code editor (CodeMirror, js/components/sqlime-editor.js imports it), fetched alongside
-         the engine rather than after it -->
+    <!-- the page's stylesheets and its modules, one file each: css/ and js/ joined by
+         tools/build-app.mjs (npm run build:app after changing them), so that a first visit asks
+         for few files -->
+    <link rel="stylesheet" href="bundle/app.css">
+    <!-- the code editor (CodeMirror, which the editor element imports), fetched alongside the
+         engine rather than after it -->
     <link rel="modulepreload" href="vendor/editor.js">
-    <script type="module" src="js/lab/brand.js"></script>
+    <script type="module" src="bundle/app.js"></script>
 </head>
 
 <body>
@@ -104,7 +102,6 @@
                 </button>
                 <!-- the link, to copy by hand, when the browser keeps the clipboard to itself
                      (js/lab/copy-link.js fills it) -->
-                <link rel="stylesheet" href="css/share.css">
                 <div id="copy-link-popover" class="share-popover" popover tabindex="-1"></div>
 
                 <button id="export-button" class="button button--quiet" type="button">
@@ -172,11 +169,9 @@
                             <span>Close</span>
                         </button>
                     </div>
-                    <link rel="stylesheet" href="css/schema.css">
                     <div id="panel-schema" class="tab-panel" role="tabpanel" aria-labelledby="tab-schema">
                         <div id="schema"></div>
                     </div>
-                    <link rel="stylesheet" href="css/exercises.css">
                     <div id="panel-exercises" class="tab-panel" role="tabpanel" aria-labelledby="tab-exercises" hidden>
                         <div class="exercise-set">
                             <!-- js/lab/exercise-panel.js: the set picker (a menu button), progress, reset, the list -->
@@ -191,7 +186,6 @@
                             <p class="exercise-empty">Choose an exercise set to practise with. Check answer marks each exercise you get right, and your progress stays in this browser.</p>
                         </div>
                     </div>
-                    <link rel="stylesheet" href="css/run-log.css">
                     <div id="panel-history" class="tab-panel" role="tabpanel" aria-labelledby="tab-history" hidden>
                         <div id="run-history-list" class="run-history-list"></div>
                     </div>
@@ -222,7 +216,6 @@
                     <p id="exercise-announce" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
                 </section>
 
-                <link rel="stylesheet" href="css/editor.css">
                 <div id="editor-toolbar" class="editor-toolbar" role="group" aria-label="Query">
                     <button id="execute" class="button button--primary" type="button" data-action="executeCurrent" aria-keyshortcuts="Control+Enter Meta+Enter" disabled>
                         <svg class="icon icon--filled" aria-hidden="true" focusable="false"><use href="#icon-play"></use></svg>
@@ -242,8 +235,6 @@
                 </section>
                 <div id="editor-splitter" class="splitter splitter--horizontal" role="separator" aria-orientation="horizontal" aria-controls="editor-pane" aria-label="Editor height" tabindex="0" title="Drag, or use the arrow keys, to share the height between the query and its result"><span class="splitter-grip"></span></div>
 
-                <link rel="stylesheet" href="css/result.css">
-                <link rel="stylesheet" href="css/evidence.css">
                 <!-- The results pane (js/lab/results.js): one state at a time, named by its
                      data-state: no result yet (with sample queries), a database loading, a result
                      (the summary line and the ruled table), "Done." and the error band. Each
@@ -288,16 +279,12 @@
     </div>
 
     <!-- toasts (js/lab/toast.js): a polite live region that is here from the start -->
-    <link rel="stylesheet" href="css/toast.css">
     <div id="toast-region" class="toast-region" role="status" aria-live="polite" aria-atomic="true"></div>
 
     <script src="js/lab/storage-guard.js"></script>
     <script src="js/lab/engine-guard.js"></script>
     <script src="vendor/sqlite3.js"></script>
     <script src="vendor/lz-string.min.js"></script>
-    <script type="module" src="js/components/sqlime-editor.js"></script>
-    <script type="module" src="js/components/sqlime-result.js"></script>
-    <script type="module" src="js/index.js"></script>
 </body>
 
 </html>

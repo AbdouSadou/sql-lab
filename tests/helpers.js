@@ -877,11 +877,11 @@ class App {
         return this.page.evaluate(
             async ({ exerciseId, sql, set, exercise }) => {
                 if (!window.__checker) {
-                    const { createChecker } = await import("./js/lab/checker.js");
+                    const { createChecker } = await import("./bundle/app.js").then((bundle) => bundle.checker);
                     window.__checker = createChecker();
                 }
                 if (!set) {
-                    const { loadSet } = await import("./js/lab/exercises.js");
+                    const { loadSet } = await import("./bundle/app.js").then((bundle) => bundle.exercises);
                     set = (await loadSet("retail-basics")).set;
                 }
                 const picked = exercise ?? set.exercises.find((e) => e.id === exerciseId);
@@ -895,7 +895,7 @@ class App {
     // recorded; connections() lists them as [{name, open}] in the order they were opened.
     async trackConnections() {
         await this.page.evaluate(async () => {
-            const manager = (await import("./js/sqlite/manager.js")).default;
+            const manager = (await import("./bundle/app.js").then((bundle) => bundle.manager)).default;
             window.__opened = [];
             const original = manager.init;
             manager.init = async function (name, path) {

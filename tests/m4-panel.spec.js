@@ -183,7 +183,7 @@ test("AC5 the model query appears nowhere in the page, for all ten exercises, wh
     await app.editor.fill("SELECT 1;");
     const link = await app.copyLink();
     const decoded = await page.evaluate(async (hash) => {
-        const { decodeShare } = await import("./js/lab/share.js");
+        const { decodeShare } = await import("./bundle/app.js").then((bundle) => bundle.share);
         return decodeShare(hash);
     }, new URL(link).hash);
     expect(decoded.state).toMatchObject({ dataset: "northlight", set: "retail-basics", sql: "SELECT 1;" });
@@ -690,7 +690,7 @@ test("moving between exercises saves and restores the text, clears the verdict a
     // the share link follows the exercise
     await app.exerciseButton(4).click();
     const link = await app.copyLink();
-    const state = await page.evaluate(async (hash) => (await import("./js/lab/share.js")).decodeShare(hash).state, new URL(link).hash);
+    const state = await page.evaluate(async (hash) => (await import("./bundle/app.js").then((bundle) => bundle.share)).decodeShare(hash).state, new URL(link).hash);
     expect(state).toMatchObject({ dataset: "northlight", set: "retail-basics", exercise: "e04" });
     // a reload keeps the place
     await page.reload();
@@ -853,7 +853,7 @@ async function expectClosed(page, app) {
     await expect(page.locator("#exercise-check")).toHaveCount(0);
     await expectSetPicked(app, "None");
     await expect(app.feedback).toBeHidden();
-    const context = await page.evaluate(async () => (await import("./js/lab/share.js")).getShareContext());
+    const context = await page.evaluate(async () => (await import("./bundle/app.js").then((bundle) => bundle.share)).getShareContext());
     expect(context.set).toBeUndefined();
     expect(context.exercise).toBeUndefined();
 }
@@ -874,7 +874,7 @@ test("None closes the panel, keeps the database open and pushes ?db=<id>", async
     expect(await page.evaluate(() => history.length)).toBe(before + 1);
     // copy link now carries no set
     const link = await app.copyLink();
-    const state = await page.evaluate(async (hash) => (await import("./js/lab/share.js")).decodeShare(hash).state, new URL(link).hash);
+    const state = await page.evaluate(async (hash) => (await import("./bundle/app.js").then((bundle) => bundle.share)).decodeShare(hash).state, new URL(link).hash);
     expect(state.set).toBeUndefined();
     expect(state.exercise).toBeUndefined();
     expect(state.dataset).toBe("northlight");

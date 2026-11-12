@@ -1,10 +1,11 @@
 {
   "name": "sql-playground",
   "private": true,
-  "description": "Dev tooling for the SQL playground: the tests, and the one build step (the CodeMirror bundle in vendor/editor.js, committed). The site itself is served as is.",
+  "description": "Dev tooling for the SQL playground: the tests, and the two build steps (the CodeMirror bundle in vendor/editor.js, and the app page's scripts and stylesheets in bundle/, both committed). The site itself is served as is.",
   "scripts": {
     "test": "playwright test",
-    "build:editor": "node tools/build-editor.mjs"
+    "build:editor": "node tools/build-editor.mjs",
+    "build:app": "node tools/build-app.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

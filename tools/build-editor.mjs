@@ -1,7 +1,8 @@
 // Builds vendor/editor.js, the CodeMirror 6 bundle the SQL editor loads, and
-// vendor/codemirror.LICENSE.txt. This is the site's one build step (UI plan, section 1); its
-// output is committed, so the site itself still needs no build. Dev tooling, not deployed; run it
-// after changing tools/editor-entry.js or a CodeMirror version in package.json:
+// vendor/codemirror.LICENSE.txt. It is one of the site's two build steps (the other is
+// tools/build-app.mjs, the app page's js/ and css/ in bundle/); its output is committed, so the
+// site itself still needs no build. Dev tooling, not deployed; run it after changing
+// tools/editor-entry.js or a CodeMirror version in package.json:
 //
 //   npm ci && npm run build:editor
 //

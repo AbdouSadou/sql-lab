@@ -66,6 +66,7 @@ test("AC7 shipped files contain no root-absolute URLs", () => {
     walk("js");
     walk("css");
     walk("img");
+    walk("bundle");
     for (const f of fs.readdirSync(ROOT).filter((f) => f.endsWith(".html"))) shipped.push(f);
 
     const offenders = [];

@@ -63,7 +63,7 @@ test.describe("the run log under load", () => {
     test("an entry is stored, in the History tab and in the export as soon as appendLog returns", async ({ page, app }) => {
         await app.open();
         const seen = await page.evaluate(async () => {
-            const { appendLog, readLog } = await import("./js/lab/run-log.js");
+            const { appendLog, readLog } = await import("./bundle/app.js").then((bundle) => bundle.runLog);
             const stored = () => {
                 const text = localStorage.getItem("sqllab.log.northlight");
                 return text === null ? null : JSON.parse(text).entries.map((e) => e.sql);
@@ -97,7 +97,7 @@ test.describe("the run log under load", () => {
         const STEP = 50; // each tab appends every 50 ms, tab B 25 ms after tab A
         const start = Date.now() + 500;
         const append = ([tag, n, at, step]) =>
-            import("./js/lab/run-log.js").then(async ({ appendLog }) => {
+            import("./bundle/app.js").then((bundle) => bundle.runLog).then(async ({ appendLog }) => {
                 for (let i = 0; i < n; i++) {
                     const wait = at + i * step - Date.now();
                     if (wait > 0) {

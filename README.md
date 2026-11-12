@@ -1,6 +1,6 @@
 # SQL playground for teaching
 
-A static, browser-only SQL playground for teaching. SQLite runs in your browser as WebAssembly: there is no server, no account and no analytics, and the queries and data you work with never leave the browser. The page is plain HTML, CSS and JavaScript. The one built file is the code editor's bundle, `vendor/editor.js`, and it is committed, so there is nothing to build to run or deploy the site.
+A static, browser-only SQL playground for teaching. SQLite runs in your browser as WebAssembly: there is no server, no account and no analytics, and the queries and data you work with never leave the browser. The page is plain HTML, CSS and JavaScript. Two things are built, and both are committed, so there is nothing to build to run or deploy the site: the code editor's bundle, `vendor/editor.js`, and the app page's own scripts and stylesheets joined into one file each, `bundle/app.js` and `bundle/app.css`.
 
 Based on SQLime by Anton Zhiyanov (https://github.com/nalgeon/sqlime).
 
@@ -13,7 +13,7 @@ Based on SQLime by Anton Zhiyanov (https://github.com/nalgeon/sqlime).
 | publish a change | push to `main` | [Deploying](#deploying) |
 | check a student's evidence file | nothing: open `verify.html` on the site | [Marking evidence files](#marking-evidence-files) |
 | rename the app, change the student number format, or give the site's address for link previews | one line in `js/lab/config.js` | [Settings](#settings) |
-| work on the code | nothing to build | [Run it locally](#run-it-locally), [Tests](#tests) |
+| work on the code | the change, and after a change to `js/` or `css/` the rebuilt `bundle/` (`npm run build:app`) | [Run it locally](#run-it-locally), [The app bundle](#the-app-bundle), [Tests](#tests) |
 
 ## Features
 
@@ -70,7 +70,7 @@ How the site finds the sets: the page reads the folder listing of `exercises/`. 
 
 ## Deploying
 
-Pushing to `main` redeploys the site: `.github/workflows/pages.yml` copies the repository root, leaving out `tests/`, `docs/`, `tools/`, `node_modules/`, `package.json`, `package-lock.json`, `playwright.config.js` and the git files, and publishes it with the official GitHub Pages actions. Everything else at the root is public, `datasets/generate_db.py` and `CODEMAP.md` included. The workflow can also be started by hand from the Actions tab.
+Pushing to `main` redeploys the site: `.github/workflows/pages.yml` copies the repository root, leaving out `tests/`, `docs/`, `tools/`, `node_modules/`, `package.json`, `package-lock.json`, `playwright.config.js` and the git files, and publishes it with the official GitHub Pages actions. Everything else at the root is public, `datasets/generate_db.py` and `CODEMAP.md` included. The workflow can also be started by hand from the Actions tab. It compiles none of the site's code and runs no test (it only writes the exercise listing, the link previews and the web manifest into the copy it publishes): the two built parts, `vendor/editor.js` and `bundle/`, go out as committed, so after a change to `js/` or `css/` push the rebuilt `bundle/` with it ([The app bundle](#the-app-bundle)).
 
 While it stages the site the workflow also writes what a shared link's preview shows (the Open Graph tags: the page's title and description, and a picture, `img/social.png`) and a web manifest (`site.webmanifest`, with the app's icons) into the staged pages, with `node tools/site-meta.mjs` (step "Link previews and web manifest"). A preview needs the site's absolute address: `SITE_URL` in `js/lab/config.js` when it is set, else the address GitHub Pages gives the workflow. The pages in the repository carry no address and no app name; the tags are written only into the copy that is published.
 
@@ -101,7 +101,7 @@ All three are in `js/lab/config.js`:
 
 ## Run it locally
 
-Serve the repository root with any static file server: from the repository root, `python3 -m http.server 8000 --bind 127.0.0.1` or `make serve` (`make serve PORT=9000` for another port). Then open http://localhost:8000/ (or your port). Do not open the address that `make serve` and a plain `python3 -m http.server` print, such as `http://0.0.0.0:8000/`: browsers do not treat it as a secure address, so the evidence export and `verify.html` cannot compute their checksum there. Opening `index.html` from the disk does not work either: the page loads ES modules and fetches the datasets. There is nothing to build; edit a file and reload (only a change to the editor's CodeMirror packages needs a build, below).
+Serve the repository root with any static file server: from the repository root, `python3 -m http.server 8000 --bind 127.0.0.1` or `make serve` (`make serve PORT=9000` for another port). Then open http://localhost:8000/ (or your port). Do not open the address that `make serve` and a plain `python3 -m http.server` print, such as `http://0.0.0.0:8000/`: browsers do not treat it as a secure address, so the evidence export and `verify.html` cannot compute their checksum there. Opening `index.html` from the disk does not work either: the page loads ES modules and fetches the datasets. The app's page runs `bundle/app.js` and `bundle/app.css`, built from `js/` and `css/`, rather than those files themselves (all but its three small classic scripts): after editing them, run `npm run build:app` and reload ([The app bundle](#the-app-bundle), below). Anything else (a dataset, an exercise set, About) needs no build: edit it and reload.
 
 `CODEMAP.md` is a map of the code: what each module does, how a database opens and a query runs, what is stored where, and how to extend it. Read it before changing code.
 
@@ -124,7 +124,7 @@ npm test
 
 ## The editor bundle
 
-The editor is [CodeMirror 6](https://codemirror.net/), bundled with esbuild into `vendor/editor.js` (about 390 KB, 130 KB compressed; the plan's budget is 500 KB), with the licences of the bundled packages in `vendor/codemirror.LICENSE.txt`. The bundle holds the library only: what SQL Lab does with it (the keys, the suggestions, the look) is `js/lab/code-editor.js` and `css/editor.css`, which need no build. To change a CodeMirror version, set it in `package.json` (exact versions; `@lezer/common` and `@lezer/lr` are pinned under `overrides`), then:
+The editor is [CodeMirror 6](https://codemirror.net/), bundled with esbuild into `vendor/editor.js` (about 390 KB, 130 KB compressed; the plan's budget is 500 KB), with the licences of the bundled packages in `vendor/codemirror.LICENSE.txt`. The bundle holds the library only: what SQL Lab does with it (the keys, the suggestions, the look) is `js/lab/code-editor.js` and `css/editor.css`, which go into the app bundle (`npm run build:app`, [below](#the-app-bundle)), not into this one. To change a CodeMirror version, set it in `package.json` (exact versions; `@lezer/common` and `@lezer/lr` are pinned under `overrides`), then:
 
 ```
 npm install
@@ -132,6 +132,19 @@ npm run build:editor
 ```
 
 and commit `vendor/editor.js` and `vendor/codemirror.LICENSE.txt`. A test (`tests/ui3-editor.spec.js`) fails while the committed bundle differs from a fresh build (`node tools/build-editor.mjs --check`).
+
+## The app bundle
+
+The app's page, `index.html`, loads its modules and its stylesheets as two files: `bundle/app.js`, the modules of `js/` it runs, bundled by esbuild (not minified, so the names stay readable; about 260 KB, 70 KB compressed), and `bundle/app.css`, its stylesheets of `css/` joined in the order of the cascade (about 86 KB, 20 KB compressed). A first visit then asks for 16 files (18 in Firefox, which fetches two icons at once) rather than 85 (87). That is for a class: students opening the site at the same moment from one school network are one burst of requests from one address, and GitHub Pages answers a large burst with "429 Rate limit exceeded" for minutes, while the page loads half its files. CodeMirror stays a file of its own (`vendor/editor.js`), so the plain editor still takes over when it cannot load. About and the evidence check page load their few files from `js/` and `css/` directly.
+
+`js/` and `css/` stay the source; never edit `bundle/` by hand. After changing them:
+
+```
+npm ci              (once)
+npm run build:app
+```
+
+and commit `bundle/` with the change. A test (`tests/app-bundle.spec.js`) fails while the committed files differ from a fresh build (`node tools/build-app.mjs --check`). The deploy does not run that test or build anything: it publishes `bundle/` as committed, so a change to a module of `js/` or a stylesheet of `css/` that the app's page bundles never reaches it unless the rebuilt `bundle/` goes with it. (The page's three classic scripts, `js/lab/theme-boot.js`, `storage-guard.js` and `engine-guard.js`, and the files of About and the evidence check page are loaded from `js/` and `css/` directly, so a change to them goes out as it is.) Run the tests, or at least `node tools/build-app.mjs --check`, before you push. A new stylesheet for the app's page goes in the list in `tools/build-app.mjs`: the build fails on a stylesheet that no page uses. In a test, reach a module of the app's page through the bundle, `const { checker } = await import("./bundle/app.js")`, which gives the very instance the page runs; the bundle exports the modules listed in `EXPOSE` in `tools/build-app.mjs`.
 
 ## Credits and licence
 

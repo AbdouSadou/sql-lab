@@ -1,6 +1,7 @@
 // The entry point of vendor/editor.js, the CodeMirror 6 bundle (tools/build-editor.mjs). It holds
 // the library only: what SQL Lab does with it (the keys, the completion, the look) lives in
-// js/lab/code-editor.js, which is not bundled, so changing it needs no build.
+// js/lab/code-editor.js, which is not in this bundle: it is in the app page's, bundle/app.js
+// (npm run build:app after changing it).
 
 export { Annotation, Compartment, EditorSelection, EditorState, Prec } from "@codemirror/state";
 export {

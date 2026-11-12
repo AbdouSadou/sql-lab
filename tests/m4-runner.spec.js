@@ -6,7 +6,7 @@ test.describe("splitStatements", () => {
     // run splits `sql` with the open database's own capi
     const split = (page, sql) =>
         page.evaluate(async (sql) => {
-            const { splitStatements } = await import("./js/lab/runner.js");
+            const { splitStatements } = await import("./bundle/app.js").then((bundle) => bundle.runner);
             return splitStatements(window.app.database.capi, sql);
         }, sql);
 
@@ -78,7 +78,7 @@ test.describe("splitStatements", () => {
 
     test("a long run of blanks and comments after the last statement is dropped at once", async ({ page }) => {
         const ms = await page.evaluate(async () => {
-            const { splitStatements } = await import("./js/lab/runner.js");
+            const { splitStatements } = await import("./bundle/app.js").then((bundle) => bundle.runner);
             const capi = window.app.database.capi;
             const started = performance.now();
             const a = splitStatements(capi, `select 1;${" ".repeat(5000)}${"\n-- c".repeat(2000)}`);
@@ -93,7 +93,7 @@ test.describe("splitStatements", () => {
 
     test("a long script is not re-scanned from its start", async ({ page }) => {
         const info = await page.evaluate(async () => {
-            const { splitStatements } = await import("./js/lab/runner.js");
+            const { splitStatements } = await import("./bundle/app.js").then((bundle) => bundle.runner);
             const real = window.app.database.capi;
             let scanned = 0;
             const capi = {
@@ -115,7 +115,7 @@ test.describe("splitStatements", () => {
     // does not depend on the machine)
     const splitCounting = (page, sql) =>
         page.evaluate(async (sql) => {
-            const { splitStatements } = await import("./js/lab/runner.js");
+            const { splitStatements } = await import("./bundle/app.js").then((bundle) => bundle.runner);
             const real = window.app.database.capi;
             let calls = 0;
             const capi = {
@@ -153,7 +153,7 @@ test.describe("splitStatements", () => {
 
     test("a text value of 300000 semicolons runs through runSql, as a .sql upload does", async ({ page }) => {
         const length = await page.evaluate(async () => {
-            const { runSql } = await import("./js/lab/runner.js");
+            const { runSql } = await import("./bundle/app.js").then((bundle) => bundle.runner);
             const result = runSql(window.app.database, `select '${";".repeat(300_000)}' as x;`);
             return result.values[0][0].length;
         });
@@ -262,7 +262,7 @@ test.describe("runSql", () => {
     // run executes sql with runSql on the open database; returns {result} or {error, message}
     const run = (page, sql) =>
         page.evaluate(async (sql) => {
-            const { runSql, engineMessage } = await import("./js/lab/runner.js");
+            const { runSql, engineMessage } = await import("./bundle/app.js").then((bundle) => bundle.runner);
             try {
                 return { result: runSql(window.app.database, sql) };
             } catch (exc) {
@@ -333,7 +333,7 @@ test.describe("runSql", () => {
 
     test("it sets database.query, as SQLite.execute does", async ({ page }) => {
         const query = await page.evaluate(async () => {
-            const { runSql } = await import("./js/lab/runner.js");
+            const { runSql } = await import("./bundle/app.js").then((bundle) => bundle.runner);
             runSql(window.app.database, "select 1; select 2");
             return window.app.database.query;
         });
@@ -371,7 +371,7 @@ test.describe("runSql", () => {
 
     test("values keep their types: BigInt, BLOB, NULL, REAL", async ({ page }) => {
         const types = await page.evaluate(async () => {
-            const { runSql } = await import("./js/lab/runner.js");
+            const { runSql } = await import("./bundle/app.js").then((bundle) => bundle.runner);
             const row = runSql(window.app.database, "select 9223372036854775807, x'0aff', null, 2.5, 'a', 3").values[0];
             return row.map((v) => (v === null ? "null" : v instanceof Uint8Array ? "blob" : typeof v));
         });
@@ -383,7 +383,7 @@ test.describe("engineMessage", () => {
     test("strips the wrapper's prefix for any result code", async ({ page, app }) => {
         await app.open();
         const messages = await page.evaluate(async () => {
-            const { runSql, engineMessage } = await import("./js/lab/runner.js");
+            const { runSql, engineMessage } = await import("./bundle/app.js").then((bundle) => bundle.runner);
             const db = window.app.database;
             const message = (sql) => {
                 try {

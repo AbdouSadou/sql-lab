@@ -180,7 +180,7 @@ test.describe("AC4 (share link, the part that exists now)", () => {
     test("AC4 all state fields round-trip through the share module", async ({ app }) => {
         await app.open();
         const result = await app.page.evaluate(async () => {
-            const share = await import("./js/lab/share.js");
+            const share = await import("./bundle/app.js").then((bundle) => bundle.share);
             const sql = "SELECT 'é😀' AS \"q\";\n-- end";
             const out = {};
             share.setShareContext({ dataset: "northlight", set: "retail-basics", exercise: "e01" });
@@ -241,13 +241,13 @@ test.describe("AC4 (share link, the part that exists now)", () => {
     test("AC4 the share context set by later milestones reaches the copied link", async ({ app, page }) => {
         await app.open();
         await page.evaluate(async () => {
-            const share = await import("./js/lab/share.js");
+            const share = await import("./bundle/app.js").then((bundle) => bundle.share);
             share.setShareContext({ dataset: "northlight", set: "retail-basics", exercise: "e03" });
         });
         await app.editor.fill("SELECT 3;");
         const link = await app.copyLink();
         const decoded = await page.evaluate(async (hash) => {
-            const share = await import("./js/lab/share.js");
+            const share = await import("./bundle/app.js").then((bundle) => bundle.share);
             share.setShareContext({ dataset: null, set: null, exercise: null });
             return share.decodeShare(hash);
         }, new URL(link).hash);
@@ -322,7 +322,7 @@ test.describe("share links that are written loosely", () => {
     test("the share module reads these starts and nothing else as a share link", async ({ app, page }) => {
         await app.open();
         const out = await page.evaluate(async () => {
-            const { isShareFragment } = await import("./js/lab/share.js");
+            const { isShareFragment } = await import("./bundle/app.js").then((bundle) => bundle.share);
             const yes = ["#s=a", "s=a", "#S=a", "#s%3da", "#S%3Da", "#?s=a", "# s=a", "#%20s=a", "#%20%20?s=a"];
             const no = ["", "#", "#s", "#demo.db", "#sales.db", "#ss=a", "#xs=a", "#https://x.test/s=a", "#a/s=b", null, 5];
             return { yes: yes.map(isShareFragment), no: no.map(isShareFragment) };
@@ -476,7 +476,7 @@ test.describe("damaged links", () => {
     test("the share module returns a failure value for hostile input and never throws", async ({ app, page }) => {
         await app.open();
         const results = await page.evaluate(async () => {
-            const { decodeShare } = await import("./js/lab/share.js");
+            const { decodeShare } = await import("./bundle/app.js").then((bundle) => bundle.share);
             const inputs = [undefined, null, 5, {}, [], "", "#", "#s", "#s=", "s=", "#S=abc", "#s=%", "#s=\u0000", "#s=" + "z".repeat(200)];
             return inputs.map((input) => {
                 try {
@@ -496,7 +496,7 @@ test.describe("damaged links", () => {
     test("decodeShare rejects oversize JSON before parsing it, whichever field holds the text", async ({ app, page }) => {
         await app.open();
         const out = await page.evaluate(async () => {
-            const { decodeShare } = await import("./js/lab/share.js");
+            const { decodeShare } = await import("./bundle/app.js").then((bundle) => bundle.share);
             const hash = (state) => "#s=" + LZString.compressToEncodedURIComponent(JSON.stringify(state));
             const parse = JSON.parse;
             let parsed = 0;
@@ -604,7 +604,7 @@ test.describe("the copy link button", () => {
         expect(copied).toContain("#s=");
         // it is the link of the editor's SQL
         const expected = await page.evaluate(async () => {
-            const share = await import("./js/lab/share.js");
+            const share = await import("./bundle/app.js").then((bundle) => bundle.share);
             return share.shareUrl(document.querySelector("#editor").value);
         });
         expect(copied).toBe(expected);

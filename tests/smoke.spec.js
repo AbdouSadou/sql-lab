@@ -33,9 +33,11 @@ test("smoke: the engine needs no cross-origin isolation and fetches only its was
     const allowed = [
         /^$/,
         /^index\.html$/,
-        /^css\/[\w-]+\.css$/,
         /^img\/[\w.-]+$/,
-        /^js\/.+\.js$/,
+        // of js/, only the page's classic scripts: its modules and its stylesheets come as one
+        // file each (tools/build-app.mjs; tests/app-bundle.spec.js has a first visit's exact list)
+        /^js\/lab\/(theme-boot|storage-guard|engine-guard)\.js$/,
+        /^bundle\/app\.(js|css)$/,
         /^vendor\/sqlite3\.js$/,
         /^vendor\/sqlite3\.wasm$/,
         /^vendor\/lz-string\.min\.js$/,

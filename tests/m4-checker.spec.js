@@ -38,7 +38,7 @@ test.describe("normalising a value (pure)", () => {
     const sameRows = (page, a, b) =>
         page.evaluate(
             async ([a, b]) => {
-                const { serializeRow } = await import("./js/lab/checker.js");
+                const { serializeRow } = await import("./bundle/app.js").then((bundle) => bundle.checker);
                 // the arguments arrive as source text because BigInt and Uint8Array do not
                 // cross the evaluate boundary
                 const build = (src) => new Function(`return (${src});`)();
@@ -121,7 +121,7 @@ test.describe("normalising a value (pure)", () => {
 
     test("displayValue shows values as a reader expects", async ({ page }) => {
         const shown = await page.evaluate(async () => {
-            const { displayValue } = await import("./js/lab/checker.js");
+            const { displayValue } = await import("./bundle/app.js").then((bundle) => bundle.checker);
             return [
                 displayValue(null),
                 displayValue(0.1 + 0.2),
@@ -146,7 +146,7 @@ test.describe("comparing two results (pure)", () => {
     const compare = (page, expected, got, options = {}) =>
         page.evaluate(
             async ([expected, got, options]) => {
-                const { compareResults } = await import("./js/lab/checker.js");
+                const { compareResults } = await import("./bundle/app.js").then((bundle) => bundle.checker);
                 return compareResults(expected, got, options);
             },
             [expected, got, options]
@@ -282,7 +282,7 @@ test.describe("comparing two results (pure)", () => {
 
     test("the diff shows NULL as NULL, a REAL rounded, a BLOB as hex", async ({ page }) => {
         const out = await page.evaluate(async () => {
-            const { compareResults } = await import("./js/lab/checker.js");
+            const { compareResults } = await import("./bundle/app.js").then((bundle) => bundle.checker);
             return compareResults(
                 { columns: ["a", "b", "c", "d"], values: [[null, 0.5, new Uint8Array([1, 171]), 5n]] },
                 { columns: ["a", "b", "c", "d"], values: [["", 0.1 + 0.2, new Uint8Array([1, 172]), 6n]] },
@@ -432,8 +432,8 @@ test.describe("check() on the Northlight dataset", () => {
         await app.trackConnections();
         await page.evaluate(
             async ({ q }) => {
-                const { createChecker } = await import("./js/lab/checker.js");
-                const { loadSet } = await import("./js/lab/exercises.js");
+                const { createChecker } = await import("./bundle/app.js").then((bundle) => bundle.checker);
+                const { loadSet } = await import("./bundle/app.js").then((bundle) => bundle.exercises);
                 const set = (await loadSet("retail-basics")).set;
                 const checker = createChecker();
                 const ex = set.exercises[0];
@@ -611,7 +611,7 @@ test.describe("check() on the Northlight dataset", () => {
 
     test("a model query that failed once is run again, so a fixed file is picked up", async ({ page, app }) => {
         const out = await page.evaluate(async () => {
-            const { createChecker } = await import("./js/lab/checker.js");
+            const { createChecker } = await import("./bundle/app.js").then((bundle) => bundle.checker);
             const checker = createChecker();
             const exercise = { id: "f", title: "F", prompt: "F", hints: [], model_query: "select * from nope", order_matters: false, check_column_names: false };
             const set = { id: "mini", title: "M", dataset: "northlight", exercises: [exercise] };
@@ -626,7 +626,7 @@ test.describe("check() on the Northlight dataset", () => {
 
     test("a changed model query is not served from the cache", async ({ page, app }) => {
         const out = await page.evaluate(async () => {
-            const { createChecker } = await import("./js/lab/checker.js");
+            const { createChecker } = await import("./bundle/app.js").then((bundle) => bundle.checker);
             const checker = createChecker();
             const make = (q) => ({ id: "c", title: "C", prompt: "C", hints: [], model_query: q, order_matters: false, check_column_names: false });
             const one = make("select 1");
@@ -643,7 +643,7 @@ test.describe("check() on the Northlight dataset", () => {
 
     test("check never throws, whatever it is given", async ({ app }) => {
         const out = await app.page.evaluate(async () => {
-            const { createChecker } = await import("./js/lab/checker.js");
+            const { createChecker } = await import("./bundle/app.js").then((bundle) => bundle.checker);
             const checker = createChecker();
             const results = [];
             for (const args of [[undefined, undefined, "select 1"], [{}, {}, "select 1"], [null, null, null]]) {

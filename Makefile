@@ -16,6 +16,7 @@ sqlite:
 	unzip -joq $$tmp/sqlite-wasm.zip '*/jswasm/sqlite3.js' '*/jswasm/sqlite3.wasm' -d $(VENDOR_DIR) && \
 	rm -f $$tmp/sqlite-wasm.zip && rmdir $$tmp
 
-# Local dev server (the site has no build step).
+# Local dev server. Nothing is built to serve the site, but the app's page runs the
+# committed bundle/: after editing js/ or css/, run npm run build:app (README, The app bundle).
 serve:
 	python3 -m http.server $(PORT)

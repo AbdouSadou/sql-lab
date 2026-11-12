@@ -997,7 +997,7 @@ test.describe("loading", () => {
     test("the bytes are counted as they arrive, and they are the file's", async ({ page, app }) => {
         await app.open();
         const out = await page.evaluate(async () => {
-            const { fetchDataset } = await import(new URL("js/lab/datasets.js", document.baseURI).href);
+            const { fetchDataset } = await import(new URL("bundle/app.js", document.baseURI).href).then((bundle) => bundle.datasets);
             const real = await (await fetch("datasets/northlight_retail.db")).arrayBuffer();
             const bytes = new Uint8Array(real);
             const original = window.fetch;
