@@ -14,7 +14,8 @@
     background: var(--paper);
     color: var(--ink);
     font-family: var(--font-mono);
-    font-size: var(--text-sm);
+    /* the student's size for the SQL, 12 to 24 px (js/lab/text-size.js) */
+    font-size: var(--code-size);
     line-height: var(--leading-code);
 }
 
@@ -186,6 +187,8 @@
     min-width: 16rem;
     padding: var(--space-1);
     font-family: var(--font-mono);
+    /* a list like the menus, at their size, whatever size the SQL is drawn at */
+    font-size: var(--text-sm);
 }
 
 /* rows as the menus' items (css/menu.css): 32 px, rounded, inside the list's padding */

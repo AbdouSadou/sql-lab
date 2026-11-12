@@ -56,7 +56,22 @@ test("no sharing: the top bar, editor toolbar and status bar carry no settings, 
         /Theme/,
         /Help/,
     ]);
-    await expect(page.locator("header.topbar button:not([role^=menuitem])")).toHaveCount(5);
+    // (and from Phase 6 the Sidebar button, shown under 1100 px, and More, under 700 px, where
+    // Copy link, Export, Theme and Help fold into its menu: no setting, gist or token there either)
+    await expect(page.locator("header.topbar button:not([role^=menuitem])")).toHaveCount(7);
+    await expect(page.locator("#sidebar-button")).toHaveText(/Sidebar/);
+    // (shown under 700 px only: at this width it is not rendered, so its label is read as written)
+    await expect(page.locator("#more-button")).toHaveAttribute("aria-label", "More actions");
+    await expect(page.locator("#more-menu [role^=menuitem]")).toHaveText([
+        /Copy link/,
+        /Database \(\.db\)/,
+        /Results \(\.csv\)/,
+        /Evidence \(\.txt\)/,
+        /Light/,
+        /Dark/,
+        /Match device/,
+        /Help/,
+    ]);
     await expect(page.locator("#editor-toolbar button")).toHaveText([/Run/]);
     await expect(page.locator("footer.statusbar button")).toHaveCount(0);
     await expect(page.locator("footer.statusbar a")).toHaveAttribute("href", "about.html");

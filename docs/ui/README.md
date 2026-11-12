@@ -6,9 +6,11 @@ Proof for the UI plan (`docs/design/SQL Lab UI and UX Plan.md`, section 8). Not 
 |---|---|
 | `before/` | The interface before the redesign (commit 0a088a7), captured at the start of Phase 1. |
 | `after/phase-N/` | The same states after phase N, with a `README.md` that pairs them with `before/` and records the self-review of section 8. |
-| `UI_INVENTORY.md` | Every interactive element before the redesign, its handler, the tests that pin it, and its new home. Phase 2 ticked each row with where it lives now (or, until its later phase, where it works meanwhile); Phase 3 moved the editor's rows to CodeMirror; Phase 4 the result area's, the toasts' and the dialogs'; Phase 5 the exercise mode's. |
+| `UI_INVENTORY.md` | Every interactive element before the redesign, its handler, the tests that pin it, and its new home. Phase 2 ticked each row with where it lives now (or, until its later phase, where it works meanwhile); Phase 3 moved the editor's rows to CodeMirror; Phase 4 the result area's, the toasts' and the dialogs'; Phase 5 the exercise mode's; Phase 6 the drawer's and the About page's. |
 
-Every matrix has the same three viewports (1366×768, 1920×1080, 390×844), both themes, and the states below. A file is named `<state>--<viewport>--<theme>.png`; screenshots are full-page, at device scale 1, with motion reduced. The 390×844 shots are taken as a phone (a touch screen) and, as the page scrolls there, are as tall as the page. To draw past the window Chromium leaves mobile emulation, so from Phase 4 the tool pins the page's pointer and hover media rules first and the shot keeps the touch screen's 44 px controls (the phone shots of Phases 2 and 3 that are taller than 844 px show a mouse's 32 px ones). A fixed layer (a dialog's scrim, a toast) covers the first 844 px, the window the student sees.
+Every matrix has both themes and the states below, at the plan's three viewports (1366×768, 1920×1080, 390×844); from Phase 6 also at 1024×768, a tablet, where the sidebar is a drawer (section 6: from 700 to 1099 px). A file is named `<state>--<viewport>--<theme>.png`; screenshots are full-page, at device scale 1, with motion reduced. The 390×844 shots are taken as a phone (a touch screen) and, as the page scrolls there, are as tall as the page. To draw past the window Chromium leaves mobile emulation, so from Phase 4 the tool pins the page's pointer and hover media rules first and the shot keeps the touch screen's 44 px controls (the phone shots of Phases 2 and 3 that are taller than 844 px show a mouse's 32 px ones). A fixed layer (a dialog's scrim, a toast, from Phase 6 the bar at the foot) covers the first 844 px, the window the student sees.
+
+From Phase 6 a phone (under 700 px) shows the query and the result one at a time: a state that ran something shows the Result view, the others the Editor view. The top bar's Copy link, Export, Theme and Help are in the More menu there, so `menu-export` and `menu-theme` show the More menu, and `menu-help` the Help popover opened from it, under the More button. Under 1100 px the sidebar is a drawer: the states that show one of its tabs (`schema-expanded`, `history`, `menu-exercise-set`) open it first.
 
 | State | What is on screen |
 |---|---|
@@ -37,6 +39,10 @@ Every matrix has the same three viewports (1366×768, 1920×1080, 390×844), bot
 | `exercise-not-quite` | From Phase 5: a wrong answer that is not a row of difference (one column where two are expected): "Not quite." and the checker's message, no tables. |
 | `exercise-no-query` | From Phase 5: Check with nothing in the editor: "Nothing to check." |
 | `exercise-complete` | From Phase 5: the last exercise of the set passed: "All 10 exercises complete. Well done." and no Next exercise. |
+| `drawer` | From Phase 6: the first visit with the sidebar's drawer open (at 1024×768 and on the phone; from 1100 px there is no drawer, and the shot is `first-visit`'s). |
+| `text-size` | From Phase 6: `result` at the text size of a projector, 20 px (A+ pressed three times). |
+| `about` | From Phase 6: the About page. |
+| `verify` | From Phase 6: the evidence check page (`verify.html`) as it opens, which shares About's look. |
 
 The native selects of the old interface (Dataset, Exercises) open outside the page, so no screenshot can show them open. "Running…" shows only while a run blocks the page, when a screenshot cannot be taken; Phase 4's README has frames of it from a video instead.
 

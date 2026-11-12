@@ -40,7 +40,7 @@
    text, its 2 px and 1 px rules). */
 .results-pane[data-state="result"] > .sqlime-result {
     padding: var(--space-1) var(--space-5) var(--space-5);
-    scroll-padding-top: var(--result-head, calc(2 * var(--space-2) + var(--leading-code) * var(--text-sm) + 3px));
+    scroll-padding-top: var(--result-head, calc(2 * var(--space-2) + var(--leading-code) * var(--code-size) + 3px));
 }
 
 /* The ruled table (plan, section 3): a 2 px ink rule above the header and under the last row, a
@@ -53,7 +53,8 @@
     border-spacing: 0;
     color: var(--ink);
     font-family: var(--font-mono);
-    font-size: var(--text-sm);
+    /* the student's size for the results, 12 to 24 px (js/lab/text-size.js) */
+    font-size: var(--code-size);
     line-height: var(--leading-code);
     font-variant-numeric: tabular-nums;
 }
@@ -193,6 +194,7 @@
 
 .cell-popover-value {
     font-family: var(--font-mono);
+    font-size: var(--code-size);
     line-height: var(--leading-code);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
@@ -484,7 +486,7 @@
     border-radius: var(--radius-control);
     background: var(--paper);
     font-family: var(--font-mono);
-    font-size: var(--text-sm);
+    font-size: var(--code-size);
     line-height: var(--leading-code);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
@@ -511,7 +513,7 @@
 
 /* ---- a phone: the phone mockup's tighter insets --------------------------------------------- */
 
-@media (max-width: 699.98px) {
+@media (max-width: 699.98px), (max-height: 499.98px) and (pointer: coarse) {
     /* the phone mockup's summary line: one row, the text on the table's 16 px edge, Download CSV
        at the right; a long summary ("Showing 500 of 12,400 rows in 13 ms") wraps inside its own
        box rather than pushing the button onto a row of its own */

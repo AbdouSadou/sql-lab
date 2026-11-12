@@ -46,11 +46,17 @@ test("brand: the app name is written in js/lab/config.js and nowhere else", () =
     // The one other hit is the localStorage key namespace of the exercise progress. It is a
     // storage key, not branding, and must NOT follow a rename: changing it would orphan every
     // student's saved progress.
-    expect(hits.map((h) => h.replace(/:\d+:/, ":"))).toEqual([
+    // An address is not branding either: SITE_URL (UI plan, Phase 6), the site's public address,
+    // may well have the app's name in its path once the owner sets it; its line is left out here.
+    const named = hits.filter((hit) => !/^js\/lab\/config\.js:\d+: export const SITE_URL = /.test(hit));
+    expect(named.map((h) => h.replace(/:\d+:/, ":"))).toEqual([
         'js/lab/config.js: export const APP_NAME = "SQL Lab";',
         // the key the pane sizes and the collapsed sidebar are kept under (UI plan, Phase 2): a
         // storage key like the others, not the app name
         'js/lab/config.js: export const LAYOUT_STORAGE_KEY = "sqllab.layout";',
+        // and the text size (UI plan, Phase 6), which the boot script applies before the first
+        // paint too (tests/ui6-responsive.spec.js checks that the two agree)
+        'js/lab/config.js: export const TEXT_SIZE_STORAGE_KEY = "sqllab.textSize";',
         // and the theme choice (UI plan, Phase 1); the boot script that applies it before the
         // first paint cannot import config.js, so it repeats the key (tests/ui1-tokens.spec.js
         // checks that the two agree)
@@ -58,6 +64,7 @@ test("brand: the app name is written in js/lab/config.js and nowhere else", () =
         'js/lab/config.js: export const PROGRESS_PREFIX = "sqllab.progress.";',
         // and the run log's (F6), for the same reason
         'js/lab/config.js: export const RUN_LOG_PREFIX = "sqllab.log.";',
+        'js/lab/theme-boot.js: size = Number(window.localStorage.getItem("sqllab.textSize"));',
         'js/lab/theme-boot.js: choice = window.localStorage.getItem("sqllab.theme");',
     ]);
 });
@@ -210,10 +217,13 @@ test("brand: the status bar is visible, inside the screen, and links to About at
     expect(box.x + box.width).toBeLessThanOrEqual(360);
     // no sideways scrolling, and the status bar sits below the editor and the results
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    // (the summary line is hidden until a run, so the results pane stands for "the results"; the
-    // footer comes after the pane, so it starts at the pane's bottom edge, not inside it)
-    const results = await page.locator("#results-pane").boundingBox();
-    expect(box.y).toBeGreaterThanOrEqual(results.y + results.height - 1);
+    // (from Phase 6 a phone shows the editor and the result one at a time, in the main area; the
+    // footer comes after the main area, so it starts at its bottom edge, not inside it, and the
+    // editor shown is above it)
+    const main = await page.locator("#main").boundingBox();
+    expect(box.y).toBeGreaterThanOrEqual(main.y + main.height - 1);
+    const editor = await page.locator("#editor-pane").boundingBox();
+    expect(box.y).toBeGreaterThanOrEqual(editor.y + editor.height - 1);
 
     await footer.locator('a[href="about.html"]').click();
     await expect(page).toHaveURL(/about\.html$/);

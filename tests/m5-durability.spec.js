@@ -804,16 +804,23 @@ test.describe("the editor toolbar over a long query", () => {
 
     for (const withSet of [false, true]) {
         for (const width of [640, 700, 768, 800, 1024, 1280]) {
-            test(`${withSet ? "with an exercise open" : "no exercise"} at ${width}px: the toolbar is above the query and never over its last line`, async ({ page, app }) => {
+            // (from Phase 6, under 700 px the toolbar is the bar at the foot of the window, as in
+            // the phone mockup: below the query, and still never over its last line)
+            const phone = width < 700;
+            test(`${withSet ? "with an exercise open" : "no exercise"} at ${width}px: the toolbar is ${phone ? "the bar below" : "above"} the query and never over its last line`, async ({ page, app }) => {
                 await page.setViewportSize({ width, height: 900 });
                 if (withSet) {
                     await app.openSet();
+                    // (under 1100 px the exercise list is in the sidebar's drawer)
+                    await app.openDrawer();
                     await app.exerciseButton(1).click();
                 } else {
                     await app.open();
                 }
                 await app.query(lines(8));
                 await expect(page.locator("#download-csv")).toBeVisible();
+                // a phone shows the result after a run: back to the query
+                await app.showView("editor");
                 // the toolbar is a row of its own above the editor, so it cannot cover the query:
                 // measure its box against the editor's text (the 8th line is the last one): the
                 // typing surface (.cm-content; the plain box itself) holds the lines
@@ -841,6 +848,17 @@ test.describe("the editor toolbar over a long query", () => {
                 }, EDITOR_INPUT);
                 expect(m.lines).toBe(8);
                 expect((await editorValue(page)).trim().split("\n").length).toBe(8);
+                if (phone) {
+                    // the bar is at the foot of the window, one row, and the query ends above it:
+                    // no line of it is under the bar, and the editor stops where the bar starts
+                    expect(Math.round(m.barBottom)).toBe(900);
+                    expect(m.barRows).toBe(1);
+                    expect(m.lastLineBottom).toBeGreaterThan(m.firstLineTop);
+                    expect(m.lastLineBottom).toBeLessThanOrEqual(m.paneBottom + 1);
+                    expect(m.lastLineBottom).toBeLessThanOrEqual(m.barTop + 1);
+                    expect(m.paneBottom).toBeLessThanOrEqual(m.barTop + 1);
+                    return;
+                }
                 // the query starts below the toolbar, and no line of it is under the toolbar
                 expect(m.firstLineTop).toBeGreaterThanOrEqual(m.barBottom - 1);
                 expect(m.lastLineBottom).toBeGreaterThan(m.firstLineTop);

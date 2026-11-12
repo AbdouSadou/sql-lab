@@ -397,7 +397,7 @@ test("choosing an exercise from the list announces it and leaves the focus on th
 
 // ---- the phone gutter ----------------------------------------------------------------------------
 
-test("on a phone the editor and the editor toolbar have the same side gutter as the exercise prompt", async ({ page, app }) => {
+test("on a phone the editor has the same side gutter as the exercise prompt, and the toolbar is the bar at the foot with the mockup's inset", async ({ page, app }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await app.openSet();
     // Each of the three is a full-width pane that pads its own content, so the gutter is the edge of
@@ -424,9 +424,15 @@ test("on a phone the editor and the editor toolbar have the same side gutter as 
         };
     });
     expect(boxes.noScroll).toBe(true);
-    expect(boxes.bar.left, "bar left").toBe(boxes.panel.left);
-    expect(boxes.bar.right, "bar right").toBe(boxes.panel.right);
-    expect(boxes.bar.left).toBeGreaterThanOrEqual(16);
+    // From Phase 6 the toolbar is the phone mockup's bar at the foot of the window (docs/design/
+    // mockup/phone.html): edge to edge, its buttons 12 px in from each side, the inset of the
+    // mockup's bar and of the top bar above, rather than the panes' 16 px
+    expect(boxes.bar.outerLeft, "bar outer left").toBe(0);
+    expect(boxes.bar.outerRight, "bar outer right").toBe(390);
+    expect(boxes.bar.left, "bar left").toBe(12);
+    expect(boxes.bar.right, "bar right").toBe(390 - 12);
+    expect(boxes.bar.left).toBeGreaterThanOrEqual(12);
+    expect(boxes.panel.left, "prompt left").toBeGreaterThanOrEqual(16);
     expect(boxes.editor.left, "editor left").toBeGreaterThanOrEqual(boxes.panel.left);
     // exactly: the SQL starts right after the 48 px column of line numbers at the editor's edge
     expect(boxes.editor.left, "editor text after the line numbers").toBe(boxes.editorBox.outerLeft + 48);

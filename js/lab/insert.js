@@ -120,6 +120,8 @@ export function trackEditorSelection(editor) {
         // insert puts text at the caret, replacing a selection, as one undo step. A space
         // is added on either side where the neighbouring text would otherwise run into it.
         insert(text) {
+            // (on a phone the Editor view comes first: an editor that is not shown takes no focus)
+            editor.dispatchEvent(new Event("reveal"));
             if (editor.view) {
                 // (seen is null when the student acted in the plain box and CodeMirror took over
                 // since, carrying that caret: no replace came in between, so it is theirs)

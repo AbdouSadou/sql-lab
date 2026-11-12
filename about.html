@@ -16,196 +16,180 @@
     <link rel="icon" href="img/favicon.ico" sizes="any">
     <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
     <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+    <!-- social:begin -->
+    <!-- a shared link's preview (Open Graph) and the web manifest: written here at deploy, from
+         js/lab/config.js, by tools/site-meta.mjs -->
+    <!-- social:end -->
 
     <link rel="stylesheet" href="css/tokens.css">
     <link rel="stylesheet" href="css/fonts.css">
     <link rel="stylesheet" href="css/article.css">
     <script type="module" src="js/lab/brand.js"></script>
+    <script type="module" src="js/lab/static-page.js"></script>
 </head>
 
 <body>
     <header>
-        <h3>
-            <a class="logo" href="javascript:back()">
-                <img src="img/favicon-64x64.png" alt="">
+        <p class="page-brand">
+            <a class="logo" href="./" data-back>
+                <img src="img/favicon.svg" alt="">
                 <span data-app-name></span>
             </a>
-        </h3>
-        <p>a browser-only SQL workspace for teaching</p>
+        </p>
+        <p>A browser-only SQL workspace for teaching</p>
     </header>
     <main>
-        <article>
-            <h1>About</h1>
-            <p>
-                <strong><a href="./" data-app-name></a></strong> is a place to write and run SQL
-                for learning and teaching. It runs entirely in your browser:
-                the queries you write and the data you open are never sent anywhere.
-            </p>
+        <h1>About</h1>
+        <p>
+            <strong><a href="./" data-app-name></a></strong> is a place to write and run SQL
+            for learning and teaching. It runs entirely in your browser:
+            the queries you write and the data you open are never sent anywhere.
+        </p>
 
-            <h5>What you can do here</h5>
-            <ul>
-                <li>
-                    <strong>Practise on built-in datasets.</strong> Pick one from the
-                    database menu at the top of the page and start writing queries, or
-                    start from one of the sample queries offered under the editor: choosing
-                    one puts it in the editor, and nothing runs until you press Run. The
-                    Schema tab of the sidebar lists its tables and columns, and a click
-                    puts a name in your query.
-                </li>
-                <li>
-                    <strong>Work through exercises that check themselves.</strong> Choose
-                    an exercise set in the Exercises tab of the sidebar, write your query
-                    and press Check answer. You are told whether your result matches, and
-                    if not, what differs. Hints appear one at a time when you ask for them.
-                </li>
-                <li>
-                    <strong>Share a query.</strong> Copy link, at the top, makes a link
-                    that opens the same dataset (and exercise) with your query in the
-                    editor. The query travels inside the link itself; nothing is stored
-                    on a server.
-                </li>
-                <li>
-                    <strong>Keep evidence of your work.</strong> Every query you run is
-                    written to a run log; the History tab of the sidebar lists it, and a
-                    click puts an earlier query back in the editor. Export, then Evidence,
-                    saves the log as a text file
-                    with your student number and a checksum, so you can attach it to
-                    assessed work and a marker can see it has not been edited. The file
-                    covers the dataset that is open, so export once for each dataset you
-                    worked on. The log is kept in this browser on this device, so on a
-                    shared computer export it before you log off, and note that a private
-                    window starts with an empty log. Times in the history list are UTC.
-                </li>
-                <li>
-                    <strong>Use your own data.</strong> Open a SQLite database file or
-                    a SQL script from the database menu, and save the database, with your
-                    changes, as a file (Export, then Database; the name you give it there
-                    also renames it on the page).
-                </li>
-            </ul>
+        <h2>What you can do here</h2>
+        <ul>
+            <li>
+                <strong>Practise on built-in datasets.</strong> Pick one from the
+                database menu at the top of the page and start writing queries, or
+                start from one of the sample queries offered where the result appears:
+                choosing one puts it in the editor, and nothing runs until you press Run.
+                The Schema tab of the sidebar lists its tables and columns, and a click
+                puts a name in your query.
+            </li>
+            <li>
+                <strong>Work through exercises that check themselves.</strong> Choose
+                an exercise set in the Exercises tab of the sidebar, write your query
+                and press Check answer. You are told whether your result matches, and
+                if not, what differs: when a row differs, the expected rows and yours
+                are shown side by side, with the cells that differ outlined. Hints
+                appear one at a time when you ask for them, and Previous and Next move
+                through the set.
+            </li>
+            <li>
+                <strong>Share a query.</strong> Copy link, at the top, makes a link
+                that opens the same dataset (and exercise) with your query in the
+                editor. The query travels inside the link itself; nothing is stored
+                on a server.
+            </li>
+            <li>
+                <strong>Keep evidence of your work.</strong> Every query you run is
+                written to a run log; the History tab of the sidebar lists it, and a
+                click puts an earlier query back in the editor. Export, then Evidence,
+                saves the log as a text file
+                with your student number and a checksum, so you can attach it to
+                assessed work and a marker can see it has not been edited. The file
+                covers the dataset that is open, so export once for each dataset you
+                worked on. The log is kept in this browser on this device, so on a
+                shared computer export it before you log off, and note that a private
+                window starts with an empty log. Times in the history list are UTC.
+            </li>
+            <li>
+                <strong>Use your own data.</strong> Open a SQLite database file or
+                a SQL script from the database menu, and save the database, with your
+                changes, as a file (Export, then Database; the name you give it there
+                also renames it on the page).
+            </li>
+        </ul>
 
-            <h5>For markers</h5>
-            <p>
-                To check an evidence file, open the <a href="verify.html">check page</a>
-                and paste the file or drop it on the page. It says VALID or EDITED
-                without uploading anything. A file lists the queries run on one dataset
-                only (its <code>dataset:</code> line), so ask a student who worked on
-                two datasets for two files. The checksum shows the file was not changed
-                after it was exported; it does not prove who ran the queries.
-            </p>
+        <h2>For markers</h2>
+        <p>
+            To check an evidence file, open the <a href="verify.html">check page</a>
+            and paste the file or drop it on the page. It says VALID or EDITED
+            without uploading anything. A file lists the queries run on one dataset
+            only (its <code>dataset:</code> line), so ask a student who worked on
+            two datasets for two files. The checksum shows the file was not changed
+            after it was exported; it does not prove who ran the queries.
+        </p>
 
-            <h5>A full database in the browser</h5>
-            <p>
-                The database engine is SQLite, compiled to WebAssembly. It supports
-                indexes, triggers, views, transactions, CTEs, window functions
-                and execution plans. Each page you open starts with its own
-                in-memory database, so you can experiment freely: reloading the
-                page or clicking the logo gives you a clean slate.
-            </p>
+        <h2>A full database in the browser</h2>
+        <p>
+            The database engine is SQLite, compiled to WebAssembly. It supports
+            indexes, triggers, views, transactions, CTEs, window functions
+            and execution plans. Each page you open starts with its own
+            in-memory database, so you can experiment freely: reloading the
+            page or clicking the logo gives you a clean slate.
+        </p>
 
-            <h5>Your own data stays with you</h5>
-            <p>
-                Open a SQLite database file or a SQL script from your computer
-                and it is read by your browser only. There is no server, no account,
-                no analytics and no cookies.
-            </p>
-            <p>
-                Some things are remembered between visits, in your browser's local
-                storage on your own device and nowhere else: the last query you ran
-                for each database, which exercises you have passed, the SQL you last
-                wrote for each exercise, your run log (up to 200 queries for each
-                dataset, fewer if they are very long), the theme you chose, and the
-                sizes you gave the panes (and whether the sidebar is hidden). If your
-                browser has no room left, the page says so, and
-                whatever could not be saved is lost when you close it.
-                The Reset progress button in an exercise set clears that
-                set's passes and saved SQL. Clearing your browser's site data clears
-                everything. Your student number is used only to write the evidence
-                file; it is never stored.
-            </p>
+        <h2>Your own data stays with you</h2>
+        <p>
+            Open a SQLite database file or a SQL script from your computer
+            and it is read by your browser only. There is no server, no account,
+            no analytics and no cookies.
+        </p>
+        <p>
+            Some things are remembered between visits, in your browser's local
+            storage on your own device and nowhere else: the last query you ran
+            for each database, which exercises you have passed, the SQL you last
+            wrote for each exercise, your run log (up to 200 queries for each
+            dataset, fewer if they are very long), the theme and the text size you
+            chose, and the sizes you gave the panes (and whether the sidebar is
+            hidden). If your browser has no room left, the page says so, and
+            whatever could not be saved is lost when you close it.
+            The Reset progress button in an exercise set clears that
+            set's passes and saved SQL. Clearing your browser's site data clears
+            everything. Your student number is used only to write the evidence
+            file; it is never stored.
+        </p>
 
-            <h5>Works on small screens</h5>
-            <p>
-                The layout adapts to phones and tablets. Everything needed to write a
-                query and read its result is available without a keyboard shortcut.
-            </p>
+        <h2>On a projector, a tablet or a phone</h2>
+        <p>
+            A&minus; and A+, at the right of the toolbar above the editor, make the SQL
+            and the results smaller or larger, from 12 to 24 pixels, so they can be
+            read from the back of a room. The size is remembered.
+        </p>
+        <p>
+            On a narrower screen the sidebar (Schema, Exercises and History) opens
+            over the page from the Sidebar button at the top, and closes again with
+            Close, Escape or a press beside it. On a phone the query and its result
+            are two views, Editor and Result, and running a query shows its result;
+            Copy link, Export, Theme and Help are in the More menu (the three dots),
+            and Run is at the bottom of the screen. Everything needed to write a
+            query and read its result is there without a keyboard shortcut.
+        </p>
 
-            <h3>Keyboard shortcuts</h3>
-            <p>Here are some quick actions:</p>
-            <table>
-                <tr>
-                    <th>win</th>
-                    <th>mac</th>
-                    <th>action</th>
-                </tr>
-                <tr>
-                    <td><code>⌃↵</code></td>
-                    <td><code>⌘↵</code></td>
-                    <td>run query (only while the cursor is in the editor)</td>
-                </tr>
-                <tr>
-                    <td><code>⌃⇧↵</code></td>
-                    <td><code>⌘⇧↵</code></td>
-                    <td>check your answer (when an exercise is open)</td>
-                </tr>
-                <tr>
-                    <td><code>⌃/</code></td>
-                    <td><code>⌘/</code></td>
-                    <td>comment or uncomment the line (in the editor)</td>
-                </tr>
-                <tr>
-                    <td><code>⌃Space</code></td>
-                    <td><code>⌃Space</code></td>
-                    <td>suggest table, column and function names (in the editor)</td>
-                </tr>
-                <tr>
-                    <td><code>⌃O</code></td>
-                    <td><code>⌘O</code></td>
-                    <td>open file</td>
-                </tr>
-                <tr>
-                    <td><code>⌃U</code></td>
-                    <td><code>⌘U</code></td>
-                    <td>open url</td>
-                </tr>
-            </table>
-            <p>
-                In the editor, <code>Tab</code> indents. To move focus out of the
-                editor with the keyboard, press <code>Esc</code> and then
-                <code>Tab</code> (or <code>Shift</code>+<code>Tab</code> to go back).
-            </p>
-            <p>
-                The editor suggests names as you type: the tables, views and columns of
-                the open database, and SQLite's keywords and functions. Pick one with the
-                arrow keys and press <code>Enter</code> (until you pick one,
-                <code>Enter</code> starts a new line); <code>Esc</code> closes the list.
-            </p>
-            <p>
-                The bars between the sidebar and the query, and between the query and its
-                result, can be dragged, or reached with <code>Tab</code> and moved with the
-                arrow keys. <code>Enter</code> on the sidebar's bar hides or shows the sidebar.
-            </p>
+        <h2>Keyboard shortcuts</h2>
+        <dl class="keys">
+            <dt><kbd data-mod>Ctrl</kbd> <kbd>Enter</kbd></dt>
+            <dd>Run the query, or the part of it you selected (only while the cursor is in the editor)</dd>
+            <dt><kbd data-mod>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd></dt>
+            <dd>Check your answer (when an exercise is open)</dd>
+            <dt><kbd data-mod>Ctrl</kbd> <kbd>/</kbd></dt>
+            <dd>Comment or uncomment the line (in the editor)</dd>
+            <dt><kbd>Ctrl</kbd> <kbd>Space</kbd></dt>
+            <dd>Suggest table, column and function names (in the editor)</dd>
+            <dt><kbd data-mod>Ctrl</kbd> <kbd>O</kbd></dt>
+            <dd>Open a database file</dd>
+            <dt><kbd data-mod>Ctrl</kbd> <kbd>U</kbd></dt>
+            <dd>Open a database from a URL</dd>
+        </dl>
+        <p>
+            In the editor, <kbd>Tab</kbd> indents. To move the focus out of the
+            editor with the keyboard, press <kbd>Esc</kbd> and then
+            <kbd>Tab</kbd> (or <kbd>Shift</kbd> <kbd>Tab</kbd> to go back).
+        </p>
+        <p>
+            The editor suggests names as you type: the tables, views and columns of
+            the open database, and SQLite's keywords and functions. Pick one with the
+            arrow keys and press <kbd>Enter</kbd> (until you pick one,
+            <kbd>Enter</kbd> starts a new line); <kbd>Esc</kbd> closes the list.
+        </p>
+        <p>
+            The bars between the sidebar and the query, and between the query and its
+            result, can be dragged, or reached with <kbd>Tab</kbd> and moved with the
+            arrow keys. <kbd>Enter</kbd> on the sidebar's bar hides or shows the sidebar.
+        </p>
 
-            <h3>Credits and licence</h3>
-            <p>Based on SQLime by Anton Zhiyanov</p>
-            <p>The editor is CodeMirror 6, by Marijn Haverbeke and others (MIT License).</p>
-            <p>Released under the MIT License.</p>
+        <h2>Credits and licence</h2>
+        <p>Based on SQLime by Anton Zhiyanov</p>
+        <p>The editor is CodeMirror 6, by Marijn Haverbeke and others (MIT License).</p>
+        <p>The typefaces are Atkinson Hyperlegible Next and Atkinson Hyperlegible Mono, by the Braille Institute (SIL Open Font License), and the icons are Lucide (ISC License).</p>
+        <p>Released under the MIT License.</p>
 
-            <p><a href="javascript:back()">← back</a></p>
-        </article>
+        <p class="page-back"><a href="./" data-back>Back to <span data-app-name></span></a></p>
     </main>
     <footer>
         <span data-app-name></span> &middot; Made by Abdou Sadou, based on SQLime by Anton Zhiyanov
     </footer>
-    <script>
-        function back() {
-            if (document.referrer) {
-                history.go(-1);
-            } else {
-                location.assign("./");
-            }
-        }
-    </script>
 </body>
 
 </html>

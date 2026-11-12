@@ -5,6 +5,12 @@
 // into document.title and into every element that carries data-app-name.
 export const APP_NAME = "SQL Lab";
 
+// The site's public address, ending in "/", for the one absolute URL the site has: the picture a
+// shared link's preview shows (Open Graph needs a full address). Empty: the deploy uses the address
+// GitHub Pages gives it (tools/site-meta.mjs, run by .github/workflows/pages.yml). Set it when the
+// site lives somewhere else, a custom domain for instance: "https://sql.example.org/".
+export const SITE_URL = "";
+
 // Shown (instead of the generic invitation) when SQL saved by an earlier session
 // has been put back in the editor. Restored SQL is never run automatically.
 export const RESTORED_MESSAGE = "Your last query is back in the editor. Press Run to execute it.";
@@ -136,6 +142,34 @@ export const PROMPT_MIN_HEIGHT = 72;
 export const SPLITTER_STEP = 16;
 export const sidebarWidthText = (width) => (width ? `${width} pixels wide` : "hidden");
 export const editorHeightText = (height) => `${height} pixels high`;
+
+// The breakpoints (UI plan, section 6; css/shell.css has the same queries in its media rules).
+// From 1100 px the sidebar, the query and the result are three panes. Under 1100 px the sidebar is
+// a drawer over the page, opened from the top bar's Sidebar button (js/lab/layout.js). Under 700 px
+// the query and the result are two views, Editor and Result (a run shows the result), the top
+// bar's actions fold into the More menu (js/lab/more-menu.js), and Run stays in a bar at the bottom.
+// A phone held sideways is wider than 700 px but too short for a query above its result: a touch
+// screen less than 500 px tall takes the phone's layout (and so the drawer) too.
+export const DRAWER_QUERY = "(max-width: 1099.98px), (max-height: 499.98px) and (pointer: coarse)";
+export const PHONE_QUERY = "(max-width: 699.98px), (max-height: 499.98px) and (pointer: coarse)";
+
+// The More menu (under 700 px): the top bar's actions, in groups.
+export const MORE_MENU_LABEL = "More actions";
+export const MORE_EXPORT_LABEL = "Export";
+export const MORE_THEME_LABEL = "Theme";
+export const MORE_COPY_LINK_TEXT = "Copy link";
+export const MORE_HELP_TEXT = "Help";
+
+// The text-size control (js/lab/text-size.js): the size of the SQL and of the results, for a
+// projector at the back of a room (UI plan, section 6): 12 to 24 px in steps of 2, 14 to begin
+// with. Kept in localStorage under its own key; js/lab/theme-boot.js applies it before the first
+// paint, so it repeats the key and the sizes.
+export const TEXT_SIZE_STORAGE_KEY = "sqllab.textSize";
+export const TEXT_SIZES = [12, 14, 16, 18, 20, 22, 24];
+export const TEXT_SIZE_DEFAULT = 14;
+export const textSizeAnnouncement = (size) => `Text size ${size} pixels`;
+export const TEXT_SIZE_SMALLEST = "The text is at its smallest";
+export const TEXT_SIZE_LARGEST = "The text is at its largest";
 
 // The SQL editor (js/components/sqlime-editor.js, js/lab/code-editor.js).
 export const EDITOR_LABEL = "SQL query";

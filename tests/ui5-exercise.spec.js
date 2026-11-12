@@ -44,6 +44,8 @@ function oneExercise(id, model_query, extra = {}) {
 }
 
 async function check(app, sql) {
+    // (on a phone the editor is the Editor view's, from Phase 6, and a verdict shows the Result view)
+    await app.showView("editor");
     await app.editor.fill(sql);
     await app.checkButton.click();
 }
@@ -787,6 +789,8 @@ test.describe("Expected and Yours", () => {
         expect(yours.y).toBeGreaterThan(expected.y + expected.height);
         // tables wider than the phone (exercise 9's four columns) scroll in their boxes, and the
         // words said for their outlined cells stay in those boxes too: the page itself never widens
+        // (the exercise list is in the sidebar's drawer under 1100 px, from Phase 6)
+        await app.openDrawer();
         await app.exerciseButton(9).click();
         await check(app, modelQuery("e09").replace("ORDER BY revenue DESC", "ORDER BY revenue ASC"));
         await expect(app.feedback.locator(".verdict-cell--differs").first()).toBeAttached();

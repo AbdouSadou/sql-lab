@@ -1,8 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <rect width="64" height="64" rx="14" fill="#0a5cad"/>
-  <g fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-    <ellipse cx="32" cy="18" rx="16" ry="6"/>
-    <path d="M16 18v14c0 3.3 7.2 6 16 6s16-2.7 16-6V18"/>
-    <path d="M16 32v14c0 3.3 7.2 6 16 6s16-2.7 16-6V32"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+<style>
+.tile { fill: #2647C8; }
+.line { fill: none; stroke: #FFFFFF; stroke-width: 1.5; }
+@media (prefers-color-scheme: dark) {
+.tile { fill: #8FAEFF; }
+.line { stroke: #0E1630; }
+}
+</style>
+<rect class="tile" width="24" height="24" rx="6"/>
+<ellipse class="line" cx="12" cy="8" rx="5.5" ry="2"/><path class="line" d="M6.5 8v8c0 1.1 2.46 2 5.5 2s5.5-.9 5.5-2V8"/><path class="line" d="M6.5 12c0 1.1 2.46 2 5.5 2s5.5-.9 5.5-2"/>
 </svg>

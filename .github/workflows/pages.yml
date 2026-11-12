@@ -22,7 +22,8 @@ jobs:
             url: ${{ steps.deploy.outputs.page_url }}
         steps:
             - uses: actions/checkout@v7
-            - uses: actions/configure-pages@v6
+            - id: pages
+              uses: actions/configure-pages@v6
             # The site is the repo root as-is (no build step). Stage a copy
             # without dev-only files, then upload that copy.
             - name: Stage site
@@ -62,6 +63,12 @@ jobs:
                           printf '<a href="%s">%s</a>\n' "$href" "$name"
                       done
                   } > index.html
+            # What a shared link's preview shows (Open Graph tags, with the site's one absolute
+            # URL, the preview picture img/social.png) and the web manifest, written into the
+            # staged pages from js/lab/config.js: APP_NAME, and SITE_URL when it is set, else the
+            # address Pages gives here. The script needs no packages.
+            - name: Link previews and web manifest
+              run: node tools/site-meta.mjs --stage .site-stage --url "${{ steps.pages.outputs.base_url }}"
             # upload-pages-artifact drops dotfiles by default
             # (it tars with --exclude='.[^/]*'), which would drop .nojekyll.
             # include-hidden-files keeps it; .git and .github stay excluded

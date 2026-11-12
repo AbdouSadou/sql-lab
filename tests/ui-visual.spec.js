@@ -15,10 +15,12 @@ const { test, expect } = require("./helpers");
 const { RECIPES } = require("./ui-states.js");
 
 const STATES = RECIPES.shell.states;
-// the matrix of plan section 8: three window sizes, two themes, every state
+// the matrix of plan section 8: three window sizes, two themes, every state; and from Phase 6 a
+// tablet's size, where the sidebar is a drawer (700 to 1099 px)
 const VIEWPORTS = [
     { width: 1366, height: 768 },
     { width: 1920, height: 1080 },
+    { width: 1024, height: 768 },
     { width: 390, height: 844 },
 ];
 

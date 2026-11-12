@@ -17,7 +17,9 @@
 //                         failed, or UPGRADE_WAIT_MS passed (CodeMirror can still arrive later)
 //   view                  CodeMirror's EditorView, or null while the plain box is shown
 //   events: "input" (the student changed the text), "start" (the first change), "execute"
-//   (Ctrl/Cmd+Enter; detail is the query), "replace" (the app set the text through value)
+//   (Ctrl/Cmd+Enter; detail is the query), "replace" (the app set the text through value),
+//   "reveal" (focus() or fill() is about to put the focus here: on a phone the editor may be
+//   in the view that is not shown, js/lab/layout.js)
 // data-editor on the element says which is shown: "loading", "code" or "plain".
 
 import { escapeHtml } from "../lab/html.js";
@@ -190,6 +192,8 @@ class SqlimeEditor extends HTMLElement {
 
     // focus sets cursor at the end of the editor
     focus() {
+        // shown first (it may be in a view that is not shown: a hidden editor takes no focus)
+        this.dispatchEvent(new Event("reveal"));
         if (this.code) {
             this.code.caretToEnd();
             return;
@@ -208,6 +212,7 @@ class SqlimeEditor extends HTMLElement {
     // one edit that Ctrl/Cmd+Z takes back, an "input" event as for typing, then the focus and the
     // caret at the end. (value is the app's own text: no undo back past it, and no "input".)
     fill(text) {
+        this.dispatchEvent(new Event("reveal"));
         if (this.code) {
             this.code.fill(text);
             return;

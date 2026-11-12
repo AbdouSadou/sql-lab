@@ -46,10 +46,11 @@
     overflow-wrap: anywhere;
 }
 
-/* a phone: the page scrolls and the status bar is at its end, so the toast keeps to the bottom */
-@media (max-width: 699.98px) {
+/* a phone: over the bar at the bottom (64 px, Run) and the credit above it (one 28 px line),
+   which the toast leaves readable */
+@media (max-width: 699.98px), (max-height: 499.98px) and (pointer: coarse) {
     .toast-region {
-        bottom: var(--space-4);
+        bottom: calc(64px + 28px + var(--space-2));
     }
 }
 

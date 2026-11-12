@@ -3,8 +3,11 @@
    scrolls; the panes do. js/lab/layout.js sets --sidebar-width and --editor-height from the
    splitters and keeps them in localStorage.
 
-   Under 700 px the panes stack and the page scrolls: a stopgap until Phase 6 of the plan, which
-   turns the sidebar into a drawer and the query and result into two tabs. */
+   The breakpoints (UI plan, section 6; js/lab/layout.js has the same numbers): from 1100 px three
+   panes. Under 1100 px the sidebar is a drawer over the page, opened from the top bar's Sidebar
+   button. Under 700 px (docs/design/mockup/phone.html) the top bar is 56 px with the database
+   switcher and the More menu, the query and its result are two views under the Editor and Result
+   buttons, Run stays in a bar at the bottom, and the status bar keeps only the credit. */
 
 html,
 body {
@@ -123,6 +126,15 @@ body {
     display: contents;
 }
 
+/* shown under 1100 px (the Sidebar button, the drawer's Close) and under 700 px (More, the two
+   views); see the media queries at the end */
+.topbar-sidebar,
+.topbar-more,
+.sidebar-close,
+.view-switch {
+    display: none;
+}
+
 /* ---- the help popover --------------------------------------------------------------------- */
 
 .help-popover[popover] {
@@ -231,12 +243,26 @@ body {
     visibility: hidden;
 }
 
-/* the tabs (js/lab/tabs.js) */
+/* the sidebar's head: the tabs (js/lab/tabs.js), and in the drawer its Close button */
+.sidebar-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-right: var(--space-2);
+    border-bottom: 1px solid var(--rule);
+}
+
 .tabs {
     display: flex;
+    flex: 1 1 auto;
     gap: var(--space-1);
+    min-width: 0;
     padding: 0 var(--space-3);
-    border-bottom: 1px solid var(--rule);
+}
+
+.sidebar-close {
+    flex: none;
+    margin-left: auto;
 }
 
 .tab {
@@ -401,6 +427,31 @@ body {
     border-bottom: 1px solid var(--rule);
 }
 
+/* A− and A+ at the toolbar's far right (js/lab/text-size.js; the mockup's 32 px squares, the
+   letters 12 and 16 px), placed over the toolbar's row from the end of the main area, where they
+   come last in the Tab order */
+.text-size {
+    grid-area: toolbar;
+    align-self: center;
+    justify-self: end;
+    display: flex;
+    gap: var(--space-1);
+    margin-right: var(--space-4);
+}
+
+.text-size-button {
+    width: var(--control-height);
+    padding: 0;
+}
+
+.text-size-button--smaller {
+    font-size: var(--text-xs);
+}
+
+.text-size-button--larger {
+    font-size: var(--text-md);
+}
+
 .editor-pane {
     position: relative;
     grid-area: editor;
@@ -474,7 +525,8 @@ body {
     min-width: 0;
 }
 
-@media (min-width: 700px) {
+/* (from 700 px, unless the phone's layout applies: a touch screen less than 500 px tall) */
+@media (min-width: 700px) and (min-height: 500px), (min-width: 700px) and (pointer: fine), (min-width: 700px) and (pointer: none) {
     .statusbar {
         flex-wrap: nowrap;
     }
@@ -515,29 +567,14 @@ body {
     color: var(--ink);
 }
 
-/* ---- under 700 px: stacked, the page scrolls (Phase 6 replaces this) ------------------------ */
+/* ---- under 1100 px: the sidebar is a drawer over the page -------------------------------- */
+/* (and on a touch screen less than 500 px tall, a phone held sideways, as under 700 px below;
+   js/lab/config.js DRAWER_QUERY and PHONE_QUERY are the same queries) */
 
-@media (max-width: 699.98px) {
-    .app {
-        height: auto;
-        min-height: 100dvh;
-        overflow: visible;
-    }
-
-    /* the brand and the switcher on one row, the four actions on the next */
-    .topbar {
-        padding: var(--space-2) var(--space-3);
-    }
-
-    .topbar-actions {
-        flex: 1 1 100%;
-        justify-content: space-between;
-        gap: 0;
-        margin-left: 0;
-    }
-
-    .topbar-actions .button--quiet {
-        padding: 0 var(--space-2);
+@media (max-width: 1099.98px), (max-height: 499.98px) and (pointer: coarse) {
+    .topbar-sidebar,
+    .sidebar-close {
+        display: inline-flex;
     }
 
     .workbench,
@@ -546,17 +583,143 @@ body {
         grid-template-columns: minmax(0, 1fr);
     }
 
+    /* the navigation landmark stays, at no size: the drawer inside it is drawn in the top layer */
+    .sidebar-region {
+        position: absolute;
+        width: 0;
+        height: 0;
+    }
+
+    .sidebar-region > .splitter {
+        display: none;
+    }
+
+    /* the drawer (the popover attribute, js/lab/layout.js): the whole height at the left, over the
+       page, on the desk like the sidebar, its edge a 1 px rule (a pane: no shadow, section 3),
+       and a veil over the rest of the page, which a press closes */
+    .sidebar[popover] {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: min(320px, calc(100vw - 56px));
+        height: 100%;
+        max-height: none;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-right: 1px solid var(--rule);
+        background: var(--desk);
+        color: var(--ink);
+    }
+
+    /* the author's display: flex would otherwise show it shut */
+    .sidebar[popover]:not(:popover-open) {
+        display: none;
+    }
+
+    .sidebar[popover]::backdrop {
+        background: var(--scrim);
+    }
+
+    /* the wide window's choice to hide the sidebar does not hide the drawer */
     .app--sidebar-collapsed .sidebar {
         visibility: visible;
     }
+}
 
-    .sidebar {
-        max-height: 40vh;
-        border-bottom: 1px solid var(--rule);
+/* ---- under 700 px: the phone (docs/design/mockup/phone.html) ----------------------------- */
+
+@media (max-width: 699.98px), (max-height: 499.98px) and (pointer: coarse) {
+    /* the bar at the bottom (the editor toolbar, fixed there) keeps its room */
+    .app {
+        padding-bottom: 64px;
     }
 
-    .splitter {
+    /* the mockup's 56 px: 5 + the 44 px controls + 6 + the 1 px rule */
+    .topbar {
+        flex-wrap: nowrap;
+        gap: var(--space-2);
+        min-height: 56px;
+        padding: 5px var(--space-3) 6px;
+    }
+
+    /* the brand is the mark alone (its name stays, for a screen reader), in a target of the
+       controls' size */
+    .brand {
+        justify-content: center;
+        min-width: var(--control-height);
+    }
+
+    .brand-mark {
+        width: 28px;
+        height: 28px;
+    }
+
+    .brand [data-app-name] {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    /* the database switcher takes the room between the brand and More, 44 px high as the
+       mockup's (and as the Sidebar and More buttons beside it) */
+    .database-button {
+        flex: 1 1 auto;
+        justify-content: flex-start;
+        max-width: none;
+        min-height: 44px;
+    }
+
+    .database-button-name {
+        flex: 1 1 auto;
+        text-align: left;
+    }
+
+    /* the actions' buttons are in the More menu; their menus and popovers stay where they are
+       (drawn in the top layer, and only while nothing around them is display: none) */
+    .topbar-actions {
+        position: absolute;
+        width: 0;
+        height: 0;
+        margin: 0;
+    }
+
+    .topbar-actions .button {
         display: none;
+    }
+
+    /* the Sidebar and More buttons are their icons alone, 44 px squares */
+    .topbar-sidebar,
+    .topbar-more {
+        display: inline-flex;
+        flex: none;
+        width: 44px;
+        min-height: 44px;
+        padding: 0;
+    }
+
+    .topbar-sidebar-text {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    .topbar-more .icon {
+        width: 20px;
+        height: 20px;
+    }
+
+    /* the two views: one shows, the other is not drawn */
+    .view-switch {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        border-bottom: 1px solid var(--rule);
+        background: var(--desk);
     }
 
     .main {
@@ -564,24 +727,108 @@ body {
         flex-direction: column;
     }
 
-    .editor-pane {
-        min-height: 12rem;
-        overflow: visible;
+    .main[data-view="editor"] > .results-pane,
+    .main[data-view="result"] > .exercise-panel,
+    .main[data-view="result"] > .editor-pane {
+        display: none;
     }
 
-    .results-pane {
-        overflow: visible;
-    }
-
-    /* as high as its table (the page scrolls), still scrolling sideways inside its box */
-    .results-pane > .sqlime-result {
+    .main > .editor-pane,
+    .main > .results-pane {
+        flex: 1 1 auto;
         min-height: 0;
+    }
+
+    .exercise-panel {
+        flex: none;
+    }
+
+    .splitter {
+        display: none;
+    }
+
+    /* Run (and Check answer, in an exercise) in a bar at the bottom, in reach of a thumb; the text
+       size is the browser's own there (its zoom), and a keyboard's shortcuts are not shown */
+    .editor-toolbar {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 3;
+        flex-wrap: nowrap;
+        height: 64px;
+        box-sizing: border-box;
+        padding: 10px var(--space-3);
+        border-top: 1px solid var(--rule);
+        border-bottom: 0;
+        background: var(--desk);
+    }
+
+    .editor-toolbar > .button {
+        flex: 1 1 0;
+        min-width: 0;
+        min-height: 44px;
+        font-size: var(--text-md);
+    }
+
+    .editor-toolbar .shortcut,
+    .text-size {
+        display: none;
+    }
+
+    /* the status bar keeps the credit: the database's name is the switcher's, the last run is
+       the result's summary line; the credit is "Made by ..." alone, on one line (the app's name,
+       which the brand's mark stands for, stays for a screen reader) */
+    .statusbar-item,
+    .statusbar-credit > [aria-hidden="true"] {
+        display: none;
+    }
+
+    .statusbar-credit > [data-app-name] {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    /* the text size is the browser's own here (its zoom; A- and A+ are not shown): the default,
+       whatever was chosen on a wider window, which keeps it */
+    :root {
+        --code-size: var(--text-sm) !important;
     }
 }
 
+/* the two view buttons (under 700 px): as the sidebar's tabs, the shown one marked */
+.view-switch-button {
+    height: 48px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--graphite);
+    font: inherit;
+    cursor: pointer;
+}
+
+.view-switch-button[aria-current="true"] {
+    border-bottom-color: var(--accent);
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.view-switch-button:focus-visible {
+    outline-offset: -2px;
+}
+
+.view-switch-button:hover {
+    color: var(--ink);
+}
+
 /* the top bar keeps one row from 700 px up: the database button gives way, its name cut with an
-   ellipsis, before anything wraps */
-@media (min-width: 700px) {
+   ellipsis, before anything wraps (not where the phone's layout applies, as above) */
+@media (min-width: 700px) and (min-height: 500px), (min-width: 700px) and (pointer: fine), (min-width: 700px) and (pointer: none) {
     .topbar {
         flex-wrap: nowrap;
     }
@@ -596,7 +843,24 @@ body {
     }
 }
 
-@media (min-width: 700px) and (max-width: 799.98px) {
+@media (min-width: 700px) and (max-width: 899.98px) and (min-height: 500px), (min-width: 700px) and (max-width: 899.98px) and (pointer: fine), (min-width: 700px) and (max-width: 899.98px) and (pointer: none) {
+    .topbar-sidebar {
+        width: var(--control-height);
+        padding: 0;
+    }
+
+    .topbar-sidebar-text,
+    .brand [data-app-name] {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+}
+
+@media (min-width: 700px) and (max-width: 799.98px) and (min-height: 500px), (min-width: 700px) and (max-width: 799.98px) and (pointer: fine), (min-width: 700px) and (max-width: 799.98px) and (pointer: none) {
     .topbar {
         column-gap: var(--space-3);
     }

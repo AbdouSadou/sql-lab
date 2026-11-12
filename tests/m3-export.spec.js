@@ -128,18 +128,26 @@ test("the Export menu button is visible, labelled and touch-sized, at desktop an
     for (const width of [1200, 360]) {
         await page.setViewportSize({ width, height: 800 });
         await app.open();
-        const button = page.locator("#export-button");
+        // from Phase 6, under 700 px the exports are in the More menu (its button is the one shown)
+        const phone = width < 700;
+        const button = phone ? app.moreButton : page.locator("#export-button");
         await expect(button).toBeVisible();
-        await expect(button).toHaveText("Export");
+        if (phone) {
+            await expect(button).toHaveAccessibleName("More actions");
+            await expect(page.locator("#export-button")).toBeHidden();
+        } else {
+            await expect(button).toHaveText("Export");
+        }
         await expect(button).toHaveAttribute("aria-haspopup", "menu");
-        expect((await button.boundingBox()).height, `${width}px: touch-sized`).toBeGreaterThanOrEqual(32);
+        expect((await button.boundingBox()).height, `${width}px: touch-sized`).toBeGreaterThanOrEqual(phone ? 44 : 32);
         // the item that downloads says what it is for
         await button.click();
-        await expect(app.exportButton).toBeVisible();
-        await expect(app.exportButton).toContainText("Database (.db)…");
-        await expect(app.exportButton).toContainText("Download");
+        const item = phone ? page.locator("#more-export-db") : app.exportButton;
+        await expect(item).toBeVisible();
+        await expect(item).toContainText("Database (.db)…");
+        await expect(item).toContainText("Download");
         await page.keyboard.press("Escape");
-        await expect(page.locator("#export-menu")).toBeHidden();
+        await expect(page.locator(phone ? "#more-menu" : "#export-menu")).toBeHidden();
     }
 });
 

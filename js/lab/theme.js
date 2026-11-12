@@ -54,6 +54,8 @@ export function setThemeChoice(choice) {
         // storage unusable: the choice holds for this page only
     }
     applyTheme();
+    // the Theme button shows the scheme in use (its sun or moon), whichever menu chose it
+    document.dispatchEvent(new CustomEvent("lab:theme-chosen"));
 }
 
 // data-theme on <html> pins the palette; the browser's own chrome (a phone's address bar) takes
@@ -124,6 +126,7 @@ export function mountThemeMenu(container, { before = null, buttonClass = "button
         },
     });
     window.matchMedia(DARK_QUERY).addEventListener("change", sync);
+    document.addEventListener("lab:theme-chosen", sync);
     applyTheme();
     sync();
     return button;

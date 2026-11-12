@@ -362,9 +362,11 @@ test.describe("schema sidebar: collapsing", () => {
         await expect(page.locator("#schema-panel")).toBeVisible();
     });
 
-    test("it is the selected tab at phone width too, above the editor, and follows the database while another tab is shown", async ({ app, page }) => {
+    test("it is the selected tab at phone width too, in the drawer, and follows the database while another tab is shown", async ({ app, page }) => {
         await page.setViewportSize({ width: 390, height: 800 });
         await app.open();
+        // (from Phase 6 the sidebar is a drawer under 1100 px, opened by the Sidebar button)
+        await app.openDrawer();
         await expect(app.schemaToggle).toHaveAttribute("aria-selected", "true");
         await expect(page.locator("#schema-panel")).toBeVisible();
         await expect(app.schemaInsert("orders")).toBeVisible();
@@ -548,11 +550,15 @@ test.describe("schema sidebar: layout", () => {
                         `CREATE TABLE ${long} (${long}_column INTEGER, ${quoteIdent("name with many words " + "word ".repeat(12))} TEXT); INSERT INTO ${long} VALUES (1, 'x');`
                     )
                 );
-                // the Schema tab is the selected one at every width
+                // the Schema tab is the selected one at every width (in the drawer under 1100 px)
+                await app.openDrawer();
                 await expect(app.schemaToggle).toHaveAttribute("aria-selected", "true");
                 await app.schemaExpand(long).click();
                 await app.run("SELECT " + Array.from({ length: 12 }, (_, i) => `'cell value number ${i}' AS c${i}`).join(", "));
                 await expect(app.status).toContainText(/^\d[\d,]* rows? in \d+ ms$/);
+                // the drawer, if there is one, open again over the result to be measured
+                await app.openDrawer();
+                await expect(app.schemaInsert(long)).toBeVisible();
                 const m = await page.evaluate(() => ({
                     scroll: document.documentElement.scrollWidth,
                     client: document.documentElement.clientWidth,
@@ -588,16 +594,24 @@ test.describe("schema sidebar: layout", () => {
         expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight), "the page itself does not scroll at desktop size").toBe(true);
     });
 
-    test("phone: a single column, the sidebar shown above the editor", async ({ app, page }) => {
+    test("phone: a single column, the sidebar a drawer over the editor that its button opens", async ({ app, page }) => {
         await page.setViewportSize({ width: 390, height: 800 });
         await app.open();
+        // (from Phase 6 the sidebar is no longer stacked above the editor: it is shut, and the
+        // editor has the column; the Sidebar button opens it over the page, at the left)
+        await expect(page.locator("#sidebar")).toBeHidden();
+        const editor = await app.editor.boundingBox();
+        expect(editor.width).toBeGreaterThan(300);
+        await app.openDrawer();
         await expect(app.schemaToggle).toHaveAttribute("aria-selected", "true");
         const aside = await page.locator("#sidebar").boundingBox();
-        const editor = await app.editor.boundingBox();
-        expect(aside.y + aside.height).toBeLessThanOrEqual(editor.y + 1);
+        expect(aside.x).toBe(0);
+        expect(aside.y).toBe(0);
         expect(aside.width).toBeLessThanOrEqual(390);
+        expect(aside.height).toBeLessThanOrEqual(800);
         const panel = await page.locator("#schema-panel").boundingBox();
         expect(panel.height).toBeGreaterThan(0);
-        expect((await page.locator("#panel-schema").boundingBox()).height).toBeLessThanOrEqual(800 * 0.5 + 1);
+        // the tab's panel scrolls inside the drawer, which is no taller than the window
+        expect((await page.locator("#panel-schema").boundingBox()).height).toBeLessThanOrEqual(800);
     });
 });

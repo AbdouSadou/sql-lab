@@ -12,14 +12,16 @@ Based on SQLime by Anton Zhiyanov (https://github.com/nalgeon/sqlime).
 | add an exercise set | one file, `exercises/<set-id>.json` | [Adding an exercise set](#adding-an-exercise-set) |
 | publish a change | push to `main` | [Deploying](#deploying) |
 | check a student's evidence file | nothing: open `verify.html` on the site | [Marking evidence files](#marking-evidence-files) |
-| rename the app, or change the student number format | one line in `js/lab/config.js` | [Settings](#settings) |
+| rename the app, change the student number format, or give the site's address for link previews | one line in `js/lab/config.js` | [Settings](#settings) |
 | work on the code | nothing to build | [Run it locally](#run-it-locally), [Tests](#tests) |
 
 ## Features
 
 - Full SQLite (CTEs, window functions, views, triggers) in the browser. Run with Ctrl/Cmd+Enter.
 - A code editor (CodeMirror 6): SQL highlighting, line numbers, bracket matching, and suggestions as you type for SQLite's keywords and functions and the open database's tables, views and columns (Ctrl+Space shows them at any time; the arrow keys pick one and Enter takes it, and until one is picked Enter starts a new line). Ctrl/Cmd+/ comments or uncomments the line. Tab indents; Escape, then Tab, leaves the editor. If the editor's script cannot load, a plain editor takes its place and everything still works.
-- An app-like layout: a top bar, a sidebar with Schema, Exercises and History tabs, the query above its result, and a status bar. The sidebar's width, whether it is hidden and the editor's height are set by dragging the bars between the panes (or with the arrow keys) and kept between visits. Under 700 px wide the panes stack.
+- An app-like layout: a top bar, a sidebar with Schema, Exercises and History tabs, the query above its result, and a status bar. The sidebar's width, whether it is hidden and the editor's height are set by dragging the bars between the panes (or with the arrow keys) and kept between visits.
+- On a tablet or a narrow window (700 to 1099 px wide) the sidebar opens over the page from the Sidebar button at the top, and closes with its Close button, Escape or a press beside it. On a phone (under 700 px, or held sideways) the query and its result are two views, Editor and Result, and running a query shows its result; Copy link, Export, Theme and Help are in the More menu (the three dots), and Run (with Check answer in an exercise) is in a bar at the bottom of the screen.
+- A text size for a projector: A− and A+ at the right of the toolbar above the editor make the SQL and the results smaller or larger, from 12 to 24 px, and the size is kept. At 1280×720 and 20 px a six-line query and six result rows fit on the screen.
 - Built-in datasets, listed in `datasets/manifest.json` and chosen from the database menu in the top bar (the button showing the open database). The default one (Northlight Retail) is open on a first visit. `?db=<id>` in the address opens a dataset directly. Nothing runs on its own: until the first Run the result area offers up to three sample queries (the manifest's, or the first table's rows), and choosing one puts it in the editor without running it. A database that is loading shows its name, its size and a progress bar.
 - The Schema tab: tables and views with their columns, types, key marks and row counts. Clicking a name puts it in the editor.
 - Open a SQLite database file, a SQL script, or a database from a URL (Open from URL asks for the address in a small dialog), all three from the database menu, and export the open database, with your changes, as a file (Export, then Database (.db)…; the file name given there also renames the database).
@@ -28,9 +30,9 @@ Based on SQLime by Anton Zhiyanov (https://github.com/nalgeon/sqlime).
 - Exercise sets with a Check answer button (Ctrl/Cmd+Shift+Enter), a numbered list of exercises with pass marks, hints shown one at a time ("Show hint (1 of 3)"), Previous and Next, and a "7 of 10 complete" counter kept in your browser. Pick a set in the Exercises tab, or open `?set=<set id>` (add `&ex=<exercise id>` for one exercise). Check runs the query, then says at the top of the result whether it is right: "Correct. 5 rows match." with a Next exercise button, or "Not quite." with what differs; when a row differs, the expected rows and the student's are shown side by side, with the cells that differ outlined.
 - A run log: every Run is kept (the last 200 per dataset, fewer if the queries are very long, in that browser on that device) and the History tab lists it, newest first; a click puts an earlier query back in the editor. Its times are UTC. When the browser has no room left to keep the log or the exercise progress, a notice above the result says so.
 - Evidence export: Export, then Evidence (.txt)…, saves the run log as a `.txt` file with the student's number and a checksum, to attach to assessed work; `verify.html` checks such a file. The file holds the log of the open dataset only (an uploaded file has a log of its own), so a student who worked on two datasets exports once for each dataset. The log lives in one browser profile: on a shared lab PC whose profile is wiped at log-off, or in a private window, it is gone, so students should export before they log off. `about.html` tells them this, and tells markers about `verify.html`.
-- Phone-friendly layout.
+- Nothing moves when the device asks for reduced motion (the menus, popovers, messages and the tick of a correct answer appear at once).
 - Browsers: current Chrome, Edge, Firefox and Safari. The menus use the `popover` attribute, so they need Safari 17, Firefox 125 or Chrome 114 or later; an older browser shows the page without them.
-- Kept in the student's own browser (`localStorage`) and nowhere else: the last query for each database, exercise progress, the SQL last written for each exercise, the run log, the theme the student chose, and the pane sizes (`sqllab.layout`).
+- Kept in the student's own browser (`localStorage`) and nowhere else: the last query for each database, exercise progress, the SQL last written for each exercise, the run log, the theme the student chose, the text size (`sqllab.textSize`) and the pane sizes (`sqllab.layout`).
 - Light and dark themes: the page follows the device until the student picks Light, Dark or Match device in the Theme menu.
 
 ## Adding a dataset
@@ -70,6 +72,8 @@ How the site finds the sets: the page reads the folder listing of `exercises/`. 
 
 Pushing to `main` redeploys the site: `.github/workflows/pages.yml` copies the repository root, leaving out `tests/`, `docs/`, `tools/`, `node_modules/`, `package.json`, `package-lock.json`, `playwright.config.js` and the git files, and publishes it with the official GitHub Pages actions. Everything else at the root is public, `datasets/generate_db.py` and `CODEMAP.md` included. The workflow can also be started by hand from the Actions tab.
 
+While it stages the site the workflow also writes what a shared link's preview shows (the Open Graph tags: the page's title and description, and a picture, `img/social.png`) and a web manifest (`site.webmanifest`, with the app's icons) into the staged pages, with `node tools/site-meta.mjs` (step "Link previews and web manifest"). A preview needs the site's absolute address: `SITE_URL` in `js/lab/config.js` when it is set, else the address GitHub Pages gives the workflow. The pages in the repository carry no address and no app name; the tags are written only into the copy that is published.
+
 Once, per repository: Settings, Pages, Source must be set to GitHub Actions. Until it is, the workflow fails or publishes nothing. The site is then at `https://<user>.github.io/<repo>/`. All addresses in the code are relative, so it works under that subpath; `.nojekyll` must stay at the root.
 
 The evidence export and `verify.html` need a secure page (https, or `localhost`): browsers withhold the checksum function otherwise. GitHub Pages is https.
@@ -89,10 +93,11 @@ The query count is the number of entries the exporter wrote. SQL is written to t
 
 ## Settings
 
-Both are in `js/lab/config.js`:
+All three are in `js/lab/config.js`:
 
-- `APP_NAME` (default "SQL Lab") is the one place the app name is written; page titles, headers, footers and the first line of an evidence file take it from there. The tests spell the current name out, so after renaming, update them (`grep -rn "SQL Lab" tests/`). Evidence files exported under an older name still verify.
+- `APP_NAME` (default "SQL Lab") is the one place the app name is written; page titles, headers, footers, the link preview, the web manifest and the first line of an evidence file take it from there. The tests spell the current name out, so after renaming, update them (`grep -rn "SQL Lab" tests/`). The picture a shared link shows, `img/social.png`, has the name drawn in it: redraw it, with the favicons, by `node tools/build-favicons.mjs` (it needs the test tools below). Evidence files exported under an older name still verify.
 - `STUDENT_ID_PATTERN` (default `^[A-Za-z0-9]{6,12}$`) is the format the evidence dialog accepts for a student number. Change `EVIDENCE_HINT` and `EVIDENCE_INVALID_MESSAGE` beside it so the wording matches. `verify.html` does not apply the pattern, so files exported under an older pattern still verify.
+- `SITE_URL` (empty by default) is the site's public address, for example `https://sql.example.org/` for a custom domain. A link preview needs an absolute address for its picture; while `SITE_URL` is empty the deploy uses the address GitHub Pages gives (`https://<user>.github.io/<repo>/`), so set it only when the site lives somewhere else.
 
 ## Run it locally
 
@@ -115,7 +120,7 @@ Then:
 npm test
 ```
 
-`npm test` runs Chromium and Firefox, each against the site at the server root and mounted at `/repo/` (as GitHub Pages serves a project site), and takes about twelve minutes. It starts its own static servers on ports 4173 and 4174; if those are busy, set `TEST_PORT_BASE` (it and the next port are used). To run one file or one browser: `npx playwright test tests/m5-results.spec.js --project=chromium-root`. `PW_WEBKIT=1 npm test` adds WebKit (after `npx playwright install webkit`; it needs system libraries that not every machine has).
+`npm test` runs Chromium and Firefox, each against the site at the server root and mounted at `/repo/` (as GitHub Pages serves a project site), and takes about fifteen minutes. It starts its own static servers on ports 4173 and 4174; if those are busy, set `TEST_PORT_BASE` (it and the next port are used). To run one file or one browser: `npx playwright test tests/m5-results.spec.js --project=chromium-root`. `PW_WEBKIT=1 npm test` adds WebKit (after `npx playwright install webkit`; it needs system libraries that not every machine has).
 
 ## The editor bundle
 

@@ -12,6 +12,7 @@ const STATES = RECIPES.shell.states;
 const VIEWPORTS = [
     { name: "desktop", width: 1366, height: 768 },
     { name: "large desktop", width: 1920, height: 1080 },
+    { name: "tablet", width: 1024, height: 768 },
     { name: "phone", width: 390, height: 844 },
 ];
 

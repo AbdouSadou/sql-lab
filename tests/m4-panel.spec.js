@@ -1076,6 +1076,9 @@ for (const width of [1280, 768, 390]) {
             await expect(app.feedback.locator(".verdict--fail table")).toHaveCount(2);
             const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
             expect(await overflow()).toBeLessThanOrEqual(0);
+            // (a phone shows the verdict in the Result view; the prompt and its hints are the
+            // Editor view's, from Phase 6)
+            await app.showView("editor");
             await app.hintButton.click();
             await passExercise(app, "e01");
             expect(await overflow()).toBeLessThanOrEqual(0);
@@ -1083,9 +1086,14 @@ for (const width of [1280, 768, 390]) {
             const box = await app.checkButton.boundingBox();
             expect(box.x + box.width).toBeLessThanOrEqual(width);
             if (width === 390) {
-                // the ten buttons sit on more than one row
+                // the ten buttons sit on more than one row (from Phase 6 in the sidebar's drawer,
+                // opened for this, and shut again)
+                await app.openDrawer();
                 const ys = await page.locator("#exercise-list button").evaluateAll((bs) => new Set(bs.map((b) => Math.round(b.getBoundingClientRect().top))).size);
                 expect(ys).toBeGreaterThan(1);
+                expect(await overflow()).toBeLessThanOrEqual(0);
+                await page.keyboard.press("Escape");
+                await expect(page.locator("#sidebar")).toBeHidden();
             }
             // text is legible against its own background in both schemes
             for (const selector of [".verdict-headline", ".exercise-item--passed", "#exercise-progress", ".exercise-text"]) {
@@ -1106,6 +1114,7 @@ for (const width of [1280, 768, 390]) {
                 expect(contrast, `${selector} contrast`).toBeGreaterThanOrEqual(4.5);
             }
             // fail then the diff tables at this width
+            await app.showView("editor");
             await app.editor.fill(modelQuery("e01").replace("DESC", "ASC"));
             await app.checkButton.click();
             await expect(app.feedback.locator(".verdict--fail")).toBeVisible();

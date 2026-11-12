@@ -56,6 +56,9 @@
     --text-lg: 20px;
     --leading-ui: 1.45;
     --leading-code: 1.6;
+    /* the size of the SQL and of the results, which the student can change from 12 to 24 px
+       (js/lab/text-size.js sets it on <html>; js/lab/theme-boot.js before the first paint) */
+    --code-size: var(--text-sm);
 
     /* Shape and space */
     --space-1: 4px;

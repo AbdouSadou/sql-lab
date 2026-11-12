@@ -5,42 +5,59 @@
 // inside. This module places it under the button, keeps aria-expanded right and moves the focus
 // into it when it opens.
 //
-// mountHelp({button, popover})
+// mountHelp({button, popover, altAnchor}) -> {open()}
+//   altAnchor  what the popover opens under while the button is not shown (the More button: under
+//              700 px the top bar's actions fold into that menu, whose Help calls open())
 
 import { placePopover } from "./menu.js";
 
-export function mountHelp({ button, popover }) {
+export function mountHelp({ button, popover, altAnchor = null }) {
     if (typeof popover.showPopover !== "function") {
         // a browser without the popover attribute (css/menu.css hides the popover there)
         button.hidden = true;
-        return;
+        return { open() {} };
     }
+    // the button, or what stands for it while it is not shown
+    const anchor = () => (button.getClientRects().length || !altAnchor ? button : altAnchor);
     button.popoverTargetElement = popover;
     // beforetoggle is synchronous: placed and announced before the popover shows
     popover.addEventListener("beforetoggle", (event) => {
         const opening = event.newState === "open";
         button.setAttribute("aria-expanded", String(opening));
         if (opening) {
-            placePopover(popover, button);
+            placePopover(popover, anchor());
         }
     });
     popover.addEventListener("toggle", (event) => {
         if (event.newState === "open" && popover.matches(":popover-open")) {
             // placed as it opened; now that its width is known, kept inside the window
-            placePopover(popover, button);
+            placePopover(popover, anchor());
             popover.focus({ preventScroll: true });
+            return;
+        }
+        // closed with the focus inside, or on nothing: it goes back to where Help was pressed
+        const focused = document.activeElement;
+        if (!focused || focused === document.body || popover.contains(focused)) {
+            anchor().focus({ preventScroll: true });
         }
     });
     // like a menu, it closes when the focus moves on to something else on the page (Escape and
     // a press outside close it too); the focus is where the student took it
     popover.addEventListener("focusout", (event) => {
-        if (popover.matches(":popover-open") && event.relatedTarget && !popover.contains(event.relatedTarget) && event.relatedTarget !== button) {
+        if (popover.matches(":popover-open") && event.relatedTarget && !popover.contains(event.relatedTarget) && event.relatedTarget !== anchor()) {
             popover.hidePopover();
         }
     });
     window.addEventListener("resize", () => {
         if (popover.matches(":popover-open")) {
-            placePopover(popover, button);
+            placePopover(popover, anchor());
         }
     });
+    return {
+        open() {
+            if (!popover.matches(":popover-open")) {
+                popover.showPopover();
+            }
+        },
+    };
 }

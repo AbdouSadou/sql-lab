@@ -473,7 +473,7 @@
     border-spacing: 0;
     color: var(--ink);
     font-family: var(--font-mono);
-    font-size: var(--text-sm);
+    font-size: var(--code-size);
     line-height: var(--leading-code);
     font-variant-numeric: tabular-nums;
 }
@@ -481,6 +481,8 @@
 .verdict-table caption {
     padding-bottom: var(--space-2);
     font-family: var(--font-ui);
+    /* a heading, at the interface's size whatever size the rows are drawn at */
+    font-size: var(--text-sm);
     font-weight: 600;
     line-height: var(--leading-ui);
     text-align: left;
@@ -526,9 +528,10 @@
     outline-offset: -2px;
 }
 
-@media (max-width: 699.98px) {
+@media (max-width: 699.98px), (max-height: 499.98px) and (pointer: coarse) {
+    /* in the Editor view, above the editor: at most 45 percent of the view, scrolling inside */
     .exercise-panel {
-        max-height: none;
+        max-height: 45%;
         padding: var(--space-3) var(--space-4);
     }
 

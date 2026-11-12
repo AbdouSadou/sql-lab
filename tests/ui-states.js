@@ -141,22 +141,77 @@ const LONG_CELL_SQL = "SELECT group_concat(product_name, ', ') AS names, COUNT(*
 const DONE_SQL = `CREATE TABLE notes (id INTEGER PRIMARY KEY, body TEXT);
 INSERT INTO notes (body) VALUES ('Restock the Leeds store'), ('Call the York supplier');`;
 
+// From Phase 6 what is on screen depends on the window's width (UI plan, section 6): under 1100 px
+// the sidebar is a drawer, opened by #sidebar-button; under 700 px the top bar's actions are in the
+// More menu, and the query and its result are two views (Editor, Result), a run showing the result.
+// The recipes reach each control as a student would at that width.
 const shell = {
     async open(page, url = "./") {
         await page.goto(url);
-        await page.locator(READY_PANE).waitFor();
+        // (attached: on a phone the results pane is in the Result view, which a load does not show)
+        await page.locator(READY_PANE).waitFor({ state: "attached" });
+    },
+    // view shows the phone's Editor or Result view (nothing to do on a wider window)
+    async view(page, which) {
+        const button = page.locator(which === "editor" ? "#view-editor" : "#view-result");
+        if ((await button.isVisible()) && (await button.getAttribute("aria-current")) !== "true") {
+            await button.click();
+        }
+    },
+    // drawer opens the sidebar where it is a drawer (under 1100 px)
+    async drawer(page) {
+        const button = page.locator("#sidebar-button");
+        if ((await button.isVisible()) && (await button.getAttribute("aria-expanded")) !== "true") {
+            await button.click();
+            await page.locator("#sidebar").waitFor({ state: "visible" });
+            // what is measured once laid out (the description's Show more) settles a frame later
+            await page.waitForTimeout(150);
+        }
+    },
+    // more opens the More menu where the top bar's actions are folded into it (under 700 px), and
+    // says whether it did
+    async more(page) {
+        const button = page.locator("#more-button");
+        if (!(await button.isVisible())) {
+            return false;
+        }
+        await button.click();
+        await page.locator("#more-menu").waitFor({ state: "visible" });
+        return true;
+    },
+    // a top-bar action: its own button, or its entry in the More menu
+    async action(page, button, entry) {
+        if (await shell.more(page)) {
+            await page.locator(entry).click();
+        } else {
+            await page.locator(button).click();
+        }
     },
     // run puts SQL in the editor, runs it with Ctrl+Enter, and waits until the results pane shows
     // `state` ("result", "done" or "error")
     async run(page, sql, state = "result") {
+        await shell.view(page, "editor");
         await page.locator(EDITOR_INPUT).fill(sql);
         await page.locator(EDITOR_INPUT).press("Control+Enter");
         await page.evaluate(() => window.app.whenIdle());
         await page.locator(`#results-pane[data-state="${state}"]`).waitFor();
     },
+    // menu opens a menu (or the Help popover). A top-bar menu folded into the More menu under
+    // 700 px is that menu, open (Help, the popover it opens from there); the set picker is in the
+    // sidebar, in the drawer under 1100 px.
     async menu(page, button, menu) {
-        await page.locator(button).click();
-        await page.locator(menu).waitFor({ state: "visible" });
+        if (button === "#exercise-set-picker") {
+            await shell.drawer(page);
+        }
+        if (await page.locator(button).isVisible()) {
+            await page.locator(button).click();
+            await page.locator(menu).waitFor({ state: "visible" });
+        } else if (await shell.more(page)) {
+            if (button === "#help-button") {
+                await page.locator("#more-help").click();
+                await page.locator(menu).waitFor({ state: "visible" });
+            }
+        }
         // the switcher's sizes arrive with a HEAD request after it opens
         await page.waitForTimeout(150);
     },
@@ -177,29 +232,34 @@ const shell = {
         await page.locator("#exercise-panel").waitFor({ state: "visible" });
     },
     async check(page, sql) {
+        await shell.view(page, "editor");
         await page.locator(EDITOR_INPUT).fill(sql);
         await page.locator("#exercise-check").click();
     },
 };
 
 shell.states = {
-    // From Phase 4 a first visit runs nothing: "no result yet" with Northlight's three samples
+    // From Phase 4 a first visit runs nothing: "no result yet" with Northlight's three samples (on
+    // a phone, in the Result view)
     "first-visit": async (page) => {
         await shell.open(page);
+        await shell.view(page, "result");
     },
     // after a reload the last query is back in the editor, not run
     "no-result": async (page) => {
         await shell.open(page);
         await shell.run(page, "SELECT * FROM products;");
         await page.reload();
-        await page.locator(READY_PANE).waitFor();
+        await page.locator(READY_PANE).waitFor({ state: "attached" });
+        await shell.view(page, "result");
     },
     // From Phase 4: a database on its way (its request held, so the bar waits)
     loading: Object.assign(
         async (page) => {
             await page.route(/\/datasets\/northlight_retail\.db(\?.*)?$/, () => {});
             await page.goto("./");
-            await page.locator('#results-pane[data-state="loading"] .results-loading-title').filter({ hasText: "Northlight Retail" }).waitFor();
+            await page.locator('#results-pane[data-state="loading"] .results-loading-title').filter({ hasText: "Northlight Retail" }).waitFor({ state: "attached" });
+            await shell.view(page, "result");
         },
         { busy: true }
     ),
@@ -224,7 +284,8 @@ shell.states = {
             };
         });
         await page.goto("./");
-        await page.locator(".results-loading-size").filter({ hasText: / of / }).waitFor();
+        await page.locator(".results-loading-size").filter({ hasText: / of / }).waitFor({ state: "attached" });
+        await shell.view(page, "result");
     },
     result: async (page) => {
         await shell.open(page);
@@ -268,12 +329,14 @@ shell.states = {
     // From Phase 4: a damaged link: the error band over "no result yet" (the default database opened)
     "load-problem": async (page) => {
         await shell.open(page, "./#s=N4Ig_damaged");
+        await shell.view(page, "result");
         await page.locator("#result .results-band").waitFor();
     },
     // From Phase 4: no list of databases, so an empty database: the band, and what to do next
     "empty-database": async (page) => {
         await page.route(/\/datasets\/manifest\.json(\?.*)?$/, (route) => route.abort());
         await shell.open(page);
+        await shell.view(page, "result");
         await page.locator("#result .results-empty-links").waitFor();
     },
     // From Phase 4: Copy link's toast, and its popover when the browser keeps the clipboard
@@ -281,18 +344,19 @@ shell.states = {
         await shell.open(page);
         await shell.run(page, RESULT_SQL);
         await shell.clipboard(page);
-        await page.locator("#copy-link").click();
+        await shell.action(page, "#copy-link", "#more-copy-link");
         await page.locator("#toast-region .toast").waitFor();
     },
     "link-popover": async (page) => {
         await shell.open(page);
         await shell.run(page, RESULT_SQL);
         await shell.clipboard(page, { refuse: true });
-        await page.locator("#copy-link").click();
+        await shell.action(page, "#copy-link", "#more-copy-link");
         await page.locator("#copy-link-popover").waitFor({ state: "visible" });
     },
     "schema-expanded": async (page) => {
         await shell.open(page);
+        await shell.drawer(page);
         await page.getByRole("button", { name: "Columns of table products", exact: true }).click();
         await page.locator("#schema .schema-column").first().waitFor();
     },
@@ -330,6 +394,7 @@ shell.states = {
         await shell.run(page, "SELECT * FROM stores;");
         await shell.run(page, ERROR_SQL, "error");
         await shell.run(page, RESULT_SQL);
+        await shell.drawer(page);
         await page.locator("#tab-history").click();
         await page.locator("#run-history-list button").first().waitFor();
     },
@@ -352,8 +417,12 @@ shell.states = {
     "evidence-dialog": async (page) => {
         await shell.open(page);
         await shell.run(page, RESULT_SQL);
-        await page.locator("#export-button").click();
-        await page.locator("#export-evidence").click();
+        if (await shell.more(page)) {
+            await page.locator("#more-export-evidence").click();
+        } else {
+            await page.locator("#export-button").click();
+            await page.locator("#export-evidence").click();
+        }
         await page.locator("#evidence-dialog").waitFor({ state: "visible" });
     },
     "exercise-prompt": async (page) => {
@@ -389,6 +458,29 @@ shell.states = {
         await shell.exerciseOpen(page);
         await shell.check(page, "");
         await page.locator("#exercise-feedback").filter({ hasText: "Write a query first" }).waitFor();
+    },
+    // From Phase 6: the sidebar as a drawer, open (under 1100 px; a wider window shows the sidebar
+    // in its place)
+    drawer: async (page) => {
+        await shell.open(page);
+        await shell.drawer(page);
+    },
+    // From Phase 6: the mockup's result at the text size for a projector (20 px)
+    "text-size": async (page) => {
+        await page.addInitScript(() => localStorage.setItem("sqllab.textSize", "20"));
+        await shell.open(page);
+        await shell.run(page, RESULT_SQL);
+    },
+    // From Phase 6: the About page
+    about: async (page) => {
+        await page.goto("./about.html");
+        await page.locator("main h1").waitFor();
+    },
+    // From Phase 6: the evidence check page as it opens (it shares About's look, css/article.css)
+    verify: async (page) => {
+        await page.goto("./verify.html");
+        await page.locator("main h1").waitFor();
+        await page.locator("header [data-app-name]").filter({ hasText: /\S/ }).waitFor();
     },
     // the last exercise of the set passed: the set is complete, and no next exercise is offered
     "exercise-complete": async (page) => {

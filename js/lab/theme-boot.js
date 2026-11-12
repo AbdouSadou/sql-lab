@@ -7,6 +7,22 @@
 //
 // The key is THEME_STORAGE_KEY of js/lab/config.js, written again here because a module runs too
 // late to avoid a flash of the other theme; tests/ui1-tokens.spec.js checks that the two agree.
+//
+// The size of the SQL and of the results is applied here too (js/lab/text-size.js), for the same
+// reason: its key and its sizes are TEXT_SIZE_STORAGE_KEY and TEXT_SIZES of js/lab/config.js
+// (tests/ui6-responsive.spec.js checks that they agree).
+(function () {
+    var size = null;
+    try {
+        size = Number(window.localStorage.getItem("sqllab.textSize"));
+    } catch (error) {
+        // storage blocked or unusable: the default size of css/tokens.css
+    }
+    if (size >= 12 && size <= 24 && size % 2 === 0) {
+        document.documentElement.style.setProperty("--code-size", size + "px");
+    }
+})();
+
 (function () {
     var choice = null;
     try {

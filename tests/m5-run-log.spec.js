@@ -676,6 +676,8 @@ test.describe("the History tab fits the screen", () => {
                 await page.emulateMedia({ colorScheme });
                 await app.open();
                 await app.seedLog("northlight", seeded);
+                // (under 1100 px the tabs are in the sidebar's drawer, from Phase 6)
+                await app.openDrawer();
                 await app.historyButton.click();
                 await expect(app.historyEntries).toHaveCount(seeded.length);
                 await page.locator("#panel-history").scrollIntoViewIfNeeded();
@@ -756,10 +758,18 @@ test.describe("the History tab fits the screen", () => {
         await page.setViewportSize({ width: 390, height: 700 });
         await app.open();
         await app.seedLog("northlight", seeded);
+        // (from Phase 6 the sidebar is a drawer at this width, as wide as the screen allows: up to
+        // 320 px, and always 56 px short of the window's width so the page shows beside it)
+        await app.openDrawer();
         await app.historyButton.click();
+        const drawer = await page.locator("#sidebar").boundingBox();
+        expect(drawer.x).toBe(0);
+        expect(drawer.width).toBe(Math.min(320, 390 - 56));
         const box = await app.historyEntries.first().boundingBox();
         expect(box.x).toBeGreaterThanOrEqual(8);
         expect(box.x + box.width).toBeLessThanOrEqual(390 - 8);
-        expect(box.width).toBeGreaterThan(300);
+        expect(box.x + box.width).toBeLessThanOrEqual(drawer.x + drawer.width - 8);
+        // (the drawer's panel insets its entries by 12 px each side)
+        expect(box.width).toBeGreaterThanOrEqual(drawer.width - 28);
     });
 });

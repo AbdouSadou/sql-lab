@@ -291,7 +291,7 @@ test.describe("splitters", () => {
         expect(pageErrors).toEqual([]);
     });
 
-    test("under 700 px the panes stack, the splitters are not offered and a hidden sidebar shows", async ({ page, app }) => {
+    test("under 700 px the splitters are not offered, a hidden sidebar opens as the drawer, and the query and the result are two views", async ({ page, app }) => {
         await page.setViewportSize({ width: 1366, height: 768 });
         await app.open();
         await page.locator("#sidebar-splitter").focus();
@@ -300,14 +300,28 @@ test.describe("splitters", () => {
         await page.setViewportSize({ width: 390, height: 844 });
         await expect(page.locator("#sidebar-splitter")).toBeHidden();
         await expect(page.locator("#editor-splitter")).toBeHidden();
+        // (from Phase 6 the sidebar is a drawer under 1100 px, shut until its button opens it,
+        // whether or not it was hidden on the wide window, UI plan section 6)
+        await expect(page.locator("#tab-schema")).toBeHidden();
+        await app.openDrawer();
         await expect(page.locator("#tab-schema")).toBeVisible();
         // (the media query's change event comes after the resize)
         await expect.poll(() => page.locator("#sidebar").evaluate((el) => el.inert)).toBe(false);
-        // the sidebar above the query, the query above the result
+        // the drawer is over the page at its left edge, the window's whole height
         const sidebar = await box(page.locator("#sidebar"));
-        const editor = await box(page.locator("#editor-pane"));
+        expect(sidebar.x).toBe(0);
+        expect(sidebar.y).toBe(0);
+        expect(sidebar.bottom).toBe(844);
+        await page.keyboard.press("Escape");
+        await expect(page.locator("#sidebar")).toBeHidden();
+        // one column: the query and the result are two views, one shown at a time, the query first
+        await expect(page.locator("#editor-pane")).toBeVisible();
+        await expect(page.locator("#results-pane")).toBeHidden();
+        await app.showView("result");
+        await expect(page.locator("#results-pane")).toBeVisible();
+        await expect(page.locator("#editor-pane")).toBeHidden();
+        const editor = await box(page.locator("#view-editor"));
         const results = await box(page.locator("#results-pane"));
-        expect(sidebar.bottom).toBeLessThanOrEqual(editor.y);
         expect(editor.bottom).toBeLessThanOrEqual(results.y);
         const scroll = await pageScroll(page);
         expect(scroll.width).toBeLessThanOrEqual(scroll.innerWidth);
@@ -664,6 +678,13 @@ test.describe("landmarks, names and sizes", () => {
             await app.open();
             expect((await box(page.locator(".topbar"))).height, `top bar at ${width}`).toBe(48);
             expect((await box(page.locator(".statusbar"))).height, `status bar at ${width}`).toBe(28);
+            if (width < 1100) {
+                // (under 1100 px the sidebar is a drawer, from Phase 6: opened, it is 320 px wide,
+                // and leaves at least 56 px of the page beside it)
+                await app.openDrawer();
+                expect((await box(page.locator("#sidebar"))).width, `drawer at ${width}`).toBe(Math.min(320, width - 56));
+                continue;
+            }
             expect((await box(page.locator("#sidebar"))).width, `sidebar at ${width}`).toBe(280);
         }
         // and the top bar keeps one row from 700 px up
@@ -799,12 +820,16 @@ test.describe("short and narrow windows", () => {
         for (const width of [320, 340, 390]) {
             await page.setViewportSize({ width, height: 640 });
             await app.open();
+            // (under 700 px Copy link, Export, Theme and Help are entries of the More menu, from
+            // Phase 6: Export's and Theme's choices are in it, and Help opens from it)
             for (const [button, menu] of [
                 ["#database-button", "#database-menu"],
-                ["#export-button", "#export-menu"],
-                ["#theme-button", "#theme-menu"],
-                ["#help-button", "#help-popover"],
+                ["#more-button", "#more-menu"],
+                ["#more-help", "#help-popover"],
             ]) {
+                if (button === "#more-help") {
+                    await app.openMore();
+                }
                 await page.locator(button).click();
                 await expect(page.locator(menu)).toBeVisible();
                 const r = await box(page.locator(menu));

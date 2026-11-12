@@ -36,6 +36,7 @@ import { mountExportDialog } from "./lab/export-dialog.js";
 import { mountExportMenu } from "./lab/export-menu.js";
 import { mountEvidence } from "./lab/evidence-dialog.js";
 import { mountHelp } from "./lab/help.js";
+import { mountMoreMenu } from "./lab/more-menu.js";
 import { showPlatformKeys } from "./lab/keys.js";
 import { mountLayout } from "./lab/layout.js";
 import { mountOpenUrlDialog } from "./lab/open-url-dialog.js";
@@ -53,6 +54,7 @@ import { mountStatusBar } from "./lab/status-bar.js";
 import { mountStorageNotice } from "./lab/storage-notice.js";
 import { mountTabs } from "./lab/tabs.js";
 import { mountThemeMenu } from "./lab/theme.js";
+import { mountTextSize } from "./lab/text-size.js";
 import { toast } from "./lab/toast.js";
 
 const ui = {
@@ -77,6 +79,8 @@ const actions = {
         editor: ui.editor,
         button: document.querySelector("#copy-link"),
         popover: document.querySelector("#copy-link-popover"),
+        // under 700 px the button is in the More menu: the popover opens under that menu's button
+        altAnchor: document.querySelector("#more-button"),
     }),
     exportDatabase: createExportAction(() => database),
 };
@@ -169,7 +173,8 @@ const openUrlDialog = mountOpenUrlDialog({ onOpen: startFromUrl });
 
 // The theme menu (js/lab/theme.js) and Help (js/lab/help.js), in the top bar.
 mountThemeMenu(document.querySelector(".topbar-theme"), { buttonClass: "button button--quiet" });
-mountHelp({ button: document.querySelector("#help-button"), popover: document.querySelector("#help-popover") });
+const moreButton = document.querySelector("#more-button");
+const help = mountHelp({ button: document.querySelector("#help-button"), popover: document.querySelector("#help-popover"), altAnchor: moreButton });
 
 // The sidebar's tabs (js/lab/tabs.js); the History tab draws its list when it is shown.
 const tabs = mountTabs(document.querySelector("#sidebar .tabs"), {
@@ -199,8 +204,12 @@ const lab = mountExercises({
     // the results pane (mounted below; these run later)
     showIdle: () => results.showEmpty(),
     modeChanged: () => results.refreshEmpty(),
-    // a Check's verdict is said by the results pane's live region, as every run's outcome is
-    say: (text) => results.say(text),
+    // a Check's verdict is said by the results pane's live region, as every run's outcome is; on
+    // a phone the Result view shows it (a Check that ran something shows it already)
+    say: (text) => {
+        results.say(text);
+        layout.showView("result");
+    },
 });
 
 // What choosing a set (or "None") does is decided in js/lab/set-actions.js; these are the
@@ -240,19 +249,26 @@ const results = mountResults({
 // F6 run log in the History tab (js/lab/run-log.js), and F11 evidence export
 // (js/lab/evidence-dialog.js); both follow the page through the events below.
 const exportButton = document.querySelector("#export-button");
+// where the focus goes back to when an export's dialog closes: the Export menu's button, or under
+// 700 px, where the top bar's actions fold into the More menu, that menu's button
+const exportReturn = {
+    focus(options) {
+        (exportButton.getClientRects().length ? exportButton : moreButton).focus(options);
+    },
+};
 const runLog = mountRunLog({
     ui,
     list: document.querySelector("#run-history-list"),
     isShown: () => tabs.current() === "tab-history",
 });
-const evidence = mountEvidence({ runLog, returnFocus: exportButton });
+const evidence = mountEvidence({ runLog, returnFocus: exportReturn });
 // one line of notice while the browser cannot keep the run log or the progress
 mountStorageNotice({ ui, before: ui.summary });
 
 // The Export menu (js/lab/export-menu.js): the database (a dialog that also renames it, as the
 // old editable name did), the result as CSV, the evidence file.
 const exportDialog = mountExportDialog({
-    returnFocus: exportButton,
+    returnFocus: exportReturn,
     getName: () => (database ? database.name : null),
     getProblem: () => exportProblem(database),
     onExport: (name) => {
@@ -265,6 +281,22 @@ const exportDialog = mountExportDialog({
     onNoDatabase: (message) => toast(message, { tone: "note" }),
 });
 mountExportMenu({ button: exportButton, menu: document.querySelector("#export-menu"), onDatabase: exportDialog.open, results, evidence });
+// Under 700 px Copy link, Export, Theme and Help fold into the More menu (js/lab/more-menu.js)
+mountMoreMenu({
+    button: moreButton,
+    menu: document.querySelector("#more-menu"),
+    copyLink: actions.copyLink,
+    onDatabase: exportDialog.open,
+    results,
+    evidence,
+    help,
+});
+// A− and A+ in the editor toolbar: the size of the SQL and of the results (js/lab/text-size.js)
+mountTextSize({
+    smaller: document.querySelector("#text-smaller"),
+    larger: document.querySelector("#text-larger"),
+    said: document.querySelector("#text-size-said"),
+});
 
 // The status bar (js/lab/status-bar.js), the pane sizes (js/lab/layout.js) and the shortcut
 // names of this platform (js/lab/keys.js).
@@ -277,7 +309,12 @@ const layout = mountLayout({
     app: document.querySelector("#app"),
     sidebar: document.querySelector("#sidebar"),
     sidebarSplitter: document.querySelector("#sidebar-splitter"),
+    sidebarButton: document.querySelector("#sidebar-button"),
+    sidebarClose: document.querySelector("#sidebar-close"),
     main: document.querySelector("#main"),
+    viewEditor: document.querySelector("#view-editor"),
+    viewResult: document.querySelector("#view-result"),
+    editor: ui.editor,
     prompt: document.querySelector("#exercise-panel"),
     toolbar: ui.toolbar,
     editorPane: document.querySelector("#editor-pane"),
@@ -285,6 +322,13 @@ const layout = mountLayout({
     resultsPane: document.querySelector("#results-pane"),
     result: ui.result,
     feedback: document.querySelector("#exercise-feedback"),
+});
+// In the drawer (under 1100 px), choosing an exercise closes it, to show the exercise's prompt
+// (on a wide window the list stays in sight, and the focus on it)
+document.querySelector("#exercise-list").addEventListener("click", (event) => {
+    if (event.target.closest("button.exercise-item")) {
+        layout.closeDrawer();
+    }
 });
 showPlatformKeys();
 
@@ -637,6 +681,8 @@ function execute(sql, { quiet = false } = {}) {
     }
     if (!database) {
         showError(NO_DATABASE_MESSAGE);
+        // (on a phone the answer is in the Result view, as a run's is)
+        layout.showView("result");
         return Promise.reject();
     }
     sql = sql.trim();
@@ -644,6 +690,7 @@ function execute(sql, { quiet = false } = {}) {
     if (!sql) {
         // nothing to run: "no result yet", said, as the old status line said its invitation
         results.showEmpty({ said: true });
+        layout.showView("result");
         return Promise.resolve();
     }
     const run = database;

@@ -16,6 +16,10 @@
     <link rel="icon" href="img/favicon.ico" sizes="any">
     <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
     <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+    <!-- social:begin -->
+    <!-- a shared link's preview (Open Graph) and the web manifest: written here at deploy, from
+         js/lab/config.js, by tools/site-meta.mjs -->
+    <!-- social:end -->
 
     <link rel="stylesheet" href="css/tokens.css">
     <link rel="stylesheet" href="css/fonts.css">
@@ -27,13 +31,14 @@
 
 <body>
     <header>
-        <h3>
+        <!-- the brand is a link, not a heading: the page's heading is its h1 (as on About) -->
+        <p class="page-brand">
             <a class="logo" href="./">
-                <img src="img/favicon-64x64.png" alt="">
+                <img src="img/favicon.svg" alt="">
                 <span data-app-name></span>
             </a>
-        </h3>
-        <p>check a student's evidence file</p>
+        </p>
+        <p>Check a student's evidence file</p>
     </header>
     <main>
         <h1>Check an evidence file</h1>
@@ -54,7 +59,7 @@
 
         <div id="verify-result" class="verify-result" role="status" aria-live="polite" aria-atomic="true"></div>
 
-        <p><a href="./">&larr; back to the app</a></p>
+        <p class="page-back"><a href="./">Back to <span data-app-name></span></a></p>
     </main>
     <footer>
         <span data-app-name></span> &middot; Made by Abdou Sadou, based on SQLime by Anton Zhiyanov

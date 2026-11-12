@@ -4,10 +4,12 @@
 // small popover under the button holds the link in a read-only field, selected, so copying it
 // costs one Ctrl+C.
 //
-//   createCopyLinkAction({editor, button, popover}) -> copyLink()
-//       The handler of data-action="copyLink" (ActionController). It returns a resolved Promise
-//       at once, so the button is not held disabled while the browser decides about the
-//       clipboard (it can sit on a permission prompt).
+//   createCopyLinkAction({editor, button, popover, altAnchor}) -> copyLink()
+//       The handler of data-action="copyLink" (ActionController), and of the More menu's Copy link
+//       (js/lab/more-menu.js). It returns a resolved Promise at once, so the button is not held
+//       disabled while the browser decides about the clipboard (it can sit on a permission
+//       prompt). The popover opens under the button, or under altAnchor (the More button) when
+//       the button is not shown (under 700 px, where the top bar's actions fold into that menu).
 //
 // A database that is not one of the course databases (an upload, a URL) cannot travel in a link,
 // so the toast says that whoever opens it gets the default database. A query too long for a link
@@ -25,8 +27,10 @@ import { placePopover } from "./menu.js";
 import { getShareContext, shareUrl } from "./share.js";
 import { toast } from "./toast.js";
 
-export function createCopyLinkAction({ editor, button, popover }) {
-    const fallback = popover ? mountFallback(popover, button) : null;
+export function createCopyLinkAction({ editor, button, popover, altAnchor = null }) {
+    // the button, or what stands for it while it is not shown
+    const anchor = () => (button.getClientRects().length || !altAnchor ? button : altAnchor);
+    const fallback = popover ? mountFallback(popover, anchor) : null;
 
     return function copyLink() {
         const url = shareUrl(editor.value);
@@ -101,8 +105,8 @@ async function writeClipboard(text) {
 
 // The popover that holds the link when it could not be copied: a non-modal dialog under the
 // button (Escape, a press outside, or the focus moving on close it; the focus then goes back to
-// the button).
-function mountFallback(popover, button) {
+// the button). anchor() is the button, or the More button while the button is not shown.
+function mountFallback(popover, anchor) {
     if (typeof popover.showPopover !== "function") {
         return null;
     }
@@ -132,18 +136,18 @@ function mountFallback(popover, button) {
 
     popover.addEventListener("toggle", (event) => {
         if (event.newState === "open" && popover.matches(":popover-open")) {
-            placePopover(popover, button);
+            placePopover(popover, anchor());
             field.focus({ preventScroll: true });
             field.select();
             return;
         }
         const focused = document.activeElement;
         if (!focused || focused === document.body || popover.contains(focused)) {
-            button.focus({ preventScroll: true });
+            anchor().focus({ preventScroll: true });
         }
     });
     popover.addEventListener("focusout", (event) => {
-        if (popover.matches(":popover-open") && event.relatedTarget && !popover.contains(event.relatedTarget) && event.relatedTarget !== button) {
+        if (popover.matches(":popover-open") && event.relatedTarget && !popover.contains(event.relatedTarget) && event.relatedTarget !== anchor()) {
             popover.hidePopover();
         }
     });
@@ -157,7 +161,7 @@ function mountFallback(popover, button) {
                 field.focus({ preventScroll: true });
                 field.select();
             } else {
-                placePopover(popover, button);
+                placePopover(popover, anchor());
                 popover.showPopover();
             }
         },

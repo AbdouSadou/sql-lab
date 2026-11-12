@@ -1,10 +1,13 @@
-/* verify.html (js/lab/verify-page.js). Builds on css/article.css, which sets the page
-   colours for both colour schemes; the verdict colours are added here. */
+/* verify.html (js/lab/verify-page.js). Builds on css/article.css, which gives the page About's
+   look (UI plan, Phase 6) and its colours in both schemes; here are the drop zone, its controls in
+   the app's shapes (css/buttons.css: 32 px, 44 on a touch screen, the 6 px radius, the primary in
+   the accent) and the verdict. Sizes are the plan's steps (section 3), but for the verdict's word,
+   which a marker reads at a glance across a desk: twice the text and more. */
 
 .drop-zone {
-    padding: 0.5rem 1rem 1rem;
+    padding: var(--space-2) var(--space-4) var(--space-4);
     border: 2px dashed var(--rule-strong);
-    border-radius: 0.5rem;
+    border-radius: var(--radius-control);
 }
 
 .drop-zone--active {
@@ -18,46 +21,73 @@
     width: 100%;
     max-width: 100%;
     min-height: 10rem;
-    padding: 0.5rem;
-    border: 1px solid var(--graphite);
-    border-radius: 2px;
+    padding: var(--space-2);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-control);
     background: var(--paper);
     color: var(--ink);
     font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
+    line-height: var(--leading-code);
     resize: vertical;
 }
 
 .drop-zone input[type="file"] {
     display: block;
     max-width: 100%;
-    margin-top: 0.25rem;
+    margin-top: var(--space-1);
     font: inherit;
+    font-size: var(--text-sm);
     color: inherit;
 }
 
-#verify-button {
-    margin-top: 0.75rem;
-    min-height: 2.5rem;
-    padding: 0 1.5rem;
-    border: 1px solid var(--accent);
-    border-radius: 2px;
-    background: var(--accent);
-    color: var(--on-accent);
+/* the file input's button, as the app's outlined button */
+.drop-zone input[type="file"]::file-selector-button {
+    min-height: var(--control-height);
+    margin-right: var(--space-3);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-control);
+    background: var(--paper);
+    color: var(--ink);
     font: inherit;
     cursor: pointer;
 }
 
+.drop-zone input[type="file"]::file-selector-button:hover {
+    background: var(--sunken);
+}
+
+/* Verify, the page's one primary button */
+#verify-button {
+    margin-top: var(--space-3);
+    min-height: var(--control-height);
+    padding: 0 var(--space-4);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-control);
+    background: var(--accent);
+    color: var(--on-accent);
+    font: inherit;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+#verify-button:hover {
+    border-color: var(--accent-hover);
+    background: var(--accent-hover);
+}
+
 .drop-hint {
-    margin: 0.75rem 0 0;
-    font-size: 0.85em;
+    margin: var(--space-3) 0 0;
+    font-size: var(--text-sm);
     color: var(--graphite);
 }
 
 .verify-result {
-    margin: 1.5rem 0;
+    margin: var(--space-5) 0;
     /* scrollIntoView (js/lab/verify-page.js) leaves a little room around the verdict */
-    scroll-margin: 1rem 0;
+    scroll-margin: var(--space-4) 0;
 }
 
 /* never display:none, so that screen readers announce what appears in it */
@@ -66,9 +96,9 @@
 }
 
 .verdict {
-    padding: 1rem;
+    padding: var(--space-4);
     border: 3px solid currentColor;
-    border-radius: 0.5rem;
+    border-radius: var(--radius-control);
     overflow-wrap: anywhere;
 }
 
@@ -95,20 +125,20 @@
 .verdict-reason,
 .verdict-note,
 .verdict-message {
-    margin: 0.5rem 0 0;
+    margin: var(--space-2) 0 0;
     color: var(--ink);
 }
 
 .verdict-note {
-    font-size: 0.85em;
+    font-size: var(--text-sm);
     color: var(--graphite);
 }
 
 .verdict-details {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
-    gap: 0.25rem 1rem;
-    margin: 1rem 0 0;
+    gap: var(--space-1) var(--space-4);
+    margin: var(--space-4) 0 0;
     color: var(--ink);
 }
 
@@ -126,6 +156,6 @@
         gap: 0;
     }
     .verdict-details dd {
-        margin-bottom: 0.5rem;
+        margin-bottom: var(--space-2);
     }
 }

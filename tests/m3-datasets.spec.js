@@ -965,16 +965,31 @@ test("a slow load that fails after a newer choice does not disturb it", async ({
 // the controls of the top bar, in order: the brand, the database switcher, Copy link, Export,
 // Theme, Help
 const TOPBAR_CONTROLS = ["#reset", "#database-button", "#copy-link", "#export-button", "#theme-button", "#help-button"];
-const TOPBAR_BUTTONS = TOPBAR_CONTROLS.slice(1);
 
-test("at phone width the top bar is visible, wraps, and the switcher works", async ({ page, app }) => {
+// under 700 px (UI plan, Phase 6; docs/design/mockup/phone.html) the top bar is one 56 px row: the
+// Sidebar button, the brand, the switcher and the More button, which holds Copy link, Export, Theme
+// and Help
+const PHONE_TOPBAR_CONTROLS = ["#sidebar-button", "#reset", "#database-button", "#more-button"];
+
+test("at phone width the top bar is visible, fits one row with More holding the rest, and the switcher works", async ({ page, app }) => {
     await page.setViewportSize({ width: 360, height: 740 });
     await withSampleDataset(page);
     await app.open();
 
-    for (const selector of TOPBAR_CONTROLS) {
+    for (const selector of PHONE_TOPBAR_CONTROLS) {
         await expect(page.locator(`header.topbar ${selector}`), selector).toBeVisible();
     }
+    // the rest of the top bar's controls are in the More menu, each there by its name
+    for (const selector of TOPBAR_CONTROLS.filter((s) => !PHONE_TOPBAR_CONTROLS.includes(s))) {
+        await expect(page.locator(`header.topbar ${selector}`), selector).toBeHidden();
+    }
+    await app.openMore();
+    for (const name of [/^Copy link$/, /^Database \(\.db\)…/, /^Help$/]) {
+        await expect(app.moreMenu.getByRole("menuitem", { name })).toBeVisible();
+    }
+    await expect(app.moreMenu.getByRole("menuitemradio", { name: "Light" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(app.moreMenu).toBeHidden();
     await expect(page.getByRole("button", { name: "Database: Northlight Retail" })).toBeVisible();
     // opening a file and opening from a URL are in the switcher's menu
     await app.databaseButton.click();
@@ -984,19 +999,24 @@ test("at phone width the top bar is visible, wraps, and the switcher works", asy
     await page.keyboard.press("Escape");
     await expect(app.databaseMenu).toBeHidden();
 
-    // it wraps onto more than one row, and nothing sticks out sideways
+    // one row now (it wrapped before Phase 6), 56 px high, and nothing sticks out sideways
     const overflow = await page.evaluate((selectors) => ({
         page: document.documentElement.scrollWidth - window.innerWidth,
         rows: new Set(selectors.map((s) => Math.round(document.querySelector(s).getBoundingClientRect().top / 4))).size,
+        heights: selectors.map((s) => document.querySelector(s).getBoundingClientRect().height),
+        height: document.querySelector("header.topbar").getBoundingClientRect().height,
         sticking: [...document.querySelectorAll("header.topbar *")]
-            .filter((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5 || el.getBoundingClientRect().left < -0.5)
+            .filter((el) => el.getClientRects().length && (el.getBoundingClientRect().right > window.innerWidth + 0.5 || el.getBoundingClientRect().left < -0.5))
             .map((el) => el.tagName + "#" + el.id),
-    }), TOPBAR_CONTROLS);
+    }), ["#sidebar-button", "#database-button", "#more-button"]);
     expect(overflow.page).toBeLessThanOrEqual(0);
     expect(overflow.sticking).toEqual([]);
-    expect(overflow.rows).toBeGreaterThan(1);
-    // touch-sized targets: every button of the top bar
-    for (const selector of TOPBAR_BUTTONS) {
+    expect(overflow.rows).toBe(1);
+    expect(overflow.height).toBe(56);
+    // the three buttons are the mockup's 44 px, whatever the pointer (docs/design/mockup/phone.html)
+    expect(overflow.heights).toEqual([44, 44, 44]);
+    // touch-sized targets: every button of the top bar shown
+    for (const selector of PHONE_TOPBAR_CONTROLS.filter((s) => s !== "#reset")) {
         expect((await page.locator(selector).boundingBox()).height, selector).toBeGreaterThanOrEqual(32);
     }
 

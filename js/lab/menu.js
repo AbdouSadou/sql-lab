@@ -2,7 +2,7 @@
 // the browser draws the menu in the top layer and closes it on Escape and on a press outside (light
 // dismiss). This module adds the keyboard, the focus, the position and aria-expanded.
 //
-// mountMenu(button, menu, {onSelect, onOpen}) -> {open(focus), close(focusButton), isOpen()}
+// mountMenu(button, menu, {onSelect, onOpen, opensOn}) -> {open(focus), close(focusButton), isOpen()}
 //
 //   button    a <button>. It becomes the menu's invoker (popoverTargetElement), so a press on it
 //             toggles the menu instead of dismissing and reopening it.
@@ -14,9 +14,13 @@
 //             an item with aria-disabled="true". The menu closes after it; the focus goes back to the
 //             button unless the handler moved it (a dialog it opened, say).
 //   onOpen    () => void, as the menu opens (to update its items).
+//   opensOn   "checked" (the default: a menu of choices, such as Theme) or "first" (a menu of
+//             commands that also holds a group of choices, such as More, opens on its first
+//             command, not on the choice that happens to be ticked).
 //
 // Keys. On the button: Enter and Space (the button's click) and ArrowDown open the menu with the
-// focus on the checked item, else the first; ArrowUp opens it on the last. In the menu: ArrowDown
+// focus on the checked item, else the first (or on the first, with opensOn "first"); ArrowUp opens
+// it on the last. In the menu: ArrowDown
 // and ArrowUp move with wrap-around, Home and End go to the ends, a printable character goes to
 // the next item whose text starts with it, Escape closes and returns to the button, Tab closes and
 // lets the focus move on, Shift+Tab closes and returns to the button.
@@ -25,7 +29,7 @@ const ITEM = '[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox
 const GAP = 4; // px between the button and the menu
 const MARGIN = 8; // px the menu keeps from the edges of the window
 
-export function mountMenu(button, menu, { onSelect = () => {}, onOpen = () => {} } = {}) {
+export function mountMenu(button, menu, { onSelect = () => {}, onOpen = () => {}, opensOn = "checked" } = {}) {
     if (!menu.id) {
         throw new Error("mountMenu: the menu needs an id");
     }
@@ -52,7 +56,7 @@ export function mountMenu(button, menu, { onSelect = () => {}, onOpen = () => {}
 
     // where the focus goes as the menu opens: "checked" (else the first item), "first" or "last".
     // Passed along, never kept: the browser may merge the toggle events of an open and a close.
-    function initialItem(focus = "checked") {
+    function initialItem(focus = opensOn) {
         const list = items();
         if (focus === "last") {
             return list.at(-1);
@@ -63,7 +67,7 @@ export function mountMenu(button, menu, { onSelect = () => {}, onOpen = () => {}
         return list[0];
     }
 
-    function open(focus = "checked") {
+    function open(focus = opensOn) {
         if (!isOpen()) {
             menu.showPopover();
             // placed as it opened; now that its width is known, kept inside the window
@@ -85,6 +89,18 @@ export function mountMenu(button, menu, { onSelect = () => {}, onOpen = () => {}
         placePopover(menu, button);
     }
 
+    // while it is open it follows its button; a button no longer shown (the window crossed a
+    // breakpoint: More, or Export and Theme, which More holds on a phone) closes it instead
+    function follow() {
+        if (!button.getClientRects().length) {
+            if (isOpen()) {
+                menu.hidePopover();
+            }
+            return;
+        }
+        place();
+    }
+
     // beforetoggle is synchronous (toggle comes a task later), so the state is right at once
     menu.addEventListener("beforetoggle", (event) => {
         const opening = event.newState === "open";
@@ -92,11 +108,11 @@ export function mountMenu(button, menu, { onSelect = () => {}, onOpen = () => {}
         if (opening) {
             onOpen();
             place();
-            window.addEventListener("resize", place);
-            window.addEventListener("scroll", place, true);
+            window.addEventListener("resize", follow);
+            window.addEventListener("scroll", follow, true);
         } else {
-            window.removeEventListener("resize", place);
-            window.removeEventListener("scroll", place, true);
+            window.removeEventListener("resize", follow);
+            window.removeEventListener("scroll", follow, true);
         }
     });
     menu.addEventListener("toggle", (event) => {
@@ -115,14 +131,14 @@ export function mountMenu(button, menu, { onSelect = () => {}, onOpen = () => {}
         if (isOpen()) {
             close(true);
         } else {
-            open("checked");
+            open(opensOn);
         }
     });
 
     button.addEventListener("keydown", (event) => {
         if (event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault();
-            open(event.key === "ArrowUp" ? "last" : "checked");
+            open(event.key === "ArrowUp" ? "last" : opensOn);
         }
     });
 

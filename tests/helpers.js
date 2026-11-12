@@ -369,8 +369,10 @@ class App {
     }
 
     // run types SQL into the editor and runs it with Ctrl+Enter (or the Run button), and waits
-    // for the run to finish.
+    // for the run to finish. On a phone (under 700 px) it shows the Editor view first, as a person
+    // would to type: a run that finishes shows the Result view.
     async run(sql, { via = "keyboard" } = {}) {
+        await this.showView("editor");
         await this.editor.fill(sql);
         if (via === "button") {
             await this.page.locator("#execute").click();
@@ -423,8 +425,14 @@ class App {
     // the Export menu's "Database (.db)…" dialog takes the new name, and Export (Enter) renames the
     // database and saves it under that name (the download is not waited for).
     async rename(name) {
-        await this.openExportMenu();
-        await this.page.locator("#export-db").click();
+        if (await this.isPhone()) {
+            // (under 700 px Export is in the More menu, from Phase 6)
+            await this.openMore();
+            await this.page.locator("#more-export-db").click();
+        } else {
+            await this.openExportMenu();
+            await this.page.locator("#export-db").click();
+        }
         const field = this.page.locator("#export-name");
         await expect(field).toBeVisible();
         await field.fill(name);
@@ -503,12 +511,57 @@ class App {
         await expect(this.exportMenu).toBeVisible();
     }
 
+    // ---- the layouts of the UI plan's Phase 6: under 1100 px the sidebar is a drawer (opened by
+    // the top bar's Sidebar button); under 700 px Copy link, Export, Theme and Help are in the More
+    // menu, and the query and its result are two views, Editor and Result (a run shows the result)
+    get sidebarButton() {
+        return this.page.locator("#sidebar-button");
+    }
+
+    get moreButton() {
+        return this.page.locator("#more-button");
+    }
+
+    get moreMenu() {
+        return this.page.locator("#more-menu");
+    }
+
+    // whether the window is narrow enough for the More menu (under 700 px)
+    isPhone() {
+        return this.moreButton.isVisible();
+    }
+
+    // openDrawer opens the sidebar where it is a drawer; nothing to do on a wide window
+    async openDrawer() {
+        if ((await this.sidebarButton.isVisible()) && (await this.sidebarButton.getAttribute("aria-expanded")) !== "true") {
+            await this.sidebarButton.click();
+            await expect(this.page.locator("#sidebar")).toBeVisible();
+        }
+    }
+
+    async openMore() {
+        if (!(await this.moreMenu.isVisible())) {
+            await this.moreButton.click();
+        }
+        await expect(this.moreMenu).toBeVisible();
+    }
+
+    // showView shows the phone's Editor or Result view; nothing to do on a wider window
+    async showView(view) {
+        const button = this.page.locator(view === "result" ? "#view-result" : "#view-editor");
+        if ((await button.isVisible()) && (await button.getAttribute("aria-current")) !== "true") {
+            await button.click();
+        }
+    }
+
     // the sidebar's tabs: "schema", "exercises" or "history"
     tab(name) {
         return this.page.locator(`#tab-${name}`);
     }
 
     async openTab(name) {
+        // (under 1100 px the tabs are in the drawer)
+        await this.openDrawer();
         await this.tab(name).click();
         await expect(this.page.locator(`#panel-${name}`)).toBeVisible();
     }
@@ -556,7 +609,18 @@ class App {
         await this.stubClipboard();
         const before = await this.page.evaluate(() => window.__copied.length);
         const button = this.page.locator("#copy-link");
-        if (via === "keyboard") {
+        if (await this.isPhone()) {
+            // under 700 px Copy link is the More menu's first entry, where the menu opens
+            if (via === "keyboard") {
+                await this.moreButton.focus();
+                await this.page.keyboard.press("Enter");
+                await expect(this.page.locator("#more-copy-link")).toBeFocused();
+                await this.page.keyboard.press("Enter");
+            } else {
+                await this.openMore();
+                await this.page.locator("#more-copy-link").click();
+            }
+        } else if (via === "keyboard") {
             await button.focus();
             await this.page.keyboard.press("Enter");
         } else {
@@ -673,6 +737,12 @@ class App {
     }
 
     async openEvidence() {
+        // (under 700 px the exports are in the More menu)
+        if (await this.isPhone()) {
+            await this.openMore();
+            await this.page.locator("#more-export-evidence").click();
+            return;
+        }
         await this.openExportMenu();
         await this.evidenceButton.click();
     }
@@ -792,7 +862,8 @@ class App {
     async openSet(id = "retail-basics", { ex = null } = {}) {
         await this.page.goto(`./?set=${id}${ex ? `&ex=${ex}` : ""}`);
         await expect(this.exercisePanel).toBeVisible();
-        await expect(this.page.locator("#exercise-list button").first()).toBeVisible();
+        // the list is built (under 1100 px it is in the sidebar's drawer, which stays shut)
+        await expect(this.page.locator("#exercise-list button").first()).toBeAttached();
         await this.waitReady();
     }
 

@@ -829,8 +829,14 @@ for (const width of [641, 700, 768, 900]) {
         await app.open();
         const title = await page.locator("header.topbar h1").boundingBox();
         const switcher = await app.databaseButton.boundingBox();
-        const actions = await page.locator(".topbar-actions").boundingBox();
+        // (under 700 px the actions are folded into the More menu, from Phase 6: its button
+        // stands in for them, at the right edge of the bar's one row)
+        const actions = await page.locator(width < 700 ? "#more-button" : ".topbar-actions").boundingBox();
         const bar = await page.locator("header.topbar").boundingBox();
+        if (width < 700) {
+            expect(Math.abs(actions.x + actions.width - (bar.x + bar.width - 12))).toBeLessThanOrEqual(1);
+            expect(actions.y).toBeLessThan(title.y + title.height - 1); // one row
+        }
         if (actions.y >= title.y + title.height - 1) {
             // wrapped onto its own row: from 700px they sit at the right edge of the bar, below
             // that at the left edge, level with the title: never indented by accident

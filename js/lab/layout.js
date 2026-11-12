@@ -8,22 +8,41 @@
 // editor}, editor being the share) and survive a reload; a value that does not make sense is
 // ignored.
 //
-// mountLayout({app, sidebar, sidebarSplitter, main, prompt, toolbar, editorPane, editorSplitter,
-//              resultsPane, result, feedback})
-//   -> {toggleSidebar(), showSidebar(), state()}
+// mountLayout({app, sidebar, sidebarSplitter, sidebarButton, sidebarClose, main, viewEditor,
+//              viewResult, editor, prompt, toolbar, editorPane, editorSplitter, resultsPane,
+//              result, feedback})
+//   -> {toggleSidebar(), showSidebar(), closeDrawer(), showView(view), state()}
 //
 // The sizes go into custom properties that css/shell.css reads: --sidebar-width on the app, and
 // --editor-height (px) and --prompt-max (the exercise prompt's cap) on the main area, worked out
 // whenever the main area, what sits above the editor or what the results pane holds besides the
 // result and a verdict changes size (the window, the exercise prompt opening or closing, the
 // summary wrapping). The room is measured on the main area itself, not on the panes, so a window
-// that shrinks in one step is measured right. Under 700 px the panes stack (css/shell.css) and
-// the splitters are not shown; a hidden sidebar shows there anyway.
+// that shrinks in one step is measured right.
+//
+// The breakpoints (UI plan, section 6; css/shell.css draws them). Under 1100 px (DRAWER_QUERY) the
+// sidebar is a drawer over the page: the popover attribute (auto) on #sidebar, opened by the top
+// bar's Sidebar button (sidebarButton, its invoker), so the browser closes it on Escape and on a
+// press outside, and the focus goes back to the button; it closes too when the focus arrives
+// anywhere else but on its button (the student tabbed past its end or Shift+Tabbed past its
+// button, or put a name or a past query in the editor), and its Close button (sidebarClose)
+// closes it. It never opens by itself (a set that opens leaves it shut), and the wide window's
+// choice to hide the sidebar is kept for later. Under 700 px, and on a touch screen less than
+// 500 px tall (PHONE_QUERY: a phone held sideways), the query and its result are two views, one
+// at a time: data-view on the main area ("editor" or "result"), switched by the two buttons
+// viewEditor and viewResult (aria-current on the shown one). A run shows the result
+// (lab:run-finished; js/index.js calls showView("result") for a Check's verdict and for a Run that
+// answers without running); the editor shows itself whenever something puts text or the focus in
+// it (its "input", "replace" and "reveal" events: a sample, a History entry, an inserted name, an
+// exercise's draft, the skip link). The focus, when it was in the view that goes, goes to the
+// button of the one that comes. The splitters are not shown there, and the drawer has none.
 
 import {
+    DRAWER_QUERY,
     EDITOR_MIN_HEIGHT,
     EDITOR_SHARE,
     LAYOUT_STORAGE_KEY,
+    PHONE_QUERY,
     PROMPT_MIN_HEIGHT,
     PROMPT_SHARE,
     RESULTS_MIN_HEIGHT,
@@ -33,8 +52,6 @@ import {
     editorHeightText,
     sidebarWidthText,
 } from "./config.js";
-
-const STACKED = "(max-width: 699.98px)";
 
 function readStored() {
     try {
@@ -47,7 +64,24 @@ function readStored() {
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-export function mountLayout({ app, sidebar, sidebarSplitter, main, prompt, toolbar, editorPane, editorSplitter, resultsPane, result, feedback }) {
+export function mountLayout({
+    app,
+    sidebar,
+    sidebarSplitter,
+    sidebarButton,
+    sidebarClose,
+    main,
+    viewEditor,
+    viewResult,
+    editor,
+    prompt,
+    toolbar,
+    editorPane,
+    editorSplitter,
+    resultsPane,
+    result,
+    feedback,
+}) {
     const stored = readStored();
     const width = Number(stored?.sidebar);
     const share = Number(stored?.editor);
@@ -57,7 +91,8 @@ export function mountLayout({ app, sidebar, sidebarSplitter, main, prompt, toolb
         collapsed: stored?.collapsed === true,
         editor: Number.isFinite(share) && share > 0.05 && share < 0.95 ? share : EDITOR_SHARE,
     };
-    const stacked = window.matchMedia(STACKED);
+    const drawer = window.matchMedia(DRAWER_QUERY);
+    const phone = window.matchMedia(PHONE_QUERY);
 
     function save() {
         try {
@@ -72,8 +107,8 @@ export function mountLayout({ app, sidebar, sidebarSplitter, main, prompt, toolb
     function applySidebar() {
         app.style.setProperty("--sidebar-width", `${state.sidebar}px`);
         app.classList.toggle("app--sidebar-collapsed", state.collapsed);
-        // a hidden sidebar's controls leave the Tab order (not when the panes stack: it shows there)
-        sidebar.inert = state.collapsed && !stacked.matches;
+        // a hidden sidebar's controls leave the Tab order (not as a drawer: the student opens it)
+        sidebar.inert = state.collapsed && !drawer.matches;
         const now = state.collapsed ? 0 : state.sidebar;
         sidebarSplitter.setAttribute("aria-valuemin", "0");
         sidebarSplitter.setAttribute("aria-valuemax", String(SIDEBAR_WIDTH.max));
@@ -98,8 +133,8 @@ export function mountLayout({ app, sidebar, sidebarSplitter, main, prompt, toolb
 
     // a hidden sidebar comes back (an exercise set opened: its list lives there)
     function showSidebar() {
-        // (stacked, the sidebar shows anyway: the choice made on a wide window is kept for it)
-        if (state.collapsed && !stacked.matches) {
+        // (a drawer is not opened by itself; the choice made on a wide window is kept for it)
+        if (state.collapsed && !drawer.matches) {
             setSidebar(state.sidebar, { collapsed: false });
             save();
         }
@@ -170,7 +205,7 @@ export function mountLayout({ app, sidebar, sidebarSplitter, main, prompt, toolb
     }
 
     function applyEditor() {
-        if (stacked.matches) {
+        if (phone.matches) {
             main.style.removeProperty("--editor-height");
             main.style.removeProperty("--prompt-max");
             return;
@@ -221,7 +256,7 @@ export function mountLayout({ app, sidebar, sidebarSplitter, main, prompt, toolb
     // returned function gets every move; the sizes are saved when it is let go
     function drag(handle, begin) {
         handle.addEventListener("pointerdown", (event) => {
-            if (event.button !== 0 || stacked.matches) {
+            if (event.button !== 0 || phone.matches) {
                 return;
             }
             event.preventDefault();
@@ -252,17 +287,113 @@ export function mountLayout({ app, sidebar, sidebarSplitter, main, prompt, toolb
     } else {
         window.addEventListener("resize", applyEditor);
     }
-    stacked.addEventListener("change", () => {
+    phone.addEventListener("change", () => {
         applySidebar();
         applyEditor();
     });
 
-    applySidebar();
+    // ---- the drawer (under 1100 px) ----------------------------------------------------------
+
+    // a browser without the popover attribute keeps the sidebar where it is on a wide window
+    const canDrawer = typeof sidebar.showPopover === "function";
+    const drawerOpen = () => sidebar.hasAttribute("popover") && sidebar.matches(":popover-open");
+
+    function applyDrawer() {
+        if (drawer.matches && canDrawer) {
+            if (sidebar.getAttribute("popover") !== "auto") {
+                sidebar.setAttribute("popover", "auto");
+            }
+            sidebarButton.popoverTargetElement = sidebar;
+        } else {
+            if (sidebar.hasAttribute("popover")) {
+                if (drawerOpen()) {
+                    sidebar.hidePopover();
+                }
+                sidebar.removeAttribute("popover");
+            }
+            sidebarButton.popoverTargetElement = null;
+        }
+        sidebarButton.setAttribute("aria-expanded", "false");
+        applySidebar();
+    }
+
+    // closeDrawer closes the drawer, if it is one and open; the focus, if it was inside, goes back
+    // to the Sidebar button
+    function closeDrawer() {
+        if (!drawerOpen()) {
+            return;
+        }
+        const inside = sidebar.contains(document.activeElement);
+        sidebar.hidePopover();
+        if (inside && (!document.activeElement || document.activeElement === document.body)) {
+            sidebarButton.focus();
+        }
+    }
+
+    // beforetoggle is synchronous: aria-expanded is right before the drawer shows or goes
+    sidebar.addEventListener("beforetoggle", (event) => {
+        if (sidebar.hasAttribute("popover")) {
+            sidebarButton.setAttribute("aria-expanded", String(event.newState === "open"));
+        }
+    });
+    // opened: the focus goes in, on the tab that shows; closed with the focus nowhere (a press on
+    // the page around it, which the drawer's backdrop takes): back to the Sidebar button
+    sidebar.addEventListener("toggle", (event) => {
+        if (event.newState === "open" && drawerOpen() && !sidebar.contains(document.activeElement)) {
+            (sidebar.querySelector('[role="tab"][aria-selected="true"]') ?? sidebar).focus();
+        } else if (event.newState === "closed" && (!document.activeElement || document.activeElement === document.body) && sidebarButton.getClientRects().length) {
+            sidebarButton.focus();
+        }
+    });
+    // the focus arriving anywhere but in it or on its button (Tab past its end, Shift+Tab past its
+    // button, a name put into the editor) closes it, so the focus is never under it
+    document.addEventListener("focusin", (event) => {
+        if (drawerOpen() && !sidebar.contains(event.target) && event.target !== sidebarButton) {
+            sidebar.hidePopover();
+        }
+    });
+    sidebarClose.addEventListener("click", closeDrawer);
+    drawer.addEventListener("change", applyDrawer);
+
+    // ---- the two views (under 700 px) ------------------------------------------------------
+
+    function showView(view) {
+        if (main.dataset.view === view) {
+            return;
+        }
+        const leaving = view === "result" ? [prompt, editorPane] : [resultsPane];
+        const lost = phone.matches && leaving.some((part) => part.contains(document.activeElement));
+        main.dataset.view = view;
+        for (const [button, shows] of [
+            [viewEditor, "editor"],
+            [viewResult, "result"],
+        ]) {
+            if (shows === view) {
+                button.setAttribute("aria-current", "true");
+            } else {
+                button.removeAttribute("aria-current");
+            }
+        }
+        if (lost) {
+            (view === "result" ? viewResult : viewEditor).focus();
+        }
+    }
+
+    viewEditor.addEventListener("click", () => showView("editor"));
+    viewResult.addEventListener("click", () => showView("result"));
+    document.addEventListener("lab:run-finished", () => showView("result"));
+    for (const type of ["input", "replace", "reveal"]) {
+        editor.addEventListener(type, () => showView("editor"));
+    }
+
+    applyDrawer();
     applyEditor();
 
     return {
         toggleSidebar,
         showSidebar,
+        closeDrawer,
+        showView,
         state: () => ({ ...state }),
     };
 }

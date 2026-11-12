@@ -48,8 +48,9 @@ test.describe("the page", () => {
         await expect(page.locator("footer")).toContainText("Made by Abdou Sadou, based on SQLime by Anton Zhiyanov");
         await expect(page.locator("header img")).toHaveJSProperty("complete", true);
         expect(await page.locator("header img").evaluate((img) => img.naturalWidth)).toBeGreaterThan(0);
-        // the stylesheets applied
-        expect(await page.locator("#verify-button").evaluate((b) => getComputedStyle(b).minHeight)).toBe("40px");
+        // the stylesheets applied (from the UI plan's Phase 6 the button is the app's: 32 px with a
+        // mouse, the controls' height of section 3, 44 on a touch screen)
+        expect(await page.locator("#verify-button").evaluate((b) => getComputedStyle(b).minHeight)).toBe("32px");
         expect(await page.locator(".drop-zone").evaluate((z) => getComputedStyle(z).borderTopStyle)).toBe("dashed");
         // back to the app, relative to the mount
         const href = await page.locator('main a[href="./"]').evaluate((a) => a.href);

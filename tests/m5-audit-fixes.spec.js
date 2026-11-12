@@ -472,7 +472,8 @@ test.describe("the About page and the README", () => {
     });
 
     test("the About page says that Ctrl/Cmd+Enter runs the query only in the editor", () => {
-        expect(about()).toMatch(/run query \(only while the cursor is in the editor\)/);
+        // (Phase 6: the shortcuts are written as Help writes them)
+        expect(about()).toMatch(/Run the query, or the part of it you selected \(only while the cursor is in the editor\)/);
     });
 
     test("the README's exercise example is invented: not an exercise of the published set, its model query nowhere in it", () => {

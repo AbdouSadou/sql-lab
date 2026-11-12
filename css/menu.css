@@ -83,6 +83,14 @@
     background: var(--rule);
 }
 
+/* a group's name over its entries (the More menu's Export and Theme) */
+.menu-heading {
+    margin: 0;
+    padding: var(--space-1) var(--space-2) 0;
+    color: var(--graphite);
+    font-size: var(--text-xs);
+}
+
 /* a wider menu whose entries carry a second line (the database switcher, Export) */
 .menu--wide[popover] {
     min-width: min(16rem, var(--popover-room, 100vw));
@@ -120,6 +128,12 @@
     font-size: var(--text-xs);
     white-space: nowrap;
     text-overflow: ellipsis;
+}
+
+/* the More menu's (a phone's) are short sentences with no title: they wrap */
+#more-menu .menu-item-description {
+    overflow: visible;
+    white-space: normal;
 }
 
 /* the shortcut of an entry ("Ctrl O"), at its end */
