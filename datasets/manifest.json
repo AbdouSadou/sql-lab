@@ -5,7 +5,6 @@
       "name": "Northlight Retail",
       "file": "datasets/northlight_retail.db",
       "description": "Fictional Yorkshire retail chain: 5 stores, 20 products, 60 customers, 450 orders, Jan 2025 – Oct 2026. Ships a v_sales reporting view.",
-      "default": true,
       "samples": [
         {
           "label": "Every product",
@@ -18,6 +17,47 @@
         {
           "label": "Revenue share by category",
           "sql": "WITH category_revenue AS (\n  SELECT p.category,\n         SUM(oi.quantity * p.unit_price * (1 - oi.discount)) AS revenue\n  FROM orders o\n  JOIN order_items oi ON o.order_id = oi.order_id\n  JOIN products p ON oi.product_id = p.product_id\n  GROUP BY p.category\n)\nSELECT category, ROUND(revenue, 2) AS revenue,\n       ROUND(100.0 * revenue / SUM(revenue) OVER (), 1) AS contribution_pct\nFROM category_revenue\nORDER BY revenue DESC;"
+        }
+      ]
+    },
+    {
+      "id": "home-store",
+      "name": "Home Store",
+      "file": "datasets/home_store.db",
+      "description": "Online retailer, 2025: 50 customers, 30 products, 10 campaigns, 200 orders and 500 order lines.",
+      "default": true,
+      "samples": [
+        {
+          "label": "Every product",
+          "sql": "SELECT * FROM Products;"
+        },
+        {
+          "label": "Orders per campaign",
+          "sql": "SELECT c.CampaignName, c.Channel, COUNT(o.OrderID) AS OrderCount\nFROM Campaigns c\nLEFT JOIN Orders o ON o.CampaignID = c.CampaignID\nGROUP BY c.CampaignName, c.Channel\nORDER BY OrderCount DESC;"
+        },
+        {
+          "label": "Revenue share by category",
+          "sql": "WITH CategoryRevenue AS (\n  SELECT p.Category,\n         SUM(oi.Quantity * oi.UnitPriceAtSale * (1 - oi.DiscountRate)) AS Revenue\n  FROM Orders o\n  JOIN OrderItems oi ON o.OrderID = oi.OrderID\n  JOIN Products p ON oi.ProductID = p.ProductID\n  WHERE o.OrderStatus = 'Completed'\n  GROUP BY p.Category\n)\nSELECT Category, ROUND(Revenue, 2) AS Revenue,\n       ROUND(100.0 * Revenue / SUM(Revenue) OVER (), 1) AS ContributionPct\nFROM CategoryRevenue\nORDER BY Revenue DESC;"
+        }
+      ]
+    },
+    {
+      "id": "shopping",
+      "name": "Shopping",
+      "file": "datasets/shopping.db",
+      "description": "Small shop, 2023: 6 customers, 8 products, 50 orders and 20 new order quantities.",
+      "samples": [
+        {
+          "label": "Every product",
+          "sql": "SELECT * FROM products;"
+        },
+        {
+          "label": "Spending per customer",
+          "sql": "SELECT c.CustomerName, COUNT(o.OrderID) AS OrderCount,\n       ROUND(SUM(o.Total), 2) AS TotalSpent\nFROM customers c\nLEFT JOIN orders o ON o.CustomerID = c.CustomerID\nGROUP BY c.CustomerID, c.CustomerName\nORDER BY TotalSpent DESC;"
+        },
+        {
+          "label": "Value of each new order",
+          "sql": "SELECT q.NewOrder, p.ProductName, q.Quantity,\n       ROUND(q.Quantity * p.UnitCost, 2) AS OrderValue\nFROM quantities q\nJOIN products p ON p.ProductID = q.ProductID\nORDER BY OrderValue DESC;"
         }
       ]
     }
