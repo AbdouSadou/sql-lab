@@ -506,6 +506,34 @@ test.describe("completion", () => {
         await expect(option(page, "name")).toBeVisible();
     });
 
+    test("text the app puts in while the list is open closes the list, and nothing is logged", async ({ page, app, pageErrors }) => {
+        // (found while checking the live site) a History entry, an exercise or a database switch
+        // sets the editor's whole text. With the list open and a measure of it pending (a key was
+        // just typed), CodeMirror measured the list's place in the new text at the next frame and
+        // logged "RangeError: Invalid position". The text is put in at the start of that frame:
+        // a frame callback asked for at the key, before CodeMirror asks for its measure.
+        const logged = [];
+        page.on("console", (message) => {
+            if (message.type() === "error") logged.push(message.text());
+        });
+        const nextFrames = () => page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+        await app.open();
+        for (let round = 0; round < 5; round++) {
+            await typeFresh(page, app, "SELECT * FROM pr");
+            await expect(page.getByRole("listbox")).toBeVisible();
+            await nextFrames();
+            await page.locator("#editor").evaluate((el) => {
+                el.addEventListener("keydown", () => requestAnimationFrame(() => (el.value = "")), { capture: true, once: true });
+            });
+            await page.keyboard.type("o");
+            await expect(page.getByRole("listbox")).toBeHidden();
+            await nextFrames();
+            expect(await editorValue(page)).toBe("");
+        }
+        expect(logged).toEqual([]);
+        expect(pageErrors).toEqual([]);
+    });
+
     test("names from the database are text in the list, never markup", async ({ page, app, pageErrors }) => {
         await app.open();
         await app.run(`CREATE TABLE "x${PAYLOAD}" (a);`);

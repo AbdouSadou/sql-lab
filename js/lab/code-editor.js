@@ -12,7 +12,8 @@
 //   schema  [{name, type: "table"|"view", columns: [{name, type}]}] for the completion
 //
 // editor.view                   the EditorView
-// editor.value / editor.value = text   the text; setting it starts afresh (no undo back past it)
+// editor.value / editor.value = text   the text; setting it starts afresh (no undo back past it,
+//                               and an open list of names is closed)
 // editor.selectedText()         the selected text if the page's selection is in the editor
 // editor.caretToEnd()           the focus to the editor and the caret after the last character
 // editor.insert(text, {atCaret})   puts text at the caret (or at the end), one undo step
@@ -479,6 +480,10 @@ export function createCodeEditor(cm, host, { doc = "", anchor = 0, head = anchor
         },
 
         set value(text) {
+            // The list of names closes first, as a run closes it: setState keeps a measure the
+            // open list asked for, which would then read the list's place in the new, shorter
+            // text (CodeMirror logs "RangeError: Invalid position").
+            cm.closeCompletion(view);
             view.setState(stateFor(String(text ?? ""), { anchor: 0 }));
             listShown = false;
         },
