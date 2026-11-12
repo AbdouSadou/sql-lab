@@ -4,7 +4,7 @@
 // completes one exercise.
 
 const AxeBuilder = require("@axe-core/playwright").default;
-const { test, expect, withSampleDataset, modelQuery, tabTo, EDITOR_INPUT } = require("./helpers");
+const { test, expect, withSampleDataset, modelQuery, tabTo, realManifest, EDITOR_INPUT, DEFAULT_DATASET } = require("./helpers");
 const { RECIPES } = require("./ui-states.js");
 
 const STATES = RECIPES.shell.states;
@@ -53,13 +53,18 @@ test("keyboard only: load the page, open a database, run a query, complete one e
     await app.open();
 
     // open a database: from the editor (focused after load), out with Escape, back to the
-    // database switcher; its menu opens on the open database and the arrow key moves to the next
+    // database switcher; its menu opens on the open database and the arrow keys walk down to Sample Fruit
     await expect(app.editor).toBeFocused();
     await page.keyboard.press("Escape");
     expect(await tabTo(page, "#database-button", { back: true }), "Tab reaches #database-button").toBe(true);
     await page.keyboard.press("Enter");
     await expect(page.locator("#database-menu")).toBeVisible();
-    await page.keyboard.press("ArrowDown");
+    // (withSampleDataset adds Sample Fruit after the shipped datasets: that many steps from the open one)
+    const shipped = realManifest().datasets;
+    const steps = shipped.length - shipped.findIndex((entry) => entry.id === DEFAULT_DATASET.id);
+    for (let i = 0; i < steps; i++) {
+        await page.keyboard.press("ArrowDown");
+    }
     await expect(page.locator("#database-menu").getByRole("menuitemradio", { name: /^Sample Fruit/ })).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(app.databaseLabel).toHaveText("Sample Fruit");

@@ -1,7 +1,7 @@
 // M4 part 1: js/lab/checker.js. The pure part (normalising and comparing) is tested in the
 // real browser through import() inside page.evaluate; the rest drives check() on the
 // Northlight dataset. AC5 is the engine half of the exercise flow (no panel yet).
-const { test, expect, realSet, withSampleDataset } = require("./helpers");
+const { test, expect, realSet, withSampleDataset, NORTHLIGHT_URL } = require("./helpers");
 
 // the shipped model queries, for the "model answer passes" tests
 const SET = realSet();
@@ -298,7 +298,7 @@ test.describe("comparing two results (pure)", () => {
 
 test.describe("check() on the Northlight dataset", () => {
     test.beforeEach(async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
     });
 
     test("AC5 the model answer passes", async ({ app }) => {
@@ -657,7 +657,7 @@ test.describe("check() on the Northlight dataset", () => {
 
 test.describe("check() without the set's pristine dataset", () => {
     test("an uploaded database has no pristine bytes: the exercise cannot be checked", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.upload(require("./helpers").SAMPLE_FILE);
         const out = await app.check("e01", model("e01"));
         expect(out).toMatchObject({ status: "unavailable", reason: "dataset" });
@@ -666,7 +666,7 @@ test.describe("check() without the set's pristine dataset", () => {
 
     test("another dataset's pristine bytes are not used for the set", async ({ page, app }) => {
         await withSampleDataset(page);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.pickDatabase("Sample Fruit");
         await expect(app.databaseLabel).toHaveText("Sample Fruit");
         expect(await page.evaluate(() => window.app.database.name)).toBe("sample.db");

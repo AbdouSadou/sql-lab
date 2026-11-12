@@ -1,4 +1,4 @@
-const { test, expect } = require("./helpers");
+const { test, expect, DEFAULT_DATASET } = require("./helpers");
 
 test("smoke: page loads, engine initialises, SELECT 1 shows a result", async ({ page, net, app }) => {
     const logs = [];
@@ -46,7 +46,8 @@ test("smoke: the engine needs no cross-origin isolation and fetches only its was
         // the typefaces (UI plan, Phase 1), only the subsets the page uses
         /^vendor\/fonts\/atkinson-hyperlegible-(next|mono)-latin(-ext)?-wght-(normal|italic)\.woff2$/,
         /^datasets\/manifest\.json$/,
-        /^datasets\/northlight_retail\.db$/,
+        // a first visit to "./" fetches the default dataset's file
+        new RegExp("^" + DEFAULT_DATASET.file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"),
         // the exercise sets, found through the folder page the Pages workflow writes
         /^exercises\/$/,
         /^exercises\/retail-basics\.json$/,

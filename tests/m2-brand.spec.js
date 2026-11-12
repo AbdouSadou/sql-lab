@@ -1,6 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { test, expect } = require("./helpers");
+const { test, expect, NORTHLIGHT_URL } = require("./helpers");
 
 const ROOT = path.resolve(__dirname, "..");
 // the credit in the footer of every page (the status bar of the app), and the upstream credit the About page also gives in its text
@@ -75,7 +75,7 @@ test("brand: the app name is written in js/lab/config.js and nowhere else", () =
 });
 
 test("brand: the default name shows in the title, top bar and status bar of index, and in the header and footer of About", async ({ page, app }) => {
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await expect(page).toHaveTitle("northlight_retail.db - SQL Lab");
     // the app name is the brand of the top bar, and it leads the credit in the status bar
     await expect(page.locator("header.topbar h1 a#reset")).toContainText("SQL Lab");
@@ -98,7 +98,7 @@ test("brand: renaming through a copy of js/lab/config.js changes title, top bar 
 }) => {
     await renameApp(page, "Renamed Workbench");
 
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await expect(page).toHaveTitle("northlight_retail.db - Renamed Workbench");
     await expect(page.locator("header.topbar h1 a#reset")).toContainText("Renamed Workbench");
     await expect(page.locator("footer.statusbar")).toContainText("Renamed Workbench");

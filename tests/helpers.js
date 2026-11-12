@@ -5,9 +5,13 @@
 //   app  drives the playground page: open, run SQL, read the result table,
 //        upload databases, pick datasets and export through the toolbar button.
 //
-// The default dataset (Northlight) opens on every visit, and nothing runs on its own: the results
-// pane shows "no result yet" with sample queries (UI plan, Phase 4). A test that needs the old
-// empty start uses app.openEmpty(); one that needs a second dataset uses withSampleDataset().
+// A visit to "./" opens the site's default dataset (the manifest's "default": true, DEFAULT_DATASET
+// below), and nothing runs on its own: the results pane shows "no result yet" with sample queries
+// (UI plan, Phase 4). The tests are written against Northlight Retail, which need not be the
+// default, so a test that uses its tables, its samples or its id opens it by id:
+// app.open(NORTHLIGHT_URL). A test of the default itself opens "./" and reads DEFAULT_DATASET. A
+// test that needs the old empty start uses app.openEmpty(); one that needs a dataset of its own
+// uses withSampleDataset().
 //
 // The results pane (js/lab/results.js) shows one state at a time, named by #results-pane's
 // data-state: "loading", "empty" (no result yet), "result" (the summary line #results-summary
@@ -219,6 +223,14 @@ const SAMPLE_URL = /\/datasets\/sample\.db(\?.*)?$/;
 // the manifest the site ships
 const realManifest = () =>
     JSON.parse(fs.readFileSync(path.join(__dirname, "..", "datasets", "manifest.json"), "utf8"));
+
+// the dataset a visit to "./" opens: the manifest's entry with "default": true. The owner picks it
+// (Home Store since 2026-11-12), so a test of "the default" names it through this, not by its id
+const DEFAULT_DATASET = realManifest().datasets.find((entry) => entry.default === true);
+
+// Northlight Retail, the dataset the tests are written against (and the shipped exercise set's),
+// opened by id (route 4 of js/lab/router.js), whichever dataset is the default
+const NORTHLIGHT_URL = "./?db=northlight";
 
 // routeManifest answers the manifest request with `body` (an object, or a string for
 // invalid JSON) and the given status, or aborts it with status "abort".
@@ -1226,6 +1238,8 @@ module.exports = {
     expectSchemaIconsOnly,
     SAMPLE_FILE,
     SAMPLE_ENTRY,
+    DEFAULT_DATASET,
+    NORTHLIGHT_URL,
     realManifest,
     routeManifest,
     routeSampleDataset,

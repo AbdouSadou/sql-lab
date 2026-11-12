@@ -1,5 +1,5 @@
 const path = require("node:path");
-const { test, expect, editorValue } = require("./helpers");
+const { test, expect, editorValue, NORTHLIGHT_URL } = require("./helpers");
 
 const SAMPLE = path.join(__dirname, "fixtures", "sample.db");
 // Never finishes if it is run.
@@ -31,7 +31,7 @@ test("restore: a runaway query saved by an earlier session does not hang the pag
             localStorage.setItem("sqlime.query.northlight_retail.db", sql);
         } catch {}
     }, RUNAWAY);
-    await page.goto("./");
+    await page.goto(NORTHLIGHT_URL);
     await app.waitReady();
     expect((await editorValue(page)).trim()).toBe(RUNAWAY);
 

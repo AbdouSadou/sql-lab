@@ -1,4 +1,4 @@
-const { test, expect, App, routeSet, withSampleDataset, PAYLOAD } = require("./helpers");
+const { test, expect, App, routeSet, withSampleDataset, PAYLOAD, NORTHLIGHT_URL } = require("./helpers");
 
 // M5 part 1, F5 Results UX (js/lab/results.js): the 500-row cap, the summary line ("5 rows in 3
 // ms", #status), the error band that names the failing statement, Download CSV, and how success
@@ -60,7 +60,7 @@ const runs = (page) => page.evaluate(() => window.__runs);
 
 test.describe("the row cap and the summary line", () => {
     test.beforeEach(async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
     });
 
     test("exactly 500 rows render for a 906-row query, and the status says showing 500 of 906 rows", async ({ app }) => {
@@ -275,7 +275,7 @@ test.describe("errors name the failing statement", () => {
 
 test.describe("Download CSV", () => {
     test.beforeEach(async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
     });
 
     // The old command bar held [execute, show-tables, copy-link, run-history, download-csv]. Each
@@ -502,7 +502,7 @@ test.describe("Download CSV", () => {
 
 test.describe("the button follows the table on screen", () => {
     test.beforeEach(async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
     });
 
     const showResult = async (app) => {
@@ -575,7 +575,7 @@ test.describe("the button follows the table on screen", () => {
 
     test("it goes with a database switch, and offers only the new database's result afterwards", async ({ app, page }) => {
         await withSampleDataset(page);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run(ORDER_ITEMS);
         await expect(app.csvButton).toBeVisible();
         await app.pickDatabase("Sample Fruit");
@@ -704,7 +704,7 @@ test.describe("Check compares the full result, not the capped table", () => {
     });
 
     test("the checker passes 906 matching rows and finds a difference after row 500", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const set = { ...BIG_SET, exercises: BIG_SET.exercises };
         expect(await app.check("all", SAME, { set })).toEqual({ status: "pass", rows: 906 });
         expect(await app.check("all", `${SAME} limit 500`, { set })).toEqual({

@@ -1,5 +1,5 @@
 const fs = require("node:fs");
-const { test, expect, withSampleDataset, SAMPLE_FILE, PAYLOAD } = require("./helpers");
+const { test, expect, withSampleDataset, SAMPLE_FILE, PAYLOAD, NORTHLIGHT_URL, realManifest } = require("./helpers");
 
 // M5 part 2, F6 run log (js/lab/run-log.js): what a Run appends, how it is stored, and the
 // History tab of the sidebar.
@@ -26,7 +26,7 @@ const logKeys = (page) =>
 
 test.describe("what a Run appends", () => {
     test("one entry per Run: UTC time to the second, the SQL as run, the full row count", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await page.clock.setFixedTime("2026-11-09T13:58:12.987Z");
         await app.query("SELECT category, COUNT(*) FROM products GROUP BY category;");
         await page.clock.setFixedTime("2026-11-09T14:01:40.000Z");
@@ -38,7 +38,7 @@ test.describe("what a Run appends", () => {
     });
 
     test("the row count is the full count, not the 500 shown", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("select * from order_items");
         await expect(app.status).toContainText(/Showing 500 of [\d,]+ rows/);
         const total = Number((await app.status.innerText()).match(/of ([\d,]+) rows/)[1].replaceAll(",", ""));
@@ -47,7 +47,7 @@ test.describe("what a Run appends", () => {
     });
 
     test("a statement that changes data, and a query with no rows, log their row count", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("CREATE TABLE scratch (a); INSERT INTO scratch VALUES (1), (2);");
         // a run with no result set says "Done" and what it changed (it was "0 rows, took ...")
         await expect(app.status).toContainText("Done. 2 rows changed");
@@ -60,7 +60,7 @@ test.describe("what a Run appends", () => {
     });
 
     test("an error is logged with the engine's message alone, on one line", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("SELECT pric FROM products;");
         await expect(app.errorBand).toContainText("no such column: pric");
         await app.run("SELECT 1;\nSELECT * FROM nowhere;\nSELECT 3;");
@@ -78,7 +78,7 @@ test.describe("what a Run appends", () => {
     });
 
     test("SQL is kept whole, however long or odd", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const sql = `SELECT '${"x".repeat(5000)}' AS "é日本語😀", 'it''s' AS q, '\t tab' AS t;`;
         await app.query(sql);
         expect((await app.readLog("northlight"))[0].sql).toBe(sql);
@@ -107,7 +107,7 @@ test.describe("what a Run appends", () => {
     });
 
     test("Run by button, by keyboard and a Run of selected text each add one entry", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("SELECT 1;", { via: "button" });
         await expect(app.status).toContainText("1 row");
         await app.run("SELECT 2;");
@@ -143,7 +143,7 @@ test.describe("what a Run appends", () => {
 test.describe("one log per dataset", () => {
     test("each built-in dataset, upload, URL database and the empty database has its own key", async ({ page, app }) => {
         await withSampleDataset(page);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.query("SELECT 'a' AS q;");
         await app.pickDatabase("Sample Fruit");
         await expect(app.databaseLabel).toHaveText("Sample Fruit");
@@ -156,6 +156,18 @@ test.describe("one log per dataset", () => {
         expect((await app.readLog("northlight")).map((e) => e.sql)).toEqual(["SELECT 'a' AS q;", "SELECT 'c' AS q;"]);
         expect((await app.readLog("sample")).map((e) => e.sql)).toEqual(["SELECT 'b' AS q;"]);
 
+        // every other shipped dataset has its own key too
+        const others = realManifest().datasets.filter((entry) => entry.id !== "northlight");
+        for (const entry of others) {
+            await app.pickDatabaseById(entry.id);
+            await expect(app.databaseLabel).toHaveText(entry.name);
+            await app.waitReady();
+            await app.query(`SELECT '${entry.id}' AS q;`);
+            expect((await app.readLog(entry.id)).map((e) => e.sql)).toEqual([`SELECT '${entry.id}' AS q;`]);
+        }
+        // Northlight's own log is still the two queries it ran
+        expect((await app.readLog("northlight")).map((e) => e.sql)).toEqual(["SELECT 'a' AS q;", "SELECT 'c' AS q;"]);
+
         await app.upload({ name: "mine.db", mimeType: "application/octet-stream", buffer: fs.readFileSync(SAMPLE_FILE) });
         await app.query("SELECT 'd' AS q;");
         expect((await app.readLog("file:mine.db")).map((e) => e.sql)).toEqual(["SELECT 'd' AS q;"]);
@@ -164,8 +176,15 @@ test.describe("one log per dataset", () => {
         await app.query("SELECT 'e' AS q;");
         expect((await app.readLog("file:northlight")).map((e) => e.sql)).toEqual(["SELECT 'e' AS q;"]);
         expect((await app.readLog("northlight")).map((e) => e.sql)).toEqual(["SELECT 'a' AS q;", "SELECT 'c' AS q;"]);
+        // logKeys sorts, so the expected keys are sorted the same way
         expect(await logKeys(page)).toEqual(
-            ["sqllab.log.file:mine.db", "sqllab.log.file:northlight", "sqllab.log.northlight", "sqllab.log.sample"]
+            [
+                "sqllab.log.file:mine.db",
+                "sqllab.log.file:northlight",
+                "sqllab.log.northlight",
+                "sqllab.log.sample",
+                ...others.map((entry) => `sqllab.log.${entry.id}`),
+            ].sort()
         );
     });
 
@@ -182,7 +201,7 @@ test.describe("one log per dataset", () => {
 
 test.describe("storage", () => {
     test("the log keeps the newest 200 entries and drops the oldest", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.seedLog("northlight", entries(199));
         await app.query("SELECT 'two hundred' AS q;");
         let log = await app.readLog("northlight");
@@ -197,7 +216,7 @@ test.describe("storage", () => {
     });
 
     test("a stored log longer than 200 is cut to the newest 200 on the next Run", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.seedLog("northlight", entries(260));
         await app.query("SELECT 'new' AS q;");
         const log = await app.readLog("northlight");
@@ -207,7 +226,7 @@ test.describe("storage", () => {
     });
 
     test("corrupt or foreign stored text counts as an empty log and is replaced by the next Run", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const bad = [
             "{{", "", "null", "[]", '"text"', "42", "true", '{"a":1}', '{"v":2,"entries":[]}', '{"v":1}',
             '{"v":1,"entries":"x"}', '{"v":1,"entries":{"0":1}}', '{"v":"1","entries":[]}', "<html>", "\u0000\u0001",
@@ -223,7 +242,7 @@ test.describe("storage", () => {
     });
 
     test("entries that are not entries are skipped; the good ones stay", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const good = entries(2);
         await app.seedLog("northlight", [
             good[0], null, 7, "x", [], {}, { t: "yesterday", sql: "SELECT 1;", rows: 1 },
@@ -237,10 +256,10 @@ test.describe("storage", () => {
     });
 
     test("two tabs do not lose each other's entries", async ({ context, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const other = await context.newPage();
         const otherApp = new (require("./helpers").App)(other);
-        await otherApp.open();
+        await otherApp.open(NORTHLIGHT_URL);
         await app.query("SELECT 'a1' AS q;");
         await otherApp.query("SELECT 'b1' AS q;");
         await app.query("SELECT 'a2' AS q;");
@@ -308,7 +327,7 @@ test.describe("storage", () => {
                 return set.call(this, key, value);
             };
         });
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const pad = (c) => `SELECT '${c.repeat(900)}';`;
         await app.seedLog("northlight", [
             { t: "2026-11-09T10:00:01Z", sql: pad("a"), rows: 1 },
@@ -334,7 +353,7 @@ test.describe("storage", () => {
                 return set.call(this, key, value);
             };
         });
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.seedLog("northlight", entries(2));
         const huge = `SELECT '${"z".repeat(6000)}' AS big;`;
         await app.query(huge);
@@ -364,7 +383,7 @@ test.describe("the History tab", () => {
     ];
 
     async function runFive(app) {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.query(FIVE[0]);
         await app.run(FIVE[1]);
         await expect(app.errorBand).toContainText("no such column: pric");
@@ -575,7 +594,7 @@ test.describe("the History tab", () => {
     test("it shows the log of the open database only, and follows the database when another opens", async ({ page, app }) => {
         await withSampleDataset(page);
         await app.open();
-        await app.query("SELECT 'north' AS q;");
+        await app.query("SELECT 'first' AS q;");
         await app.historyButton.click();
         await expect(app.historyEntries).toHaveCount(1);
         await app.pickDatabase("Sample Fruit");
@@ -608,7 +627,7 @@ test.describe("the History tab", () => {
     });
 
     test("hostile SQL, errors and storage text show as text and run nothing", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.query(`SELECT '${PAYLOAD}' AS "${PAYLOAD.replaceAll('"', "")}";`);
         await app.run(`SELECT * FROM "${PAYLOAD}";`);
         await expect(app.errorBand).toContainText("no such table");
@@ -674,7 +693,7 @@ test.describe("the History tab fits the screen", () => {
             }) => {
                 await page.setViewportSize({ width, height: 800 });
                 await page.emulateMedia({ colorScheme });
-                await app.open();
+                await app.open(NORTHLIGHT_URL);
                 await app.seedLog("northlight", seeded);
                 // (under 1100 px the tabs are in the sidebar's drawer, from Phase 6)
                 await app.openDrawer();
@@ -756,7 +775,7 @@ test.describe("the History tab fits the screen", () => {
 
     test("the entries are as wide as the screen allows with a long error message at 390px", async ({ page, app }) => {
         await page.setViewportSize({ width: 390, height: 700 });
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.seedLog("northlight", seeded);
         // (from Phase 6 the sidebar is a drawer at this width, as wide as the screen allows: up to
         // 320 px, and always 56 px short of the window's width so the page shows beside it)

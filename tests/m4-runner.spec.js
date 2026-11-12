@@ -1,6 +1,6 @@
 // M4 part 1: js/lab/runner.js (splitStatements, runSql, engineMessage), the Run seam in
 // index.js that uses it, and the editor's selection rule.
-const { test, expect, editorSelect, editorValue } = require("./helpers");
+const { test, expect, editorSelect, editorValue, NORTHLIGHT_URL } = require("./helpers");
 
 test.describe("splitStatements", () => {
     // run splits `sql` with the open database's own capi
@@ -256,7 +256,7 @@ test.describe("splitStatements", () => {
 
 test.describe("runSql", () => {
     test.beforeEach(async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
     });
 
     // run executes sql with runSql on the open database; returns {result} or {error, message}

@@ -1,4 +1,4 @@
-const { test, expect, evidenceFile, realManifest } = require("./helpers");
+const { test, expect, evidenceFile, NORTHLIGHT_URL } = require("./helpers");
 
 // F11 evidence export through the real UI (the Export menu item, the dialog, the download event)
 // and the verify page. The file format and the single-character-edit sweep over every
@@ -33,7 +33,7 @@ test("AC10 three runs, one erroring: the exported file holds all three and verif
     page,
     app,
 }) => {
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.query("SELECT category, COUNT(*) FROM products GROUP BY category;");
     await app.run("SELECT pric FROM products;");
     await expect(app.errorBand).toContainText("no such column: pric");
@@ -136,7 +136,7 @@ test("AC10 changing a single character of the exported file makes verify.html sa
     page,
     app,
 }) => {
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.query("SELECT category, COUNT(*) FROM products GROUP BY category;");
     await app.run("SELECT pric FROM products;");
     await expect(app.errorBand).toContainText("no such column: pric");

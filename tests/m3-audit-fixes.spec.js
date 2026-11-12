@@ -3,12 +3,25 @@
 // back/forward and corrupt datasets, Run during a switch, the stale-load guards of the popstate
 // paths, and the keyboard, screen-reader and layout fixes. One file so the findings stay together.
 const fs = require("node:fs");
-const { test, expect, realManifest, routeManifest, withSampleDataset, SAMPLE_FILE, SAMPLE_ENTRY } = require("./helpers");
+const path = require("node:path");
+const {
+    test,
+    expect,
+    realManifest,
+    routeManifest,
+    withSampleDataset,
+    SAMPLE_FILE,
+    SAMPLE_ENTRY,
+    DEFAULT_DATASET,
+    NORTHLIGHT_URL,
+} = require("./helpers");
 
 const SAMPLE_URL = /\/datasets\/sample\.db(\?.*)?$/;
 const SLOW_URL = /\/datasets\/slow\.db(\?.*)?$/;
 const MANIFEST_URL = /\/datasets\/manifest\.json(\?.*)?$/;
-const NORTHLIGHT_URL = /\/datasets\/northlight_retail\.db(\?.*)?$/;
+const NORTHLIGHT_FILE_URL = /\/datasets\/northlight_retail\.db(\?.*)?$/;
+// the request for the default dataset's file, whichever dataset the owner makes the default
+const DEFAULT_FILE_URL = new RegExp(`/${DEFAULT_DATASET.file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\?.*)?$`);
 const JUNK = { name: "junk.db", mimeType: "application/octet-stream", buffer: Buffer.from("this is not a database at all") };
 const CORRUPT = Buffer.concat([Buffer.from("SQLite format 3\0"), Buffer.alloc(200, 7)]);
 
@@ -103,7 +116,7 @@ test("a pick overtaken by an upload that fails leaves the switcher on the open d
     const held = gate();
     await withSampleDataset(page);
     await holdSample(page, held);
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.query("SELECT COUNT(*) AS n FROM orders;");
     const kept = await viewOf(app);
 
@@ -136,7 +149,7 @@ test("a pick overtaken by an open-from-URL that fails leaves the switcher on the
     const held = gate();
     await withSampleDataset(page);
     await holdSample(page, held);
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.query("SELECT COUNT(*) AS n FROM orders;");
     const kept = await viewOf(app);
 
@@ -155,7 +168,7 @@ test("a pick overtaken by an open-from-URL that fails leaves the switcher on the
 
 test("a failed upload by itself leaves the switcher where it was", async ({ page, app }) => {
     await withSampleDataset(page);
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.query("SELECT COUNT(*) AS n FROM orders;");
     const kept = await viewOf(app);
     await app.upload(JUNK, { ready: false });
@@ -175,7 +188,7 @@ test("a pick that fails while an older pick is still loading does not leave the 
     await routeManifest(page, manifest);
     await holdSample(page, held);
     await page.route(/\/datasets\/broken\.db$/, (route) => route.fulfill({ status: 500, body: "boom" }));
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.query("SELECT COUNT(*) AS n FROM orders;");
     const kept = await viewOf(app);
     await app.pickDatabase("Sample Fruit");
@@ -217,7 +230,7 @@ test("a file uploaded while the manifest is still loading does not leave the swi
     // the button names the file
     await app.picker.click();
     await expect(app.databaseMenu).toBeVisible();
-    await expect(courseNames(page)).toHaveText(["Northlight Retail", "Sample Fruit"]);
+    await expect(courseNames(page)).toHaveText([...realManifest().datasets.map((entry) => entry.name), "Sample Fruit"]);
     await app.expectPicked(null);
     await expect(app.databaseLabel).toHaveText("sample.db");
     await page.keyboard.press("Escape");
@@ -237,7 +250,7 @@ for (const [name, file] of [
 ]) {
     test(`manifest validation: ${name} in a file is refused with a specific message`, async ({ page, app, net }) => {
         const manifest = realManifest();
-        manifest.datasets[0].file = file;
+        manifest.datasets.find((entry) => entry.id === "northlight").file = file;
         await routeManifest(page, manifest);
         await page.goto("./");
         await expect(app.errorBand).toContainText("is not valid");
@@ -251,7 +264,7 @@ for (const [name, file] of [
 
 test.describe("the dataset flagged default is the one that opens, wherever it is in the list", () => {
     test.beforeEach(async ({ page }) => {
-        const real = realManifest().datasets[0];
+        const real = realManifest().datasets.find((entry) => entry.id === "northlight");
         const manifest = {
             datasets: [
                 { ...SAMPLE_ENTRY, default: false },
@@ -302,13 +315,13 @@ test.describe("the dataset flagged default is the one that opens, wherever it is
 
 test("back to a dataset that cannot be fetched keeps the open database and its tables", async ({ page, app }) => {
     await withSampleDataset(page);
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.pickDatabase("Sample Fruit");
     await expect(app.databaseLabel).toHaveText("Sample Fruit");
     await app.run("CREATE TABLE mywork (x); INSERT INTO mywork VALUES (42);");
     await expect(app.status).toHaveText(DONE_LINE);
 
-    await page.route(NORTHLIGHT_URL, (route) => route.fulfill({ status: 500, body: "boom" }));
+    await page.route(NORTHLIGHT_FILE_URL, (route) => route.fulfill({ status: 500, body: "boom" }));
     const kept = await viewOf(app); // "Done in ..." (the run of the student's own tables)
     expect(kept.state).toBe("done");
     await page.goBack(); // the Northlight entry
@@ -333,9 +346,9 @@ test("a corrupt default dataset on the first load starts on an empty database th
     app,
     pageErrors,
 }) => {
-    await page.route(NORTHLIGHT_URL, (route) => route.fulfill({ status: 200, body: CORRUPT }));
+    await page.route(DEFAULT_FILE_URL, (route) => route.fulfill({ status: 200, body: CORRUPT }));
     await page.goto("./");
-    await expect(app.errorBand).toContainText('The database "Northlight Retail" could not be loaded, so an empty database is open');
+    await expect(app.errorBand).toContainText(`The database "${DEFAULT_DATASET.name}" could not be loaded, so an empty database is open`);
     expect(await dbName(page)).toBe("new.db");
     expect(await app.pickedText()).toBe("new.db");
     expect((await app.query("SELECT 1 AS one;")).rows).toEqual([["1"]]);
@@ -382,12 +395,12 @@ test("a corrupt dataset named by ?db= on the first load does the same, and a sha
 
 test("a corrupt dataset reached by back/forward keeps the open database", async ({ page, app }) => {
     await withSampleDataset(page);
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.pickDatabase("Sample Fruit");
     await expect(app.databaseLabel).toHaveText("Sample Fruit");
     await app.query("SELECT COUNT(*) AS n FROM fruit;");
     const kept = await viewOf(app);
-    await page.route(NORTHLIGHT_URL, (route) => route.fulfill({ status: 200, body: CORRUPT }));
+    await page.route(NORTHLIGHT_FILE_URL, (route) => route.fulfill({ status: 200, body: CORRUPT }));
     await page.goBack();
     await expect(app.errorBand).toContainText("Failed to load database");
     await expectLoadProblem(page, app, "Failed to load database", kept);
@@ -477,7 +490,7 @@ test("Run while a dataset switch is loading runs nothing, saves nothing, and say
 test("Run works again after a switch that failed", async ({ page, app }) => {
     await withSampleDataset(page);
     await page.route(SAMPLE_URL, (route) => route.fulfill({ status: 500, body: "boom" }));
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.pickDatabase("Sample Fruit");
     await expect(app.errorBand).toContainText("could not be loaded");
     await expect(problemBand(page)).toHaveCount(1);
@@ -487,7 +500,7 @@ test("Run works again after a switch that failed", async ({ page, app }) => {
 });
 
 test("Run works after an upload and after a failed upload", async ({ page, app }) => {
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.upload(JUNK, { ready: false });
     await expect(app.errorBand).toContainText("Failed to load database");
     await expect(problemBand(page)).toHaveCount(1);
@@ -500,9 +513,9 @@ test("Run works after an upload and after a failed upload", async ({ page, app }
 // ---- stale loads through the popstate paths ------------------------------------------------
 
 test.describe("stale loads", () => {
-    // history: ./ (Northlight), ?db=sample, ?db=northlight
+    // history: ?db=northlight, ?db=sample, ?db=northlight
     async function threeEntries(app, page) {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.pickDatabase("Sample Fruit");
         await expect(app.databaseLabel).toHaveText("Sample Fruit");
         await app.pickDatabase("Northlight Retail");
@@ -519,7 +532,7 @@ test.describe("stale loads", () => {
         const requested = page.waitForRequest(SAMPLE_URL);
         await page.goBack(); // ?db=sample, held
         await requested;
-        await page.goBack(); // ./, the default: answers at once
+        await page.goBack(); // ?db=northlight, the first Northlight entry: answers at once
         await page.waitForFunction((old) => window.app.database !== old, before);
         await app.waitReady();
         await app.query("SELECT 'newest' AS m;");
@@ -588,11 +601,11 @@ test.describe("stale loads", () => {
         // The first start (it reads the address when the manifest arrives, so it sees the link
         // too) gave way: the dataset was fetched once, not once per start.
         expect(net.paths.filter((p) => p.endsWith("datasets/sample.db"))).toHaveLength(1);
-        expect(net.paths.filter((p) => p.endsWith("northlight_retail.db"))).toEqual([]);
+        expect(net.paths.filter((p) => p.endsWith(path.posix.basename(DEFAULT_DATASET.file)))).toEqual([]);
         await expect(app.picker).toBeEnabled();
         await app.picker.click();
         await expect(app.databaseMenu).toBeVisible();
-        await expect(courseNames(page)).toHaveText(["Northlight Retail", "Sample Fruit"]);
+        await expect(courseNames(page)).toHaveText([...realManifest().datasets.map((entry) => entry.name), "Sample Fruit"]);
         await app.expectPicked("sample");
     });
 
@@ -718,6 +731,7 @@ test("'Open a file…' is a menu item of the database switcher, right after the 
     );
     expect(ids.slice(-2)).toEqual(["open-file", "open-url"]);
     expect(ids.slice(0, -2).length).toBeGreaterThan(0);
+    expect(ids.slice(0, -2)).toEqual(realManifest().datasets.map((entry) => entry.id));
     await page.keyboard.press("Escape");
     await expect(app.databaseMenu).toBeHidden();
     await expect(app.databaseButton).toBeFocused();
@@ -778,7 +792,7 @@ test("results and errors land in a live region", async ({ page, app }) => {
 
 test("a result wider than the screen says that it scrolls sideways; a narrow one does not", async ({ page, app }) => {
     await page.setViewportSize({ width: 390, height: 800 });
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     const note = page.locator("#result-scroll-note");
     await app.query("SELECT * FROM v_sales LIMIT 5;");
     const info = await app.result.evaluate((el) => ({
@@ -802,7 +816,7 @@ test("a result wider than the screen says that it scrolls sideways; a narrow one
 
 test("the note follows the width of the window", async ({ page, app }) => {
     await page.setViewportSize({ width: 1500, height: 900 });
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.query("SELECT order_id, order_date, store_name, region, customer_id, customer_name FROM v_sales LIMIT 5;");
     await expect(page.locator("#result-scroll-note")).toBeHidden(); // fits at this width
     await page.setViewportSize({ width: 700, height: 900 });
@@ -816,7 +830,7 @@ test("the stores table is cut off at phone and tablet width, and says so", async
     // runs that query itself
     for (const width of [390, 768]) {
         await page.setViewportSize({ width, height: 900 });
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.query('select * from "stores" limit 10');
         expect(await app.result.evaluate((el) => el.scrollWidth > el.clientWidth + 1)).toBe(true);
         await expect(page.locator("#result-scroll-note")).toBeVisible();
@@ -826,7 +840,8 @@ test("the stores table is cut off at phone and tablet width, and says so", async
 for (const width of [641, 700, 768, 900]) {
     test(`at ${width}px the top bar's actions line up with the title, wrapped or not`, async ({ page, app }) => {
         await page.setViewportSize({ width, height: 800 });
-        await app.open();
+        // the longest shipped name is the harder case for the bar
+        await app.open(NORTHLIGHT_URL);
         const title = await page.locator("header.topbar h1").boundingBox();
         const switcher = await app.databaseButton.boundingBox();
         // (under 700 px the actions are folded into the More menu, from Phase 6: its button
@@ -855,7 +870,8 @@ for (const width of [641, 700, 768, 900]) {
 
 test("at 768px the top bar is one row: the actions sit beside the switcher, at the right edge", async ({ page, app }) => {
     await page.setViewportSize({ width: 768, height: 800 });
-    await app.open();
+    // the longest shipped name is the harder case for the bar
+    await app.open(NORTHLIGHT_URL);
     const title = await page.locator("header.topbar h1").boundingBox();
     const switcher = await app.databaseButton.boundingBox();
     const actions = await page.locator(".topbar-actions").boundingBox();
@@ -872,7 +888,7 @@ test("a table name inserted after a click on blank page space goes at the caret,
     page,
     app,
 }) => {
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.editor.click();
     await page.keyboard.press("Control+a");
     await page.keyboard.press("Delete");

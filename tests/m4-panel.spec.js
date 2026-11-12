@@ -15,6 +15,8 @@ const {
     SAMPLE_FILE,
     editorValue,
     editorSelect,
+    NORTHLIGHT_URL,
+    DEFAULT_DATASET,
 } = require("./helpers");
 
 // F2 and F7 on screen (M4 part 2): the exercise set picker (a menu button in the sidebar's
@@ -567,7 +569,7 @@ test("every Run in exercise mode saves the full editor text as the draft, even w
 });
 
 test("in exercise mode the editor never shows the dataset's free-query SQL and nothing runs on load", async ({ page, app }) => {
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.query("SELECT 'free' AS mode;"); // saved for the dataset
     await page.goto("./?set=retail-basics");
     await expect(app.exercisePanel).toBeVisible();
@@ -584,7 +586,7 @@ test("in exercise mode the editor never shows the dataset's free-query SQL and n
     // the query toolbar is enabled from the start
     await expect(page.locator("#execute")).toBeEnabled();
     // picking a set over the open dataset also shows the exercise's text, not the free query
-    await page.goto("./");
+    await page.goto(NORTHLIGHT_URL);
     await app.waitReady();
     await app.pickSet(SET.title);
     await expect(app.exercisePanel).toBeVisible();
@@ -769,7 +771,7 @@ test("listing the sets does not delay opening the database", async ({ page, app 
         await held;
         await route.fulfill({ status: 200, contentType: "text/html", body: listingHtml(["retail-basics.json"]) });
     });
-    await app.open(); // would time out if it waited for the listing
+    await app.open(NORTHLIGHT_URL); // would time out if it waited for the listing
     // the database is open (nothing ran: "no result yet" with the samples), the picker still waits
     await expect(app.pane).toHaveAttribute("data-state", "empty");
     await expect(app.samples.first()).toBeVisible();
@@ -790,7 +792,7 @@ test("picking a set over its open dataset keeps the database; picking one needin
         exercises: [{ id: "f1", title: "All fruit", prompt: "List the fruit.", model_query: "SELECT * FROM fruit;" }],
     });
     await routeListing(page, listingHtml(["retail-basics.json", "fruit.json"]));
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.openSetMenu();
     await expect(setItems(app)).toHaveCount(3);
     await page.keyboard.press("Escape");
@@ -838,7 +840,7 @@ test("a pick that cannot be carried out leaves the picker where it was", async (
     });
     await routeListing(page, listingHtml(["fruit.json"]));
     await page.route(/\/datasets\/sample\.db(\?.*)?$/, (route) => route.fulfill({ status: 404, body: "no" }));
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.pickSet("Fruit practice");
     await expect(app.errorBand.locator(".results-band-text")).toContainText("could not be loaded");
     await expect(app.exercisePanel).toBeHidden();
@@ -912,10 +914,12 @@ test("the logo opens the default dataset with no panel", async ({ page, app }) =
     await expect(page).toHaveURL(/\/(repo\/)?$/);
     await app.waitReady();
     await expectClosed(page, app);
+    await expect(app.databaseLabel).toHaveText(DEFAULT_DATASET.name);
+    expect(await page.evaluate(() => window.app.database.name)).toBe(path.posix.basename(DEFAULT_DATASET.file));
 });
 
 test("back and forward restore the right state", async ({ page, app }) => {
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.pickSet(SET.title);
     await expect(app.exercisePanel).toBeVisible();
     await app.exerciseButton(4).click(); // replaceState: the same history entry
@@ -940,7 +944,7 @@ test("a failed upload leaves the panel on the database it belongs to", async ({ 
 // ---- Ctrl/Cmd+Shift+Enter ---------------------------------------------------------------------
 
 test("Ctrl+Shift+Enter with no set open behaves as it does today: the editor runs the query", async ({ page, app }) => {
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.editor.fill("SELECT 42 AS answer;");
     await app.editor.press("Control+Shift+Enter");
     await app.settle();

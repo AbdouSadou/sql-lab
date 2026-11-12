@@ -6,6 +6,9 @@
 // baseURL (the tests have one; tools/ui-matrix.mjs sets one). When the interface changes, the
 // recipes change with it, like any other test.
 
+const fs = require("node:fs");
+const path = require("node:path");
+
 // The mockup's main screen (docs/design/mockup/main-light.html); its result is real.
 const RESULT_SQL = `-- Revenue share by category
 WITH category_revenue AS (
@@ -44,9 +47,24 @@ const DONE = /\d+ rows?, took \d+ ms/;
 // (before Phase 3, and whenever CodeMirror does not load); tests/helpers.js has the same
 const EDITOR_INPUT = '#editor .cm-content, #editor[contenteditable="true"]';
 
+// The recipes are written against Northlight Retail (its tables, its samples, its name while it
+// loads), so they open it by id, whichever dataset the manifest makes the default (Home Store since
+// 2026-11-12); tests/helpers.js has the same
+const NORTHLIGHT_URL = "./?db=northlight";
+
+// northlightDefault: the manifest the site ships, with Northlight made the default, for a recipe
+// whose address names no dataset and so opens the default (a damaged link)
+function northlightDefault() {
+    const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "datasets", "manifest.json"), "utf8"));
+    for (const entry of manifest.datasets) {
+        entry.default = entry.id === "northlight";
+    }
+    return manifest;
+}
+
 // The interface before the redesign; Phase 1 changes no layout, so it uses these too.
 const legacy = {
-    async open(page, url = "./") {
+    async open(page, url = NORTHLIGHT_URL) {
         await page.goto(url);
         await page.locator("#status").filter({ hasText: READY }).waitFor();
     },
@@ -146,7 +164,7 @@ INSERT INTO notes (body) VALUES ('Restock the Leeds store'), ('Call the York sup
 // More menu, and the query and its result are two views (Editor, Result), a run showing the result.
 // The recipes reach each control as a student would at that width.
 const shell = {
-    async open(page, url = "./") {
+    async open(page, url = NORTHLIGHT_URL) {
         await page.goto(url);
         // (attached: on a phone the results pane is in the Result view, which a load does not show)
         await page.locator(READY_PANE).waitFor({ state: "attached" });
@@ -240,7 +258,7 @@ const shell = {
 
 shell.states = {
     // From Phase 4 a first visit runs nothing: "no result yet" with Northlight's three samples (on
-    // a phone, in the Result view)
+    // a phone, in the Result view; Northlight opened by id, as every recipe opens it)
     "first-visit": async (page) => {
         await shell.open(page);
         await shell.view(page, "result");
@@ -257,7 +275,7 @@ shell.states = {
     loading: Object.assign(
         async (page) => {
             await page.route(/\/datasets\/northlight_retail\.db(\?.*)?$/, () => {});
-            await page.goto("./");
+            await page.goto(NORTHLIGHT_URL);
             await page.locator('#results-pane[data-state="loading"] .results-loading-title').filter({ hasText: "Northlight Retail" }).waitFor({ state: "attached" });
             await shell.view(page, "result");
         },
@@ -283,7 +301,7 @@ shell.states = {
                 return new Response(body, { headers: { "content-length": String(bytes.length) } });
             };
         });
-        await page.goto("./");
+        await page.goto(NORTHLIGHT_URL);
         await page.locator(".results-loading-size").filter({ hasText: / of / }).waitFor({ state: "attached" });
         await shell.view(page, "result");
     },
@@ -326,8 +344,12 @@ shell.states = {
         await shell.open(page);
         await shell.run(page, ERROR_SQL, "error");
     },
-    // From Phase 4: a damaged link: the error band over "no result yet" (the default database opened)
+    // From Phase 4: a damaged link: the error band over "no result yet" (the default database opened;
+    // a damaged link names no dataset, so Northlight is made the default for it, as for the others)
     "load-problem": async (page) => {
+        await page.route(/\/datasets\/manifest\.json(\?.*)?$/, (route) =>
+            route.fulfill({ contentType: "application/json", body: JSON.stringify(northlightDefault()) })
+        );
         await shell.open(page, "./#s=N4Ig_damaged");
         await shell.view(page, "result");
         await page.locator("#result .results-band").waitFor();
@@ -335,7 +357,7 @@ shell.states = {
     // From Phase 4: no list of databases, so an empty database: the band, and what to do next
     "empty-database": async (page) => {
         await page.route(/\/datasets\/manifest\.json(\?.*)?$/, (route) => route.abort());
-        await shell.open(page);
+        await shell.open(page, "./");
         await shell.view(page, "result");
         await page.locator("#result .results-empty-links").waitFor();
     },

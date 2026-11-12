@@ -1,6 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { test, expect } = require("./helpers");
+const { test, expect, NORTHLIGHT_URL } = require("./helpers");
 
 const ROOT = path.resolve(__dirname, "..");
 
@@ -45,7 +45,7 @@ test("no sharing: the top bar, editor toolbar and status bar carry no settings, 
     app,
 }) => {
     await page.setViewportSize({ width: 1200, height: 800 });
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await expect(page.locator("#save")).toHaveCount(0);
     await expect(page.locator("a[href='settings.html']")).toHaveCount(0);
     // the top bar: the brand, the database switcher, Copy link, Export, Theme and Help; the editor

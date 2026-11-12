@@ -1,7 +1,7 @@
 // M4 audit fixes: the SQL guard (heap limits, ATTACH, VACUUM INTO), unusable browser storage,
 // the results pane after cancelling a set load, accessibility of the verdict, hints and exercise
 // changes, the next step after a pass, the phone gutter, and the shipped exercise hints.
-const { test, expect, realSet, routeSet, routeListing, listingHtml, withSampleDataset, modelQuery, SAMPLE_FILE } = require("./helpers");
+const { test, expect, realSet, routeSet, routeListing, listingHtml, withSampleDataset, modelQuery, SAMPLE_FILE, NORTHLIGHT_URL } = require("./helpers");
 
 const SET = realSet();
 const PROGRESS_KEY = "sqllab.progress.retail-basics";
@@ -46,7 +46,7 @@ test.describe("the SQL guard", () => {
     });
 
     test("a heap limit inside a Check is refused as an SQL error, not as a broken exercise", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const out = await app.check(null, "PRAGMA hard_heap_limit=300000; SELECT 1", { set: { ...miniSet, exercises: [ex("h1")] }, exercise: ex("h1") });
         expect(out).toMatchObject({ status: "fail", kind: "sql" });
         expect(out.message).toContain("not authorized");
@@ -55,7 +55,7 @@ test.describe("the SQL guard", () => {
     });
 
     test("ATTACH of a file is refused, so no file can carry state from one check to the next", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const first = await app.check(null, "ATTACH DATABASE 'zz.db' AS z; CREATE TABLE z.t(x); INSERT INTO z.t VALUES(1); SELECT 1", {
             set: miniSet,
             exercise: ex("a1"),
@@ -71,7 +71,7 @@ test.describe("the SQL guard", () => {
     });
 
     test("ATTACH ':memory:' and ATTACH '' still work, and vanish with the connection", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const withMem = await app.check(null, "ATTACH ':memory:' AS m; CREATE TABLE m.t(x); INSERT INTO m.t VALUES(1); SELECT COUNT(*) FROM m.t", {
             set: miniSet,
             exercise: ex("m1"),
@@ -85,7 +85,7 @@ test.describe("the SQL guard", () => {
     });
 
     test("VACUUM INTO a file is refused every time, so no file is left in memory", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         for (const sql of ["VACUUM INTO 'v.db'", "  -- save it\n VACUUM main INTO 'v.db';", "/* x */ vacuum into 'v.db'"]) {
             for (let again = 0; again < 2; again++) {
                 const out = await app.check(null, sql, { set: miniSet, exercise: ex(`v${again}`) });
@@ -125,7 +125,7 @@ test.describe("the SQL guard", () => {
     });
 
     test("a Check that cannot open a connection says to reload; a failed model connection is not blamed on the exercise", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const out = await page.evaluate(async () => {
             const { createChecker } = await import("./bundle/app.js").then((bundle) => bundle.checker);
             const manager = (await import("./bundle/app.js").then((bundle) => bundle.manager)).default;
@@ -182,7 +182,7 @@ test.describe("storage that throws", () => {
     for (const [name, breaker] of Object.entries(BREAKERS)) {
         test(`Run works when ${name}`, async ({ page, app, pageErrors }) => {
             await page.addInitScript(breaker);
-            await app.open();
+            await app.open(NORTHLIGHT_URL);
             // the load finished: the pane is not "loading" and no loading text is on screen
             await expect(app.pane).not.toHaveAttribute("data-state", "loading");
             await expect(app.result.locator(".results-loading")).toHaveCount(0);
@@ -233,7 +233,7 @@ test("None while a set's dataset is loading leaves the idle results pane, not 'L
         await new Promise((resolve) => setTimeout(resolve, 1500));
         await route.fulfill({ path: SAMPLE_FILE, contentType: "application/octet-stream" });
     });
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.pickSet("Fruit practice");
     await expect(app.pane).toHaveAttribute("data-state", "loading");
     await expect(app.result.locator(".results-loading-title")).toContainText("Loading");

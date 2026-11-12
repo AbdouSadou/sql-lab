@@ -10,7 +10,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
-const { test, expect } = require("./helpers");
+const { test, expect, DEFAULT_DATASET } = require("./helpers");
 
 const ROOT = path.resolve(__dirname, "..");
 
@@ -40,7 +40,7 @@ test("a test that imports bundle/app.js reaches the modules the page runs, with 
         // the open dataset's pristine bytes are kept by the page's own datasets module
         return { names: Object.keys(bundle).sort(), pristine: bundle.datasets.getPristineId() };
     });
-    expect(seen.pristine).toBe("northlight");
+    expect(seen.pristine).toBe(DEFAULT_DATASET.id);
     expect(seen.names).toEqual(["checker", "datasets", "dbPath", "exercises", "manager", "progress", "results", "router", "runLog", "runner", "share", "storage"]);
 });
 

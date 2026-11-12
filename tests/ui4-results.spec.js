@@ -16,6 +16,8 @@ const {
     routeManifest,
     withSampleDataset,
     SAMPLE_ENTRY,
+    NORTHLIGHT_URL,
+    DEFAULT_DATASET,
 } = require("./helpers");
 const { RECIPES } = require("./ui-states.js");
 
@@ -161,7 +163,7 @@ const runs = (page) => page.evaluate(() => window.__runs);
 
 test.describe("the plan's check", () => {
     test("the category-revenue CTE query of the acceptance suite renders its 5 rows in the ruled table", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const result = await app.query(SPEC_QUERY);
         expect(result.rows).toHaveLength(5);
         expect(result.columns).toEqual(["category", "ROUND(100.0 * revenue / SUM(revenue) OVER (), 1)"]);
@@ -285,7 +287,7 @@ test.describe("the plan's check", () => {
         const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "datasets", "manifest.json"), "utf8"));
         const samples = manifest.datasets.find((d) => d.id === "northlight").samples;
         expect(samples.map((s) => s.label)).toEqual(["Every product", "Orders per store", "Revenue share by category"]);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const counts = [];
         for (const sample of samples) {
             counts.push((await app.query(sample.sql)).rows.length);
@@ -399,7 +401,7 @@ test.describe("the table", () => {
 
     test("the popover stays with its cell when the result scrolls", async ({ page, app }) => {
         await page.setViewportSize({ width: 1366, height: 768 });
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         // a long value in the first row of many, so the result box can scroll down
         await app.query(`SELECT printf('%.80c', 'a') AS v UNION ALL SELECT name FROM (SELECT product_name AS name FROM products, stores);`);
         const cell = page.locator("#result .cell-more").first();
@@ -434,7 +436,7 @@ test.describe("the table", () => {
     });
 
     test("500 rows of 906: the summary says so with separators, the table holds 500", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await recordAnnouncements(page);
         await app.run("SELECT * FROM order_items;");
         await expect(app.status).toHaveText(/^Showing 500 of 906 rows in \d+ ms$/);
@@ -445,7 +447,7 @@ test.describe("the table", () => {
     });
 
     test("a result with no rows shows its header and the closing rule, with no Download CSV", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("SELECT product_name, unit_price FROM products WHERE unit_price > 1000;");
         await expect(app.pane).toHaveAttribute("data-state", "result");
         await expect(app.status).toHaveText(/^0 rows in \d+ ms$/);
@@ -458,7 +460,7 @@ test.describe("the table", () => {
 
     test("the header stays in view while the rows scroll under it", async ({ page, app }) => {
         await page.setViewportSize({ width: 1366, height: 768 });
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("SELECT * FROM order_items;");
         const result = page.locator("#result");
         const before = await page.locator("#result thead th").first().boundingBox();
@@ -472,7 +474,7 @@ test.describe("the table", () => {
 
     test("on a phone a wide result scrolls inside its box and never widens the page; cells do not wrap", async ({ page, app }) => {
         await page.setViewportSize({ width: 360, height: 760 });
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run(SPEC_QUERY.replace("SELECT category,", "SELECT category, category AS again, revenue,"));
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         expect(await page.locator("#result").evaluate((r) => r.scrollWidth > r.clientWidth)).toBe(true);
@@ -486,7 +488,7 @@ test.describe("the table", () => {
 
 test.describe("the summary line", () => {
     test("rows and time on the left, Download CSV on the right; each outcome said once, again for the same run", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await recordAnnouncements(page);
         await app.run("SELECT * FROM stores;");
         await expect(app.status).toHaveText(/^5 rows in \d+ ms$/);
@@ -503,7 +505,7 @@ test.describe("the summary line", () => {
     });
 
     test("the live region is emptied before the same words are said again (every value is recorded, the empty ones too)", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await recordAnnouncements(page);
         await app.run("SELECT * FROM stores;");
         await expect.poll(() => saidAll(page)).toEqual(["5 rows returned"]);
@@ -548,7 +550,7 @@ test.describe("a run with no result set", () => {
     });
 
     test("it takes the table of the run before off the screen, and Download CSV with it", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.query("SELECT * FROM stores;");
         await expect(page.locator("#result table")).toHaveCount(1);
         await app.run("CREATE TABLE t(x);");
@@ -600,7 +602,7 @@ test.describe("a run with no result set", () => {
 
 test.describe("the error band", () => {
     test("the mockup's error: heading, SQLite's message as it is, In statement 1, the statement quoted", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await recordAnnouncements(page);
         const sql = "SELECT product_name, pric\nFROM products\nWHERE category = 'Electronics';";
         await app.run(sql);
@@ -625,7 +627,7 @@ test.describe("the error band", () => {
     });
 
     test("several statements: which one, of how many; comments in front of it are left out of the quote", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("SELECT 1;\n-- the second\nSELECT nope FROM stores;\nSELECT 3;");
         await expect(app.errorBand.locator(".results-band-where")).toHaveText("In statement 2 of 3");
         await expect(app.errorBand.locator(".results-band-quote")).toHaveText("SELECT nope FROM stores;");
@@ -669,7 +671,7 @@ test.describe("the error band", () => {
 
 test.describe("Running…", () => {
     test("armed over the summary line before the run, a frame is drawn, then the run; gone after it", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("SELECT * FROM stores;");
         await page.evaluate(() => {
             window.__trace = [];
@@ -729,7 +731,7 @@ test.describe("Running…", () => {
     // keyboard focus: a disabled button loses it. Sampled on every frame, from before the press.
     for (const way of ["click", "Enter", "Space"]) {
         test(`Run is never disabled or grey during a quick run and keeps the focus (${way})`, async ({ page, app }) => {
-            await app.open();
+            await app.open(NORTHLIGHT_URL);
             await app.editor.fill("SELECT * FROM stores;");
             const sunken = await tokenColour(page, "--sunken");
             expect(await tokenColour(page, "--accent")).not.toBe(sunken);
@@ -787,7 +789,7 @@ test.describe("Running…", () => {
 
 test.describe("no result yet", () => {
     test("a first visit runs nothing: the empty editor, the heading, Northlight's three samples", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await expect(app.pane).toHaveAttribute("data-state", "empty");
         expect(await editorValue(page)).toBe("");
         await expect(page.locator("#editor .cm-placeholder, #editor[data-placeholder]").first()).toBeAttached();
@@ -806,13 +808,26 @@ test.describe("no result yet", () => {
         expect(await app.readLog("northlight")).toBeNull();
     });
 
-    test("choosing a sample fills the editor, runs nothing, and one undo takes it back", async ({ page, app }) => {
+    test("a first visit to the default dataset runs nothing: the empty editor, the heading, its samples", async ({ page, app }) => {
         await app.open();
+        await expect(app.pane).toHaveAttribute("data-state", "empty");
+        expect(await editorValue(page)).toBe("");
+        await expect(app.emptyState.locator("h2")).toHaveText("Run a query to see its result here.");
+        await expect(app.emptyState.locator(".results-empty-text")).toHaveText(["Or start from a sample. Choosing one fills the editor; nothing runs until you press Run."]);
+        await expect(app.samples.locator(".results-sample-label")).toHaveText(DEFAULT_DATASET.samples.slice(0, 3).map((sample) => sample.label));
+        await expect(page.locator("#status-run")).toHaveText("No query run yet");
+        await expect(page.locator("#result table")).toHaveCount(0);
+        expect(await app.storedQueries()).toEqual([]);
+        expect(await app.readLog(DEFAULT_DATASET.id)).toBeNull();
+    });
+
+    test("choosing a sample fills the editor, runs nothing, and one undo takes it back", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_URL);
         await countRuns(page);
         await app.editor.fill("SELECT 'mine';");
         await app.samples.nth(1).click();
         const manifest = realManifest();
-        const sql = manifest.datasets[0].samples[1].sql;
+        const sql = manifest.datasets.find((entry) => entry.id === "northlight").samples[1].sql;
         expect(await editorValue(page)).toBe(sql);
         await expect(app.editor).toBeFocused();
         expect(await page.evaluate(() => window.app.ui.editor.view.state.selection.main.head)).toBe(sql.length);
@@ -828,7 +843,7 @@ test.describe("no result yet", () => {
     });
 
     test("the samples are buttons the keyboard reaches and presses", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.samples.first().focus();
         await page.keyboard.press("Enter");
         expect(await editorValue(page)).toBe("SELECT * FROM products;");
@@ -838,7 +853,7 @@ test.describe("no result yet", () => {
     });
 
     test("after a reload the last query is back, not run, and the line says so", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("SELECT * FROM stores;");
         await page.reload();
         await app.waitReady();
@@ -846,13 +861,17 @@ test.describe("no result yet", () => {
         await expect(app.emptyState.locator(".results-empty-text").first()).toHaveText("Your last query is back in the editor. Press Run to execute it.");
         expect(await editorValue(page)).toBe("SELECT * FROM stores;");
         await expect(app.samples).toHaveCount(3);
+        await expect(app.samples.locator(".results-sample-label")).toHaveText(["Every product", "Orders per store", "Revenue share by category"]);
     });
 
     test("a notice from the address is shown under the heading", async ({ page, app }) => {
         await page.goto("./?db=nowhere");
         await app.waitReady();
         await expect(app.emptyState.locator(".results-empty-notice")).toHaveText('There is no database "nowhere" on this site, so the default database is open.');
-        await expect(app.samples).toHaveCount(3);
+        // the pane shows at most three samples
+        await expect(app.samples).toHaveCount(Math.min(3, DEFAULT_DATASET.samples.length));
+        await expect(app.databaseLabel).toHaveText(DEFAULT_DATASET.name);
+        await expect(app.samples.locator(".results-sample-label")).toHaveText(DEFAULT_DATASET.samples.slice(0, 3).map((sample) => sample.label));
     });
 
     test("a shared query is in the editor, not run, and the line says so", async ({ page, app }) => {
@@ -876,7 +895,10 @@ test.describe("no result yet", () => {
         // the band has no role of its own: the live region says it
         await expect(app.announcer).toHaveText(damaged);
         await expect(app.emptyState).toBeVisible();
-        await expect(app.samples).toHaveCount(3);
+        // the pane shows at most three samples
+        await expect(app.samples).toHaveCount(Math.min(3, DEFAULT_DATASET.samples.length));
+        await expect(app.databaseLabel).toHaveText(DEFAULT_DATASET.name);
+        await expect(app.samples.locator(".results-sample-label")).toHaveText(DEFAULT_DATASET.samples.slice(0, 3).map((sample) => sample.label));
     });
 
     test("an empty database: no samples, what to do, and the two links", async ({ page, app }) => {
@@ -914,6 +936,7 @@ test.describe("no result yet", () => {
         await expect(app.emptyState.locator(".results-empty-text")).toHaveText(["Write your answer in the editor, then press Check answer."]);
         await app.pickSet("None");
         await expect(app.samples).toHaveCount(3);
+        await expect(app.samples.locator(".results-sample-label")).toHaveText(["Every product", "Orders per store", "Revenue share by category"]);
     });
 
     test("an empty Run shows no result yet again and runs nothing", async ({ page, app }) => {
@@ -927,7 +950,7 @@ test.describe("no result yet", () => {
 
     test("manifest samples: at most three, and one that is not two texts is left out with a console warning", async ({ page, app }) => {
         const manifest = realManifest();
-        manifest.datasets[0].samples = [
+        manifest.datasets.find((entry) => entry.id === "northlight").samples = [
             { label: "One", sql: "SELECT 1;" },
             { label: "", sql: "SELECT 2;" },
             { label: "Three", sql: 3 },
@@ -938,16 +961,16 @@ test.describe("no result yet", () => {
         await routeManifest(page, manifest);
         const warnings = [];
         page.on("console", (m) => m.type() === "warning" && warnings.push(m.text()));
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await expect(app.samples.locator(".results-sample-label")).toHaveText(["One", "Four", "Five"]);
         expect(warnings.filter((w) => w.includes("samples") || w.includes("sample"))).toHaveLength(2);
     });
 
     test("manifest samples that are not a list: the first table's rows instead, and the manifest still opens", async ({ page, app }) => {
         const manifest = realManifest();
-        manifest.datasets[0].samples = "SELECT 1;";
+        manifest.datasets.find((entry) => entry.id === "northlight").samples = "SELECT 1;";
         await routeManifest(page, manifest);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await expect(app.samples.locator(".results-sample-label")).toHaveText([/^First 10 rows of /]);
         await expect(page.locator("#database-button-name")).toHaveText("Northlight Retail");
     });
@@ -963,7 +986,7 @@ test.describe("loading", () => {
             await held;
             await route.continue();
         });
-        await page.goto("./");
+        await page.goto(NORTHLIGHT_URL);
         const loading = page.locator("#result .results-loading");
         await expect(loading.locator("h2")).toHaveText("Loading Northlight Retail");
         await expect(loading.locator("progress.results-progress")).toHaveAttribute("aria-labelledby", "results-loading-title");
@@ -1038,7 +1061,7 @@ test.describe("loading", () => {
 
     test("a pick that fails: the view before the pick comes back, the band above it in .results-problem, and it is said", async ({ page, app }) => {
         await withSampleDataset(page);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await recordAnnouncements(page);
         await page.route(/\/datasets\/sample\.db(\?.*)?$/, (route) => route.fulfill({ status: 404, body: "no" }));
         await app.pickDatabaseById("sample");
@@ -1058,6 +1081,7 @@ test.describe("loading", () => {
         await expect(app.pane).toHaveAttribute("data-state", "empty");
         await expect(app.emptyState).toBeVisible();
         await expect(app.samples).toHaveCount(3);
+        await expect(app.samples.locator(".results-sample-label")).toHaveText(["Every product", "Orders per store", "Revenue share by category"]);
         await expect(page.locator("#result .results-loading")).toHaveCount(0);
         await expect(app.databaseLabel).toHaveText("Northlight Retail");
         // said by the live region, once
@@ -1067,7 +1091,7 @@ test.describe("loading", () => {
 
     test("a pick that fails with a result on screen: the result, its summary line and Download CSV come back, and the band goes at the next run", async ({ page, app }) => {
         await withSampleDataset(page);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const before = await app.query("SELECT * FROM stores;");
         await expect(app.status).toHaveText(/^5 rows in \d+ ms$/);
         await page.route(/\/datasets\/sample\.db(\?.*)?$/, (route) => route.fulfill({ status: 404, body: "no" }));
@@ -1090,7 +1114,7 @@ test.describe("loading", () => {
 
     test("a first load held half way: the size line, the bar's value and its wiring (OpenCurrentUrl)", async ({ page, app }) => {
         await page.addInitScript(stallDatasetFetch, { pattern: NORTHLIGHT_FILE, mode: "length" });
-        await page.goto("./");
+        await page.goto(NORTHLIGHT_URL);
         await expect(app.pane).toHaveAttribute("data-state", "loading");
         const { total, half } = await page.evaluate(() => window.__stalled);
         expect(total).toBe(fs.statSync(path.join(ROOT, "datasets", "northlight_retail.db")).size);
@@ -1112,7 +1136,7 @@ test.describe("loading", () => {
     ]) {
         test(`a bar with no value waits, and the line shows what has come: ${why}`, async ({ page, app }) => {
             await page.addInitScript(stallDatasetFetch, { pattern: NORTHLIGHT_FILE, mode });
-            await page.goto("./");
+            await page.goto(NORTHLIGHT_URL);
             await expect.poll(() => page.evaluate(() => window.__stalled?.half)).toBeGreaterThan(0);
             const { half } = await page.evaluate(() => window.__stalled);
             await expect(page.locator(".results-loading-size")).toHaveText(kb(half));
@@ -1185,7 +1209,7 @@ test.describe("loading", () => {
 
     test("a Run and a switch in the same frame: the run is dropped, nothing lands, and the pane stays loading", async ({ page, app }) => {
         await withSampleDataset(page);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const sql = "CREATE TABLE marker(x); INSERT INTO marker VALUES (1);";
         await app.editor.fill(sql);
         let release;
@@ -1326,7 +1350,7 @@ test.describe("toasts", () => {
     });
 
     test("exports say what they saved", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.query("SELECT * FROM stores;");
         await app.downloadCsv();
         await expect(app.toast).toHaveText("Exported northlight_retail-result.csv");
@@ -1370,7 +1394,7 @@ test.describe("toasts", () => {
 
     test("a problem toast stays twice as long: still there at 6 s, gone by 8.6 s", async ({ page, app }) => {
         test.slow();
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.query("SELECT * FROM stores;");
         await page.evaluate(() => {
             URL.createObjectURL = () => {
@@ -1390,7 +1414,7 @@ test.describe("toasts", () => {
     });
 
     test("two toasts within one task: one card, the second's text, and the first is never shown", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.query("SELECT * FROM stores;");
         await app.stubClipboard();
         await app.recordToasts();
@@ -1486,7 +1510,7 @@ test.describe("toasts", () => {
     });
 
     test("a CSV that cannot be saved: a problem toast, and no success toast", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.query("SELECT * FROM stores;");
         await page.evaluate(() => {
             URL.createObjectURL = () => {
@@ -1537,7 +1561,7 @@ test.describe("toasts", () => {
     });
 
     test("a query put back from History: a toast, and the result on screen stays", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("SELECT * FROM stores;");
         await app.run("SELECT 1 AS one;");
         await app.openHistory();
@@ -1635,7 +1659,7 @@ test.describe("Open from URL", () => {
 
 test.describe("the evidence dialog", () => {
     test("explains itself in one sentence and names the file it will save", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("SELECT 1;");
         await app.openEvidence();
         await expect(app.evidenceDialog.locator("h2")).toHaveText("Export evidence");

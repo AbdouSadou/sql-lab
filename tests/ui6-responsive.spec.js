@@ -14,7 +14,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 const { pathToFileURL } = require("node:url");
-const { test, expect, App, EDITOR_INPUT, editorValue, failStorage, modelQuery, realSet, tabTo } = require("./helpers");
+const { test, expect, App, NORTHLIGHT_URL, EDITOR_INPUT, editorValue, failStorage, modelQuery, realSet, tabTo } = require("./helpers");
 const { EXERCISE, CORRECT_SQL, WRONG_SQL } = require("./ui-states.js");
 
 const ROOT = path.join(__dirname, "..");
@@ -154,7 +154,7 @@ test.describe("the drawer, from 700 to 1099 px", () => {
 
     test("a name put into the query from the Schema tab closes it: the focus is in the editor", async ({ page, app }) => {
         await page.setViewportSize(TABLET);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.openDrawer();
         await app.schemaInsert("products").click();
         await expect(page.locator("#sidebar")).toBeHidden();
@@ -455,7 +455,7 @@ test.describe("the phone, under 700 px: what the review found", () => {
 
     test("a name inserted from the drawer while the Result view is shown goes into the shown editor, and the drawer closes", async ({ page, app }) => {
         await page.setViewportSize(PHONE);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("SELECT 1 AS one;");
         await expect(page.locator("#view-result")).toHaveAttribute("aria-current", "true");
         await app.openDrawer();
@@ -534,7 +534,7 @@ test.describe("the phone, under 700 px: what the review found", () => {
     test("from 700 to 899 px the database's name is whole in the switcher: the Sidebar button and the brand are their icons", async ({ page, app }) => {
         for (const width of [700, 768, 820, 899]) {
             await page.setViewportSize({ width, height: 768 });
-            await app.open();
+            await app.open(NORTHLIGHT_URL);
             await expect(app.databaseLabel).toHaveText("Northlight Retail");
             expect(await app.databaseLabel.evaluate((el) => el.scrollWidth <= el.clientWidth), `${width}`).toBe(true);
             await expect(app.sidebarButton, `${width}`).toHaveAccessibleName("Sidebar");
@@ -618,7 +618,7 @@ test.describe("a phone held sideways", () => {
     test.use({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true });
 
     test("it takes the phone's layout, and its result is in view", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await expect(page.locator("#view-switch")).toBeVisible();
         await expect(page.locator("#more-button")).toBeVisible();
         await expect(page.locator("#editor-toolbar")).toHaveCSS("position", "fixed");
@@ -803,7 +803,7 @@ test.describe("the text size", () => {
 
     test("a long cell's whole value follows the size, and so does the plain editor where CodeMirror cannot load", async ({ page, app }) => {
         await page.addInitScript(() => localStorage.setItem("sqllab.textSize", "20"));
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("SELECT group_concat(product_name, ', ') AS names FROM products;");
         await page.locator("#result .cell-more").first().click();
         await expect(page.locator("#cell-popover")).toBeVisible();
@@ -899,7 +899,7 @@ test.describe("the text size", () => {
     test("the projector check: at 1280x720 and size 20, a 6-line query and 6 result rows are in view without scrolling", async ({ page, app }) => {
         await page.setViewportSize({ width: 1280, height: 720 });
         await page.addInitScript(() => localStorage.setItem("sqllab.textSize", "20"));
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const sql = ["SELECT product_name,", "       category,", "       unit_price", "FROM products", "ORDER BY unit_price DESC", "LIMIT 6;"].join("\n");
         await app.run(sql);
         await expect(app.status).toHaveText(/^6 rows in \d+ ms$/);

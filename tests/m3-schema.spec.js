@@ -13,6 +13,7 @@ const {
     tabTo,
     editorSelect,
     expectEditorTextOnly,
+    NORTHLIGHT_URL,
 } = require("./helpers");
 
 const sqlFile = App.sqlFile;
@@ -26,7 +27,7 @@ const settle = (page) => page.evaluate(() => new Promise((resolve) => setTimeout
 
 test.describe("schema sidebar: listing", () => {
     test("lists Northlight's five tables and the v_sales view with row counts", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await expect(app.schemaToggle).toHaveAttribute("aria-selected", "true");
         await expect(app.page.locator("#schema .schema-item")).toHaveCount(6);
         expect(await app.schemaSummary()).toEqual([
@@ -52,7 +53,7 @@ test.describe("schema sidebar: listing", () => {
     });
 
     test("expanding shows columns with types; a view with untyped columns displays correctly", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const expander = app.schemaExpand("orders");
         await expect(expander).toHaveAttribute("aria-expanded", "false");
         await expect(app.schemaItem("orders").locator(".schema-columns")).toBeHidden();
@@ -81,7 +82,7 @@ test.describe("schema sidebar: listing", () => {
     });
 
     test("expanding and inserting are separate real buttons with useful names", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const item = app.schemaItem("orders");
         await expect(item.locator("button")).toHaveCount(2);
         await expect(item.getByRole("button", { name: "Columns of table orders" })).toHaveAttribute("aria-expanded", "false");
@@ -124,7 +125,7 @@ test.describe("schema sidebar: listing", () => {
 
 test.describe("schema sidebar: inserting", () => {
     test("a click inserts at the caret, focus returns to the editor with the caret after the name", async ({ app, page }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.editor.fill("SELECT  FROM stores");
         await editorSelect(page, 7);
         await settle(page);
@@ -139,7 +140,7 @@ test.describe("schema sidebar: inserting", () => {
     });
 
     test("a space is added only where the neighbouring text needs one", async ({ app, page }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.editor.fill("SELECT FROM stores");
         await editorSelect(page, 7);
         await settle(page);
@@ -164,7 +165,7 @@ test.describe("schema sidebar: inserting", () => {
     });
 
     test("a selection is replaced", async ({ app, page }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.editor.fill("SELECT * FROM stores");
         await editorSelect(page, 7, 8);
         await settle(page);
@@ -175,7 +176,7 @@ test.describe("schema sidebar: inserting", () => {
     });
 
     test("an insertion is one undo step", async ({ app, page }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.editor.fill("SELECT  FROM stores");
         await editorSelect(page, 7);
         await settle(page);
@@ -186,7 +187,7 @@ test.describe("schema sidebar: inserting", () => {
     });
 
     test("it works after the click moved the focus away from the editor", async ({ app, page }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.editor.fill("SELECT  FROM stores");
         await editorSelect(page, 7);
         await settle(page);
@@ -257,7 +258,7 @@ test.describe("schema sidebar: inserting", () => {
     });
 
     test("a fresh page: the editor is empty and a click inserts the bare name; after a sample it appends cleanly", async ({ app, page }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         // nothing runs on load and the editor starts empty (Phase 4): the name goes in alone
         expect(await editorText(page)).toBe("");
         await app.schemaInsert("orders").click();
@@ -290,7 +291,7 @@ test.describe("schema sidebar: inserting", () => {
     });
 
     test("the keyboard path: focus, expand, insert", async ({ app, page }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.editor.fill("SELECT  FROM stores");
         await editorSelect(page, 7);
         await settle(page);
@@ -328,7 +329,7 @@ test.describe("schema sidebar: inserting", () => {
 
 test.describe("schema sidebar: collapsing", () => {
     test("another tab and the sidebar splitter hide the whole panel; the tab is not remembered across loads", async ({ app, page }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await expect(app.schemaToggle).toHaveAttribute("aria-selected", "true");
         await expect(page.locator("#schema-panel")).toBeVisible();
         // another tab hides the panel
@@ -364,7 +365,7 @@ test.describe("schema sidebar: collapsing", () => {
 
     test("it is the selected tab at phone width too, in the drawer, and follows the database while another tab is shown", async ({ app, page }) => {
         await page.setViewportSize({ width: 390, height: 800 });
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         // (from Phase 6 the sidebar is a drawer under 1100 px, opened by the Sidebar button)
         await app.openDrawer();
         await expect(app.schemaToggle).toHaveAttribute("aria-selected", "true");
@@ -382,7 +383,7 @@ test.describe("schema sidebar: collapsing", () => {
 
 test.describe("schema sidebar: refresh", () => {
     test("follows CREATE TABLE, INSERT, DELETE and DROP", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("CREATE TABLE zoo (animal TEXT, legs INTEGER)");
         await expect(app.schemaItem("zoo")).toHaveCount(1);
         expect((await app.schemaSummary()).find((s) => s.name === "zoo").count).toBe("0");
@@ -414,7 +415,7 @@ test.describe("schema sidebar: refresh", () => {
     });
 
     test("re-renders only when the schema or the data changed", async ({ app, page }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.page.locator("#schema .schema-list").first().evaluate((list) => {
             list.querySelector(".schema-item").__marker = true;
         });
@@ -430,7 +431,7 @@ test.describe("schema sidebar: refresh", () => {
     });
 
     test("expanded tables stay expanded, and show new columns after ALTER", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.schemaExpand("orders").click();
         await app.schemaExpand("v_sales", "view").click();
         await app.run("CREATE TABLE extra (a)");
@@ -469,7 +470,7 @@ test.describe("schema sidebar: refresh", () => {
     });
 
     test("focus on a sidebar button survives a refresh", async ({ app, page }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         // a run started from the keyboard while the focus is in the sidebar cannot happen, so
         // call the app's own execute path through the Run button's action with the focus kept
         await app.editor.fill("CREATE TABLE keep_focus (a)");
@@ -520,10 +521,11 @@ test.describe("schema sidebar: hostile names", () => {
 
     test("a hostile dataset name and description from the manifest are text", async ({ app, page }) => {
         const manifest = realManifest();
-        manifest.datasets[0].name = ATTR_PAYLOAD;
-        manifest.datasets[0].description = PAYLOAD;
+        const northlight = manifest.datasets.find((entry) => entry.id === "northlight");
+        northlight.name = ATTR_PAYLOAD;
+        northlight.description = PAYLOAD;
         await routeManifest(page, manifest);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await expect(page.locator("#schema .schema-dataset-name")).toHaveText(ATTR_PAYLOAD);
         await expect(page.locator("#schema .schema-dataset-description")).toHaveText(PAYLOAD);
         await app.expectInert();
@@ -574,7 +576,7 @@ test.describe("schema sidebar: layout", () => {
 
     test("desktop: the sidebar sits beside the editor and results and scrolls on its own", async ({ app, page }) => {
         await page.setViewportSize({ width: 1280, height: 700 });
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const aside = await page.locator("#sidebar").boundingBox();
         const main = await page.locator("#main").boundingBox();
         const editor = await app.editor.boundingBox();

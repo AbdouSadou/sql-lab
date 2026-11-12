@@ -1,5 +1,5 @@
 const path = require("node:path");
-const { test, expect, PAYLOAD, ATTR_PAYLOAD, quoteIdent, expectSchemaIconsOnly, editorValue, expectEditorTextOnly } = require("./helpers");
+const { test, expect, PAYLOAD, ATTR_PAYLOAD, quoteIdent, expectSchemaIconsOnly, editorValue, expectEditorTextOnly, NORTHLIGHT_URL } = require("./helpers");
 
 const SAMPLE = path.join(__dirname, "fixtures", "sample.db");
 const sqlFile = (name, sql) => ({ name, mimeType: "text/plain", buffer: Buffer.from(sql) });
@@ -206,7 +206,7 @@ test("injection: saved SQL that holds markup is restored as text", async ({ app,
             localStorage.setItem("sqlime.query.northlight_retail.db", `SELECT '${p}' AS v`);
         } catch {}
     }, PAYLOAD);
-    await page.goto("./");
+    await page.goto(NORTHLIGHT_URL);
     await app.waitReady();
     expect(await editorValue(page)).toBe(`SELECT '${PAYLOAD}' AS v`);
     await app.expectInert();

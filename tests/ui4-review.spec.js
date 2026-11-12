@@ -34,6 +34,7 @@ const {
     SAMPLE_FILE,
     SAMPLE_ENTRY,
     editorValue,
+    NORTHLIGHT_URL,
 } = require("./helpers");
 
 const SAMPLE_URL = /\/datasets\/sample\.db(\?.*)?$/;
@@ -283,7 +284,7 @@ test.describe("a load that fails keeps the view", () => {
 
     test("a switch whose fetch fails: the table, its summary and Download CSV come back, the band is above them and goes at the next Run", async ({ page, app }) => {
         await withSampleDataset(page);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const before = await showStores(app);
         await failSample(page);
         await app.pickDatabaseById("sample");
@@ -299,7 +300,7 @@ test.describe("a load that fails keeps the view", () => {
 
     test("the band goes when the next load begins, and the view it left is the one after a second failure", async ({ page, app }) => {
         await withSampleDataset(page);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const before = await showStores(app);
         await failSample(page);
         await app.pickDatabaseById("sample");
@@ -317,7 +318,7 @@ test.describe("a load that fails keeps the view", () => {
     });
 
     test("an upload the engine refuses, with no result yet on screen: the empty state stays, the band is above it", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await expect(app.samples).toHaveCount(3);
         await app.upload(JUNK, { ready: false });
         await expectBandAbove(page, app, "Failed to load database from");
@@ -331,7 +332,7 @@ test.describe("a load that fails keeps the view", () => {
     });
 
     test("an upload the engine refuses, with a result on screen: the result comes back", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const before = await showStores(app);
         await app.upload(JUNK, { ready: false });
         await expectBandAbove(page, app, "Failed to load database from");
@@ -339,7 +340,7 @@ test.describe("a load that fails keeps the view", () => {
     });
 
     test("Open from URL that fails: the result comes back, the band is above it", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const before = await showStores(app);
         await openFromUrl(page, "datasets/gone.db");
         await expectBandAbove(page, app, "Failed to load database from URL datasets/gone.db");
@@ -365,7 +366,7 @@ test.describe("a load that fails keeps the view", () => {
     test("a set that cannot be opened (its database is not in the manifest): the result stays, the band says why", async ({ page, app }) => {
         await routeSet(page, "orphan", { id: "orphan", title: "Orphan practice", dataset: "missing-data", exercises: [{ id: "o1", title: "One", prompt: "p", model_query: "SELECT 1;" }] });
         await routeListing(page, listingHtml(["retail-basics.json", "orphan.json"]));
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const before = await showStores(app);
         await app.pickSet("Orphan practice");
         await expectBandAbove(page, app, 'The exercise set "orphan" could not be opened');
@@ -385,7 +386,7 @@ test.describe("a load that fails keeps the view", () => {
         await routeListing(page, listingHtml(["retail-basics.json", "fruit.json"]));
         const held = gate();
         await holdSample(page, held);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const before = await showStores(app);
         await app.pickSet("Fruit practice");
         await expect(app.pane).toHaveAttribute("data-state", "loading");
@@ -483,7 +484,7 @@ test.describe("a Check's run is shown, not said", () => {
 test.describe("the live region", () => {
     test("is emptied when a load begins: it never says '20 rows returned' beside a loading pane", async ({ page, app }) => {
         await withSampleDataset(page);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("SELECT * FROM products;");
         await expect(app.announcer).toHaveText("20 rows returned");
         await holdSample(page, gate());
@@ -493,7 +494,7 @@ test.describe("the live region", () => {
     });
 
     test("is emptied when the pane goes back to no result yet, and says the empty Run", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("SELECT * FROM products;");
         await expect(app.announcer).toHaveText("20 rows returned");
         await page.evaluate(() => {
@@ -570,7 +571,7 @@ test.describe("toast tones", () => {
     });
 
     test("a confirmation keeps the tick and a failure the alert sign", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.copyLink();
         expect(await toneOf(page)).toEqual({ kind: ["toast--info"], icon: "#icon-check" });
         // a failure: the CSV file cannot be saved
@@ -638,8 +639,8 @@ test.describe("the sample buttons", () => {
 
     test("the name is the label and the SQL; the long third sample is cut at 120 characters with an ellipsis", async ({ page, app }) => {
         const manifest = realManifest();
-        const samples = manifest.datasets[0].samples;
-        await app.open();
+        const samples = manifest.datasets.find((d) => d.id === "northlight").samples;
+        await app.open(NORTHLIGHT_URL);
         const names = [];
         for (let i = 0; i < 3; i++) {
             const snapshot = await app.samples.nth(i).ariaSnapshot();
@@ -825,7 +826,7 @@ test.describe("the progress bar", () => {
                 });
             };
         });
-        await page.goto("./");
+        await page.goto(NORTHLIGHT_URL);
         await expect(page.locator(".results-loading-size")).toHaveText(/ of /);
     }
 
@@ -928,9 +929,9 @@ test.describe("long unbroken text", () => {
     test("a sample label of 400 letters, at 390 px, is cut at 60 and wraps", async ({ page, app }) => {
         await page.setViewportSize({ width: 390, height: 844 });
         const manifest = realManifest();
-        manifest.datasets[0].samples = [{ label: "L".repeat(400), sql: "SELECT 1;" }];
+        manifest.datasets.find((d) => d.id === "northlight").samples = [{ label: "L".repeat(400), sql: "SELECT 1;" }];
         await routeManifest(page, manifest);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await expect(app.samples).toHaveCount(1);
         await expect(app.samples.locator(".results-sample-label")).toHaveText(`${"L".repeat(60)}…`);
         await expectNoSideways(page, ".results-sample");
@@ -978,7 +979,7 @@ test.describe("the wording of a set whose database is missing", () => {
 test.describe("the phone's summary line", () => {
     test("is one row at 390 x 844: the text on the table's left edge, Download CSV at the right, 52 px high", async ({ page, app }) => {
         await page.setViewportSize({ width: 390, height: 844 });
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.query("SELECT * FROM stores ORDER BY store_id;");
         await expect(app.csvButton).toBeVisible();
         const box = async (locator) => locator.boundingBox();
@@ -1086,7 +1087,7 @@ test.describe("a header taller than one line", () => {
   END, product_name || printf('%050d', product_id) AS d FROM products`;
 
     test("the scroll padding is the header's height: Shift+Tab through the long cells keeps each one visible", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.query(MULTILINE);
         const buttons = app.table.locator("button.cell-more");
         // (the products whose name and 50 digits are not more than 60 characters show whole)
@@ -1182,7 +1183,7 @@ test.describe("a set that cannot be opened while a load is on its way", () => {
         await withSampleDataset(page);
         await routeSet(page, "orphan", { id: "orphan", title: "Orphan practice", dataset: "missing-data", exercises: [{ id: "o1", title: "One", prompt: "p", model_query: "SELECT 1;" }] });
         await routeListing(page, listingHtml(["retail-basics.json", "orphan.json"]));
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await showStores(app);
         const held = gate();
         await holdSample(page, held);
@@ -1313,13 +1314,13 @@ test.describe("the long-cell popover after it closes", () => {
 test.describe("a sample's label", () => {
     test("is cut at 60 characters with an ellipsis: a 3,000-character label gives a short button and name", async ({ page, app }) => {
         const manifest = realManifest();
-        manifest.datasets[0].samples = [
+        manifest.datasets.find((d) => d.id === "northlight").samples = [
             { label: "L".repeat(3000), sql: "SELECT 1;" },
             { label: "M".repeat(60), sql: "SELECT 2;" },
             { label: "N".repeat(61), sql: "SELECT 3;" },
         ];
         await routeManifest(page, manifest);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await expect(app.samples).toHaveCount(3);
         const label = (n) => app.samples.nth(n).locator(".results-sample-label");
         await expect(label(0)).toHaveText(`${"L".repeat(60)}…`);

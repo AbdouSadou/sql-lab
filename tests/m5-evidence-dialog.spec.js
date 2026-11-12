@@ -1,5 +1,5 @@
 const fs = require("node:fs");
-const { test, expect, evidenceFile, openFresh, modelQuery, SAMPLE_FILE, EDITOR_INPUT, editorValue } = require("./helpers");
+const { test, expect, evidenceFile, openFresh, modelQuery, SAMPLE_FILE, EDITOR_INPUT, editorValue, NORTHLIGHT_URL } = require("./helpers");
 
 // F11, the page side: the Export menu's "Evidence (.txt)…" item, the dialog, what the file holds for
 // each kind of log, and that the student number goes nowhere but the file.
@@ -130,7 +130,7 @@ test.describe("the dialog", () => {
                 };
             });
             await app.recordToasts({ fromStart: true });
-            await app.open();
+            await app.open(NORTHLIGHT_URL);
             await app.query("SELECT 1;");
             let downloads = 0;
             page.on("download", () => downloads++);
@@ -190,7 +190,7 @@ test.describe("the dialog", () => {
                 };
             });
             await app.recordToasts({ fromStart: true });
-            await app.open();
+            await app.open(NORTHLIGHT_URL);
             await app.query("SELECT 1;");
             await app.openEvidence();
             await app.evidenceInput.fill(STUDENT);
@@ -236,7 +236,7 @@ test.describe("the dialog", () => {
                     return window.__held;
                 };
             });
-            await app.open();
+            await app.open(NORTHLIGHT_URL);
             await app.query("SELECT 1;");
             let downloads = 0;
             page.on("download", () => downloads++);
@@ -287,7 +287,7 @@ test.describe("the dialog", () => {
     });
 
     test("the dialog works by keyboard alone", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.query("SELECT 1;");
         // Enter on the Export menu's button opens the menu on its first item; two ArrowDowns reach
         // "Evidence (.txt)…" and Enter chooses it
@@ -449,7 +449,7 @@ test.describe("what the file holds", () => {
         browser,
         baseURL,
     }) => {
-        await app.open("./?db=northlight");
+        await app.open(NORTHLIGHT_URL);
         const ok1 = "SELECT category, COUNT(*) FROM products GROUP BY category;";
         const ok2 = "SELECT 'two' AS second;\nSELECT 2;";
         await app.seedLog("northlight", [
@@ -487,7 +487,7 @@ test.describe("what the file holds", () => {
     });
 
     test("an entry whose link would be too long, or would not open, has none", async ({ app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         let seed = 7;
         const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
         const random = Array.from({ length: 130000 }, () => String.fromCharCode(35 + ((rnd() * 91) | 0))).join("");
@@ -511,7 +511,7 @@ test.describe("what the file holds", () => {
     });
 
     test("an uploaded file has its own log, a file: dataset line and no links", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.query("SELECT 'northlight query' AS q;");
         await app.upload(upload("sample.db"));
         await app.query("SELECT 'upload query' AS q;");
@@ -527,7 +527,7 @@ test.describe("what the file holds", () => {
         expect(lines.filter((l) => l.startsWith("link: "))).toEqual([]);
 
         // back on the dataset, its own log comes back
-        await page.goto("./?db=northlight");
+        await page.goto(NORTHLIGHT_URL);
         await app.waitReady();
         const again = await app.exportEvidence(STUDENT);
         expect(again.name).toBe("evidence-northlight.txt");
@@ -536,7 +536,7 @@ test.describe("what the file holds", () => {
     });
 
     test("a database opened from a URL has a file: log of its own and no links", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.query("SELECT 'dataset query' AS q;");
         await page.goto("about.html");
         await app.open("./#datasets/northlight_retail.db");

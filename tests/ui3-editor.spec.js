@@ -9,7 +9,7 @@ const { execFileSync } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
 const AxeBuilder = require("@axe-core/playwright").default;
-const { test, expect, EDITOR_INPUT, editorValue, editorSelect, expectEditorTextOnly, withSampleDataset, PAYLOAD } = require("./helpers");
+const { test, expect, EDITOR_INPUT, editorValue, editorSelect, expectEditorTextOnly, withSampleDataset, PAYLOAD, NORTHLIGHT_URL } = require("./helpers");
 
 const ROOT = path.resolve(__dirname, "..");
 const BUNDLE = "vendor/editor.js";
@@ -60,7 +60,7 @@ async function typeFresh(page, app, text) {
 
 test.describe("the plan's checks", () => {
     test("typing SELECT * FROM pro offers products; Enter takes it and the query runs", async ({ page, app, pageErrors }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await expect(page.locator("#editor")).toHaveAttribute("data-editor", "code");
         await typeFresh(page, app, "SELECT * FROM pro");
         const list = page.getByRole("listbox");
@@ -100,7 +100,7 @@ test.describe("the plan's checks", () => {
 
     test("with the bundle blocked the plain editor stays, and a query is written and run", async ({ page, app, pageErrors }) => {
         await page.route(`**/${BUNDLE}`, (route) => route.abort());
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const editor = page.locator("#editor");
         await expect(editor).toHaveAttribute("data-editor", "plain");
         await expect(page.locator("#editor .cm-editor")).toHaveCount(0);
@@ -324,7 +324,7 @@ test.describe("the keys", () => {
     });
 
     test("Escape closes the completion list first; Tab then leaves", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await typeFresh(page, app, "SELECT * FROM ord");
         await expect(page.getByRole("listbox")).toBeVisible();
         await page.keyboard.press("Escape");
@@ -335,7 +335,7 @@ test.describe("the keys", () => {
     });
 
     test("Ctrl+Enter and Cmd+Enter run the selection, else everything; with the list open it runs and closes the list", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.editor.fill("SELECT 1 AS a;\nSELECT 2 AS b;");
         await editorSelect(page, 15, 29);
         await page.keyboard.press("Control+Enter");
@@ -387,7 +387,7 @@ test.describe("the keys", () => {
 
 test.describe("completion", () => {
     test("nothing is picked when the list opens: Enter is a new line until the arrows pick a name", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await typeFresh(page, app, "SELECT * FROM ord");
         await expect(page.getByRole("listbox")).toBeVisible();
         expect(await completions(page)).toEqual(expect.arrayContaining(["orders", "order_items"]));
@@ -402,7 +402,7 @@ test.describe("completion", () => {
     });
 
     test("a line ending in an alias keeps it: Enter starts the next line", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await typeFresh(page, app, "SELECT *\nFROM orders o");
         await page.keyboard.press("Enter");
         await page.keyboard.type("JOIN order_items oi");
@@ -415,7 +415,7 @@ test.describe("completion", () => {
     });
 
     test("a name typed in full is not offered back, so the list does not linger", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await typeFresh(page, app, "SELECT * FROM products");
         await page.waitForTimeout(400);
         await expect(page.getByRole("listbox")).toHaveCount(0);
@@ -428,7 +428,7 @@ test.describe("completion", () => {
     });
 
     test("columns: after a table or its alias and a dot, that table's with their types; on their own, every table's", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         // Ctrl+Space opens the list where nothing has been typed yet
         await typeFresh(page, app, "SELECT ");
         await page.keyboard.press("Control+Space");
@@ -448,7 +448,7 @@ test.describe("completion", () => {
     });
 
     test("keywords and functions in capitals; nothing inside a string or a comment", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await typeFresh(page, app, "SELECT rou");
         await expect(option(page, "ROUND")).toBeVisible();
         await expect(option(page, "ROUND").locator(".cm-completionDetail")).toHaveText("function");
@@ -476,7 +476,7 @@ test.describe("completion", () => {
     });
 
     test("the names follow DDL: a new table is offered, a dropped one is not", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("CREATE TABLE zebra (stripes INTEGER);");
         await typeFresh(page, app, "SELECT * FROM zeb");
         await expect(option(page, "zebra")).toBeVisible();
@@ -493,7 +493,7 @@ test.describe("completion", () => {
 
     test("the names follow a database switch", async ({ page, app }) => {
         await withSampleDataset(page);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.pickDatabase("Sample Fruit");
         await expect(app.databaseLabel).toHaveText("Sample Fruit");
         await typeFresh(page, app, "SELECT * FROM fru");
@@ -517,7 +517,7 @@ test.describe("completion", () => {
             if (message.type() === "error") logged.push(message.text());
         });
         const nextFrames = () => page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         for (let round = 0; round < 5; round++) {
             await typeFresh(page, app, "SELECT * FROM pr");
             await expect(page.getByRole("listbox")).toBeVisible();
@@ -545,7 +545,7 @@ test.describe("completion", () => {
     });
 
     test("with the list open, axe finds no serious or critical violation", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await typeFresh(page, app, "SELECT * FROM pro");
         await expect(page.getByRole("listbox")).toBeVisible();
         const results = await new AxeBuilder({ page }).analyze();
@@ -648,7 +648,7 @@ test.describe("found in review", () => {
     });
 
     test("Escape keeps the selection, so Escape, Shift+Tab and Enter on Run run the selected part only", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.editor.fill("SELECT 1 AS a; SELECT 2 AS b");
         for (let i = 0; i < 13; i++) {
             await page.keyboard.press("Shift+ArrowLeft");
@@ -682,7 +682,7 @@ test.describe("found in review", () => {
     }
 
     test("the list's opening is said to a screen reader (nothing is picked yet)", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await page.locator("#editor .cm-announced").evaluate((region) => {
             window.__said = [];
             new MutationObserver(() => window.__said.push(region.textContent.trim())).observe(region, { childList: true, subtree: true, characterData: true });
@@ -703,7 +703,7 @@ test.describe("found in review", () => {
     });
 
     test("the list's rows look like the menus' items: 32 px, rounded, inside the list's padding", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await typeFresh(page, app, "SELECT * FROM pro");
         await pick(page);
         const row = page.locator(".cm-tooltip-autocomplete li[aria-selected]");
@@ -717,7 +717,7 @@ test.describe("found in review", () => {
 
     test("in forced colours the picked name is outlined (its background is the user's)", async ({ page, app }) => {
         await page.emulateMedia({ forcedColors: "active" });
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await typeFresh(page, app, "SELECT * FROM pro");
         await pick(page);
         const outline = await page.locator(".cm-tooltip-autocomplete li[aria-selected]").evaluate((li) => getComputedStyle(li).outlineStyle + " " + getComputedStyle(li).outlineWidth);
@@ -763,7 +763,7 @@ test.describe("found in review", () => {
                 localStorage.setItem("sqlime.query.northlight_retail.db", "SELECT *\nFROM stores\nWHERE 1\nLIMIT 3");
             } catch {}
         });
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await expect(page.locator("#editor")).toHaveAttribute("data-editor", "plain");
         // the caret at the end of the restored SQL, then the last two lines selected upwards
         await app.editor.focus();
@@ -786,7 +786,7 @@ test.describe("found in review", () => {
     });
 
     test("names that begin outside ASCII are offered, and nothing is spliced onto them", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run('CREATE TABLE "über" (größe INTEGER); CREATE TABLE "日本" (id INTEGER);');
         await typeFresh(page, app, "SELECT * FROM üb");
         await expect(option(page, "über")).toBeVisible();
@@ -823,7 +823,7 @@ test.describe("found in review", () => {
     });
 
     test("the list's opening is said once, not again at every key while it stays open (after a dot too)", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await page.locator("#editor .cm-announced").evaluate((region) => {
             window.__said = [];
             new MutationObserver(() => {
@@ -845,7 +845,7 @@ test.describe("found in review", () => {
     });
 
     test("after a table or an alias and a dot, only its columns: no keyword or function", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await typeFresh(page, app, "SELECT * FROM orders o WHERE o.c");
         await expect(option(page, "customer_id")).toBeVisible();
         const labels = await completions(page);
@@ -853,7 +853,7 @@ test.describe("found in review", () => {
     });
 
     test("after a name lang-sql cannot read and a dot, that table's columns (not the tables)", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run('CREATE TABLE "café" (prix REAL); CREATE TABLE "_a" (_c INTEGER, kol INTEGER); CREATE TABLE "a""b" (qq INTEGER);');
         await typeFresh(page, app, 'SELECT "café".');
         await page.keyboard.press("Control+Space");
@@ -898,7 +898,7 @@ test.describe("found in review", () => {
             await held;
             await route.continue();
         });
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await expect(page.locator("#editor")).toHaveAttribute("data-editor", "plain");
         await app.editor.click();
         await page.keyboard.press("Control+a");
@@ -927,7 +927,7 @@ test.describe("found in review", () => {
             await held;
             await route.continue();
         });
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await expect(page.locator("#editor")).toHaveAttribute("data-editor", "plain");
         await app.editor.click();
         await page.keyboard.press("Control+a");

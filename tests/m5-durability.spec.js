@@ -1,4 +1,4 @@
-const { test, expect, App, SAMPLE_FILE, realSet, failStorage, setStorageFailing, fakeStorage, inNode, EDITOR_INPUT, editorValue } = require("./helpers");
+const { test, expect, App, SAMPLE_FILE, realSet, NORTHLIGHT_URL, failStorage, setStorageFailing, fakeStorage, inNode, EDITOR_INPUT, editorValue } = require("./helpers");
 
 // M5 durability and layout fixes found by the independent verifiers: the run log and the
 // progress when storage fills, frees up or cannot be read; a log held only in memory; the
@@ -86,10 +86,10 @@ test.describe("two tabs, storage filled and then freed (run log, in Node)", () =
 test.describe("two tabs, storage filled and then freed (in the browser)", () => {
     test("both tabs and the stored log end with every Run", async ({ context, page, app }) => {
         await failStorage(context, { prefix: "sqllab.log.", on: false });
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const other = await context.newPage();
         const otherApp = new App(other);
-        await otherApp.open();
+        await otherApp.open(NORTHLIGHT_URL);
         const tabs = [app, otherApp];
         const sql = (tag, i) => `select '${tag}${i}' as c;`;
         await app.query(sql("pre_A", 0));
@@ -306,7 +306,7 @@ test.describe("the storage notice", () => {
 
     test("in the page: it stays while the log of the first database is memory-only, and goes when that is stored", async ({ page, app }) => {
         await failStorage(page, { prefix: "sqllab.log.", minLength: 100 });
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.query("select 1 as a");
         await app.query("select 2 as a");
         await expect(notice(page)).toBeVisible();
@@ -726,7 +726,7 @@ test.describe("progress held in memory meets what another tab stored (in Node)",
 
 test.describe("a bare /* at the end of the SQL", () => {
     test("stays a statement, so the engine reports it; a comment with text after /* is still a comment", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const split = (sql) =>
             page.evaluate(async (sql) => {
                 const { splitStatements } = await import("./bundle/app.js").then((bundle) => bundle.runner);
@@ -874,7 +874,8 @@ test.describe("the editor toolbar over a long query", () => {
 
     test("the editor keeps no room for a bar, and a narrow window still has no sideways scroll", async ({ page, app }) => {
         await page.setViewportSize({ width: 1280, height: 900 });
-        await app.open();
+        // the longest shipped name is the harder case for the top bar
+        await app.open(NORTHLIGHT_URL);
         // the toolbar is not over the editor any more: the bottom padding is the top padding
         const padding = await page.evaluate((input) => {
             // the paddings are on the typing surface now (.cm-content; the plain box itself)
@@ -892,7 +893,8 @@ test.describe("a long word in the editor", () => {
     for (const width of [360, 700, 1280]) {
         test(`at ${width}px a 400-character string and a list of numbers do not widen the page`, async ({ page, app }) => {
             await page.setViewportSize({ width, height: 900 });
-            await app.open();
+            // the longest shipped name is the harder case for the top bar
+            await app.open(NORTHLIGHT_URL);
             const list = Array.from({ length: 150 }, (_, i) => i).join(",");
             for (const sql of [`select '${"x".repeat(400)}' as c`, `select 1 where 1 in (${list})`]) {
                 await app.editor.fill(sql);

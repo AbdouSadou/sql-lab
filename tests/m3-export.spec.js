@@ -2,7 +2,8 @@
 // names the file and downloads the open in-memory database. AC3 (in ac3-upload-roundtrip.spec.js)
 // covers the round trip; these cover the rest.
 const fs = require("node:fs");
-const { test, expect, SAMPLE_FILE } = require("./helpers");
+const path = require("node:path");
+const { test, expect, SAMPLE_FILE, NORTHLIGHT_URL, DEFAULT_DATASET } = require("./helpers");
 
 // the summary line of a run with no result set (a CREATE, an INSERT, a DELETE): "Done in 2 ms" or
 // "Done. 3 rows changed in 2 ms" (it was "0 rows, took 2 ms")
@@ -26,14 +27,14 @@ test("export downloads the default dataset as a file named from the database", a
     await app.page.keyboard.press("Escape");
     await expect(app.page.locator("#export-dialog")).toBeHidden();
     const { name, buffer } = await app.exportFile();
-    expect(name).toBe("northlight_retail.db");
+    expect(name).toBe(path.posix.basename(DEFAULT_DATASET.file));
     expect(buffer.subarray(0, 15).toString()).toBe("SQLite format 3");
     // a toast confirms it and names the file
-    await expect(app.toast).toContainText("Exported northlight_retail.db");
+    await expect(app.toast).toContainText(`Exported ${path.posix.basename(DEFAULT_DATASET.file)}`);
 });
 
 test("export holds the student's changes, and re-uploading the file brings them back", async ({ page, app }) => {
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     await app.run("CREATE TABLE notes (id INTEGER PRIMARY KEY, body TEXT); INSERT INTO notes (body) VALUES ('kept'); DELETE FROM order_items;");
     await expect(app.status).toHaveText(DONE_LINE);
     const { buffer } = await app.exportFile();
@@ -48,7 +49,7 @@ test("export holds the student's changes, and re-uploading the file brings them 
 });
 
 test("export of an unchanged dataset has the same content as the file on the site", async ({ app }) => {
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     const { buffer } = await app.exportFile();
     const second = await app.page.context().newPage();
     const secondApp = new app.constructor(second);
@@ -152,7 +153,7 @@ test("the Export menu button is visible, labelled and touch-sized, at desktop an
 });
 
 test("the export is operable from the keyboard: Enter opens the menu, the dialog, then downloads", async ({ page, app }) => {
-    await app.open();
+    await app.open(NORTHLIGHT_URL);
     const button = page.locator("#export-button");
     await button.focus();
     expect(await button.evaluate((el) => el.tagName)).toBe("BUTTON");

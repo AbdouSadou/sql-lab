@@ -3,7 +3,7 @@
 // and the sizes and the hidden sidebar survive a reload; the sidebar's tabs, the database
 // switcher, the Export menu, Help, the status bar and the skip link work from the keyboard.
 
-const { test, expect, failStorage, realManifest, modelQuery, SAMPLE_FILE } = require("./helpers");
+const { test, expect, failStorage, realManifest, modelQuery, SAMPLE_FILE, NORTHLIGHT_URL } = require("./helpers");
 
 const LAYOUT_KEY = "sqllab.layout";
 const MANY_ROWS = "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 400) SELECT i, 'row ' || i AS label FROM n;";
@@ -55,7 +55,7 @@ test.describe("the shell fills the window", () => {
 
     test("with every table expanded and a long history the panes scroll, not the page", async ({ page, app }) => {
         await page.setViewportSize({ width: 1366, height: 768 });
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         for (let i = 0; i < 30; i++) {
             await app.run(`SELECT ${i} AS n;`);
             await expect(app.status).toContainText("1 row in");
@@ -440,7 +440,7 @@ test.describe("the database switcher", () => {
     });
 
     test("Open a file… opens the file chooser; Open from URL… asks for an address", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.databaseButton.click();
         const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.locator("#open-file").click()]);
         expect(chooser.isMultiple()).toBe(false);
@@ -463,7 +463,7 @@ test.describe("the database switcher", () => {
 
 test.describe("the Export menu", () => {
     test("offers the database, the result as CSV and the evidence; Results is unavailable until a query returns rows", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.run("SELECT 1 AS one WHERE 0;");
         await expect(app.status).toContainText("0 rows in");
         await page.locator("#export-button").click();
@@ -498,7 +498,7 @@ test.describe("the Export menu", () => {
     });
 
     test("Database (.db)… opens a dialog with the file name; Cancel and Escape close it and give the focus back", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.openExportMenu();
         await page.locator("#export-db").click();
         const dialog = page.locator("#export-dialog");
@@ -584,7 +584,7 @@ test.describe("Help", () => {
 
 test.describe("the status bar", () => {
     test("shows the open database, the last run and the SQLite version, and credits SQLime", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const bar = page.locator("footer.statusbar");
         await expect(page.locator("#status-database")).toHaveText("Northlight Retail");
         await expect(page.locator("#status-version")).toHaveText(/^SQLite 3\.\d+\.\d+$/);
@@ -611,7 +611,7 @@ test.describe("the status bar", () => {
 
 test.describe("the skip link", () => {
     test("is the first Tab stop, shows when focused and takes the focus to the editor", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const skip = page.locator("a.skip-link");
         // first in the document's Tab order: nothing focusable comes before it
         const first = await page.evaluate(() => {
@@ -675,7 +675,8 @@ test.describe("landmarks, names and sizes", () => {
     test("the regions have the plan's sizes: top bar 48 px, sidebar 280 px, status bar 28 px", async ({ page, app }) => {
         for (const width of [1366, 1920, 1024, 800]) {
             await page.setViewportSize({ width, height: 768 });
-            await app.open();
+            // Northlight Retail: the longer name is the harder case for the one-row bars
+            await app.open(NORTHLIGHT_URL);
             expect((await box(page.locator(".topbar"))).height, `top bar at ${width}`).toBe(48);
             expect((await box(page.locator(".statusbar"))).height, `status bar at ${width}`).toBe(28);
             if (width < 1100) {
@@ -972,7 +973,7 @@ test.describe("following the page", () => {
     });
 
     test("the export dialog closes when another database loads, so its name never lands on the new one", async ({ page, app }) => {
-        await app.open("./?db=northlight");
+        await app.open(NORTHLIGHT_URL);
         await app.openExportMenu();
         await page.locator("#export-db").click();
         await expect(page.locator("#export-dialog")).toBeVisible();

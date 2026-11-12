@@ -1,4 +1,5 @@
-const { test, expect, openFresh, tabTo, EDITOR_INPUT } = require("./helpers");
+const path = require("node:path");
+const { test, expect, openFresh, tabTo, DEFAULT_DATASET, NORTHLIGHT_URL, EDITOR_INPUT } = require("./helpers");
 
 // Deterministic filler so the 20 KB statement does not compress to nothing.
 function filler(bytes) {
@@ -367,7 +368,7 @@ test.describe("shared SQL and storage", () => {
     });
 
     test("a link made from a blank or whitespace-only editor carries no SQL", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.editor.fill("x");
         for (const blank of ["", "   ", "\n\n  \t\n"]) {
             await app.editorHost.evaluate((el, text) => (el.value = text), blank);
@@ -382,11 +383,12 @@ test.describe("shared SQL and storage", () => {
     });
 
     test("a link whose SQL is only whitespace restores the recipient's own saved SQL", async ({ page, app }) => {
-        await page.addInitScript(() => {
+        // these links name no dataset, so the default opens and its saved SQL is the one restored
+        await page.addInitScript((file) => {
             try {
-                localStorage.setItem("sqlime.query.northlight_retail.db", "SELECT 'RECIPIENT_OWN';");
+                localStorage.setItem(`sqlime.query.${file}`, "SELECT 'RECIPIENT_OWN';");
             } catch {}
-        });
+        }, path.posix.basename(DEFAULT_DATASET.file));
         await app.open();
         for (const q of ["\n", "  \n ", undefined]) {
             const payload = await page.evaluate(
@@ -465,8 +467,8 @@ test.describe("damaged links", () => {
             await page.goto("./" + fragment);
             await expect(app.errorBand, name).toContainText("This link is damaged or incomplete");
             // the default database is open (nothing in the link could be trusted)
-            await expect(app.databaseLabel, name).toHaveText("Northlight Retail");
-            await expect(app.picker, name).toHaveAttribute("aria-label", "Database: Northlight Retail");
+            await expect(app.databaseLabel, name).toHaveText(DEFAULT_DATASET.name);
+            await expect(app.picker, name).toHaveAttribute("aria-label", `Database: ${DEFAULT_DATASET.name}`);
             // the app still works
             expect(await app.query("SELECT 5 AS five;"), name).toEqual({ columns: ["five"], rows: [["5"]] });
         }

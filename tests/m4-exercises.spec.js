@@ -13,8 +13,10 @@ const {
     withSampleDataset,
     PAYLOAD,
     editorValue,
+    DEFAULT_DATASET,
 } = require("./helpers");
 
+const path = require("node:path");
 const LZString = require("../vendor/lz-string.min.js");
 const shareHash = (state) => "#s=" + LZString.compressToEncodedURIComponent(JSON.stringify({ v: 1, ...state }));
 
@@ -819,7 +821,7 @@ test.describe("resolveRoute and exercise sets", () => {
         await app.open();
         await countSetFetches(page);
         const out = await route(page, { search: "?ex=e01" });
-        expect(out).toMatchObject({ exercise: null, notice: null, dataset: "northlight" });
+        expect(out).toMatchObject({ exercise: null, notice: null, dataset: DEFAULT_DATASET.id });
         expect(await setFetches(page)).toEqual([]);
     });
 
@@ -828,7 +830,7 @@ test.describe("resolveRoute and exercise sets", () => {
         await app.open();
         const missing = await route(page, { search: "?set=no-such-set" });
         expect(missing.exercise).toBeNull();
-        expect(missing.dataset).toBe("northlight"); // the default
+        expect(missing.dataset).toBe(DEFAULT_DATASET.id); // the default
         expect(missing.notice).toContain('"no-such-set"');
         expect(missing.notice).toContain("could not be opened");
         const broken = await route(page, { search: "?set=broken&ex=e1" });
@@ -860,7 +862,7 @@ test.describe("resolveRoute and exercise sets", () => {
         await app.open();
         const out = await route(page, { search: "?set=orphan&ex=e1" });
         expect(out.exercise).toBeNull();
-        expect(out.dataset).toBe("northlight");
+        expect(out.dataset).toBe(DEFAULT_DATASET.id);
         expect(out.notice).toContain('"orphan"');
         expect(out.notice).toContain('"missing-data"');
         expect(out.notice).toContain("not available on this site");
@@ -907,7 +909,7 @@ test.describe("resolveRoute and exercise sets", () => {
         // ?set= beats ?db=, ?db= beats the default
         expect((await route(page, { search: "?set=fruit&db=northlight" })).dataset).toBe("sample");
         expect((await route(page, { search: "?db=sample" })).dataset).toBe("sample");
-        expect((await route(page, { search: "" })).dataset).toBe("northlight");
+        expect((await route(page, { search: "" })).dataset).toBe(DEFAULT_DATASET.id);
     });
 
     test("a share link's set wins over the dataset id in the link", async ({ page }) => {
@@ -930,7 +932,7 @@ test.describe("resolveRoute and exercise sets", () => {
         expect(out.notice).toContain('"no-such-set"');
         // no dataset in the link either: the default, with both notices
         const none = await route(page, { hash: shareHash({ x: "no-such-set", q: "select 42" }) });
-        expect(none).toMatchObject({ dataset: "northlight", sql: "select 42", exercise: null });
+        expect(none).toMatchObject({ dataset: DEFAULT_DATASET.id, sql: "select 42", exercise: null });
         expect(none.notice).toContain('"no-such-set"');
         expect(none.notice).toContain("does not name a database");
     });
@@ -945,7 +947,7 @@ test.describe("resolveRoute and exercise sets", () => {
     test("a damaged share link still opens the default dataset, with no set", async ({ page, app }) => {
         await app.open();
         const out = await route(page, { hash: "#s=!!!" });
-        expect(out).toMatchObject({ damaged: true, exercise: null, dataset: "northlight" });
+        expect(out).toMatchObject({ damaged: true, exercise: null, dataset: DEFAULT_DATASET.id });
     });
 
     test("with an unusable manifest a set cannot open a dataset; nothing throws", async ({ page }) => {
@@ -990,8 +992,8 @@ test.describe("resolveRoute and exercise sets", () => {
         // is text only
         await page.goto("?set=no-such-set");
         await expect(app.emptyState.locator(".results-empty-notice")).toContainText('The exercise set "no-such-set" could not be opened');
-        await expect(app.databaseLabel).toHaveText("Northlight Retail");
-        expect(await page.evaluate(() => window.app.database.name)).toBe("northlight_retail.db");
+        await expect(app.databaseLabel).toHaveText(DEFAULT_DATASET.name);
+        expect(await page.evaluate(() => window.app.database.name)).toBe(path.posix.basename(DEFAULT_DATASET.file));
 
         await page.goto(`?set=${encodeURIComponent(PAYLOAD)}`);
         await expect(app.emptyState.locator(".results-empty-notice")).toContainText("The exercise set in the address could not be opened");

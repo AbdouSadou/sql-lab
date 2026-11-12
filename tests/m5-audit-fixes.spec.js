@@ -1,6 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { test, expect, evidenceFile, App } = require("./helpers");
+const { test, expect, evidenceFile, App, NORTHLIGHT_URL } = require("./helpers");
 
 // M5 audit fixes: one test per behaviour changed after the independent audits. The statement
 // line (comments, trailing comment) is in m4-runner and m5-results, the escaped header lines
@@ -41,7 +41,7 @@ test.describe("the run log under load", () => {
     test("a Run followed at once by leaving the page keeps its entry, by navigation and by reload", async ({ page, app }) => {
         const expected = [];
         for (let round = 0; round < 8; round++) {
-            await app.open();
+            await app.open(NORTHLIGHT_URL);
             const sql = `select ${round} as round`;
             await app.run(sql);
             await resultShown(page);
@@ -55,13 +55,13 @@ test.describe("the run log under load", () => {
             expect((await app.readLog("northlight")).map((e) => e.sql)).toEqual(expected);
         }
         // and the History tab of the page that comes back lists all of them
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await app.openHistory();
         await expect(app.historyEntries).toHaveCount(expected.length);
     });
 
     test("an entry is stored, in the History tab and in the export as soon as appendLog returns", async ({ page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const seen = await page.evaluate(async () => {
             const { appendLog, readLog } = await import("./bundle/app.js").then((bundle) => bundle.runLog);
             const stored = () => {
@@ -89,10 +89,10 @@ test.describe("the run log under load", () => {
     // write within the same few milliseconds can still overwrite each other (reading and writing
     // one localStorage key is not atomic, and a Web Lock is not used, see run-log.js).
     test("two tabs that run 25 ms apart lose no entry, and each History tab shows the other tab's entries", async ({ context, page, app }) => {
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         const other = await context.newPage();
         const otherApp = new App(other);
-        await otherApp.open();
+        await otherApp.open(NORTHLIGHT_URL);
         const N = 12;
         const STEP = 50; // each tab appends every 50 ms, tab B 25 ms after tab A
         const start = Date.now() + 500;
@@ -134,7 +134,7 @@ test.describe("a full storage", () => {
 
     test("the History tab and the export keep every entry while the page is open, and a line says storage is full", async ({ page, app }) => {
         await limitStorage(page, "sqllab.log.", 3500);
-        await app.open();
+        await app.open(NORTHLIGHT_URL);
         await expect(notice(page)).toBeHidden();
         await app.seedLog("northlight", [
             { t: "2026-11-09T10:00:01Z", sql: pad("a"), rows: 1 },
@@ -360,7 +360,7 @@ test.describe("text colours reach 4.5:1", () => {
 // description, in a visually hidden element. What these tests pinned for the line now holds for
 // Help's statement: whole, never cut, wrapping rather than overflowing on a narrow window.
 test.describe("the editor hint, the editor toolbar and the top bar", () => {
-    for (const url of ["./", "./?set=retail-basics"]) {
+    for (const url of [NORTHLIGHT_URL, "./?set=retail-basics"]) {
         for (const width of [768, 1024, 1280]) {
             test(`${url} at ${width}px: the hint is whole, the editor toolbar stays on top of the editor, the top bar is one row`, async ({ page, app }) => {
                 await page.setViewportSize({ width, height: 900 });
