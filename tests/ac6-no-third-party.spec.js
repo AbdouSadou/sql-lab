@@ -21,7 +21,7 @@ test("AC6 a session with a check, a share link, a history restore, an evidence e
     await app.openSet("retail-basics", { ex: "e01" });
     await app.editor.fill("SELECT product_name FROM products;");
     await app.checkButton.click();
-    await expect(app.feedback).toContainText(/Not passed yet|Passed/);
+    await expect(app.feedback).toContainText(/Not quite\.|Correct\./);
     await app.copyLink();
     await app.query("SELECT 1 AS one;");
     await app.historyButton.click();

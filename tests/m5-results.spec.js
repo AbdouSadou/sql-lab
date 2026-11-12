@@ -706,7 +706,7 @@ test.describe("Check compares the full result, not the capped table", () => {
     test("the checker passes 906 matching rows and finds a difference after row 500", async ({ app }) => {
         await app.open();
         const set = { ...BIG_SET, exercises: BIG_SET.exercises };
-        expect(await app.check("all", SAME, { set })).toEqual({ status: "pass" });
+        expect(await app.check("all", SAME, { set })).toEqual({ status: "pass", rows: 906 });
         expect(await app.check("all", `${SAME} limit 500`, { set })).toEqual({
             status: "fail",
             kind: "rows",

@@ -91,6 +91,6 @@ test("keyboard only: load the page, open a database, run a query, complete one e
     await page.keyboard.press("Control+A");
     await page.keyboard.type(modelQuery("e01"));
     await page.keyboard.press("Control+Shift+Enter");
-    await expect(app.feedback).toContainText("Passed");
+    await expect(app.feedback).toContainText("Correct.");
     await expect(app.progress).toContainText("1 of 10 complete");
 });

@@ -174,11 +174,18 @@
             </nav>
 
             <main id="main" class="main" aria-label="Query and result">
-                <!-- Exercise mode: the prompt of the open exercise (js/lab/exercise-panel.js) -->
+                <!-- Exercise mode: the prompt of the open exercise, its hint button, Previous and
+                     Next, and the hints shown so far (js/lab/exercise-panel.js) -->
                 <section id="exercise-panel" class="exercise-panel" aria-labelledby="exercise-prompt-title" hidden>
                     <div id="exercise-prompt"></div>
-                    <button id="exercise-hint-button" type="button" class="button" hidden></button>
-                    <ol id="exercise-hints" class="exercise-hints" hidden></ol>
+                    <div class="exercise-controls">
+                        <button id="exercise-hint-button" type="button" class="button" hidden></button>
+                        <div id="exercise-nav" class="exercise-nav" role="group">
+                            <button id="exercise-previous" type="button" class="button button--quiet"></button>
+                            <button id="exercise-next" type="button" class="button button--quiet"></button>
+                        </div>
+                    </div>
+                    <ol id="exercise-hints" class="exercise-hints" role="list" hidden></ol>
                     <p id="exercise-announce" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
                 </section>
 
@@ -207,9 +214,11 @@
                 <!-- The results pane (js/lab/results.js): one state at a time, named by its
                      data-state: no result yet (with sample queries), a database loading, a result
                      (the summary line and the ruled table), "Done." and the error band. Each
-                     outcome is said by a polite live region the module adds (#results-announce). -->
+                     outcome is said by a polite live region the module adds (#results-announce),
+                     a Check's verdict too. Above them all, in exercise mode, the feedback banner
+                     of the last Check (js/lab/exercise-panel.js). -->
                 <section id="results-pane" class="results-pane" aria-label="Result">
-                    <div id="exercise-feedback" class="exercise-feedback" role="status" aria-atomic="true" hidden></div>
+                    <div id="exercise-feedback" class="exercise-feedback" hidden></div>
                     <div id="results-summary" class="results-summary" hidden>
                         <p id="status" class="results-summary-text"></p>
                     </div>

@@ -580,7 +580,7 @@ test.describe("what the file holds", () => {
         const model = modelQuery("e01");
         await app.editor.fill("SELECT product_name FROM products WHERE category = 'Electronics';");
         await app.checkButton.click();
-        await expect(app.feedback).toContainText(/Not passed yet|Passed/);
+        await expect(app.feedback).toContainText(/Not quite\.|Correct\./);
         const log = await app.readLog("northlight");
         expect(log).toHaveLength(1);
         expect(JSON.stringify(log)).not.toContain(model);

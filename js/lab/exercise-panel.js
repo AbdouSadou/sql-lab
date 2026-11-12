@@ -1,6 +1,10 @@
-// F2/F7 on screen: the Exercises tab of the sidebar (the set picker, the progress line, the list
-// of exercises, Reset progress), the exercise prompt above the editor, Check answer beside Run,
-// and the verdict at the top of the result.
+// F2/F7 on screen (UI plan, section 5, "Exercise mode"; docs/design/mockup/exercise-correct.html
+// and exercise-wrong.html): the Exercises tab of the sidebar (the set picker, the progress line,
+// the list of exercises, Reset progress), the prompt panel above the editor (the exercise's number,
+// title and prompt, a hint button that counts the hints, Previous and Next), Check answer beside
+// Run, and the feedback banner at the top of the results pane: "Correct. 12 rows match." with a
+// tick that draws itself and Next exercise, or "Not quite." with the checker's message and, for a
+// row that differs, Expected and Yours side by side with the differing cells outlined.
 //
 // Static markup lives in index.html (#exercise-panel and its parts, #exercise-feedback);
 // this module fills it, with createElement and textContent only: titles, prompts, hints and
@@ -8,7 +12,8 @@
 // hand the exercise object to the checker (js/lab/checker.js); it is not copied into the DOM,
 // an attribute, a message or the share link.
 //
-// mountExercises({pickerSlot, ui, execute, isLoading, openSet, closeSet, showTab, showIdle}) -> controller
+// mountExercises({pickerSlot, ui, execute, isLoading, openSet, closeSet, showTab, showIdle,
+//                 modeChanged, say}) -> controller
 //   pickerSlot where the set picker (a menu button and its menu) goes, in the Exercises tab
 //   ui         index.js's element handles (the editor, the toolbar)
 //   showIdle   () the results pane's "no result yet" (js/lab/results.js showEmpty): what the
@@ -21,6 +26,9 @@
 //   openSet    (set) the student picked a set in the picker
 //   closeSet   () the student picked "None"
 //   showTab    () bring the Exercises tab forward (a set opened)
+//   say        (text) say a verdict in the results pane's live region (js/lab/results.js say):
+//              the banner itself is not live, so a verdict is said once, in words, and its
+//              tables are not read out
 // The controller:
 //   editorSql({set, exerciseId}, linkSql) -> string   what the editor holds when a set opens
 //                                                    over a freshly loaded database: the
@@ -42,6 +50,8 @@ import {
     CHECK_BUTTON_TEXT,
     CHECK_BUTTON_TITLE,
     CHECK_COPY_NOTE,
+    CHECK_DIFFERS_TEXT,
+    CHECK_EMPTY_HEADLINE,
     CHECK_EMPTY_MESSAGE,
     CHECK_EXPECTED_LABEL,
     CHECK_FAIL_HEADLINE,
@@ -49,27 +59,36 @@ import {
     CHECK_PASS_HEADLINE,
     CHECK_PASS_MESSAGE,
     CHECK_ROW_HEADER,
+    CHECK_SQL_ERROR_BELOW,
     CHECK_UNAVAILABLE_HEADLINE,
+    EXERCISE_FIRST_TEXT,
     EXERCISE_HINTS_LABEL,
+    EXERCISE_LAST_TEXT,
+    EXERCISE_NAV_LABEL,
+    EXERCISE_NEXT_TEXT,
     EXERCISE_PARAM,
-    EXERCISE_PASSED_MARK,
+    EXERCISE_PREVIOUS_TEXT,
     EXERCISE_RESET_TEXT,
     EXERCISE_RESET_TITLE,
+    NEXT_EXERCISE_TEXT,
     SET_PARAM,
     SET_PICKER_LABEL,
     SET_PICKER_MENU_LABEL,
     SET_PICKER_NONE,
+    VERDICT_DIFF_NOTE,
     VERDICT_SCROLL_NOTE,
+    checkPassMessage,
     exerciseAllCompleteText,
     exerciseAnnouncement,
     exerciseButtonLabel,
     exerciseHintLabel,
     exerciseHintText,
     exerciseListLabel,
-    exerciseNextText,
     exerciseProgressText,
     exerciseResetConfirm,
+    exerciseTargetText,
     setPickerBrokenLabel,
+    verdictHiddenDiffNote,
 } from "./config.js";
 import { createChecker } from "./checker.js";
 import { listSets } from "./exercises.js";
@@ -77,6 +96,7 @@ import { icon } from "./icons.js";
 import { MOD_KEY } from "./keys.js";
 import { mountMenu } from "./menu.js";
 import { getDraft, isPassed, markPassed, passedCount, resetSet, saveDraft } from "./progress.js";
+import { engineMessage } from "./runner.js";
 import { setShareContext } from "./share.js";
 
 // chooseExercise picks the exercise a set opens on: the one the link named, else the first
@@ -84,6 +104,55 @@ import { setShareContext } from "./share.js";
 export function chooseExercise(set, requestedId) {
     const named = requestedId ? set.exercises.find((e) => e.id === requestedId) : undefined;
     return named ?? set.exercises.find((e) => !isPassed(set.id, e.id)) ?? set.exercises[0];
+}
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+// drawnTick is the passed mark of the banner: the sprite's circle-check, copied inline so that its
+// circle and its tick can be stroked in one after the other (css/exercises.css, 300 ms; nothing
+// moves when the student asks for less motion). Each shape's length is 1 (pathLength), so one dash
+// pattern fits both. The sprite's own <use> cannot be drawn part by part.
+function drawnTick() {
+    const symbol = document.getElementById("icon-circle-check");
+    if (!symbol || !symbol.children.length) {
+        return icon("circle-check");
+    }
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("class", "icon verdict-tick");
+    svg.setAttribute("viewBox", symbol.getAttribute("viewBox") || "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    for (const shape of symbol.children) {
+        const copy = shape.cloneNode(false);
+        copy.setAttribute("pathLength", "1");
+        svg.append(copy);
+    }
+    return svg;
+}
+
+// a cell the checker shows that reads as a number: right-aligned, as in the result table
+const NUMBER_TEXT = /^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$/;
+// the checker writes NULL as this text (js/lab/checker.js displayValue); it says nothing about
+// whether a column holds numbers
+const NULL_DISPLAY = "NULL";
+
+// numericColumns says, for each column of rows (arrays of the checker's display strings), whether
+// every value in it that is not NULL reads as a number (and at least one does).
+function numericColumns(width, rows) {
+    return Array.from({ length: width }, (_, column) => {
+        let seen = false;
+        for (const row of rows) {
+            const cell = row[column];
+            if (cell === undefined || cell === NULL_DISPLAY) {
+                continue;
+            }
+            if (!NUMBER_TEXT.test(cell)) {
+                return false;
+            }
+            seen = true;
+        }
+        return seen;
+    });
 }
 
 function el(tag, className, text) {
@@ -107,6 +176,7 @@ export function mountExercises({
     showTab,
     showIdle = () => {},
     modeChanged = () => {},
+    say = () => {},
 }) {
     const $ = (id) => document.getElementById(id);
     const els = {
@@ -121,6 +191,9 @@ export function mountExercises({
         list: $("exercise-list"),
         prompt: $("exercise-prompt"),
         hintButton: $("exercise-hint-button"),
+        nav: $("exercise-nav"),
+        previous: $("exercise-previous"),
+        next: $("exercise-next"),
         hints: $("exercise-hints"),
         announce: $("exercise-announce"),
         feedback: $("exercise-feedback"),
@@ -370,10 +443,12 @@ export function mountExercises({
         refreshHintButton();
     }
 
+    // "Show hint (1 of 2)": the hint a press shows, of how many; gone once all are shown
     function refreshHintButton() {
-        const remaining = current.hints.length - (hintsShown.get(hintKey()) ?? 0);
-        els.hintButton.hidden = remaining <= 0;
-        els.hintButton.textContent = remaining > 0 ? exerciseHintText(remaining) : "";
+        const shown = hintsShown.get(hintKey()) ?? 0;
+        const total = current.hints.length;
+        els.hintButton.hidden = shown >= total;
+        els.hintButton.textContent = shown < total ? exerciseHintText(shown + 1, total) : "";
     }
 
     els.hints.setAttribute("aria-label", EXERCISE_HINTS_LABEL);
@@ -397,60 +472,250 @@ export function mountExercises({
         if (hadFocus && els.hintButton.hidden) {
             item.focus();
         }
+        // the hints sit under the buttons, and the panel scrolls when it is capped: bring the new
+        // one into view (focus() above already did, for the last)
+        item.scrollIntoView?.({ block: "nearest" });
     });
 
-    // ---- feedback --------------------------------------------------------------------------
+    // ---- Previous and Next -----------------------------------------------------------------
+    // The exercise before and after the open one, in the set's order (the list's order). At either
+    // end the button stays where it is and keeps the focus, but does nothing (aria-disabled; a
+    // disabled button would drop the focus of a student who pressed it to get there). Its title
+    // (its description) names where it goes, or says why it goes nowhere. The focus stays on it,
+    // as it stays on the list when an exercise is chosen there.
+
+    els.previous.textContent = EXERCISE_PREVIOUS_TEXT;
+    els.next.textContent = EXERCISE_NEXT_TEXT;
+    els.nav.setAttribute("aria-label", EXERCISE_NAV_LABEL);
+
+    function neighbour(step) {
+        return set.exercises[set.exercises.indexOf(current) + step] ?? null;
+    }
+
+    function refreshNav() {
+        for (const [button, step, endText] of [
+            [els.previous, -1, EXERCISE_FIRST_TEXT],
+            [els.next, 1, EXERCISE_LAST_TEXT],
+        ]) {
+            const target = neighbour(step);
+            if (target) {
+                button.removeAttribute("aria-disabled");
+                button.title = exerciseTargetText(set.exercises.indexOf(target) + 1, set.exercises.length, target.title);
+            } else {
+                button.setAttribute("aria-disabled", "true");
+                button.title = endText;
+            }
+        }
+    }
+
+    for (const [button, step] of [
+        [els.previous, -1],
+        [els.next, 1],
+    ]) {
+        button.addEventListener("click", () => {
+            const target = set && button.getAttribute("aria-disabled") !== "true" ? neighbour(step) : null;
+            if (target) {
+                select(target.id);
+            }
+        });
+    }
+
+    // ---- the feedback banner ---------------------------------------------------------------
+    // At the top of the results pane (UI plan, section 5): a band across the pane with an icon and
+    // words, a headline and then a sentence on the same line, and, after a pass, Next exercise at
+    // its end. Under the band, for a row that differs, Expected and Yours side by side. Each kind
+    // has its own icon and its own words, never colour alone: a tick that draws itself for
+    // "Correct.", a cross for "Not quite.", an alert sign for "Not checked." and an "i" for
+    // "Nothing to check.". The band is not a live region: say() puts its words in the results
+    // pane's, once, without the tables.
 
     function clearFeedback() {
         els.feedback.replaceChildren();
         els.feedback.hidden = true;
     }
 
-    function showVerdict(kind, mark, headline, ...children) {
-        const box = el("div", `verdict verdict--${kind}`);
-        const head = el("p", "verdict-head");
-        const markNode = el("span", "verdict-mark", mark);
-        markNode.setAttribute("aria-hidden", "true");
-        head.append(markNode, el("strong", "verdict-headline", headline));
-        box.append(head, ...children);
-        els.feedback.replaceChildren(box);
-        els.feedback.hidden = false;
+    // verdictMark is the band's icon (each icon() name is written out: tools/build-icons.mjs reads
+    // the names from the calls)
+    function verdictMark(kind) {
+        let mark;
+        if (kind === "pass") {
+            mark = drawnTick();
+        } else if (kind === "fail") {
+            mark = icon("circle-x");
+        } else if (kind === "warning") {
+            mark = icon("circle-alert");
+        } else {
+            mark = icon("info");
+        }
+        mark.classList.add("verdict-mark");
+        return mark;
     }
 
-    function diffTable(caption, columns, rows, firstRow) {
-        // a scroll box the keyboard can reach (refreshScroll sets tabindex when it overflows),
-        // named after its table
+    // showVerdict draws the banner and says it. kind: "pass", "fail", "warning" or "info".
+    // message: the sentence after the headline (a p.verdict-message), or null; lines: more of the
+    // band's text, each on its own line (a p); action: a button at the end of the band; after:
+    // what goes under the band; spoken: what is said in place of the sentence, when the sentence
+    // points at something that is not said (the error band). What is said: the headline, the
+    // sentence and the lines.
+    function showVerdict(kind, headline, { message = null, lines = [], action = null, after = [], spoken = null } = {}) {
+        const box = el("div", `verdict verdict--${kind}`);
+        const band = el("div", "verdict-band");
+        const text = el("div", "verdict-text");
+        const head = el("p", "verdict-head");
+        head.append(el("strong", "verdict-headline", headline));
+        // the sentence runs on from the headline ("Not quite. Row 1 is ..."): a space between them
+        text.append(head, ...(message ? [" ", message] : []), ...lines);
+        band.append(verdictMark(kind), text);
+        if (action) {
+            band.append(action);
+        }
+        box.append(band, ...after);
+        // A Check from the keyboard while the focus was on the banner (on Next exercise, after a
+        // pass, or on a table's scroll box) would leave it on nothing, the old banner gone: it goes
+        // to the same button in the new banner, else to the banner itself (its ring then inside it)
+        const hadFocus = els.feedback.contains(document.activeElement);
+        els.feedback.replaceChildren(box);
+        els.feedback.hidden = false;
+        if (hadFocus) {
+            const again = box.querySelector(".verdict-next");
+            if (again) {
+                again.focus();
+            } else {
+                box.tabIndex = -1;
+                box.focus();
+            }
+        }
+        // a new verdict where the student had scrolled the pane past the old one: the pane shows it
+        // from its top (the banner is the pane's first child; a phone's pane does not scroll)
+        const pane = els.feedback.parentElement;
+        if (pane && pane.scrollTop > els.feedback.offsetTop) {
+            pane.scrollTop = els.feedback.offsetTop;
+        }
+        say(
+            [headline, spoken ?? message?.textContent, ...lines.map((line) => line.textContent)]
+                .filter(Boolean)
+                .map(sentence)
+                .join(" ")
+        );
+    }
+
+    // sentence ends a part of what is said as a sentence, as it is on screen ("expected 2 columns,
+    // got 1" has its full stop drawn there), so that a screen reader pauses between the parts
+    function sentence(text) {
+        return /[.!?]$/.test(text) ? text : `${text}.`;
+    }
+
+    // The Expected and Yours view of a row that differs (kind "row"): the checker's rows, from the
+    // first that differs (at most DIFF_MAX_ROWS of each, numbered as in the whole result), side by
+    // side. The cells of Yours that read differently from Expected's are outlined, and say so in
+    // words. When the first row shown reads the same as the expected one (the difference is past
+    // the cut of a long value, or in a value's type), that whole row is outlined and a note says
+    // why. -> [the two tables, the "scroll sideways" note]
+    function compareView(outcome) {
+        const differs = (i, j) => outcome.expected[i]?.[j] !== outcome.got[i]?.[j];
+        const hidden = outcome.got.length > 0 && !outcome.got[0].some((_, j) => differs(0, j));
+        const yours = side(CHECK_GOT_LABEL, outcome.gotColumns, outcome.got, outcome.rowIndex, (i, j) => differs(i, j) || (hidden && i === 0));
+        yours.append(el("p", "verdict-note verdict-diff-note", VERDICT_DIFF_NOTE));
+        if (hidden) {
+            yours.append(el("p", "verdict-note verdict-diff-note", verdictHiddenDiffNote(outcome.rowIndex)));
+        }
+        const expected = side(CHECK_EXPECTED_LABEL, outcome.columns, outcome.expected, outcome.rowIndex, null);
+        linkScroll(expected.querySelector(".verdict-scroll"), yours.querySelector(".verdict-scroll"));
+        const diff = el("div", "verdict-diff");
+        diff.append(expected, yours);
+        const scrollNote = el("p", "verdict-note verdict-scroll-note", VERDICT_SCROLL_NOTE);
+        scrollNote.hidden = true;
+        return [diff, scrollNote];
+    }
+
+    // linkScroll keeps two wide tables at the same place sideways, so that a cell of Yours can be
+    // read against the one of Expected above or beside it. Setting one box's scrollLeft makes it
+    // send a scroll event of its own a moment later, which is not passed back (the boxes can be of
+    // different widths, and would otherwise pull each other to and fro).
+    function linkScroll(a, b) {
+        const echoes = new Map([
+            [a, null],
+            [b, null],
+        ]);
+        for (const [box, other] of [
+            [a, b],
+            [b, a],
+        ]) {
+            box.addEventListener("scroll", () => {
+                if (echoes.get(box) === box.scrollLeft) {
+                    echoes.set(box, null);
+                    return;
+                }
+                if (other.scrollLeft !== box.scrollLeft) {
+                    other.scrollLeft = box.scrollLeft;
+                    echoes.set(other, other.scrollLeft);
+                }
+            });
+        }
+    }
+
+    // revealDifference scrolls the view sideways to the first outlined cell of Yours when it is out of
+    // its box (a wide result that differs in a column far to the right): the cell then sits at the
+    // left, after as much of the column before it as the row numbers take (offsetLeft counts from
+    // the table, which starts at the box's left). Expected follows (linkScroll).
+    function revealDifference() {
+        const cell = els.feedback.querySelector(".verdict-cell--differs");
+        const box = cell?.closest(".verdict-scroll");
+        if (!box || box.scrollWidth <= box.clientWidth) {
+            return;
+        }
+        if (cell.offsetLeft >= box.scrollLeft && cell.offsetLeft + cell.offsetWidth <= box.scrollLeft + box.clientWidth) {
+            return;
+        }
+        const before = box.querySelector(".verdict-row-number")?.offsetWidth ?? 0;
+        box.scrollLeft = Math.max(0, cell.offsetLeft - before);
+    }
+
+    // side is one table of the view, ruled like the result table, in a scroll box that the keyboard
+    // can reach while it overflows (refreshScroll gives it a tabindex then), named after its table.
+    // outlined(i, j) says whether the cell of row i, column j is outlined.
+    function side(caption, columns, rows, firstRow, outlined) {
+        const column = el("div", "verdict-side");
         const wrap = el("div", "verdict-scroll");
         wrap.setAttribute("role", "region");
         wrap.setAttribute("aria-label", caption);
         const table = el("table", "verdict-table");
         table.append(el("caption", null, caption));
+        const numeric = numericColumns(columns.length, rows);
         const headRow = el("tr");
-        const corner = el("th", null, CHECK_ROW_HEADER);
+        const corner = el("th", "verdict-row-number", CHECK_ROW_HEADER);
         corner.scope = "col";
         headRow.append(corner);
-        for (const name of columns) {
-            const th = el("th", null, name);
+        columns.forEach((name, j) => {
+            const th = el("th", numeric[j] ? "num" : null, name);
             th.scope = "col";
             headRow.append(th);
-        }
+        });
         const body = el("tbody");
         rows.forEach((cells, i) => {
             const tr = el("tr");
-            const number = el("th", null, String(firstRow + i));
+            const number = el("th", "verdict-row-number", String(firstRow + i));
             number.scope = "row";
-            tr.append(number, ...cells.map((cell) => el("td", null, cell)));
+            tr.append(number);
+            cells.forEach((cell, j) => {
+                const td = el("td", numeric[j] ? "num" : null, cell);
+                if (outlined?.(i, j)) {
+                    td.classList.add("verdict-cell--differs");
+                    td.append(el("span", "visually-hidden", CHECK_DIFFERS_TEXT));
+                }
+                tr.append(td);
+            });
             body.append(tr);
         });
         table.append(el("thead"), body);
         table.tHead.append(headRow);
         wrap.append(table);
-        return wrap;
+        column.append(wrap);
+        return column;
     }
 
-    // refreshScroll makes each diff table box a keyboard stop and shows the "scroll sideways"
-    // note while any of them is wider than its box. It measures synchronously, so the verdict
-    // reaches the live region in one piece.
+    // refreshScroll makes each table box of the view a keyboard stop and shows the "scroll
+    // sideways" note while any of them is wider than its box.
     function refreshScroll() {
         let overflow = false;
         for (const box of els.feedback.querySelectorAll(".verdict-scroll")) {
@@ -487,61 +752,77 @@ export function mountExercises({
         return null;
     }
 
-    function passChildren() {
-        const children = [el("p", "verdict-message", CHECK_PASS_MESSAGE)];
-        const next = nextUnpassed();
-        if (next) {
-            const openedSet = set;
-            const button = el("button", "button button--small verdict-next", exerciseNextText(set.exercises.indexOf(next) + 1));
-            button.type = "button";
-            button.addEventListener("click", () => {
-                if (set === openedSet) {
-                    select(next.id);
-                    ui.editor.focus();
-                }
-            });
-            const row = el("p", "verdict-actions");
-            row.append(button);
-            children.push(row);
-        } else if (passedCount(set.id, set.exercises.map((e) => e.id)) === set.exercises.length) {
-            children.push(el("p", "verdict-message verdict-complete", exerciseAllCompleteText(set.exercises.length)));
-        }
-        return children;
+    // nextButton opens the next exercise not yet passed and puts the focus in the editor. Its title
+    // (its description) names that exercise, which can be further on than the next in the list.
+    function nextButton(next) {
+        const openedSet = set;
+        const button = el("button", "button verdict-next", NEXT_EXERCISE_TEXT);
+        button.type = "button";
+        button.title = exerciseTargetText(set.exercises.indexOf(next) + 1, set.exercises.length, next.title);
+        button.addEventListener("click", () => {
+            if (set === openedSet) {
+                select(next.id);
+                ui.editor.focus();
+            }
+        });
+        return button;
     }
 
-    function showOutcome(outcome, ran) {
+    // "Correct. 12 rows match." (the checker counts the rows), Next exercise, or the set complete
+    function showPass(outcome) {
+        const sentence = Number.isInteger(outcome.rows) ? checkPassMessage(outcome.rows) : CHECK_PASS_MESSAGE;
+        const next = nextUnpassed();
+        const lines = [];
+        if (!next && passedCount(set.id, set.exercises.map((e) => e.id)) === set.exercises.length) {
+            lines.push(el("p", "verdict-message verdict-complete", exerciseAllCompleteText(set.exercises.length)));
+        }
+        showVerdict("pass", CHECK_PASS_HEADLINE, {
+            message: el("p", "verdict-message", sentence),
+            lines,
+            action: next ? nextButton(next) : null,
+        });
+    }
+
+    // ran: the visible run worked; runError: what it failed with, if it failed
+    function showOutcome(outcome, ran, runError = null) {
         if (outcome.status === "pass") {
-            showVerdict("pass", EXERCISE_PASSED_MARK, CHECK_PASS_HEADLINE, ...passChildren());
+            showPass(outcome);
             return;
         }
         if (outcome.status !== "fail") {
-            showVerdict("info", "!", CHECK_UNAVAILABLE_HEADLINE, el("p", "verdict-message", outcome.message));
+            showVerdict("warning", CHECK_UNAVAILABLE_HEADLINE, { message: el("p", "verdict-message", outcome.message) });
             return;
         }
-        if (outcome.kind === "row") {
-            const diff = el("div", "verdict-diff");
-            diff.append(
-                diffTable(CHECK_EXPECTED_LABEL, outcome.columns, outcome.expected, outcome.rowIndex),
-                diffTable(CHECK_GOT_LABEL, outcome.gotColumns, outcome.got, outcome.rowIndex)
-            );
-            // the first line of the message is the headline; the rest is the diff as text
-            showVerdict(
-                "fail",
-                "✕",
-                CHECK_FAIL_HEADLINE,
-                el("p", "verdict-message", outcome.message.split("\n")[0]),
-                diff,
-                el("p", "verdict-note verdict-scroll-note", VERDICT_SCROLL_NOTE)
-            );
-            els.feedback.querySelector(".verdict-scroll-note").hidden = true;
-            refreshScroll();
-            return;
+        // The checker's own sentence ("expected 2 columns, got 1"; for a row, the first line of its
+        // message, the rest being the diff as text), shown in sentence case; or the engine's message
+        // as it is, in mono, as the error band shows it.
+        const message = el("p", "verdict-message");
+        // the visible run failed with this same message: the error band under the banner shows it,
+        // with the statement, so the banner points at it instead of saying it twice (and it is the
+        // message that is said)
+        const shownBelow = outcome.kind === "sql" && !ran && runError && engineMessage(runError) === outcome.message;
+        if (shownBelow) {
+            message.textContent = CHECK_SQL_ERROR_BELOW;
+        } else if (outcome.kind === "sql") {
+            message.append(el("span", "verdict-engine", outcome.message));
+        } else {
+            message.classList.add("verdict-message--checker");
+            message.textContent = outcome.kind === "row" ? outcome.message.split("\n")[0] : outcome.message;
+            // "expected 2 columns, got 1" has no full stop of its own; the sentence it now is gets one
+            if (!/[.!?]$/.test(message.textContent)) {
+                message.classList.add("verdict-message--fragment");
+            }
         }
-        const children = [el("p", "verdict-message", outcome.message)];
-        if (outcome.kind === "sql" && ran) {
-            children.push(el("p", "verdict-note", CHECK_COPY_NOTE));
-        }
-        showVerdict("fail", "✕", CHECK_FAIL_HEADLINE, ...children);
+        // a query that ran on the student's working copy but fails on the original dataset
+        const lines = outcome.kind === "sql" && ran ? [el("p", "verdict-note", CHECK_COPY_NOTE)] : [];
+        showVerdict("fail", CHECK_FAIL_HEADLINE, {
+            message,
+            lines,
+            after: outcome.kind === "row" ? compareView(outcome) : [],
+            spoken: shownBelow ? outcome.message : null,
+        });
+        refreshScroll();
+        revealDifference();
     }
 
     // ---- check -----------------------------------------------------------------------------
@@ -552,7 +833,7 @@ export function mountExercises({
         }
         const sql = ui.editor.query;
         if (!sql.trim()) {
-            showVerdict("info", "!", CHECK_UNAVAILABLE_HEADLINE, el("p", "verdict-message", CHECK_EMPTY_MESSAGE));
+            showVerdict("info", CHECK_EMPTY_HEADLINE, { message: el("p", "verdict-message", CHECK_EMPTY_MESSAGE) });
             return;
         }
         if (isLoading()) {
@@ -569,6 +850,7 @@ export function mountExercises({
             // the student sees their own results first; a failed run does not stop the check, but a
             // run that was dropped (a database began loading before it started) checks nothing
             let ran = true;
+            let runError = null;
             try {
                 await execute(sql);
             } catch (exc) {
@@ -576,6 +858,7 @@ export function mountExercises({
                     return;
                 }
                 ran = false;
+                runError = exc ?? null;
             }
             const outcome = await checker.check(checkedSet, exercise, sql);
             if (token !== generation) {
@@ -586,7 +869,7 @@ export function mountExercises({
                 refreshList();
                 refreshProgress();
             }
-            showOutcome(outcome, ran);
+            showOutcome(outcome, ran, runError);
         } finally {
             if (checking === token) {
                 checking = -1;
@@ -667,6 +950,7 @@ export function mountExercises({
         refreshProgress();
         renderPrompt();
         renderHints();
+        refreshNav();
         clearFeedback();
         renderPicker();
         setShareContext({ set: set.id, exercise: current.id });
@@ -722,6 +1006,7 @@ export function mountExercises({
         refreshList();
         renderPrompt();
         renderHints();
+        refreshNav();
         clearFeedback();
         setShareContext({ exercise: next.id });
         announceExercise();

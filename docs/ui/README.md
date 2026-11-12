@@ -6,7 +6,7 @@ Proof for the UI plan (`docs/design/SQL Lab UI and UX Plan.md`, section 8). Not 
 |---|---|
 | `before/` | The interface before the redesign (commit 0a088a7), captured at the start of Phase 1. |
 | `after/phase-N/` | The same states after phase N, with a `README.md` that pairs them with `before/` and records the self-review of section 8. |
-| `UI_INVENTORY.md` | Every interactive element before the redesign, its handler, the tests that pin it, and its new home. Phase 2 ticked each row with where it lives now (or, until its later phase, where it works meanwhile); Phase 3 moved the editor's rows to CodeMirror; Phase 4 the result area's, the toasts' and the dialogs'. |
+| `UI_INVENTORY.md` | Every interactive element before the redesign, its handler, the tests that pin it, and its new home. Phase 2 ticked each row with where it lives now (or, until its later phase, where it works meanwhile); Phase 3 moved the editor's rows to CodeMirror; Phase 4 the result area's, the toasts' and the dialogs'; Phase 5 the exercise mode's. |
 
 Every matrix has the same three viewports (1366×768, 1920×1080, 390×844), both themes, and the states below. A file is named `<state>--<viewport>--<theme>.png`; screenshots are full-page, at device scale 1, with motion reduced. The 390×844 shots are taken as a phone (a touch screen) and, as the page scrolls there, are as tall as the page. To draw past the window Chromium leaves mobile emulation, so from Phase 4 the tool pins the page's pointer and hover media rules first and the shot keeps the touch screen's 44 px controls (the phone shots of Phases 2 and 3 that are taller than 844 px show a mouse's 32 px ones). A fixed layer (a dialog's scrim, a toast) covers the first 844 px, the window the student sees.
 
@@ -30,9 +30,13 @@ Every matrix has the same three viewports (1366×768, 1920×1080, 390×844), bot
 | `menu-completion` | From Phase 3: the editor's list of names, open after `SELECT * FROM pro`. |
 | `open-url-dialog`, `open-url-error` | From Phase 4: the Open from URL dialog (it was `window.prompt`), and the same with an address it cannot open (`gist:abc123`), refused in the dialog. |
 | `evidence-dialog` | The evidence export dialog. |
-| `exercise-prompt` | Exercise 5 of the Northlight set, "Online sales by category". |
-| `exercise-correct` | Its answer, checked. |
-| `exercise-wrong` | Its answer sorted the wrong way, checked: row 1 differs, with the Expected and Yours tables. |
+| `exercise-prompt` | Exercise 5 of the Northlight set, "Online sales by category". From Phase 5 with Previous and Next beside the hint button. |
+| `exercise-hints` | From Phase 5: the same exercise with two of its three hints shown, under the buttons. |
+| `exercise-correct` | Its answer, checked (from Phase 5 the banner: "Correct. 5 rows match." and Next exercise). |
+| `exercise-wrong` | Its answer sorted the wrong way, checked: row 1 differs, with the Expected and Yours tables (from Phase 5 side by side, the cells that differ outlined). |
+| `exercise-not-quite` | From Phase 5: a wrong answer that is not a row of difference (one column where two are expected): "Not quite." and the checker's message, no tables. |
+| `exercise-no-query` | From Phase 5: Check with nothing in the editor: "Nothing to check." |
+| `exercise-complete` | From Phase 5: the last exercise of the set passed: "All 10 exercises complete. Well done." and no Next exercise. |
 
 The native selects of the old interface (Dataset, Exercises) open outside the page, so no screenshot can show them open. "Running…" shows only while a run blocks the page, when a screenshot cannot be taken; Phase 4's README has frames of it from a video instead.
 

@@ -6,6 +6,9 @@ const { test, expect, realSet, withSampleDataset } = require("./helpers");
 // the shipped model queries, for the "model answer passes" tests
 const SET = realSet();
 const model = (id) => SET.exercises.find((e) => e.id === id).model_query;
+// rows of each model query on Northlight (as tests/m4-panel.spec.js counts them): a pass says how
+// many rows matched
+const MODEL_ROWS = { e01: 5, e02: 5, e03: 5, e04: 8, e05: 5, e06: 5, e07: 1, e08: 22, e09: 19, e10: 4 };
 
 // A tiny set around one made-up exercise, for tests that need their own model query.
 const miniSet = (exercise, dataset = "northlight") => ({
@@ -152,14 +155,15 @@ test.describe("comparing two results (pure)", () => {
 
     test("identical results pass", async ({ page }) => {
         const r = result(["a", "b"], [[1, "x"], [2, "y"]]);
-        expect(await compare(page, r, r)).toEqual({ status: "pass" });
-        expect(await compare(page, result(["a"], []), result(["z"], []))).toEqual({ status: "pass" });
+        // a pass says how many rows matched (the banner's "Correct. 2 rows match.")
+        expect(await compare(page, r, r)).toEqual({ status: "pass", rows: 2 });
+        expect(await compare(page, result(["a"], []), result(["z"], []))).toEqual({ status: "pass", rows: 0 });
     });
 
     test("multiset by default: order does not matter, duplicates do", async ({ page }) => {
         const a = result(["n"], [[1], [2], [3]]);
         const b = result(["n"], [[3], [1], [2]]);
-        expect(await compare(page, a, b)).toEqual({ status: "pass" });
+        expect(await compare(page, a, b)).toEqual({ status: "pass", rows: 3 });
         expect((await compare(page, a, b, { orderMatters: true })).kind).toBe("row");
         const dupA = result(["n"], [[1], [1], [2]]);
         const dupB = result(["n"], [[1], [2], [2]]);
@@ -208,7 +212,7 @@ test.describe("comparing two results (pure)", () => {
         // in two orders must give the same sorted lists, so it passes
         const a = result(["v"], [[2], [10], ["b"], ["B"], [null]]);
         const b = result(["v"], [["B"], [null], ["b"], [10], [2]]);
-        expect(await compare(page, a, b)).toEqual({ status: "pass" });
+        expect(await compare(page, a, b)).toEqual({ status: "pass", rows: 5 });
     });
 
     test("the sort ignores the locale: canonically equivalent strings stay different and are ordered by code unit", async ({ page }) => {
@@ -218,8 +222,8 @@ test.describe("comparing two results (pure)", () => {
         const decomposed = "e\u0301";
         const a = result(["s"], [[composed], [decomposed]]);
         const b = result(["s"], [[decomposed], [composed]]);
-        expect(await compare(page, a, b)).toEqual({ status: "pass" });
-        expect(await compare(page, b, a)).toEqual({ status: "pass" });
+        expect(await compare(page, a, b)).toEqual({ status: "pass", rows: 2 });
+        expect(await compare(page, b, a)).toEqual({ status: "pass", rows: 2 });
         // they are not the same value, though
         expect((await compare(page, result(["s"], [[composed]]), result(["s"], [[decomposed]]))).kind).toBe("row");
     });
@@ -252,9 +256,10 @@ test.describe("comparing two results (pure)", () => {
         // case-insensitive pass
         expect(await compare(page, want, result(["alpha", "BETA", "gamma"], values), { checkColumnNames: true })).toEqual({
             status: "pass",
+            rows: 1,
         });
         // names are not looked at by default
-        expect(await compare(page, want, result(["x", "y", "z"], values))).toEqual({ status: "pass" });
+        expect(await compare(page, want, result(["x", "y", "z"], values))).toEqual({ status: "pass", rows: 1 });
         // the first mismatch is named, with its 1-based position, expected and got
         const out = await compare(page, want, result(["alpha", "oops", "also_wrong"], values), { checkColumnNames: true });
         expect(out).toMatchObject({ status: "fail", kind: "column-name", position: 2, expected: "beta", got: "oops" });
@@ -298,7 +303,7 @@ test.describe("check() on the Northlight dataset", () => {
 
     test("AC5 the model answer passes", async ({ app }) => {
         for (const exercise of SET.exercises) {
-            expect(await app.check(exercise.id, exercise.model_query), exercise.id).toEqual({ status: "pass" });
+            expect(await app.check(exercise.id, exercise.model_query), exercise.id).toEqual({ status: "pass", rows: MODEL_ROWS[exercise.id] });
         }
     });
 
@@ -313,7 +318,7 @@ test.describe("check() on the Northlight dataset", () => {
         expect(out.columns).toEqual(["product_name", "unit_price"]);
         // the same rows in another order pass where order does not matter
         const reordered = "SELECT category, COUNT(*) AS product_count, ROUND(AVG(unit_price), 2) AS avg_price FROM products GROUP BY category ORDER BY category DESC;";
-        expect(await app.check("e03", reordered)).toEqual({ status: "pass" });
+        expect(await app.check("e03", reordered)).toEqual({ status: "pass", rows: MODEL_ROWS.e03 });
     });
 
     test("AC5 a syntax error surfaces the engine's message, verbatim", async ({ app }) => {
@@ -365,8 +370,8 @@ test.describe("check() on the Northlight dataset", () => {
 
     test("the student's SQL is treated as in a visible Run: the last statement with result columns", async ({ app }) => {
         const sql = `${model("e01")} CREATE TABLE scratch(a);`;
-        expect(await app.check("e01", sql)).toEqual({ status: "pass" });
-        expect(await app.check("e01", `SELECT 1 AS x; ${model("e01")}`)).toEqual({ status: "pass" });
+        expect(await app.check("e01", sql)).toEqual({ status: "pass", rows: MODEL_ROWS.e01 });
+        expect(await app.check("e01", `SELECT 1 AS x; ${model("e01")}`)).toEqual({ status: "pass", rows: MODEL_ROWS.e01 });
         // duplicate column names are kept, so the count is faithful
         expect((await app.check("e01", "select 1 as a, 2 as a, 3 as a")).message).toBe("expected 2 columns, got 3");
         // a final SELECT with no rows is the result
@@ -384,9 +389,9 @@ test.describe("check() on the Northlight dataset", () => {
         await app.run("select * from products");
         await expect(app.errorBand.locator(".results-band-message")).toContainText("no such table: products");
         // ... and checks still run on the pristine data
-        expect(await app.check("e01", model("e01"))).toEqual({ status: "pass" });
-        expect(await app.check("e02", model("e02"))).toEqual({ status: "pass" });
-        expect(await app.check("e08", model("e08"))).toEqual({ status: "pass" });
+        expect(await app.check("e01", model("e01"))).toEqual({ status: "pass", rows: MODEL_ROWS.e01 });
+        expect(await app.check("e02", model("e02"))).toEqual({ status: "pass", rows: MODEL_ROWS.e02 });
+        expect(await app.check("e08", model("e08"))).toEqual({ status: "pass", rows: MODEL_ROWS.e08 });
         // the check did not repair the working database either
         await app.run("select * from products");
         await expect(app.errorBand.locator(".results-band-message")).toContainText("no such table: products");
@@ -397,8 +402,8 @@ test.describe("check() on the Northlight dataset", () => {
         const first = await app.check("e01", mutate);
         expect(first.status).toBe("fail"); // the mutation changed what that query saw
         // the next check starts from the pristine data again
-        expect(await app.check("e01", model("e01"))).toEqual({ status: "pass" });
-        expect(await app.check("e02", model("e02"))).toEqual({ status: "pass" });
+        expect(await app.check("e01", model("e01"))).toEqual({ status: "pass", rows: MODEL_ROWS.e01 });
+        expect(await app.check("e02", model("e02"))).toEqual({ status: "pass", rows: MODEL_ROWS.e02 });
         // a query that creates a table does not leave it for the next one
         await app.check("e01", "CREATE TABLE leftover(a); INSERT INTO leftover VALUES (1)");
         expect((await app.check("e01", "SELECT * FROM leftover")).message).toBe("no such table: leftover");
@@ -464,7 +469,7 @@ test.describe("check() on the Northlight dataset", () => {
     test("the model cannot be affected by the student's SQL, nor the student's by the model", async ({ app }) => {
         // a student who drops a table in a check gets a normal answer on the next
         await app.check("e01", "drop table products");
-        expect(await app.check("e01", model("e01"))).toEqual({ status: "pass" });
+        expect(await app.check("e01", model("e01"))).toEqual({ status: "pass", rows: MODEL_ROWS.e01 });
         // an exercise whose model query writes anything does not change what the student sees
         const exercise = {
             id: "w1",
@@ -476,7 +481,7 @@ test.describe("check() on the Northlight dataset", () => {
             check_column_names: false,
         };
         const set = miniSet(exercise);
-        expect(await app.check(null, "select count(*) from products", { set, exercise })).toEqual({ status: "pass" });
+        expect(await app.check(null, "select count(*) from products", { set, exercise })).toEqual({ status: "pass", rows: 1 });
         expect((await app.check(null, "select * from made_by_model", { set, exercise })).message).toBe("no such table: made_by_model");
     });
 
@@ -671,7 +676,7 @@ test.describe("check() without the set's pristine dataset", () => {
         // a set for the sample dataset can be checked on it
         const exercise = { id: "s", title: "S", prompt: "S", hints: [], model_query: "select count(*) as n from sqlite_master", order_matters: false, check_column_names: false };
         const set = miniSet(exercise, "sample");
-        expect(await app.check(null, "select count(*) from sqlite_master", { set, exercise })).toEqual({ status: "pass" });
+        expect(await app.check(null, "select count(*) from sqlite_master", { set, exercise })).toEqual({ status: "pass", rows: 1 });
     });
 
     test("no database at all", async ({ page, app }) => {

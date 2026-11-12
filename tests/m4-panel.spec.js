@@ -102,7 +102,7 @@ test("AC5 the model answer for e01 passes, the wrong sort direction fails with r
 }) => {
     await app.openSet();
     await passExercise(app, "e01");
-    await expect(app.feedback).toContainText("Passed");
+    await expect(app.feedback).toContainText("Correct.");
     await expect(app.progress).toHaveText("1 of 10 complete");
     // the student's own results are on screen as usual
     await app.settle();
@@ -119,7 +119,7 @@ test("AC5 the model answer for e01 passes, the wrong sort direction fails with r
     const tables = verdict.locator("table");
     await expect(tables).toHaveCount(2);
     await expect(tables.nth(0).locator("caption")).toHaveText("Expected");
-    await expect(tables.nth(1).locator("caption")).toHaveText("Your result");
+    await expect(tables.nth(1).locator("caption")).toHaveText("Yours");
     for (const i of [0, 1]) {
         expect(await tables.nth(i).locator("tbody tr").count()).toBeLessThanOrEqual(3);
         await expect(tables.nth(i).locator("th[scope=col]").nth(1)).toHaveText("product_name");
@@ -132,7 +132,9 @@ test("AC5 the model answer for e01 passes, the wrong sort direction fails with r
 
     await app.editor.fill("SELEC 1;");
     await app.checkButton.click();
-    await expect(app.feedback.locator(".verdict-message")).toHaveText('near "SELEC": syntax error');
+    // the run under the banner failed with the same message: its error band shows the engine's
+    // message (checked below), and the banner points at it rather than repeating it (Phase 5)
+    await expect(app.feedback.locator(".verdict-message")).toHaveText("This query has an error, shown below.");
     await expect(app.feedback.locator(".verdict-note")).toHaveCount(0);
     // the results pane still carries the run's own error (in its error band), and the visible run did happen
     await app.settle();
@@ -254,8 +256,10 @@ test("AC8 keyboard only: reach the editor, type, run, check with Ctrl+Shift+Ente
     await expect(app.feedback.locator(".verdict--pass")).toBeVisible();
     expect(await page.evaluate(() => window.__runs)).toBe(2); // one run: the check's own
     await expect(app.editor).toBeFocused();
-    // the verdict is announced: a live region
-    await expect(app.feedback).toHaveAttribute("role", "status");
+    // the verdict is announced: the results pane's live region says it in words (the banner itself
+    // is not live, so its tables are not read out)
+    await expect(page.locator("#results-announce")).toHaveAttribute("role", "status");
+    await expect(page.locator("#results-announce")).toHaveText("Correct. 5 rows match.");
 
     // now wrong, and check from the Check button by keyboard
     await page.keyboard.press("Control+A");
@@ -285,10 +289,12 @@ test("each feedback rule shows on screen, and a pass is unmistakable", async ({ 
     const verdict = app.feedback.locator(".verdict");
     const message = app.feedback.locator(".verdict-message");
 
-    // 1. SQL error: the engine's message, verbatim
+    // 1. SQL error: the engine's message, verbatim, in the error band of the run under the banner,
+    // which the banner points at (Phase 5: the same message is not shown twice)
     await app.editor.fill("SELECT nope FROM products;");
     await app.checkButton.click();
-    await expect(message).toHaveText("no such column: nope");
+    await expect(message).toHaveText("This query has an error, shown below.");
+    await expect(app.errorBand.locator(".results-band-message")).toHaveText("no such column: nope");
 
     // 2. column count
     await app.editor.fill("SELECT product_name FROM products WHERE category = 'Electronics' ORDER BY unit_price DESC;");
@@ -315,11 +321,13 @@ test("each feedback rule shows on screen, and a pass is unmistakable", async ({ 
     await expect(message).toContainText(/Row \d+ is the first that differs/);
     await expect(app.feedback.locator("table")).toHaveCount(2);
 
-    // a pass: a mark, a word, and the counter moves
+    // a pass: a mark (the tick that draws itself, an icon the words go with), a word, and the
+    // counter moves
     await passExercise(app, "e02");
     await expect(verdict).toHaveClass(/verdict--pass/);
-    await expect(app.feedback.locator(".verdict-mark")).toHaveText("✓");
-    await expect(app.feedback.locator(".verdict-headline")).toHaveText("Passed");
+    await expect(app.feedback.locator(".verdict-mark")).toHaveClass(/verdict-tick/);
+    await expect(app.feedback.locator(".verdict-mark")).toHaveAttribute("aria-hidden", "true");
+    await expect(app.feedback.locator(".verdict-headline")).toHaveText("Correct.");
     await expect(app.progress).toHaveText("1 of 10 complete");
     await expect(app.exerciseButton(2)).toHaveAttribute("aria-label", `Exercise 2 of 10: ${titleOf(2)}, passed`);
     await expect(passedMark(app.exerciseButton(2))).toBeVisible();
@@ -583,17 +591,18 @@ test("in exercise mode the editor never shows the dataset's free-query SQL and n
     expect((await editorValue(page)).trim()).toBe("");
 });
 
-test("hints reveal one at a time, in order, from one button that counts what is left and goes away", async ({ page, app }) => {
+test("hints reveal one at a time, in order, from one button that counts the hints and goes away", async ({ page, app }) => {
     await app.openSet();
     const hints = SET.exercises[0].hints;
     const hinted = hints.map((h, i) => `Hint ${i + 1}: ${h}`);
     expect(hints.length).toBe(2);
-    await expect(app.hintButton).toHaveText(`Show next hint (${hints.length} left)`);
+    // "Show hint (1 of 2)": the hint a press shows, of how many (UI plan, section 5)
+    await expect(app.hintButton).toHaveText(`Show hint (1 of ${hints.length})`);
     await expect(app.hints.locator("li")).toHaveCount(0);
     await app.hintButton.focus();
     await page.keyboard.press("Enter");
     await expect(app.hints.locator("li")).toHaveText([`Hint 1: ${hints[0]}`]);
-    await expect(app.hintButton).toHaveText("Show next hint (1 left)");
+    await expect(app.hintButton).toHaveText("Show hint (2 of 2)");
     await page.keyboard.press("Enter");
     await expect(app.hints.locator("li")).toHaveText(hinted);
     await expect(app.hintButton).toBeHidden();
@@ -954,7 +963,8 @@ test("Ctrl+Shift+Enter with no set open behaves as it does today: the editor run
 
 test("the list is one Tab stop with arrow keys inside, and the exercise adds at most three stops before the editor", async ({ page, app }) => {
     await app.openSet();
-    // the prompt above the editor's toolbar holds the hint button and nothing else that takes Tab
+    // the prompt above the editor's toolbar holds the hint button, Previous and Next, and nothing
+    // else that takes Tab
     const stops = await page.evaluate(() =>
         [...document.querySelector("#exercise-panel").querySelectorAll("a[href], button, input, select, textarea, [tabindex]")]
             .filter((el) => el.tabIndex >= 0 && el.offsetParent !== null)
@@ -965,7 +975,7 @@ test("the list is one Tab stop with arrow keys inside, and the exercise adds at 
     expect(await page.locator("#exercise-list button[tabindex='0']").count()).toBe(1);
 
     // from the set picker: the list, then (below) Reset progress, the sidebar splitter, the hint
-    // button, Run, Check answer and the editor
+    // button, Previous, Next, Run, Check answer and the editor
     await app.setPicker.focus();
     await page.keyboard.press("Tab");
     await expect(app.exerciseButton(1)).toBeFocused();
@@ -998,6 +1008,10 @@ test("the list is one Tab stop with arrow keys inside, and the exercise adds at 
     await page.keyboard.press("Tab");
     await expect(app.hintButton).toBeFocused();
     await page.keyboard.press("Tab");
+    await expect(page.locator("#exercise-previous")).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(page.locator("#exercise-next")).toBeFocused();
+    await page.keyboard.press("Tab");
     await expect(page.locator("#execute")).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(app.checkButton).toBeFocused();
@@ -1010,6 +1024,10 @@ test("the list is one Tab stop with arrow keys inside, and the exercise adds at 
     await page.keyboard.press("Shift+Tab");
     await expect(page.locator("#execute")).toBeFocused();
     await page.keyboard.press("Shift+Tab");
+    await expect(page.locator("#exercise-next")).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(page.locator("#exercise-previous")).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
     await expect(app.hintButton).toBeFocused();
     await page.keyboard.press("Shift+Tab");
     await expect(page.locator("#sidebar-splitter")).toBeFocused();
@@ -1021,7 +1039,14 @@ test("the list is one Tab stop with arrow keys inside, and the exercise adds at 
 
 test("focus is always visible on the panel's controls", async ({ page, app }) => {
     await app.openSet();
-    for (const locator of [page.locator("#exercise-reset"), app.exerciseButton(1), app.hintButton, app.checkButton]) {
+    for (const locator of [
+        page.locator("#exercise-reset"),
+        app.exerciseButton(1),
+        app.hintButton,
+        page.locator("#exercise-previous"),
+        page.locator("#exercise-next"),
+        app.checkButton,
+    ]) {
         await locator.focus();
         await page.keyboard.press("Shift+Tab");
         await page.keyboard.press("Tab");

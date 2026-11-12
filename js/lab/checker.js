@@ -25,7 +25,8 @@
 //   createChecker() -> {check(set, exercise, sql), clearCache()}
 //       Make one per page (the model-result cache lives in it). check never throws and
 //       returns a Promise of an outcome:
-//         {status: "pass"}
+//         {status: "pass", rows}                  rows: how many rows matched (the banner's
+//                                                 "Correct. 12 rows match.")
 //         {status: "fail", kind, message, ...}   kind is one of
 //             "sql"          message = the engine's message, verbatim (engineMessage)
 //             "columns"      "expected N columns, got M"   (also for no result columns: M = 0)
@@ -188,7 +189,7 @@ export function compareResults(expected, got, { orderMatters = false, checkColum
         }
     }
     if (first === -1) {
-        return { status: "pass" };
+        return { status: "pass", rows: want.length };
     }
     const shown = (rows) =>
         rows.slice(first, first + DIFF_MAX_ROWS).map((r) => Array.from(r.row, displayValue));

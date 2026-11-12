@@ -76,9 +76,9 @@ test.describe("the SQL guard", () => {
             set: miniSet,
             exercise: ex("m1"),
         });
-        expect(withMem).toEqual({ status: "pass" });
+        expect(withMem).toEqual({ status: "pass", rows: 1 });
         const temp = await app.check(null, "ATTACH '' AS t; CREATE TABLE t.q(x); SELECT 1", { set: miniSet, exercise: ex("m2") });
-        expect(temp).toEqual({ status: "pass" });
+        expect(temp).toEqual({ status: "pass", rows: 1 });
         const gone = await app.check(null, "SELECT * FROM m.t", { set: miniSet, exercise: ex("m3") });
         expect(gone).toMatchObject({ status: "fail", kind: "sql" });
         expect(gone.message).toContain("no such table");
@@ -149,7 +149,7 @@ test.describe("the SQL guard", () => {
             expect(failed).toMatchObject({ status: "unavailable", reason: "internal" });
             expect(failed.message).toContain("Reload the page");
         }
-        expect(out.after).toEqual({ status: "pass" });
+        expect(out.after).toEqual({ status: "pass", rows: 1 });
     });
 });
 
@@ -266,7 +266,7 @@ test("a failure diff wider than the screen is named, reachable by keyboard, and 
     const boxes = app.feedback.locator(".verdict-scroll");
     await expect(boxes).toHaveCount(2);
     await expect(app.feedback.getByRole("region", { name: "Expected" })).toHaveCount(1);
-    await expect(app.feedback.getByRole("region", { name: "Your result" })).toHaveCount(1);
+    await expect(app.feedback.getByRole("region", { name: "Yours" })).toHaveCount(1);
     for (let i = 0; i < 2; i++) {
         const info = await boxes.nth(i).evaluate((box) => ({
             wide: box.scrollWidth > box.clientWidth,
@@ -333,8 +333,10 @@ const ALL = SET.exercises.map((e) => e.id);
 test("a pass offers the next exercise; the button opens it, puts the focus in the editor and announces the prompt", async ({ page, app }) => {
     await app.openSet();
     await passExercise(app, "e01");
-    const next = app.feedback.getByRole("button", { name: "Next: Exercise 2" });
+    // "Next exercise" (the plan's words), whose description names the exercise it opens
+    const next = app.feedback.getByRole("button", { name: "Next exercise", exact: true });
     await expect(next).toBeVisible();
+    await expect(next).toHaveAccessibleDescription(`Exercise 2 of 10: ${titleOf(2)}`);
     await next.click();
     await expect(app.exerciseButton(2)).toHaveAttribute("aria-current", "true");
     await expect(app.feedback).toBeHidden();
@@ -351,8 +353,11 @@ test("the next exercise skips the ones already passed and wraps round to the sta
     await app.openSet("retail-basics", { ex: "e03" });
     await passExercise(app, "e03");
     // e04 is passed: the next unpassed one is e05
-    await expect(app.feedback.getByRole("button", { name: "Next: Exercise 5" })).toBeVisible();
-    await app.feedback.getByRole("button", { name: "Next: Exercise 5" }).click();
+    const next = app.feedback.getByRole("button", { name: "Next exercise", exact: true });
+    await expect(next).toBeVisible();
+    await expect(next).toHaveAccessibleDescription(`Exercise 5 of 10: ${titleOf(5)}`);
+    await next.click();
+    await expect(app.exerciseButton(5)).toHaveAttribute("aria-current", "true");
     await passExercise(app, "e05");
     await expect(app.feedback.getByText("All 10 exercises complete")).toBeVisible();
     await expect(app.feedback.getByRole("button")).toHaveCount(0);
@@ -362,7 +367,9 @@ test("wrapping: from the last unpassed exercise to an earlier one", async ({ pag
     await seedProgress(page, ALL.filter((id) => id !== "e03" && id !== "e08"));
     await app.openSet("retail-basics", { ex: "e08" });
     await passExercise(app, "e08");
-    await expect(app.feedback.getByRole("button", { name: "Next: Exercise 3" })).toBeVisible();
+    const next = app.feedback.getByRole("button", { name: "Next exercise", exact: true });
+    await expect(next).toBeVisible();
+    await expect(next).toHaveAccessibleDescription(`Exercise 3 of 10: ${titleOf(3)}`);
     await expect(app.feedback.getByText("All 10 exercises complete")).toHaveCount(0);
 });
 

@@ -327,14 +327,25 @@ export const exerciseProgressText = (passed, total) => `${passed} of ${total} co
 export const exerciseListLabel = (title) => `Exercises in ${title}`;
 export const exerciseButtonLabel = (position, total, title, passed) =>
     `Exercise ${position} of ${total}: ${title}, ${passed ? "passed" : "not passed"}`;
-export const EXERCISE_PASSED_MARK = "✓";
-export const exerciseHintText = (remaining) => `Show next hint (${remaining} left)`;
+// The prompt's hint button counts the hints (UI plan, section 5: "Hint 1 of 2"): it shows hint
+// `next` of `total` when pressed, and goes away once all are shown.
+export const exerciseHintText = (next, total) => `Show hint (${next} of ${total})`;
 export const exerciseHintLabel = (position) => `Hint ${position}`;
 // the name of the list of revealed hints; each hint also starts with a visually hidden "Hint N: "
 export const EXERCISE_HINTS_LABEL = "Hints";
-// after a pass: where to go next, or that the set is done
-export const exerciseNextText = (position) => `Next: Exercise ${position}`;
-export const exerciseAllCompleteText = (total) => `All ${total} exercises complete. Well done.`;
+// Previous and Next in the prompt: the exercise before and after this one in the set's order.
+// Each says where it goes (its title, and so its description); at the ends of the set it stays in
+// place but does nothing (aria-disabled), and says why.
+export const EXERCISE_PREVIOUS_TEXT = "Previous";
+export const EXERCISE_NEXT_TEXT = "Next";
+export const EXERCISE_NAV_LABEL = "Move between exercises";
+export const exerciseTargetText = (position, total, title) => `Exercise ${position} of ${total}: ${title}`;
+export const EXERCISE_FIRST_TEXT = "This is the first exercise of the set.";
+export const EXERCISE_LAST_TEXT = "This is the last exercise of the set.";
+// after a pass: the next exercise not yet passed (its title says which), or that the set is done
+export const NEXT_EXERCISE_TEXT = "Next exercise";
+export const exerciseAllCompleteText = (total) =>
+    total === 1 ? "The set is complete. Well done." : `All ${total} exercises complete. Well done.`;
 // spoken (polite live region) when the student moves to another exercise
 export const exerciseAnnouncement = (position, total, title, prompt) =>
     `Exercise ${position} of ${total}: ${title}. ${prompt}`;
@@ -342,15 +353,37 @@ export const exerciseAnnouncement = (position, total, title, prompt) =>
 // Check.
 export const CHECK_BUTTON_TEXT = "Check answer";
 export const CHECK_BUTTON_TITLE = "⌃⇧↵ or ⌘⇧↵";
-export const CHECK_EMPTY_MESSAGE = "Write a query first, then press Check.";
-export const CHECK_PASS_HEADLINE = "Passed";
+// The feedback banner at the top of the results pane (UI plan, section 5): a headline, then a
+// sentence. "Correct. 12 rows match." with the drawn tick; "Not quite." and the checker's own
+// message with a cross; "Not checked." when the exercise cannot be checked; "Nothing to check."
+// for an empty editor. What is shown is also said, once, by the results pane's live region.
+export const CHECK_PASS_HEADLINE = "Correct.";
+export const checkPassMessage = (rows) =>
+    rows === 0 ? "No rows, as expected." : `${countText(rows)} ${rows === 1 ? "row matches" : "rows match"}.`;
+// a pass whose row count is not known (an outcome from before the count was reported)
 export const CHECK_PASS_MESSAGE = "Your result matches the expected result.";
-export const CHECK_FAIL_HEADLINE = "Not passed yet";
-export const CHECK_UNAVAILABLE_HEADLINE = "Cannot check";
+export const CHECK_FAIL_HEADLINE = "Not quite.";
+export const CHECK_UNAVAILABLE_HEADLINE = "Not checked.";
+export const CHECK_EMPTY_HEADLINE = "Nothing to check.";
+export const CHECK_EMPTY_MESSAGE = "Write a query first, then press Check answer.";
+// The Expected and Yours view of a row that differs: the checker's rows, from the first that
+// differs, side by side; the cells of Yours that differ from Expected are outlined.
 export const CHECK_EXPECTED_LABEL = "Expected";
-export const CHECK_GOT_LABEL = "Your result";
+export const CHECK_GOT_LABEL = "Yours";
 export const CHECK_ROW_HEADER = "Row";
-// Under the Expected / Your result tables when they are wider than their box.
+// said after an outlined cell's value (the outline is not seen by everyone)
+export const CHECK_DIFFERS_TEXT = " (differs)";
+export const VERDICT_DIFF_NOTE = "Outlined cells differ from the expected result.";
+// when the first row shown differs only where the tables cannot show it (a cell cut at
+// DIFF_MAX_CELL_CHARS, or a value's type: the text "3" and the number 3 look the same, and so do
+// NULL and the text "NULL")
+export const verdictHiddenDiffNote = (position) =>
+    `Row ${position} differs from the expected row in something the table cannot show, such as the end of a long value, or a value of another type: text, a number or NULL.`;
+// "Not quite." for a query the engine refused, when the run of it under the banner failed with the
+// same message: the error band there shows SQLite's message and the statement, so the banner points
+// at it rather than repeating it (the message is what is said)
+export const CHECK_SQL_ERROR_BELOW = "This query has an error, shown below.";
+// Under the Expected and Yours tables when they are wider than their box.
 export const VERDICT_SCROLL_NOTE = "These tables are wider than the screen. Scroll sideways to see all the columns.";
 // After the engine's message, when the visible run worked but the check on the original
 // dataset failed: the student changed their working copy.

@@ -199,6 +199,8 @@ const lab = mountExercises({
     // the results pane (mounted below; these run later)
     showIdle: () => results.showEmpty(),
     modeChanged: () => results.refreshEmpty(),
+    // a Check's verdict is said by the results pane's live region, as every run's outcome is
+    say: (text) => results.say(text),
 });
 
 // What choosing a set (or "None") does is decided in js/lab/set-actions.js; these are the

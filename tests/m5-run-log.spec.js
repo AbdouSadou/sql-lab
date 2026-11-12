@@ -119,7 +119,7 @@ test.describe("what a Run appends", () => {
         await app.openSet("retail-basics", { ex: "e01" });
         await app.editor.fill("SELECT product_name, unit_price FROM products WHERE category = 'Electronics' ORDER BY unit_price DESC;");
         await app.checkButton.click();
-        await expect(app.feedback).toContainText("Passed");
+        await expect(app.feedback).toContainText("Correct.");
         expect(await app.readLog("northlight")).toHaveLength(1);
         await app.checkButton.click();
         await app.settle();
@@ -128,10 +128,12 @@ test.describe("what a Run appends", () => {
         // a wrong query and a failing one are single entries too
         await app.editor.fill("SELECT product_name FROM products;");
         await app.checkButton.click();
-        await expect(app.feedback).toContainText("Not passed yet");
+        await expect(app.feedback).toContainText("Not quite.");
         await app.editor.fill("SELECT nope FROM products;");
         await app.checkButton.click();
-        await expect(app.feedback).toContainText("no such column: nope");
+        // the engine's message is in the error band of the run, which the banner points at (Phase 5)
+        await expect(app.feedback).toContainText("This query has an error, shown below.");
+        await expect(app.errorBand.locator(".results-band-message")).toHaveText("no such column: nope");
         const log = await app.readLog("northlight");
         expect(log.map((e) => e.error ?? e.rows)).toEqual([expect.any(Number), expect.any(Number), expect.any(Number), "no such column: nope"]);
         expect(log).toHaveLength(4);

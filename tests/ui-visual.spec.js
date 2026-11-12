@@ -38,6 +38,13 @@ async function settle(page, { busy = false } = {}) {
         for (const el of document.querySelectorAll(".run-history-time")) {
             el.textContent = "2026-01-01 12:00:00 UTC";
         }
+        // The link that Copy link's popover shows begins with the test server's origin, whose port
+        // TEST_PORT_BASE changes (the default is 4173): it is given that one origin, and selected
+        // again as it was, so the shot is the same on any four-digit port.
+        for (const field of document.querySelectorAll(".share-link-field")) {
+            field.value = field.value.replace(location.origin, "http://127.0.0.1:4173");
+            field.select();
+        }
     });
 }
 

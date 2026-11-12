@@ -17,6 +17,9 @@
 //       returned", "Done.", "This query has an error: <message>".
 //   view.showResult(result, elapsed, {changes, quiet}) / view.showError(exc, {quiet}) / view.showProblem(message)
 //       quiet: say nothing (a Check's run: the exercise's verdict is what is said)
+//   view.say(text)
+//       Says a Check's verdict ("Correct. 5 rows match.") in the same live region, so a Check is
+//       said once, as a Run is (js/lab/exercise-panel.js draws the verdict above the pane's state).
 //   view.showEmpty({variant, notice, problem, said}) / view.showLoading({name, size}) -> {name(), progress()}
 //       said: the heading is said too (an empty Run)
 //   view.loadFailed(message) / view.loadCancelled()
@@ -541,6 +544,11 @@ export function mountResults({ ui, pane, summary, getDatabase, getSamples = () =
             if (!restore()) {
                 view.showEmpty();
             }
+        },
+
+        // a Check's verdict, in words (the banner above the state is not a live region)
+        say(text) {
+            announce(text);
         },
 
         // "no result yet", if it shows, drawn again (exercise mode began or ended)

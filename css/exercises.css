@@ -1,8 +1,9 @@
 /* Exercise mode (js/lab/exercise-panel.js): the Exercises tab of the sidebar (set picker,
-   progress, list, Reset progress), the exercise prompt above the editor, Check answer in the
-   editor toolbar, and the verdict at the top of the result. Looks from
-   docs/design/mockup/exercise-correct.html. State is never shown by colour alone: an icon and
-   words go with it. */
+   progress, list, Reset progress), the exercise prompt above the editor (with its hint button,
+   Previous and Next), Check answer in the editor toolbar, and the feedback banner at the top of
+   the result, with Expected and Yours under it for a row that differs. Looks from
+   docs/design/mockup/exercise-correct.html and exercise-wrong.html. State is never shown by colour
+   alone: an icon and words go with it. */
 
 .exercise-panel[hidden],
 .exercise-feedback[hidden],
@@ -187,27 +188,56 @@
 
 .exercise-text {
     max-width: 76ch;
-    margin: var(--space-2) 0 0 0;
+    /* 12 px under the title, the panel's own gap (the mockup's section is a column with that gap) */
+    margin: var(--space-3) 0 0 0;
     font-size: var(--text-md);
     line-height: var(--leading-code);
     white-space: pre-line;
     overflow-wrap: anywhere;
 }
 
-#exercise-hint-button {
-    align-self: flex-start;
+/* the hint button at the left, Previous and Next at the right (the mockup); they wrap under it
+   when the panel is narrow */
+.exercise-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
 }
 
+.exercise-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: auto;
+}
+
+/* the hints shown so far, under the buttons, so that Show hint stays where it was pressed. Their
+   numbers stand on the panel's left edge, with the prompt and the buttons, and a hint's lines hang
+   after its number (a counter, not the list's own markers, which hang outside the edge). The list
+   keeps role="list" (index.html): some browsers drop the role of a list without markers. */
 .exercise-hints {
     margin: 0;
-    padding-left: var(--space-5);
+    padding: 0;
+    list-style: none;
+    counter-reset: hint;
     line-height: var(--leading-code);
 }
 
 .exercise-hint {
+    display: flex;
+    gap: var(--space-2);
     margin: var(--space-1) 0;
+    counter-increment: hint;
     white-space: pre-line;
     overflow-wrap: anywhere;
+}
+
+.exercise-hint::before {
+    flex: none;
+    min-width: 1.5ch;
+    content: counter(hint) ".";
+    font-variant-numeric: tabular-nums;
 }
 
 /* ---- Check answer: the filled primary of exercise mode; Run stays beside it, quiet ------------ */
@@ -231,70 +261,187 @@
     cursor: progress;
 }
 
-/* ---- the verdict, at the top of the result (Phase 5 turns it into the feedback banner) ------- */
+/* ---- the feedback banner, at the top of the result ------------------------------------------- */
 
+/* the banner spans the results pane, as the error band does; under it, the result as usual */
 .exercise-feedback {
-    margin: var(--space-3) var(--space-5) 0;
-}
-
-.verdict {
-    padding: var(--space-2) var(--space-3);
-    border: 2px solid currentColor;
-    border-radius: var(--radius-control);
+    margin: 0;
 }
 
 .verdict p {
     margin: 0;
 }
 
-.verdict p + p,
-.verdict-diff {
-    margin-top: 6px;
+/* the banner holds the focus when a Check from the keyboard replaced what had it: the ring goes
+   inside, as the banner reaches both sides of its pane */
+.verdict:focus-visible {
+    outline-offset: -2px;
 }
 
-.verdict--pass {
-    background: var(--success-subtle);
-    color: var(--success);
+/* The band (plan, section 5; the same band pattern as the error band of css/result.css): no
+   border, no edge, a tinted ground. An icon, the words, and Next exercise at the end. It fades in
+   over 120 ms; the tick of a pass then draws itself over 300 ms. */
+.verdict {
+    animation: menu-fade var(--motion-fade) ease-out;
 }
 
-.verdict--fail {
-    background: var(--danger-subtle);
-    color: var(--danger);
-}
-
-.verdict--info {
-    background: var(--accent-subtle);
+.verdict-band {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-3) var(--space-5);
     color: var(--ink);
 }
 
-.verdict-head {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-2);
-    font-size: var(--text-md);
+.verdict--pass .verdict-band {
+    background: var(--success-subtle);
+}
+
+.verdict--fail .verdict-band {
+    background: var(--danger-subtle);
+}
+
+.verdict--warning .verdict-band {
+    background: var(--warning-subtle);
+}
+
+/* "Nothing to check.": a note, not an outcome */
+.verdict--info .verdict-band {
+    background: var(--sunken);
 }
 
 .verdict-mark {
-    font-weight: 600;
+    width: 20px;
+    height: 20px;
 }
 
-.verdict-message,
-.verdict-note {
-    color: var(--ink);
+.verdict--pass .verdict-mark {
+    color: var(--success);
+}
+
+.verdict--fail .verdict-mark {
+    color: var(--danger);
+}
+
+.verdict--warning .verdict-mark {
+    color: var(--warning);
+}
+
+.verdict--info .verdict-mark {
+    color: var(--graphite);
+}
+
+.verdict-text {
+    flex: 1 1 240px;
+    min-width: 0;
+    font-size: var(--text-md);
     overflow-wrap: anywhere;
 }
 
-.verdict-note {
-    font-size: var(--text-xs);
+/* the headline, then the sentence on the same line */
+.verdict-head {
+    display: inline;
 }
+
+.verdict-headline {
+    font-weight: 600;
+}
+
+.verdict-text > .verdict-message {
+    display: inline;
+}
+
+/* the checker's sentence is written for reading after a headline on a line of its own
+   ("expected 2 columns, got 1"): here it runs on from "Not quite.", so it starts with a capital.
+   (A box of its own on the line: an inline sentence has no first letter to style.) */
+.verdict-text > .verdict-message--checker {
+    display: inline-block;
+}
+
+.verdict-message--checker::first-letter {
+    text-transform: uppercase;
+}
+
+.verdict-message--fragment::after {
+    content: ".";
+}
+
+/* the engine's message, as the error band shows it */
+.verdict-engine {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+}
+
+/* a line of its own: "All 10 exercises complete.", a note */
+.verdict-text > .verdict-complete,
+.verdict-text > .verdict-note {
+    display: block;
+}
+
+.verdict-note {
+    color: var(--ink);
+    font-size: var(--text-xs);
+    overflow-wrap: anywhere;
+}
+
+.verdict-text > .verdict-note {
+    margin-top: var(--space-1);
+}
+
+/* the drawn tick: the circle, then the tick, each stroked in (js/lab/exercise-panel.js gives each
+   shape a length of 1). The dash pattern starts just off the shape, so its round cap leaves no dot
+   before the stroke begins. */
+.verdict-tick > * {
+    stroke-dasharray: 1 1.2;
+    stroke-dashoffset: 1.1;
+    animation: verdict-draw 200ms ease-out forwards;
+}
+
+.verdict-tick > :last-child:not(:first-child) {
+    animation-duration: 150ms;
+    animation-delay: 150ms;
+}
+
+@keyframes verdict-draw {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .verdict {
+        animation: none;
+    }
+
+    .verdict-tick > * {
+        stroke-dashoffset: 0;
+        animation: none;
+    }
+}
+
+/* ---- Expected and Yours: the rows that differ, side by side (exercise-wrong.html) ------------- */
 
 .verdict-diff {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-3);
+    align-items: flex-start;
+    gap: var(--space-5) 64px;
+    padding: var(--space-4) var(--space-5) 0;
 }
 
+.verdict-side {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* positioned: the visually hidden "(differs)" of an outlined cell is placed in it, and so stays
+   inside the box it scrolls in instead of widening the page */
 .verdict-scroll {
+    position: relative;
     max-width: 100%;
     overflow-x: auto;
 }
@@ -303,32 +450,80 @@
     display: none !important;
 }
 
-.verdict p.verdict-actions {
-    margin-top: var(--space-2);
+.verdict-diff-note,
+.verdict > .verdict-scroll-note {
+    color: var(--graphite);
 }
 
+.verdict > .verdict-scroll-note {
+    padding: var(--space-2) var(--space-5) 0;
+}
+
+/* the last thing of the banner keeps the result's 24 px off it */
+.verdict:has(.verdict-diff) {
+    padding-bottom: var(--space-4);
+}
+
+/* Ruled like the result table (css/result.css; plan, section 3): a 2 px ink rule above the
+   header and under the last row, 1 px under the header, hairlines between rows, no vertical lines.
+   Numbers right-aligned in tabular figures. The row numbers, which say where in the result these
+   rows are, are graphite. */
 .verdict-table {
-    border: 1px solid var(--rule);
-    border-collapse: collapse;
-    background: var(--paper);
+    border-collapse: separate;
+    border-spacing: 0;
     color: var(--ink);
     font-family: var(--font-mono);
-    font-size: var(--text-xs);
+    font-size: var(--text-sm);
+    line-height: var(--leading-code);
+    font-variant-numeric: tabular-nums;
 }
 
 .verdict-table caption {
-    padding: 2px 0;
+    padding-bottom: var(--space-2);
     font-family: var(--font-ui);
     font-weight: 600;
+    line-height: var(--leading-ui);
     text-align: left;
 }
 
 .verdict-table th,
 .verdict-table td {
-    padding: 2px var(--space-2);
-    border: 1px solid var(--rule);
+    padding: 6px 40px 6px 6px;
+    border-bottom: 1px solid var(--rule);
     text-align: left;
+    vertical-align: top;
     white-space: pre;
+}
+
+.verdict-table thead th {
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+    border-top: 2px solid var(--ink);
+    border-bottom-color: var(--ink);
+    font-weight: 600;
+}
+
+.verdict-table tbody tr:last-child > * {
+    border-bottom: 2px solid var(--ink);
+}
+
+.verdict-table .num {
+    padding-right: 6px;
+    padding-left: 40px;
+    text-align: right;
+}
+
+.verdict-table .verdict-row-number {
+    padding-right: var(--space-4);
+    color: var(--graphite);
+    font-weight: 400;
+    text-align: right;
+}
+
+/* a cell of Yours that differs from Expected (its words say so too, for a screen reader) */
+.verdict-table .verdict-cell--differs {
+    outline: 2px solid var(--danger);
+    outline-offset: -2px;
 }
 
 @media (max-width: 699.98px) {
@@ -337,7 +532,10 @@
         padding: var(--space-3) var(--space-4);
     }
 
-    .exercise-feedback {
-        margin: var(--space-3) var(--space-4) 0;
+    .verdict-band,
+    .verdict-diff,
+    .verdict > .verdict-scroll-note {
+        padding-right: var(--space-4);
+        padding-left: var(--space-4);
     }
 }

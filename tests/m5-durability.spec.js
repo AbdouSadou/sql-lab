@@ -333,7 +333,7 @@ test.describe("exercise progress after a failed write", () => {
         await app.exerciseButton(1).click();
         await app.editor.fill(SET.exercises[0].model_query);
         await app.checkButton.click();
-        await expect(app.feedback).toContainText("Passed");
+        await expect(app.feedback).toContainText("Correct.");
         await expect(notice(page)).toBeVisible();
         expect(await page.evaluate(() => localStorage.getItem("sqllab.progress.retail-basics"))).toBeNull();
         await setStorageFailing(page, false);

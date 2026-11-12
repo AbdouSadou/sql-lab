@@ -980,7 +980,7 @@ test.describe("checked again", () => {
         await app.openSet("retail-basics", { ex: "e05" });
         await app.editor.fill(modelQuery("e05"));
         await app.checkButton.click();
-        await expect(app.feedback).toContainText("Passed");
+        await expect(app.feedback).toContainText("Correct.");
         // the prompt, its hint button included, needs no scrolling (the verdict did not cut it)
         await expect.poll(() => app.exercisePanel.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
         // the verdict and the result's first row are inside the pane without scrolling it
@@ -1000,8 +1000,8 @@ test.describe("checked again", () => {
         await app.openSet("retail-basics", { ex: "e05" });
         await app.editor.fill(modelQuery("e05").replace("ORDER BY revenue DESC", "ORDER BY revenue"));
         await app.checkButton.click();
-        await expect(app.feedback).toContainText("Not passed yet");
-        await expect(app.feedback.getByText("Not passed yet")).toBeInViewport();
+        await expect(app.feedback).toContainText("Not quite.");
+        await expect(app.feedback.getByText("Not quite.")).toBeInViewport();
         // the result under it is reached by scrolling the pane
         await page.locator("#results-pane").evaluate((el) => el.scrollTo(0, el.scrollHeight));
         await expect(app.table).toBeInViewport();

@@ -8,7 +8,8 @@
 //   - a Run asked for in the frame before a load begins is dropped, and the pane stays loading
 //   - a load that fails keeps the view: the table and its summary (Download CSV working), or "no
 //     result yet", come back, and the failure's band goes above them until the next state
-//   - a Check's run is shown, not said; the verdict is what is said
+//   - a Check's run is shown, not said; the verdict is what is said (from Phase 5, in words, by the
+//     same live region)
 //   - the live region is emptied when the pane changes state; an empty Run is said
 //   - a refusal toast is a note ("i"), not a confirmation (tick) or a failure (alert sign): a Run
 //     while a database loads, nothing to export, a link too long, the export dialog's refusals
@@ -429,14 +430,22 @@ test.describe("a load that fails keeps the view", () => {
 
 test.describe("a Check's run is shown, not said", () => {
     // The Check runs the student's SQL in the results pane like Run does, but the live region would
-    // say "5 rows returned" or the SQL error on top of the verdict. Only the verdict is said.
+    // say "5 rows returned" or the SQL error on top of the verdict. Only the verdict is said: from
+    // Phase 5 the banner is not a live region, and the results pane's live region says the
+    // verdict's words, once (js/lab/exercise-panel.js showVerdict).
     const CASES = [
-        { name: "passing", sql: () => modelQuery("e01"), verdict: ".verdict--pass", pane: "result" },
-        { name: "failing", sql: () => "SELECT 1 AS one;", verdict: ".verdict--fail", pane: "result" },
-        { name: "erroring", sql: () => "SELECT * FROM no_such_table;", verdict: ".verdict--fail", pane: "error" },
+        { name: "passing", sql: () => modelQuery("e01"), verdict: ".verdict--pass", pane: "result", said: "Correct. 5 rows match." },
+        { name: "failing", sql: () => "SELECT 1 AS one;", verdict: ".verdict--fail", pane: "result", said: "Not quite. expected 2 columns, got 1." },
+        {
+            name: "erroring",
+            sql: () => "SELECT * FROM no_such_table;",
+            verdict: ".verdict--fail",
+            pane: "error",
+            said: "Not quite. no such table: no_such_table.",
+        },
     ];
     for (const c of CASES) {
-        test(`a ${c.name} Check: the run is on screen, #results-announce says nothing, the verdict is in #exercise-feedback`, async ({ page, app }) => {
+        test(`a ${c.name} Check: the run is on screen, #results-announce says the verdict alone, the verdict is in #exercise-feedback`, async ({ page, app }) => {
             await app.openSet();
             await recordSaid(page);
             await app.editor.fill(c.sql());
@@ -447,14 +456,17 @@ test.describe("a Check's run is shown, not said", () => {
             await expect(app.pane).toHaveAttribute("data-state", c.pane);
             if (c.pane === "error") {
                 await expect(app.errorBand.locator(".results-band-message")).toHaveText("no such table: no_such_table");
-                await expect(app.feedback).toContainText("no such table: no_such_table");
+                // the banner points at the band rather than repeating its message (Phase 5); the
+                // message is what is said (c.said)
+                await expect(app.feedback).toContainText("This query has an error, shown below.");
             } else {
                 await expect(app.table).toBeVisible();
             }
             // longer than the gap between emptying the live region and filling it
             await page.waitForTimeout(300);
-            expect(await said(page), "what #results-announce said").toEqual([]);
-            await expect(app.announcer).toHaveText("");
+            // the verdict, once, and nothing of the run ("5 rows returned", the run's error)
+            expect(await said(page), "what #results-announce said").toEqual([c.said]);
+            await expect(app.announcer).toHaveText(c.said);
         });
     }
 
@@ -1388,11 +1400,14 @@ test.describe("a Check whose run has no result set", () => {
         await expect(app.status).toHaveText(/^Done in \d+ ms$/);
         // longer than the gap between emptying the live region and filling it
         await page.waitForTimeout(300);
-        expect(await said(page), "what #results-announce said").toEqual([]);
-        await expect(app.announcer).toHaveText("");
+        // the verdict alone, in words (from Phase 5 the results pane's live region says it), and no
+        // "Done." of the run
+        const verdict = "Not quite. expected 2 columns, got 0.";
+        expect(await said(page), "what #results-announce said").toEqual([verdict]);
+        await expect(app.announcer).toHaveText(verdict);
         // a plain Run of the same kind is said (so the check above can fail)
         await app.run("CREATE TABLE zz2(x);");
-        await expect.poll(() => said(page)).toEqual(["Done."]);
+        await expect.poll(() => said(page)).toEqual([verdict, "Done."]);
     });
 });
 

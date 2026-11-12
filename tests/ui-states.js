@@ -362,12 +362,52 @@ shell.states = {
     "exercise-correct": async (page) => {
         await shell.exerciseOpen(page);
         await shell.check(page, CORRECT_SQL);
-        await page.locator("#exercise-feedback").filter({ hasText: "Passed" }).waitFor();
+        await page.locator("#exercise-feedback .verdict--pass").waitFor();
     },
     "exercise-wrong": async (page) => {
         await shell.exerciseOpen(page);
         await shell.check(page, WRONG_SQL);
         await page.locator("#exercise-feedback table").first().waitFor();
+    },
+    // From Phase 5: both hints of the exercise shown, under the prompt
+    "exercise-hints": async (page) => {
+        await shell.exerciseOpen(page);
+        const button = page.locator("#exercise-hint-button");
+        await button.click();
+        await button.click();
+        await page.locator("#exercise-hints li").nth(1).waitFor();
+    },
+    // a wrong answer that is not a row of difference (one column where two are expected): the
+    // banner alone, with the checker's message
+    "exercise-not-quite": async (page) => {
+        await shell.exerciseOpen(page);
+        await shell.check(page, "SELECT DISTINCT category FROM products ORDER BY category;");
+        await page.locator("#exercise-feedback .verdict--fail").waitFor();
+    },
+    // Check with nothing in the editor: a note, and nothing runs
+    "exercise-no-query": async (page) => {
+        await shell.exerciseOpen(page);
+        await shell.check(page, "");
+        await page.locator("#exercise-feedback").filter({ hasText: "Write a query first" }).waitFor();
+    },
+    // the last exercise of the set passed: the set is complete, and no next exercise is offered
+    "exercise-complete": async (page) => {
+        await page.addInitScript(
+            ({ key, passed }) => {
+                if (!localStorage.getItem(key)) {
+                    localStorage.setItem(key, JSON.stringify({ v: 1, passed, drafts: {} }));
+                }
+            },
+            {
+                key: `sqllab.progress.${EXERCISE.set}`,
+                passed: Object.fromEntries(
+                    ["e01", "e02", "e03", "e04", "e06", "e07", "e08", "e09", "e10"].map((id) => [id, true])
+                ),
+            }
+        );
+        await shell.exerciseOpen(page);
+        await shell.check(page, CORRECT_SQL);
+        await page.locator("#exercise-feedback").filter({ hasText: "exercises complete" }).waitFor();
     },
 };
 

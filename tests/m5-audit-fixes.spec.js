@@ -187,7 +187,7 @@ test.describe("a full storage", () => {
         await app.exerciseButton(1).click();
         await app.editor.fill(SET.exercises[0].model_query);
         await app.checkButton.click();
-        await expect(app.feedback).toContainText("Passed");
+        await expect(app.feedback).toContainText("Correct.");
         await expect(app.progress).toHaveText("1 of 10 complete");
         await expect(notice(page)).toBeVisible();
         await expect(notice(page)).toContainText("exercise progress");
@@ -201,7 +201,7 @@ test.describe("a full storage", () => {
         await app.exerciseButton(1).click();
         await app.editor.fill(SET.exercises[0].model_query);
         await app.checkButton.click();
-        await expect(app.feedback).toContainText("Passed");
+        await expect(app.feedback).toContainText("Correct.");
         await expect(notice(page)).toBeHidden();
         await expect(page.locator("#storage-notice")).toHaveCount(1);
     });
