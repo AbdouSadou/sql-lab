@@ -1,0 +1,149 @@
+{
+  "id": "shopping-basics",
+  "title": "Shopping — SQL basics",
+  "dataset": "shopping",
+  "exercises": [
+    {
+      "id": "e01",
+      "title": "Products under £100",
+      "prompt": "Using the products table, list the name and unit cost of every product with a unit cost below 100, cheapest first.",
+      "hints": [
+        "Filter with WHERE. Numbers are written without quotes.",
+        "Sort with ORDER BY. Smallest first is the default, so you do not need DESC."
+      ],
+      "model_query": "SELECT ProductName, UnitCost FROM products WHERE UnitCost < 100 ORDER BY UnitCost;",
+      "order_matters": true,
+      "check_column_names": false
+    },
+    {
+      "id": "e02",
+      "title": "Most recent orders",
+      "prompt": "Using the orders table, list the OrderID, OrderDate and Total of the 3 most recent orders, newest first.",
+      "hints": [
+        "Sort the orders by OrderDate. Dates are stored as text like 2023-12-31, so they sort correctly.",
+        "ORDER BY OrderDate DESC puts the newest dates at the top.",
+        "LIMIT keeps only the first rows of a sorted result. It goes at the very end of the query."
+      ],
+      "model_query": "SELECT OrderID, OrderDate, Total FROM orders ORDER BY OrderDate DESC LIMIT 3;",
+      "order_matters": true,
+      "check_column_names": false
+    },
+    {
+      "id": "e03",
+      "title": "Large orders from two customers",
+      "prompt": "Using the orders table, list the OrderID, OrderDate, CustomerID and Total of every order with a Total above 1000 that was placed by customer ID0002 or customer ID0004, earliest first.",
+      "hints": [
+        "You need a test on Total and a test on CustomerID. Text values go in single quotes: 'ID0002'.",
+        "AND is worked out before OR. Written without brackets, CustomerID = 'ID0002' OR CustomerID = 'ID0004' AND Total > 1000 keeps every order from ID0002, whatever its total.",
+        "Put brackets round the OR part, or use IN: CustomerID IN ('ID0002', 'ID0004'). Finish with ORDER BY OrderDate."
+      ],
+      "model_query": "SELECT OrderID, OrderDate, CustomerID, Total FROM orders WHERE Total > 1000 AND CustomerID IN ('ID0002', 'ID0004') ORDER BY OrderDate;",
+      "order_matters": true,
+      "check_column_names": false
+    },
+    {
+      "id": "e04",
+      "title": "Orders per customer",
+      "prompt": "Using the orders table, show one row for each customer with the number of orders they placed, the average Total of those orders rounded to 2 decimal places, and their largest Total. Use the exact column names CustomerID, OrderCount, AverageTotal and LargestTotal.",
+      "hints": [
+        "Group the orders by customer with GROUP BY CustomerID.",
+        "COUNT(*) counts the rows in each group, AVG(Total) averages their totals and MAX(Total) finds the largest. ROUND(x, 2) rounds x to 2 decimal places.",
+        "Rename a column with AS, for example COUNT(*) AS OrderCount. This exercise checks your column names."
+      ],
+      "model_query": "SELECT CustomerID, COUNT(*) AS OrderCount, ROUND(AVG(Total), 2) AS AverageTotal, MAX(Total) AS LargestTotal FROM orders GROUP BY CustomerID;",
+      "order_matters": false,
+      "check_column_names": true
+    },
+    {
+      "id": "e05",
+      "title": "Regular customers",
+      "prompt": "Using the orders table, find every customer who has placed at least 10 orders. Show two columns: CustomerID, then the number of orders that customer has placed.",
+      "hints": [
+        "Count the orders for each customer with GROUP BY CustomerID, as in the previous exercise.",
+        "WHERE filters individual rows before they are grouped, so it cannot test a count. To filter on a count, use HAVING.",
+        "HAVING goes after GROUP BY and can use an aggregate, for example HAVING COUNT(*) compared with 10."
+      ],
+      "model_query": "SELECT CustomerID, COUNT(*) AS OrderCount FROM orders GROUP BY CustomerID HAVING COUNT(*) >= 10;",
+      "order_matters": false,
+      "check_column_names": false
+    },
+    {
+      "id": "e06",
+      "title": "Who placed the biggest orders",
+      "prompt": "List every order with a Total of 2000 or more, together with the name of the customer who placed it. Show three columns: OrderID, CustomerName, Total.",
+      "hints": [
+        "OrderID and Total are in orders, but the customer's name is in customers. You need both tables.",
+        "Join them with orders JOIN customers ON ..., matching the CustomerID of one table to the CustomerID of the other.",
+        "Both tables have a CustomerID column, so say which one you mean by putting the table name in front, as in orders.CustomerID. Then filter with WHERE on Total."
+      ],
+      "model_query": "SELECT o.OrderID, c.CustomerName, o.Total FROM orders o JOIN customers c ON c.CustomerID = o.CustomerID WHERE o.Total >= 2000;",
+      "order_matters": false,
+      "check_column_names": false
+    },
+    {
+      "id": "e07",
+      "title": "Customers with no orders",
+      "prompt": "Find every customer who has never placed an order. Show CustomerID and CustomerName.",
+      "hints": [
+        "You need customers on one side and orders on the other, and the customers you want are the ones with no match in orders.",
+        "An INNER JOIN drops customers with no orders. A LEFT JOIN from customers keeps them, and fills the orders columns with NULL.",
+        "After the LEFT JOIN, keep only the rows where a column from orders IS NULL."
+      ],
+      "model_query": "SELECT c.CustomerID, c.CustomerName FROM customers c LEFT JOIN orders o ON o.CustomerID = c.CustomerID WHERE o.OrderID IS NULL;",
+      "order_matters": false,
+      "check_column_names": false
+    },
+    {
+      "id": "e08",
+      "title": "New orders by product",
+      "prompt": "Each row of the quantities table is a new order for a quantity of one product. Using the quantities and products tables, work out for each product the total number of units ordered and the total value of those units, where the value of a row is Quantity * UnitCost. Show three columns: ProductName, then the total units, then the total value rounded to 2 decimal places. Put the product with the highest total value first.",
+      "hints": [
+        "Quantity is in quantities and UnitCost is in products. Join the two tables on ProductID.",
+        "GROUP BY the product, then use SUM(Quantity) for the units and SUM(Quantity * UnitCost) for the value.",
+        "Put ROUND(..., 2) around the whole SUM, and sort by the value column with DESC."
+      ],
+      "model_query": "SELECT p.ProductName, SUM(q.Quantity) AS Units, ROUND(SUM(q.Quantity * p.UnitCost), 2) AS TotalValue FROM quantities q JOIN products p ON p.ProductID = q.ProductID GROUP BY p.ProductName ORDER BY TotalValue DESC;",
+      "order_matters": true,
+      "check_column_names": false
+    },
+    {
+      "id": "e09",
+      "title": "Orders above the average",
+      "prompt": "Using the orders table, list the OrderID and Total of every order whose Total is higher than the average Total of all orders.",
+      "hints": [
+        "The average order total is a single number: SELECT AVG(Total) FROM orders.",
+        "You cannot write WHERE Total > AVG(Total). WHERE looks at one row at a time, and an average needs all the rows.",
+        "Put the average query in brackets and compare against it: WHERE Total > (SELECT ...). A query inside another query is called a subquery."
+      ],
+      "model_query": "SELECT OrderID, Total FROM orders WHERE Total > (SELECT AVG(Total) FROM orders);",
+      "order_matters": false,
+      "check_column_names": false
+    },
+    {
+      "id": "e10",
+      "title": "Orders by month",
+      "prompt": "Using the orders table, show one row for each month that has orders. Use three columns: Month (the text YYYY-MM, for example 2023-03), OrderCount (the number of orders in that month) and Revenue (the sum of Total for that month, rounded to 2 decimal places). Put the earliest month first.",
+      "hints": [
+        "OrderDate is text such as 2023-03-15. strftime('%Y-%m', OrderDate) turns it into a month label such as 2023-03.",
+        "GROUP BY that month label, then count the orders with COUNT(*) and add up their totals with SUM(Total) inside ROUND(..., 2).",
+        "Name the three columns with AS, and finish with ORDER BY on the month. GROUP BY does not promise any order, so the ORDER BY is what guarantees the earliest month comes first."
+      ],
+      "model_query": "SELECT strftime('%Y-%m', OrderDate) AS Month, COUNT(*) AS OrderCount, ROUND(SUM(Total), 2) AS Revenue FROM orders GROUP BY Month ORDER BY Month;",
+      "order_matters": true,
+      "check_column_names": true
+    },
+    {
+      "id": "e11",
+      "title": "Order size bands",
+      "prompt": "Put every order into a size band by its Total: 'Small' for less than 100, 'Medium' for 100 or more but less than 1000, and 'Large' for 1000 or more. Show one row for each band with two columns: the band name, then the number of orders in that band. Use the band names exactly as written here.",
+      "hints": [
+        "CASE WHEN ... THEN '...' WHEN ... THEN '...' ELSE '...' END turns each Total into a band name. Give that column a name with AS.",
+        "CASE stops at the first condition that is true. If you test Total < 100 first, the second test only needs Total < 1000.",
+        "Then GROUP BY the band column and count the orders in each band with COUNT(*)."
+      ],
+      "model_query": "SELECT CASE WHEN Total < 100 THEN 'Small' WHEN Total < 1000 THEN 'Medium' ELSE 'Large' END AS SizeBand, COUNT(*) AS OrderCount FROM orders GROUP BY SizeBand;",
+      "order_matters": false,
+      "check_column_names": false
+    }
+  ]
+}
