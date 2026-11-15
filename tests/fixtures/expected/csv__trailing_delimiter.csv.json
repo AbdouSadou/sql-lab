@@ -1,0 +1,65 @@
+{
+ "fixture": "csv/trailing_delimiter.csv",
+ "covers": "Every line ends with a comma, so there is a nameless, empty last column.",
+ "outcome": "import",
+ "settings": {
+  "encoding": "utf-8",
+  "delimiter": "comma",
+  "first_row_is_header": true
+ },
+ "tables": [
+  {
+   "name": "trailing_delimiter",
+   "rows": 3,
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "nulls": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "qty",
+     "type": "INTEGER",
+     "nulls": 1
+    },
+    {
+     "name": "column_4",
+     "type": "TEXT",
+     "nulls": 3,
+     "original": ""
+    }
+   ],
+   "data": [
+    [
+     1,
+     "Mug",
+     4,
+     null
+    ],
+    [
+     2,
+     "Plate",
+     6,
+     null
+    ],
+    [
+     3,
+     "Bowl",
+     null,
+     null
+    ]
+   ],
+   "source": "trailing_delimiter.csv"
+  }
+ ],
+ "open_questions": [
+  "Q5",
+  "Q7"
+ ],
+ "notes": []
+}

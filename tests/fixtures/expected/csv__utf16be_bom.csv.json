@@ -1,0 +1,61 @@
+{
+ "fixture": "csv/utf16be_bom.csv",
+ "covers": "UTF-16 big-endian with a byte-order mark.",
+ "outcome": "import",
+ "settings": {
+  "encoding": "utf-16be",
+  "delimiter": "comma",
+  "first_row_is_header": true
+ },
+ "tables": [
+  {
+   "name": "utf16be_bom",
+   "rows": 3,
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "nulls": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "city",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "balance",
+     "type": "TEXT",
+     "nulls": 0
+    }
+   ],
+   "data": [
+    [
+     1,
+     "Chloé Dubois",
+     "Leeds",
+     "£120.50"
+    ],
+    [
+     2,
+     "Søren Østergaard",
+     "York",
+     "£0.00"
+    ],
+    [
+     3,
+     "Zoë Müller",
+     "Hull",
+     "£75.25"
+    ]
+   ],
+   "source": "utf16be_bom.csv"
+  }
+ ],
+ "open_questions": [],
+ "notes": []
+}

@@ -1,0 +1,343 @@
+{
+ "fixture": "excel/formats.xlsx",
+ "covers": "One column per cell format: dates, date-times, times, custom and long date formats, dates typed as text, currency, percent, leading-zero format, thousands, scientific, numbers typed as text, true and false, long decimals, accounting, fractions, line breaks, padding spaces, mixed cells, durations, very large numbers. A second sheet holds 1900 serial dates.",
+ "outcome": "import",
+ "sheets": [
+  {
+   "sheet": "Formats",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Formats",
+    "rows": 6,
+    "columns": [
+     {
+      "name": "DateOnly",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "DateTime",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "TimeOnly",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "DateCustom",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "DateAsText",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Currency",
+      "type": "REAL",
+      "nulls": 0
+     },
+     {
+      "name": "Percent",
+      "type": "REAL",
+      "nulls": 0
+     },
+     {
+      "name": "LeadingZeroFormat",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "LeadingZeroText",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Thousands",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "Scientific",
+      "type": "REAL",
+      "nulls": 0
+     },
+     {
+      "name": "NumberAsText",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "Boolean",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "FloatNoise",
+      "type": "REAL",
+      "nulls": 0
+     },
+     {
+      "name": "WholeNumber",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "Accounting",
+      "type": "REAL",
+      "nulls": 0
+     },
+     {
+      "name": "Fraction",
+      "type": "REAL",
+      "nulls": 0
+     },
+     {
+      "name": "TextWithNewline",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "TrailingSpace",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Mixed",
+      "type": "TEXT",
+      "nulls": 0,
+      "report_example": "n/a"
+     },
+     {
+      "name": "Duration",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "BigNumber",
+      "type": "REAL",
+      "nulls": 0
+     },
+     {
+      "name": "LongDate",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      "2023-08-05",
+      "2023-08-05",
+      "00:00:00",
+      "2023-08-05",
+      "05/08/2023",
+      1234.5,
+      0.125,
+      123,
+      "00123",
+      1234567,
+      12345.678,
+      42,
+      "TRUE",
+      0.3,
+      25,
+      -1234.5,
+      0.5,
+      "line one\nline two 1",
+      "North ",
+      "10",
+      "30:00:00",
+      1.234567890123457e+19,
+      "2023-08-05"
+     ],
+     [
+      "2023-12-31",
+      "2023-12-31 09:05:00",
+      "09:05:00",
+      "2023-12-31",
+      "31/12/2023",
+      0.99,
+      0.5,
+      7,
+      "00007",
+      1000,
+      0.00012,
+      7,
+      "FALSE",
+      0.3333333333333333,
+      3,
+      250.0,
+      0.25,
+      "line one\nline two 2",
+      " South",
+      "n/a",
+      "12:00:00",
+      1000000000000000.0,
+      "2023-12-31"
+     ],
+     [
+      "2024-02-29",
+      "2024-02-29 14:30:00",
+      "14:30:00",
+      "2024-02-29",
+      "29/02/2024",
+      -20.0,
+      1.0,
+      45678,
+      "45678",
+      999,
+      6.02e+23,
+      1000,
+      "TRUE",
+      0.6666666666666666,
+      100,
+      -0.5,
+      1.75,
+      "line one\nline two 3",
+      "East",
+      "12.5",
+      "1:00:00",
+      123456789012345.0,
+      "2024-02-29"
+     ],
+     [
+      "2000-01-01",
+      "2000-01-01 23:59:59",
+      "23:59:59",
+      "2000-01-01",
+      "01/01/2000",
+      1000000.0,
+      0.0,
+      0,
+      "00000",
+      25000000,
+      1.0,
+      0,
+      "FALSE",
+      0.1,
+      0,
+      1000.0,
+      0.125,
+      "line one\nline two 4",
+      "West  ",
+      "7",
+      "48:00:00",
+      9007199254740992.0,
+      "2000-01-01"
+     ],
+     [
+      "1999-12-31",
+      "1999-12-31 12:00:00",
+      "12:00:00",
+      "1999-12-31",
+      "31/12/1999",
+      15.5,
+      0.0725,
+      99,
+      "00099",
+      12,
+      250.0,
+      15,
+      "TRUE",
+      3.3,
+      7,
+      0.0,
+      2.5,
+      "line one\nline two 5",
+      " Mid ",
+      "unknown",
+      "18:00:00",
+      1.0,
+      "1999-12-31"
+     ],
+     [
+      "2030-06-15",
+      "2030-06-15 06:45:30",
+      "06:45:30",
+      "2030-06-15",
+      "15/06/2030",
+      0.0,
+      2.5,
+      1,
+      "00001",
+      0,
+      3.5e-09,
+      8,
+      "FALSE",
+      14.28571428571429,
+      12,
+      75.25,
+      0.2,
+      "line one\nline two 6",
+      "Wales",
+      "3",
+      "36:00:00",
+      2.0,
+      "2030-06-15"
+     ]
+    ],
+    "source": "Formats"
+   }
+  },
+  {
+   "sheet": "Dates 1900",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Dates_1900",
+    "rows": 5,
+    "columns": [
+     {
+      "name": "serial",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "as_date",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      1,
+      "1900-01-01"
+     ],
+     [
+      59,
+      "1900-02-28"
+     ],
+     [
+      60,
+      "1900-02-29"
+     ],
+     [
+      61,
+      "1900-03-01"
+     ],
+     [
+      367,
+      "1901-01-01"
+     ]
+    ],
+    "source": "Dates 1900"
+   }
+  }
+ ],
+ "chart_sheets_not_listed": [],
+ "open_questions": [
+  "Q10",
+  "Q11",
+  "Q12",
+  "Q19"
+ ],
+ "notes": [
+  "DateTime row 1 is at midnight, so it has no time part, as the plan's rule 6 says."
+ ]
+}

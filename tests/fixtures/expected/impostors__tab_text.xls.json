@@ -1,0 +1,47 @@
+{
+ "fixture": "impostors/tab_text.xls",
+ "covers": "Tab-separated text with an .xls extension.",
+ "outcome": "import_by_content_or_refuse",
+ "real_content": "text",
+ "tables_if_read_by_content": [
+  {
+   "name": "tab_text",
+   "rows": 2,
+   "columns": [
+    {
+     "name": "Ref",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "Item",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "Qty",
+     "type": "INTEGER",
+     "nulls": 0
+    }
+   ],
+   "data": [
+    [
+     "00123",
+     "Mug",
+     4
+    ],
+    [
+     "00124",
+     "Plate",
+     2
+    ]
+   ]
+  }
+ ],
+ "open_questions": [
+  "Q18"
+ ],
+ "notes": [
+  "SheetJS reads this with its own text parser, which also turns 00123 into 123 unless told to keep raw text."
+ ]
+}

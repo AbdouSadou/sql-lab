@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles><Style ss:ID="d"><NumberFormat ss:Format="Short Date"/></Style></Styles>
+ <Worksheet ss:Name="Report">
+  <Table>
+   <Row><Cell><Data ss:Type="String">Ref</Data></Cell><Cell><Data ss:Type="String">Posted</Data></Cell><Cell><Data ss:Type="String">Amount</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">00123</Data></Cell><Cell ss:StyleID="d"><Data ss:Type="DateTime">2023-08-05T00:00:00.000</Data></Cell><Cell><Data ss:Type="Number">1234.5</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">00124</Data></Cell><Cell ss:StyleID="d"><Data ss:Type="DateTime">2023-08-06T00:00:00.000</Data></Cell><Cell><Data ss:Type="Number">45</Data></Cell></Row>
+  </Table>
+ </Worksheet>
+</Workbook>

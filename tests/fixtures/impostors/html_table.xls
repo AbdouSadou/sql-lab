@@ -1,0 +1,11 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+<head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head>
+<body>
+<table border="1">
+<tr><th>Order ID</th><th>Customer</th><th>Order Date</th><th>Amount</th></tr>
+<tr><td>00123</td><td>Zoë Müller</td><td>05/08/2023</td><td>£1,234.50</td></tr>
+<tr><td>00124</td><td>Smith &amp; Sons</td><td>06/08/2023</td><td>£45.00</td></tr>
+<tr><td>00125</td><td></td><td>07/08/2023</td><td>£0.99</td></tr>
+</table>
+</body>
+</html>

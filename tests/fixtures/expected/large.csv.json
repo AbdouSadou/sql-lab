@@ -1,0 +1,200 @@
+{
+ "fixture": "large.csv",
+ "covers": "200,000 rows for timing, progress and Cancel. Not stored: tools/gen_csv.py writes it.",
+ "outcome": "import",
+ "settings": {
+  "encoding": "utf-8",
+  "delimiter": "comma",
+  "first_row_is_header": true
+ },
+ "file_bytes": 8305091,
+ "file_sha256": "06c17895c968c336bd773eefa2881b2206471871d39aa92302a96b0b4c75ed2f",
+ "tables": [
+  {
+   "name": "large",
+   "rows": 200000,
+   "columns": [
+    {
+     "name": "order_id",
+     "type": "INTEGER",
+     "nulls": 0
+    },
+    {
+     "name": "order_date",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "region",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "customer_ref",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "quantity",
+     "type": "INTEGER",
+     "nulls": 0
+    },
+    {
+     "name": "unit_price",
+     "type": "REAL",
+     "nulls": 0
+    },
+    {
+     "name": "note",
+     "type": "TEXT",
+     "nulls": 196000
+    }
+   ],
+   "source": "large.csv",
+   "data_sha256": "f1b2d90d250303cd405cd115040b5386fe15bfcba20503a61322c36df355dc35",
+   "data_first_rows": [
+    [
+     1,
+     "2024-04-08",
+     "South",
+     "C00037",
+     2,
+     4.17,
+     null
+    ],
+    [
+     2,
+     "2024-07-15",
+     "East",
+     "C00074",
+     3,
+     5.34,
+     null
+    ],
+    [
+     3,
+     "2024-10-22",
+     "West",
+     "C00111",
+     4,
+     6.51,
+     null
+    ]
+   ],
+   "data_last_rows": [
+    [
+     199989,
+     "2024-04-08",
+     "West",
+     "C03593",
+     10,
+     242.13,
+     null
+    ],
+    [
+     199990,
+     "2024-07-15",
+     "Scotland",
+     "C03630",
+     11,
+     243.3,
+     null
+    ],
+    [
+     199991,
+     "2024-10-22",
+     "Wales",
+     "C03667",
+     12,
+     244.47,
+     null
+    ],
+    [
+     199992,
+     "2024-01-01",
+     "North",
+     "C03704",
+     1,
+     245.64,
+     null
+    ],
+    [
+     199993,
+     "2024-04-08",
+     "South",
+     "C03741",
+     2,
+     246.81,
+     null
+    ],
+    [
+     199994,
+     "2024-07-15",
+     "East",
+     "C03778",
+     3,
+     247.98,
+     null
+    ],
+    [
+     199995,
+     "2024-10-22",
+     "West",
+     "C03815",
+     4,
+     248.15,
+     null
+    ],
+    [
+     199996,
+     "2024-01-01",
+     "Scotland",
+     "C03852",
+     5,
+     249.32,
+     null
+    ],
+    [
+     199997,
+     "2024-04-08",
+     "Wales",
+     "C03889",
+     6,
+     250.49,
+     null
+    ],
+    [
+     199998,
+     "2024-07-15",
+     "North",
+     "C03926",
+     7,
+     251.66,
+     null
+    ],
+    [
+     199999,
+     "2024-10-22",
+     "South",
+     "C03963",
+     8,
+     252.83,
+     null
+    ],
+    [
+     200000,
+     "2024-01-01",
+     "East",
+     "C00000",
+     9,
+     3.0,
+     "gift"
+    ]
+   ]
+  }
+ ],
+ "open_questions": [],
+ "notes": [
+  "Write the file with: python3 tools/gen_csv.py . --large"
+ ]
+}

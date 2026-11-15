@@ -1,0 +1,12 @@
+{
+ "fixture": "impostors/zero_bytes.xlsx",
+ "covers": "A file of zero bytes with an .xlsx extension.",
+ "outcome": "refuse",
+ "reason": "The file cannot be read. Say why in plain words, create no table and no database, and leave the page usable.",
+ "open_questions": [
+  "Q18"
+ ],
+ "notes": [
+  "SheetJS 0.18.5 does not reject this file: it returns one empty sheet. The importer needs its own check before handing a file to SheetJS."
+ ]
+}

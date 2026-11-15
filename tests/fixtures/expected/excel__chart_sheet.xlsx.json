@@ -1,0 +1,51 @@
+{
+ "fixture": "excel/chart_sheet.xlsx",
+ "covers": "A data sheet and a chart sheet.",
+ "outcome": "import",
+ "sheets": [
+  {
+   "sheet": "Data",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Data",
+    "rows": 3,
+    "columns": [
+     {
+      "name": "month",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "orders",
+      "type": "INTEGER",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      "Jan",
+      18
+     ],
+     [
+      "Feb",
+      13
+     ],
+     [
+      "Mar",
+      19
+     ]
+    ],
+    "source": "Data"
+   }
+  }
+ ],
+ "chart_sheets_not_listed": [
+  "Orders chart"
+ ],
+ "open_questions": [
+  "Q16"
+ ],
+ "notes": []
+}

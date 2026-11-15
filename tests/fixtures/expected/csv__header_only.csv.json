@@ -1,0 +1,39 @@
+{
+ "fixture": "csv/header_only.csv",
+ "covers": "A header and no data rows.",
+ "outcome": "import",
+ "settings": {
+  "encoding": "utf-8",
+  "delimiter": "comma",
+  "first_row_is_header": true
+ },
+ "tables": [
+  {
+   "name": "header_only",
+   "rows": 0,
+   "columns": [
+    {
+     "name": "id",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "joined",
+     "type": "TEXT",
+     "nulls": 0
+    }
+   ],
+   "data": [],
+   "source": "header_only.csv"
+  }
+ ],
+ "open_questions": [
+  "Q7"
+ ],
+ "notes": []
+}

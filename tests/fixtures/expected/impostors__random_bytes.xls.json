@@ -1,0 +1,12 @@
+{
+ "fixture": "impostors/random_bytes.xls",
+ "covers": "Meaningless bytes with an .xls extension.",
+ "outcome": "refuse",
+ "reason": "The file cannot be read. Say why in plain words, create no table and no database, and leave the page usable.",
+ "open_questions": [
+  "Q18"
+ ],
+ "notes": [
+  "SheetJS 0.18.5 does not reject this file: it reads the bytes as text and returns a sheet of noise. The importer needs its own check before handing a file to SheetJS."
+ ]
+}

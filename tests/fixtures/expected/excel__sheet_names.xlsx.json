@@ -1,0 +1,275 @@
+{
+ "fixture": "excel/sheet_names.xlsx",
+ "covers": "Sheet names that clash once cleaned, start with a digit, are reserved words, or hold accents, brackets and an emoji.",
+ "outcome": "import",
+ "sheets": [
+  {
+   "sheet": "Sales 2024",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Sales_2024",
+    "rows": 1,
+    "columns": [
+     {
+      "name": "id",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "sheet",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      1,
+      "Sales 2024"
+     ]
+    ],
+    "source": "Sales 2024"
+   }
+  },
+  {
+   "sheet": "Sales-2024",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Sales_2024_2",
+    "rows": 1,
+    "columns": [
+     {
+      "name": "id",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "sheet",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      2,
+      "Sales-2024"
+     ]
+    ],
+    "source": "Sales-2024"
+   }
+  },
+  {
+   "sheet": "2024",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "c_2024",
+    "rows": 1,
+    "columns": [
+     {
+      "name": "id",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "sheet",
+      "type": "INTEGER",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      3,
+      2024
+     ]
+    ],
+    "source": "2024"
+   }
+  },
+  {
+   "sheet": "Order",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Order",
+    "rows": 1,
+    "columns": [
+     {
+      "name": "id",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "sheet",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      4,
+      "Order"
+     ]
+    ],
+    "source": "Order"
+   }
+  },
+  {
+   "sheet": "Données",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Donn_es",
+    "rows": 1,
+    "columns": [
+     {
+      "name": "id",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "sheet",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      5,
+      "Données"
+     ]
+    ],
+    "source": "Données"
+   }
+  },
+  {
+   "sheet": "Q1 (final)",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Q1_final_",
+    "rows": 1,
+    "columns": [
+     {
+      "name": "id",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "sheet",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      6,
+      "Q1 (final)"
+     ]
+    ],
+    "source": "Q1 (final)"
+   }
+  },
+  {
+   "sheet": "a_very_long_sheet_name_31_chars",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "a_very_long_sheet_name_31_chars",
+    "rows": 1,
+    "columns": [
+     {
+      "name": "id",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "sheet",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      7,
+      "a_very_long_sheet_name_31_chars"
+     ]
+    ],
+    "source": "a_very_long_sheet_name_31_chars"
+   }
+  },
+  {
+   "sheet": "😀 data",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "_data",
+    "rows": 1,
+    "columns": [
+     {
+      "name": "id",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "sheet",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      8,
+      "😀 data"
+     ]
+    ],
+    "source": "😀 data"
+   }
+  },
+  {
+   "sheet": "sales_2024",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "sales_2024_3",
+    "rows": 1,
+    "columns": [
+     {
+      "name": "id",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "sheet",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      9,
+      "sales_2024"
+     ]
+    ],
+    "source": "sales_2024"
+   }
+  }
+ ],
+ "chart_sheets_not_listed": [],
+ "open_questions": [
+  "Q2",
+  "Q3",
+  "Q4"
+ ],
+ "notes": []
+}

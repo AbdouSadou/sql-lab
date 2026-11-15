@@ -1,0 +1,662 @@
+{
+ "fixture": "shopping_db.xlsx",
+ "covers": "The owner's real workbook: four sheets, true date cells.",
+ "outcome": "import",
+ "sheets": [
+  {
+   "sheet": "customers",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "customers",
+    "rows": 6,
+    "columns": [
+     {
+      "name": "CustomerID",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "CustomerName",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Phone",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Address",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "City",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "PostCode",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Country",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Notes",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      "ID0001",
+      "Emma Thompson",
+      "07700 900123",
+      "10 Oak Tree Walk",
+      "Keynsham",
+      "BS31 2SA",
+      "United Kingdom",
+      "Frequently takes advantage of discounts, follows promotions, and may abandon carts to wait for better deals, indicating a price-sensitive shopping behavior."
+     ],
+     [
+      "ID0002",
+      "Jackson Enterprises",
+      "07811 234567",
+      "4 Clover Leaze",
+      "Coalpit Heath",
+      "BS36 2UD",
+      "United Kingdom",
+      "Customer prefers email communication and may not respond promptly to phone calls or messages."
+     ],
+     [
+      "ID0003",
+      "Harper & Co. Boutique",
+      "07555 678901",
+      "21 Chiswell Street",
+      "Wigan",
+      "WN5 8DW",
+      "United Kingdom",
+      "Expresses a strong preference for eco-friendly products and tends to prioritize brands with sustainable practices."
+     ],
+     [
+      "ID0004",
+      "GreenLeaf Eco Solutions",
+      "07980 345678",
+      "6 Fairfield Road",
+      "Ossett",
+      "WF5 0EG",
+      "United Kingdom",
+      "Provides detailed and constructive feedback; appreciates acknowledgment of input and is more likely to engage with brands that actively seek customer opinions."
+     ],
+     [
+      "ID0005",
+      "Joshua Kante",
+      "07666 123456",
+      "Sandiford Cottage",
+      "Holmes Chapel",
+      "CW4 7AH",
+      "United Kingdom",
+      "Regularly shops during holiday seasons and special occasions, showing a tendency to make bulk purchases for gifts or celebrations."
+     ],
+     [
+      "ID0006",
+      "Olivia Garcia",
+      "07444 567890",
+      "14 Pomona Road",
+      "Shanklin",
+      "PO37 6PH",
+      "United Kingdom",
+      "Demonstrates a high comfort level with technology; often uses mobile apps for purchases and appreciates businesses with efficient online platforms."
+     ]
+    ],
+    "source": "customers"
+   }
+  },
+  {
+   "sheet": "orders",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "orders",
+    "rows": 50,
+    "columns": [
+     {
+      "name": "OrderID",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "OrderDate",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "CustomerID",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Total",
+      "type": "REAL",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      "OR138884",
+      "2023-08-05",
+      "ID0005",
+      1500.4
+     ],
+     [
+      "OR227836",
+      "2023-05-24",
+      "ID0005",
+      1500.4
+     ],
+     [
+      "OR121056",
+      "2023-03-13",
+      "ID0002",
+      40.66
+     ],
+     [
+      "OR306368",
+      "2023-12-25",
+      "ID0001",
+      10.46
+     ],
+     [
+      "OR139207",
+      "2023-10-28",
+      "ID0004",
+      15.15
+     ],
+     [
+      "OR640508",
+      "2023-07-31",
+      "ID0004",
+      143.36
+     ],
+     [
+      "OR179802",
+      "2023-11-17",
+      "ID0004",
+      600.16
+     ],
+     [
+      "OR336189",
+      "2023-06-03",
+      "ID0005",
+      600.16
+     ],
+     [
+      "OR195744",
+      "2023-01-05",
+      "ID0002",
+      15.69
+     ],
+     [
+      "OR823067",
+      "2023-06-18",
+      "ID0004",
+      600.16
+     ],
+     [
+      "OR174250",
+      "2023-12-16",
+      "ID0005",
+      75.75
+     ],
+     [
+      "OR196704",
+      "2023-04-20",
+      "ID0001",
+      203.3
+     ],
+     [
+      "OR217053",
+      "2023-10-10",
+      "ID0003",
+      2400.68
+     ],
+     [
+      "OR655874",
+      "2023-08-23",
+      "ID0001",
+      1800.51
+     ],
+     [
+      "OR161949",
+      "2023-07-04",
+      "ID0003",
+      107.52
+     ],
+     [
+      "OR768348",
+      "2023-02-23",
+      "ID0002",
+      1800.51
+     ],
+     [
+      "OR167211",
+      "2023-08-30",
+      "ID0003",
+      2400.68
+     ],
+     [
+      "OR147062",
+      "2023-06-21",
+      "ID0004",
+      1500.4
+     ],
+     [
+      "OR187519",
+      "2023-07-08",
+      "ID0002",
+      600.16
+     ],
+     [
+      "OR106674",
+      "2023-02-27",
+      "ID0002",
+      600.16
+     ],
+     [
+      "OR473411",
+      "2023-12-19",
+      "ID0005",
+      300.08
+     ],
+     [
+      "OR138674",
+      "2023-02-14",
+      "ID0004",
+      81.32
+     ],
+     [
+      "OR752693",
+      "2023-04-28",
+      "ID0002",
+      121.98
+     ],
+     [
+      "OR826174",
+      "2023-06-20",
+      "ID0003",
+      2400.68
+     ],
+     [
+      "OR296025",
+      "2023-04-21",
+      "ID0004",
+      1800.51
+     ],
+     [
+      "OR117291",
+      "2023-12-09",
+      "ID0003",
+      75.75
+     ],
+     [
+      "OR205366",
+      "2023-11-07",
+      "ID0003",
+      1200.32
+     ],
+     [
+      "OR269690",
+      "2023-02-07",
+      "ID0004",
+      121.98
+     ],
+     [
+      "OR160777",
+      "2023-02-22",
+      "ID0005",
+      4200.0
+     ],
+     [
+      "OR148377",
+      "2023-01-02",
+      "ID0001",
+      300.08
+     ],
+     [
+      "OR133061",
+      "2023-06-09",
+      "ID0002",
+      1500.4
+     ],
+     [
+      "OR157285",
+      "2023-03-06",
+      "ID0005",
+      1200.32
+     ],
+     [
+      "OR218590",
+      "2023-05-09",
+      "ID0003",
+      162.64
+     ],
+     [
+      "OR181109",
+      "2023-10-17",
+      "ID0002",
+      107.52
+     ],
+     [
+      "OR221715",
+      "2023-01-22",
+      "ID0005",
+      15.69
+     ],
+     [
+      "OR115146",
+      "2023-04-27",
+      "ID0004",
+      203.3
+     ],
+     [
+      "OR402376",
+      "2023-09-10",
+      "ID0002",
+      3000.85
+     ],
+     [
+      "OR292239",
+      "2023-08-21",
+      "ID0001",
+      26.15
+     ],
+     [
+      "OR190444",
+      "2023-07-20",
+      "ID0005",
+      26.15
+     ],
+     [
+      "OR306076",
+      "2023-11-01",
+      "ID0001",
+      71.68
+     ],
+     [
+      "OR340014",
+      "2023-09-08",
+      "ID0005",
+      600.16
+     ],
+     [
+      "OR249424",
+      "2023-02-18",
+      "ID0001",
+      5.23
+     ],
+     [
+      "OR140663",
+      "2023-10-15",
+      "ID0005",
+      1500.4
+     ],
+     [
+      "OR253242",
+      "2023-04-07",
+      "ID0003",
+      3000.85
+     ],
+     [
+      "OR108359",
+      "2023-06-07",
+      "ID0003",
+      5.23
+     ],
+     [
+      "OR289643",
+      "2023-08-22",
+      "ID0005",
+      2100.0
+     ],
+     [
+      "OR215721",
+      "2023-12-16",
+      "ID0003",
+      81.32
+     ],
+     [
+      "OR297270",
+      "2023-12-31",
+      "ID0004",
+      1500.4
+     ],
+     [
+      "OR153930",
+      "2023-08-09",
+      "ID0001",
+      15.69
+     ],
+     [
+      "OR282854",
+      "2023-07-31",
+      "ID0004",
+      900.24
+     ]
+    ],
+    "source": "orders"
+   }
+  },
+  {
+   "sheet": "products",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "products",
+    "rows": 8,
+    "columns": [
+     {
+      "name": "ProductID",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "ProductName",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "UnitCost",
+      "type": "REAL",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      "PR0001",
+      "T-Shirt",
+      18.99
+     ],
+     [
+      "PR0002",
+      "Sun Screen",
+      25.0
+     ],
+     [
+      "PR0003",
+      "Washing Machine",
+      428.0
+     ],
+     [
+      "PR0004",
+      "Battery Pack",
+      5.0
+     ],
+     [
+      "PR0005",
+      "Phone",
+      562.0
+     ],
+     [
+      "PR0006",
+      "Laptop",
+      899.0
+     ],
+     [
+      "PR0007",
+      "Sport Cap",
+      56.0
+     ],
+     [
+      "PR0008",
+      "Necklace",
+      32.0
+     ]
+    ],
+    "source": "products"
+   }
+  },
+  {
+   "sheet": "quantities",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "quantities",
+    "rows": 20,
+    "columns": [
+     {
+      "name": "NewOrder",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "ProductID",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Quantity",
+      "type": "INTEGER",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      "OR0001",
+      "PR0006",
+      2
+     ],
+     [
+      "OR0002",
+      "PR0007",
+      37
+     ],
+     [
+      "OR0003",
+      "PR0004",
+      25
+     ],
+     [
+      "OR0004",
+      "PR0003",
+      29
+     ],
+     [
+      "OR0005",
+      "PR0007",
+      26
+     ],
+     [
+      "OR0006",
+      "PR0001",
+      9
+     ],
+     [
+      "OR0007",
+      "PR0003",
+      47
+     ],
+     [
+      "OR0008",
+      "PR0002",
+      7
+     ],
+     [
+      "OR0009",
+      "PR0007",
+      48
+     ],
+     [
+      "OR0010",
+      "PR0007",
+      15
+     ],
+     [
+      "OR0011",
+      "PR0001",
+      47
+     ],
+     [
+      "OR0012",
+      "PR0003",
+      8
+     ],
+     [
+      "OR0013",
+      "PR0006",
+      34
+     ],
+     [
+      "OR0014",
+      "PR0003",
+      35
+     ],
+     [
+      "OR0015",
+      "PR0003",
+      27
+     ],
+     [
+      "OR0016",
+      "PR0005",
+      25
+     ],
+     [
+      "OR0017",
+      "PR0008",
+      24
+     ],
+     [
+      "OR0018",
+      "PR0005",
+      13
+     ],
+     [
+      "OR0019",
+      "PR0002",
+      18
+     ],
+     [
+      "OR0020",
+      "PR0004",
+      50
+     ]
+    ],
+    "source": "quantities"
+   }
+  }
+ ],
+ "chart_sheets_not_listed": [],
+ "open_questions": [],
+ "notes": [
+  "Plan phase 5 is done when this imports as four tables and the first row of orders has OrderDate 2023-08-05."
+ ]
+}

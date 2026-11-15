@@ -1,0 +1,140 @@
+{
+ "fixture": "csv/late_type_change.csv",
+ "covers": "5,000 rows where the value that decides each column's type is in the last eleven rows.",
+ "outcome": "import",
+ "settings": {
+  "encoding": "utf-8",
+  "delimiter": "comma",
+  "first_row_is_header": true
+ },
+ "tables": [
+  {
+   "name": "late_type_change",
+   "rows": 5000,
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "nulls": 0
+    },
+    {
+     "name": "qty",
+     "type": "TEXT",
+     "nulls": 0,
+     "report_example": "12 units"
+    },
+    {
+     "name": "price",
+     "type": "REAL",
+     "nulls": 0
+    },
+    {
+     "name": "code",
+     "type": "TEXT",
+     "nulls": 0,
+     "report_example": "007"
+    }
+   ],
+   "source": "late_type_change.csv",
+   "data_sha256": "796267e28e2342aef93f63b36e3d3c1cffce4d777cc8deae81e6b6dc43e3bddd",
+   "data_first_rows": [
+    [
+     1,
+     "2",
+     6.0,
+     "101"
+    ],
+    [
+     2,
+     "3",
+     7.0,
+     "102"
+    ],
+    [
+     3,
+     "4",
+     8.0,
+     "103"
+    ]
+   ],
+   "data_last_rows": [
+    [
+     4989,
+     "4",
+     34.0,
+     "589"
+    ],
+    [
+     4990,
+     "12 units",
+     35.0,
+     "590"
+    ],
+    [
+     4991,
+     "6",
+     36.0,
+     "591"
+    ],
+    [
+     4992,
+     "7",
+     37.0,
+     "592"
+    ],
+    [
+     4993,
+     "8",
+     38.0,
+     "593"
+    ],
+    [
+     4994,
+     "9",
+     39.0,
+     "594"
+    ],
+    [
+     4995,
+     "1",
+     19.99,
+     "595"
+    ],
+    [
+     4996,
+     "2",
+     41.0,
+     "596"
+    ],
+    [
+     4997,
+     "3",
+     42.0,
+     "597"
+    ],
+    [
+     4998,
+     "4",
+     43.0,
+     "598"
+    ],
+    [
+     4999,
+     "5",
+     44.0,
+     "599"
+    ],
+    [
+     5000,
+     "6",
+     5.0,
+     "007"
+    ]
+   ]
+  }
+ ],
+ "open_questions": [],
+ "notes": [
+  "Proves that types come from all rows (rule 8). qty turns TEXT at row 4,990, price turns REAL at row 4,995, code turns TEXT at row 5,000."
+ ]
+}

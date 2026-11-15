@@ -1,0 +1,67 @@
+{
+ "fixture": "csv/tab_delimited.tsv",
+ "covers": "Tab delimiter, with commas, semicolons, pipes and a quoted tab in the data.",
+ "outcome": "import",
+ "settings": {
+  "encoding": "utf-8",
+  "delimiter": "tab",
+  "first_row_is_header": true
+ },
+ "tables": [
+  {
+   "name": "tab_delimited",
+   "rows": 4,
+   "columns": [
+    {
+     "name": "sku",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "description",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "price",
+     "type": "REAL",
+     "nulls": 0
+    },
+    {
+     "name": "stock",
+     "type": "INTEGER",
+     "nulls": 1
+    }
+   ],
+   "data": [
+    [
+     "A-100",
+     "Mug, large, blue",
+     6.5,
+     40
+    ],
+    [
+     "A-101",
+     "Tea\ttowel",
+     3.25,
+     0
+    ],
+    [
+     "A-102",
+     "Plate; dinner",
+     8.0,
+     null
+    ],
+    [
+     "A-103",
+     "Bowl | soup",
+     5.75,
+     12
+    ]
+   ],
+   "source": "tab_delimited.tsv"
+  }
+ ],
+ "open_questions": [],
+ "notes": []
+}

@@ -1,0 +1,132 @@
+{
+ "Q1": {
+  "title": "Header row not on the first row",
+  "question": "Course files often have title lines above the column names. The plan only offers \"the first row holds column names: yes or no\".",
+  "reading_used_here": "Literal: the first row is the header. Each affected fixture also gives the result if the preview let the student pick the header row."
+ },
+ "Q2": {
+  "title": "Reserved words as names",
+  "question": "A column or table called Order, Group or Select must be quoted in every query, which the naming rule set out to avoid.",
+  "reading_used_here": "Literal: the name is kept as it is."
+ },
+ "Q3": {
+  "title": "Accented letters in names",
+  "question": "Is é one of the \"other characters\" that become an underscore?",
+  "reading_used_here": "Yes: only A to Z, a to z, 0 to 9 and underscore are kept, so Café becomes Caf_."
+ },
+ "Q4": {
+  "title": "Underscores at the ends of names",
+  "question": "\"Amount (£)\" becomes Amount_ and \"% Change\" becomes _Change.",
+  "reading_used_here": "Literal: nothing is trimmed."
+ },
+ "Q5": {
+  "title": "Numbering of blank headers",
+  "question": "Is a blank header in the fifth column called column_5 or column_1?",
+  "reading_used_here": "By position: column_5. A file with no header row gets column_1 to column_n."
+ },
+ "Q6": {
+  "title": "What counts as a plain number",
+  "question": "The plan covers leading zeros, currency, separators, percent, decimal commas and exponents. It does not mention +5, .5, 5. or a number with spaces round it, or a decimal column that also holds whole numbers.",
+  "reading_used_here": "+5, .5, 5. and \" 3\" keep the column TEXT, because storing them as numbers would change what was written. Whole numbers and decimals together make a REAL column."
+ },
+ "Q7": {
+  "title": "A column with no values",
+  "question": "Every row is empty, so the INTEGER rule is met by default.",
+  "reading_used_here": "TEXT."
+ },
+ "Q8": {
+  "title": "Blank lines and blank rows",
+  "question": "A completely empty line in a CSV, a line of only spaces, a line of only delimiters, and an empty row inside a sheet.",
+  "reading_used_here": "An empty CSV line is skipped. A line of spaces is a row whose first field holds those spaces. A line of only delimiters, and an empty row inside a sheet, are rows of NULLs."
+ },
+ "Q9": {
+  "title": "Detecting a file with no header row",
+  "question": "The plan says the header setting is detected, not how.",
+  "reading_used_here": "no_header.csv should be detected as having no header. Treat this as a soft expectation."
+ },
+ "Q10": {
+  "title": "Excel number formats",
+  "question": "A cell shows £1,234.50, 12.5% or 00123 but holds 1234.5, 0.125 or 123.",
+  "reading_used_here": "The stored number is imported, not the displayed text. Only date formats change what is imported. A numeric cell is a number whatever its size."
+ },
+ "Q11": {
+  "title": "Excel times and durations",
+  "question": "The plan covers dates and dates with times, not a cell holding only a time, or a duration such as 30:00:00.",
+  "reading_used_here": "Text as HH:MM:SS, with hours allowed to pass 24 for a duration."
+ },
+ "Q12": {
+  "title": "Excel true and false cells",
+  "question": "Store 1 and 0, or the words?",
+  "reading_used_here": "The words TRUE and FALSE, as Excel shows them."
+ },
+ "Q13": {
+  "title": "Formulas with no stored result",
+  "question": "Files written by Python libraries hold formulas but no calculated values, so there is no \"last calculated value\" to import.",
+  "reading_used_here": "NULL, and the import report says how many formula cells had no value."
+ },
+ "Q14": {
+  "title": "Hidden rows and columns",
+  "question": "Filtered-out or hidden rows and columns on a visible sheet.",
+  "reading_used_here": "Imported like any other. Hidden and very hidden sheets are listed but not ticked."
+ },
+ "Q15": {
+  "title": "Merged cells",
+  "question": "A merged block holds its value in the top-left cell only.",
+  "reading_used_here": "The top-left cell gets the value and the rest are NULL."
+ },
+ "Q16": {
+  "title": "Where a sheet's table starts and ends",
+  "question": "Sheets that are empty, hold only formatting, start at C5, have a stray value far from the table, or are chart sheets.",
+  "reading_used_here": "The table is the smallest rectangle holding every value. A sheet with no values cannot be imported and is shown unticked and disabled. Chart sheets are not listed."
+ },
+ "Q17": {
+  "title": "More than 2,000 columns",
+  "question": "SQLite refuses a table with more than 2,000 columns.",
+  "reading_used_here": "Refuse the file with a message that says why."
+ },
+ "Q18": {
+  "title": "Files that are not what their extension says, or are damaged",
+  "question": "A web export saved as .xls is often HTML or tab-separated text. Students also rename files. Some files are cut short or password-protected.",
+  "reading_used_here": "Read by content when the content is recognisable; otherwise refuse with a clear message. Never leave a half-made database."
+ },
+ "Q19": {
+  "title": "Dates in January and February 1900",
+  "question": "Excel counts a 29 February 1900 that never existed (serial 60).",
+  "reading_used_here": "Follow Excel: serial 60 is 1900-02-29, serial 59 is 1900-02-28, serial 61 is 1900-03-01."
+ },
+ "Q20": {
+  "title": "How numbers are written on export",
+  "question": "The plan says plainly, with a decimal point and no rounding. JavaScript prints 1.0 as 1 and 0.0000001 as 1e-7.",
+  "reading_used_here": "A REAL always has a decimal point (1.0) and never an exponent (0.0000001). An INTEGER is written in full, including values above 2^53."
+ },
+ "Q21": {
+  "title": "What cannot survive export then re-import",
+  "question": "An empty string and NULL both export as an empty field. A text column holding only digits re-imports as INTEGER.",
+  "reading_used_here": "Accepted. export.json lists the exact differences for each table, so the round-trip check can allow for them."
+ },
+ "Q22": {
+  "title": "Exporting a BLOB",
+  "question": "The plan does not say.",
+  "reading_used_here": "Undecided: there is no expected CSV for mixed_types."
+ },
+ "Q23": {
+  "title": "Line ending on export",
+  "question": "The plan does not say.",
+  "reading_used_here": "CRLF after every record, including the last. Line breaks inside a field are left as stored."
+ },
+ "Q24": {
+  "title": "Names of exported files",
+  "question": "Table names can hold characters a file name cannot (sales/2024), can collide once cleaned, and can be reserved on Windows (con).",
+  "reading_used_here": "The import naming rule is applied to the table name, and duplicates gain _2. con.csv is left as it is."
+ },
+ "Q25": {
+  "title": "The Excel export",
+  "question": "Added to the plan's decisions table after the fixtures were designed. Sheet names are limited to 31 characters, a cell to 32,767 characters.",
+  "reading_used_here": "export.json states what each sheet must hold. There is no binary file to compare against."
+ },
+ "Q26": {
+  "title": "Text that starts with = + - or @",
+  "question": "Opened in Excel, such a field in a CSV is treated as a formula.",
+  "reading_used_here": "Written exactly as stored, as the plan says. The files are meant for Tableau."
+ }
+}

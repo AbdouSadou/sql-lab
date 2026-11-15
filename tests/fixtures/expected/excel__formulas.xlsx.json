@@ -1,0 +1,254 @@
+{
+ "fixture": "excel/formulas.xlsx",
+ "covers": "Formulas with stored results of every kind: number, text, date, true or false, empty text, an array formula and all seven error values.",
+ "outcome": "import",
+ "sheets": [
+  {
+   "sheet": "Calc",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Calc",
+    "rows": 6,
+    "columns": [
+     {
+      "name": "Item",
+      "type": "TEXT",
+      "nulls": 1
+     },
+     {
+      "name": "Qty",
+      "type": "INTEGER",
+      "nulls": 2
+     },
+     {
+      "name": "Price",
+      "type": "REAL",
+      "nulls": 2
+     },
+     {
+      "name": "Total",
+      "type": "REAL",
+      "nulls": 1
+     },
+     {
+      "name": "Tax",
+      "type": "REAL",
+      "nulls": 2
+     },
+     {
+      "name": "Label",
+      "type": "TEXT",
+      "nulls": 2
+     },
+     {
+      "name": "Due",
+      "type": "TEXT",
+      "nulls": 2
+     },
+     {
+      "name": "InStock",
+      "type": "TEXT",
+      "nulls": 2
+     },
+     {
+      "name": "PerUnit",
+      "type": "TEXT",
+      "nulls": 2,
+      "report_example": "#DIV/0!"
+     },
+     {
+      "name": "Category",
+      "type": "TEXT",
+      "nulls": 2
+     },
+     {
+      "name": "Blank",
+      "type": "TEXT",
+      "nulls": 6
+     }
+    ],
+    "data": [
+     [
+      "Mug",
+      4,
+      6.5,
+      26.0,
+      5.2,
+      "Mug x4",
+      "2024-01-14",
+      "TRUE",
+      "6.5",
+      "Kitchen",
+      null
+     ],
+     [
+      "Plate",
+      2,
+      8.0,
+      16.0,
+      3.2,
+      "Plate x2",
+      "2024-01-12",
+      "TRUE",
+      "8",
+      "Kitchen",
+      null
+     ],
+     [
+      "Bowl",
+      3,
+      5.75,
+      17.25,
+      3.45,
+      "Bowl x3",
+      "2024-01-13",
+      "TRUE",
+      "5.75",
+      "Kitchen",
+      null
+     ],
+     [
+      "Jug",
+      0,
+      12.0,
+      0.0,
+      0.0,
+      "Jug x0",
+      "2024-01-10",
+      "FALSE",
+      "#DIV/0!",
+      "#N/A",
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      "Grand total",
+      null,
+      null,
+      59.25,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    ],
+    "source": "Calc"
+   }
+  },
+  {
+   "sheet": "Categories",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Categories",
+    "rows": 3,
+    "columns": [
+     {
+      "name": "Item",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Category",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      "Mug",
+      "Kitchen"
+     ],
+     [
+      "Plate",
+      "Kitchen"
+     ],
+     [
+      "Bowl",
+      "Kitchen"
+     ]
+    ],
+    "source": "Categories"
+   }
+  },
+  {
+   "sheet": "Errors",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Errors",
+    "rows": 7,
+    "columns": [
+     {
+      "name": "error",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "result",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      "#DIV/0!",
+      "#DIV/0!"
+     ],
+     [
+      "#N/A",
+      "#N/A"
+     ],
+     [
+      "#NAME?",
+      "#NAME?"
+     ],
+     [
+      "#NULL!",
+      "#NULL!"
+     ],
+     [
+      "#NUM!",
+      "#NUM!"
+     ],
+     [
+      "#REF!",
+      "#REF!"
+     ],
+     [
+      "#VALUE!",
+      "#VALUE!"
+     ]
+    ],
+    "source": "Errors"
+   }
+  }
+ ],
+ "chart_sheets_not_listed": [],
+ "open_questions": [
+  "Q7",
+  "Q12"
+ ],
+ "notes": [
+  "The Blank column is a formula returning empty text in every row, so it imports as NULL."
+ ]
+}

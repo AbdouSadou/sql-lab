@@ -1,0 +1,251 @@
+{
+ "fixture": "export/export_edge_cases.db",
+ "covers": "A database of tables chosen to stress the CSV and Excel export.",
+ "csv_rules": "UTF-8 with a byte-order mark; comma; header row; a field is quoted when it holds a comma, a quote, a line break, or a leading or trailing space; NULL is an empty field; CRLF after every record (Q23); numbers as in Q20.",
+ "zip": "Exporting every table and view gives 14 entries. Entry names follow Q24.",
+ "excel_export": {
+  "one_sheet_per_table": true,
+  "checks": [
+   "text such as 00123, =SUM(A1:A3), +441632960001 and 2023-08-05 is written as text cells, never as numbers, formulas or dates",
+   "integers and reals are written as number cells; NULL is an empty cell",
+   "integers above 2^53 cannot be held exactly by a number cell: decide whether to write them as text",
+   "the 40,000-character value in text_edge does not fit a cell: decide whether to refuse, cut it short with a warning, or leave that table out",
+   "sheet names are at most 31 characters, hold none of [ ] : * ? / \\ and are unique without regard to case"
+  ]
+ },
+ "tables": [
+  {
+   "name": "Order Details",
+   "kind": "table",
+   "rows": 2,
+   "columns": [
+    "Order ID",
+    "Unit Price (£)",
+    "select",
+    "Notes, misc"
+   ],
+   "expected_csv": "export/expected_csv/Order_Details.csv",
+   "expected_csv_bytes": 75,
+   "expected_csv_sha256": "b4f922b88534d3d12401732377dfe2637d416c3237418ce9e0453056748c0125",
+   "after_reimport": [
+    {
+     "column": "Order ID",
+     "change": "name becomes Order_ID"
+    },
+    {
+     "column": "Unit Price (£)",
+     "change": "name becomes Unit_Price_"
+    },
+    {
+     "column": "Notes, misc",
+     "change": "name becomes Notes_misc"
+    }
+   ],
+   "note": "Column names are written as stored. One holds a comma and is quoted."
+  },
+  {
+   "name": "basic",
+   "kind": "table",
+   "rows": 5,
+   "columns": [
+    "id",
+    "name",
+    "amount",
+    "joined"
+   ],
+   "expected_csv": "export/expected_csv/basic.csv",
+   "expected_csv_bytes": 156,
+   "expected_csv_sha256": "822ef1f9d0c00b02b1440dd6e6bc288171bd9b8f98437e24ba72b5aec0afdb02",
+   "after_reimport": "identical"
+  },
+  {
+   "name": "big_2000",
+   "kind": "table",
+   "rows": 2000,
+   "columns": [
+    "id",
+    "value"
+   ],
+   "expected_csv": "export/expected_csv/big_2000.csv",
+   "expected_csv_bytes": 28906,
+   "expected_csv_sha256": "c098a848b0dafd197e8283e65bb5fd3e39a76d98e6509c394433c0e43a638345",
+   "after_reimport": "identical",
+   "note": "Exactly 2,000 rows, more than the results pane shows. The export must hold 2,000 data lines."
+  },
+  {
+   "name": "con",
+   "kind": "table",
+   "rows": 1,
+   "columns": [
+    "id",
+    "note"
+   ],
+   "expected_csv": "export/expected_csv/con.csv",
+   "expected_csv_bytes": 54,
+   "expected_csv_sha256": "3fc5aa01b1f2c299b0e6c88b84d7c6dc7dc701bb567dc9bf49000ba4e0b4992e",
+   "after_reimport": "identical",
+   "note": "con.csv cannot be created on Windows (Q24)."
+  },
+  {
+   "name": "dates_iso",
+   "kind": "table",
+   "rows": 4,
+   "columns": [
+    "id",
+    "d",
+    "dt"
+   ],
+   "expected_csv": "export/expected_csv/dates_iso.csv",
+   "expected_csv_bytes": 119,
+   "expected_csv_sha256": "f00c95ee0fa5aeab31388144c532e261d7bee7057f4de882bab7d3f03d629cfb",
+   "after_reimport": "identical"
+  },
+  {
+   "name": "empty_table",
+   "kind": "table",
+   "rows": 0,
+   "columns": [
+    "a",
+    "b",
+    "c"
+   ],
+   "expected_csv": "export/expected_csv/empty_table.csv",
+   "expected_csv_bytes": 10,
+   "expected_csv_sha256": "0b44ce929433841510106d2990cb3f91736e16ab7aafdab826808890ec083179",
+   "after_reimport": "identical",
+   "note": "No rows: the CSV is the header line only."
+  },
+  {
+   "name": "mixed_types",
+   "kind": "table",
+   "rows": 7,
+   "columns": [
+    "id",
+    "v",
+    "note"
+   ],
+   "note": "No expected CSV: row 5 holds a BLOB (Q22). The other rows show that one column can hold an integer, a real, text, NULL and an empty string."
+  },
+  {
+   "name": "monthly_revenue_by_region_and_channel_2024",
+   "kind": "table",
+   "rows": 2,
+   "columns": [
+    "region",
+    "channel",
+    "revenue"
+   ],
+   "expected_csv": "export/expected_csv/monthly_revenue_by_region_and_channel_2024.csv",
+   "expected_csv_bytes": 64,
+   "expected_csv_sha256": "a45622c01f29c04b95f5785bc59e66b8f0fb7681aa55e50009b40bffd3ab2876",
+   "after_reimport": "identical",
+   "note": "The name is 42 characters. An Excel sheet name allows 31 (Q25)."
+  },
+  {
+   "name": "number_edge",
+   "kind": "table",
+   "rows": 11,
+   "columns": [
+    "id",
+    "i",
+    "r",
+    "note"
+   ],
+   "expected_csv": "export/expected_csv/number_edge.csv",
+   "expected_csv_bytes": 546,
+   "expected_csv_sha256": "31f968e19cfe984b36b3604d8293f3571a7f8a6359241096245326d5ebeeb9b1",
+   "after_reimport": [
+    {
+     "column": "i",
+     "change": "type INTEGER becomes TEXT"
+    }
+   ],
+   "note": "Rows 3 to 5 hold integers above 2^53. Read as ordinary JavaScript numbers they are silently rounded."
+  },
+  {
+   "name": "order",
+   "kind": "table",
+   "rows": 2,
+   "columns": [
+    "id",
+    "item"
+   ],
+   "expected_csv": "export/expected_csv/order.csv",
+   "expected_csv_bytes": 28,
+   "expected_csv_sha256": "0b6fc8f985271c54e21f05860c0f7d0e910859b06c704e8cd10c1d579f856235",
+   "after_reimport": "identical"
+  },
+  {
+   "name": "sales/2024",
+   "kind": "table",
+   "rows": 2,
+   "columns": [
+    "region",
+    "orders"
+   ],
+   "expected_csv": "export/expected_csv/sales_2024.csv",
+   "expected_csv_bytes": 38,
+   "expected_csv_sha256": "cd302a6e5b263f48fa725b4b899c37882c8d8b93158c29e1d7c44cffda7e2661",
+   "after_reimport": "identical",
+   "note": "Its cleaned file name is sales_2024, which is also the name of another table (Q24)."
+  },
+  {
+   "name": "sales_2024",
+   "kind": "table",
+   "rows": 2,
+   "columns": [
+    "region",
+    "orders"
+   ],
+   "expected_csv": "export/expected_csv/sales_2024_2.csv",
+   "expected_csv_bytes": 34,
+   "expected_csv_sha256": "50db07c081b1d3c9c5acc7783c036540e1b8d92dba68bfaae6a9a7d094f289ba",
+   "after_reimport": "identical"
+  },
+  {
+   "name": "text_edge",
+   "kind": "table",
+   "rows": 22,
+   "columns": [
+    "id",
+    "value",
+    "note"
+   ],
+   "expected_csv": "export/expected_csv/text_edge.csv",
+   "expected_csv_bytes": 40905,
+   "expected_csv_sha256": "f2d3b6fe2516c9d1b95b8fff156e8924a311fdf27ce2802db8e1d5461a18c950",
+   "after_reimport": [
+    {
+     "column": "value",
+     "row": 8,
+     "change": "'' becomes None"
+    }
+   ],
+   "note": "Row 18 is 40,000 characters, longer than one Excel cell can hold (32,767). Rows 12 to 15 start with = + - @ and must stay text in the Excel export."
+  },
+  {
+   "name": "v_basic_summary",
+   "kind": "view",
+   "rows": 1,
+   "columns": [
+    "customers",
+    "total_amount",
+    "first_joined"
+   ],
+   "expected_csv": "export/expected_csv/v_basic_summary.csv",
+   "expected_csv_bytes": 62,
+   "expected_csv_sha256": "7a3d8eec0ba89fcfe52085d39072cc27508962382561415400049ff63ed7f9e1",
+   "after_reimport": "identical"
+  }
+ ],
+ "open_questions": [
+  "Q20",
+  "Q21",
+  "Q22",
+  "Q23",
+  "Q24",
+  "Q25",
+  "Q26"
+ ],
+ "notes": []
+}

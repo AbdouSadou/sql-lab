@@ -1,0 +1,143 @@
+{
+ "fixture": "excel/xlwt_written.xls",
+ "covers": "A binary .xls from a different writer (xlwt): text with leading zeros, dates, a £ format, true and false, formulas with no stored result, a hidden and a very hidden sheet.",
+ "outcome": "import",
+ "sheets": [
+  {
+   "sheet": "Data",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Data",
+    "rows": 3,
+    "columns": [
+     {
+      "name": "Ref",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Item",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Ordered",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Qty",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "Price",
+      "type": "REAL",
+      "nulls": 0
+     },
+     {
+      "name": "Total",
+      "type": "TEXT",
+      "nulls": 3
+     },
+     {
+      "name": "Paid",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      "00123",
+      "Mug",
+      "2023-08-05",
+      4,
+      6.5,
+      null,
+      "TRUE"
+     ],
+     [
+      "00124",
+      "Plate ",
+      "2023-08-06",
+      2,
+      8.0,
+      null,
+      "FALSE"
+     ],
+     [
+      "00125",
+      "Café set",
+      "2023-08-07",
+      1,
+      24.99,
+      null,
+      "TRUE"
+     ]
+    ],
+    "source": "Data"
+   }
+  },
+  {
+   "sheet": "Hidden lookup",
+   "state": "hidden",
+   "importable": true,
+   "ticked_by_default": false,
+   "table": {
+    "name": "Hidden_lookup",
+    "rows": 1,
+    "columns": [
+     {
+      "name": "code",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "label",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      "A",
+      "alpha"
+     ]
+    ],
+    "source": "Hidden lookup"
+   }
+  },
+  {
+   "sheet": "Very hidden",
+   "state": "veryHidden",
+   "importable": true,
+   "ticked_by_default": false,
+   "table": {
+    "name": "Very_hidden",
+    "rows": 1,
+    "columns": [
+     {
+      "name": "key",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      "answer"
+     ]
+    ],
+    "source": "Very hidden"
+   }
+  }
+ ],
+ "chart_sheets_not_listed": [],
+ "open_questions": [
+  "Q10",
+  "Q12",
+  "Q13"
+ ],
+ "notes": []
+}

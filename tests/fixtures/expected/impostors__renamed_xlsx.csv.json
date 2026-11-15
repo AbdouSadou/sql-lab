@@ -1,0 +1,47 @@
+{
+ "fixture": "impostors/renamed_xlsx.csv",
+ "covers": "An Excel workbook renamed to .csv.",
+ "outcome": "import_by_content_or_refuse",
+ "real_content": "xlsx",
+ "tables_if_read_by_content": [
+  {
+   "name": "Stock",
+   "rows": 2,
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "nulls": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "qty",
+     "type": "INTEGER",
+     "nulls": 0
+    }
+   ],
+   "data": [
+    [
+     1,
+     "Mug",
+     4
+    ],
+    [
+     2,
+     "Plate",
+     2
+    ]
+   ]
+  }
+ ],
+ "open_questions": [
+  "Q18"
+ ],
+ "notes": [
+  "Read as text this is binary noise. The first two bytes are PK, the mark of a zip file."
+ ]
+}

@@ -1,0 +1,198 @@
+{
+ "fixture": "excel/hidden.xlsx",
+ "covers": "A hidden sheet, a very hidden sheet, hidden rows, a collapsed outline group and a hidden column.",
+ "outcome": "import",
+ "sheets": [
+  {
+   "sheet": "Visible data",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Visible_data",
+    "rows": 10,
+    "columns": [
+     {
+      "name": "id",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "name",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "secret_cost",
+      "type": "REAL",
+      "nulls": 0
+     },
+     {
+      "name": "price",
+      "type": "REAL",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      1,
+      "item 1",
+      1.5,
+      2.25
+     ],
+     [
+      2,
+      "item 2",
+      3.0,
+      4.5
+     ],
+     [
+      3,
+      "item 3",
+      4.5,
+      6.75
+     ],
+     [
+      4,
+      "item 4",
+      6.0,
+      9.0
+     ],
+     [
+      5,
+      "item 5",
+      7.5,
+      11.25
+     ],
+     [
+      6,
+      "item 6",
+      9.0,
+      13.5
+     ],
+     [
+      7,
+      "item 7",
+      10.5,
+      15.75
+     ],
+     [
+      8,
+      "item 8",
+      12.0,
+      18.0
+     ],
+     [
+      9,
+      "item 9",
+      13.5,
+      20.25
+     ],
+     [
+      10,
+      "item 10",
+      15.0,
+      22.5
+     ]
+    ],
+    "source": "Visible data"
+   }
+  },
+  {
+   "sheet": "Hidden sheet",
+   "state": "hidden",
+   "importable": true,
+   "ticked_by_default": false,
+   "table": {
+    "name": "Hidden_sheet",
+    "rows": 2,
+    "columns": [
+     {
+      "name": "code",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "label",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      "A",
+      "alpha"
+     ],
+     [
+      "B",
+      "beta"
+     ]
+    ],
+    "source": "Hidden sheet"
+   }
+  },
+  {
+   "sheet": "Very hidden sheet",
+   "state": "veryHidden",
+   "importable": true,
+   "ticked_by_default": false,
+   "table": {
+    "name": "Very_hidden_sheet",
+    "rows": 1,
+    "columns": [
+     {
+      "name": "key",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "value",
+      "type": "INTEGER",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      "answer",
+      42
+     ]
+    ],
+    "source": "Very hidden sheet"
+   }
+  },
+  {
+   "sheet": "Also visible",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Also_visible",
+    "rows": 1,
+    "columns": [
+     {
+      "name": "x",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "y",
+      "type": "INTEGER",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      1,
+      2
+     ]
+    ],
+    "source": "Also visible"
+   }
+  }
+ ],
+ "chart_sheets_not_listed": [],
+ "open_questions": [
+  "Q14"
+ ],
+ "notes": []
+}

@@ -1,0 +1,173 @@
+{
+ "fixture": "csv/title_rows.csv",
+ "covers": "Three title lines and a blank line above the header, a totals row and a source line below the data.",
+ "outcome": "import",
+ "settings": {
+  "encoding": "utf-8",
+  "delimiter": "comma",
+  "first_row_is_header": true
+ },
+ "tables": [
+  {
+   "name": "title_rows",
+   "rows": 9,
+   "columns": [
+    {
+     "name": "Northlight_Retail",
+     "type": "TEXT",
+     "nulls": 0,
+     "original": "Northlight Retail"
+    },
+    {
+     "name": "extra_1",
+     "type": "TEXT",
+     "nulls": 4
+    },
+    {
+     "name": "extra_2",
+     "type": "TEXT",
+     "nulls": 3,
+     "report_example": "Orders"
+    },
+    {
+     "name": "extra_3",
+     "type": "TEXT",
+     "nulls": 3,
+     "report_example": "Revenue"
+    }
+   ],
+   "data": [
+    [
+     "Quarterly sales report - Q3 2023",
+     null,
+     null,
+     null
+    ],
+    [
+     "Generated 01/10/2023 09:15",
+     null,
+     null,
+     null
+    ],
+    [
+     "Region",
+     "Month",
+     "Orders",
+     "Revenue"
+    ],
+    [
+     "North",
+     "Jul",
+     "120",
+     "15400.50"
+    ],
+    [
+     "North",
+     "Aug",
+     "135",
+     "17250.00"
+    ],
+    [
+     "South",
+     "Jul",
+     "210",
+     "26800.75"
+    ],
+    [
+     "South",
+     "Aug",
+     "260",
+     "33859.00"
+    ],
+    [
+     "Total",
+     null,
+     "725",
+     "93310.25"
+    ],
+    [
+     "Source: finance system export",
+     null,
+     null,
+     null
+    ]
+   ],
+   "source": "title_rows.csv"
+  }
+ ],
+ "open_questions": [
+  "Q1",
+  "Q8"
+ ],
+ "notes": [
+  "The title lines have no commas at all, which can also mislead delimiter detection."
+ ],
+ "tables_if_header_row_can_be_chosen": [
+  {
+   "header_line_in_file": 5,
+   "name": "title_rows",
+   "rows": 6,
+   "columns": [
+    {
+     "name": "Region",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "Month",
+     "type": "TEXT",
+     "nulls": 2
+    },
+    {
+     "name": "Orders",
+     "type": "INTEGER",
+     "nulls": 1
+    },
+    {
+     "name": "Revenue",
+     "type": "REAL",
+     "nulls": 1
+    }
+   ],
+   "data": [
+    [
+     "North",
+     "Jul",
+     120,
+     15400.5
+    ],
+    [
+     "North",
+     "Aug",
+     135,
+     17250.0
+    ],
+    [
+     "South",
+     "Jul",
+     210,
+     26800.75
+    ],
+    [
+     "South",
+     "Aug",
+     260,
+     33859.0
+    ],
+    [
+     "Total",
+     null,
+     725,
+     93310.25
+    ],
+    [
+     "Source: finance system export",
+     null,
+     null,
+     null
+    ]
+   ],
+   "source": "title_rows.csv"
+  }
+ ]
+}

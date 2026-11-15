@@ -1,0 +1,8 @@
+{
+ "fixture": "csv/empty.csv",
+ "covers": "A file of zero bytes.",
+ "outcome": "refuse",
+ "reason": "There is nothing to import. Say so; create no table and no database.",
+ "open_questions": [],
+ "notes": []
+}

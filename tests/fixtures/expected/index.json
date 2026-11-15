@@ -1,0 +1,399 @@
+[
+ {
+  "fixture": "messy_sales.csv",
+  "covers": "The plan's main messy file: leading zeros, £ amounts, dd/mm/yyyy dates, blanks, trailing spaces, quoted commas and line breaks, a short row, a row with an extra field, an exact duplicate row.",
+  "expected": "expected/messy_sales.csv.json",
+  "open_questions": [
+   "Q4"
+  ]
+ },
+ {
+  "fixture": "windows1252.csv",
+  "covers": "Windows-1252 bytes: £, é, €, curly quotes and a dash, as Excel saves a CSV.",
+  "expected": "expected/windows1252.csv.json",
+  "open_questions": [
+   "Q3"
+  ]
+ },
+ {
+  "fixture": "semicolon.csv",
+  "covers": "Semicolon delimiter with decimal commas and commas inside unquoted fields.",
+  "expected": "expected/semicolon.csv.json",
+  "open_questions": []
+ },
+ {
+  "fixture": "csv/utf8_bom.csv",
+  "covers": "UTF-8 with a byte-order mark.",
+  "expected": "expected/csv__utf8_bom.csv.json",
+  "open_questions": []
+ },
+ {
+  "fixture": "csv/utf16le_bom.txt",
+  "covers": "UTF-16 little-endian with a byte-order mark and tabs: Excel's \"Unicode Text\".",
+  "expected": "expected/csv__utf16le_bom.txt.json",
+  "open_questions": []
+ },
+ {
+  "fixture": "csv/utf16be_bom.csv",
+  "covers": "UTF-16 big-endian with a byte-order mark.",
+  "expected": "expected/csv__utf16be_bom.csv.json",
+  "open_questions": []
+ },
+ {
+  "fixture": "csv/tab_delimited.tsv",
+  "covers": "Tab delimiter, with commas, semicolons, pipes and a quoted tab in the data.",
+  "expected": "expected/csv__tab_delimited.tsv.json",
+  "open_questions": []
+ },
+ {
+  "fixture": "csv/pipe_delimited.txt",
+  "covers": "Pipe delimiter in a .txt file, with a quoted pipe in the data.",
+  "expected": "expected/csv__pipe_delimited.txt.json",
+  "open_questions": []
+ },
+ {
+  "fixture": "csv/single_column.csv",
+  "covers": "One column, so there is no delimiter to detect.",
+  "expected": "expected/csv__single_column.csv.json",
+  "open_questions": []
+ },
+ {
+  "fixture": "csv/no_header.csv",
+  "covers": "No header row.",
+  "expected": "expected/csv__no_header.csv.json",
+  "open_questions": [
+   "Q5",
+   "Q9"
+  ]
+ },
+ {
+  "fixture": "csv/header_names.csv",
+  "covers": "Awkward column names: duplicates that differ only by case, a clash with a generated name, blanks, reserved words, a leading digit, symbols, accents.",
+  "expected": "expected/csv__header_names.csv.json",
+  "open_questions": [
+   "Q2",
+   "Q3",
+   "Q4",
+   "Q5"
+  ]
+ },
+ {
+  "fixture": "csv/title_rows.csv",
+  "covers": "Three title lines and a blank line above the header, a totals row and a source line below the data.",
+  "expected": "expected/csv__title_rows.csv.json",
+  "open_questions": [
+   "Q1",
+   "Q8"
+  ]
+ },
+ {
+  "fixture": "csv/names/2024 Sales Data (final) v2.csv",
+  "covers": "A file name with a leading digit, spaces and brackets, for the table name.",
+  "expected": "expected/csv__names__2024 Sales Data (final) v2.csv.json",
+  "open_questions": []
+ },
+ {
+  "fixture": "csv/names/Order.csv",
+  "covers": "A file whose name is a reserved word.",
+  "expected": "expected/csv__names__Order.csv.json",
+  "open_questions": [
+   "Q2"
+  ]
+ },
+ {
+  "fixture": "csv/types.csv",
+  "covers": "One column per type-inference case, six rows each.",
+  "expected": "expected/csv__types.csv.json",
+  "open_questions": [
+   "Q6",
+   "Q7"
+  ]
+ },
+ {
+  "fixture": "csv/late_type_change.csv",
+  "covers": "5,000 rows where the value that decides each column's type is in the last eleven rows.",
+  "expected": "expected/csv__late_type_change.csv.json",
+  "open_questions": []
+ },
+ {
+  "fixture": "csv/quotes_and_newlines.csv",
+  "covers": "Quoted line feeds and CRLF, doubled quotes, a stray quote, padding spaces, a 10,000-character field, emoji, no line ending at the end of the file.",
+  "expected": "expected/csv__quotes_and_newlines.csv.json",
+  "open_questions": []
+ },
+ {
+  "fixture": "csv/ragged_rows.csv",
+  "covers": "Rows shorter and longer than the header.",
+  "expected": "expected/csv__ragged_rows.csv.json",
+  "open_questions": []
+ },
+ {
+  "fixture": "csv/trailing_delimiter.csv",
+  "covers": "Every line ends with a comma, so there is a nameless, empty last column.",
+  "expected": "expected/csv__trailing_delimiter.csv.json",
+  "open_questions": [
+   "Q5",
+   "Q7"
+  ]
+ },
+ {
+  "fixture": "csv/blank_lines.csv",
+  "covers": "Blank lines before the header, between rows and at the end; a line of spaces; a line holding only a comma.",
+  "expected": "expected/csv__blank_lines.csv.json",
+  "open_questions": [
+   "Q8"
+  ]
+ },
+ {
+  "fixture": "csv/header_only.csv",
+  "covers": "A header and no data rows.",
+  "expected": "expected/csv__header_only.csv.json",
+  "open_questions": [
+   "Q7"
+  ]
+ },
+ {
+  "fixture": "large.csv",
+  "covers": "200,000 rows for timing, progress and Cancel. Not stored: tools/gen_csv.py writes it.",
+  "expected": "expected/large.csv.json",
+  "open_questions": []
+ },
+ {
+  "fixture": "csv/empty.csv",
+  "covers": "A file of zero bytes.",
+  "expected": "expected/csv__empty.csv.json",
+  "open_questions": []
+ },
+ {
+  "fixture": "csv/wide_2100_columns.csv",
+  "covers": "2,100 columns: more than SQLite allows in one table.",
+  "expected": "expected/csv__wide_2100_columns.csv.json",
+  "open_questions": [
+   "Q17"
+  ]
+ },
+ {
+  "fixture": "excel/messy_course_workbook.xlsx",
+  "covers": "A realistic course workbook: a read-me sheet, a sales sheet with a merged title, header on row 4, formulas, error values, a totals row and a hidden column; a customers sheet; a summary of formulas; a hidden lookup sheet; a very hidden sheet.",
+  "expected": "expected/excel__messy_course_workbook.xlsx.json",
+  "open_questions": [
+   "Q1",
+   "Q10",
+   "Q12",
+   "Q14",
+   "Q15"
+  ]
+ },
+ {
+  "fixture": "excel/messy_course_workbook.xls",
+  "covers": "The same workbook as a genuine binary .xls, with every formula calculated by LibreOffice.",
+  "expected": "expected/excel__messy_course_workbook.xls.json",
+  "open_questions": [
+   "Q1",
+   "Q10",
+   "Q12",
+   "Q14",
+   "Q15"
+  ]
+ },
+ {
+  "fixture": "excel/shopping_db.xls",
+  "covers": "The owner's real workbook as a genuine binary .xls.",
+  "expected": "expected/excel__shopping_db.xls.json",
+  "open_questions": []
+ },
+ {
+  "fixture": "excel/title_rows_and_layouts.xlsx",
+  "covers": "One layout per sheet: title rows above the header; a table that starts at C5; a units row under the header; a two-level merged header; merged category cells; two tables side by side; a blank column and a blank row inside a table.",
+  "expected": "expected/excel__title_rows_and_layouts.xlsx.json",
+  "open_questions": [
+   "Q1",
+   "Q8",
+   "Q15",
+   "Q16"
+  ]
+ },
+ {
+  "fixture": "excel/hidden.xlsx",
+  "covers": "A hidden sheet, a very hidden sheet, hidden rows, a collapsed outline group and a hidden column.",
+  "expected": "expected/excel__hidden.xlsx.json",
+  "open_questions": [
+   "Q14"
+  ]
+ },
+ {
+  "fixture": "excel/formulas.xlsx",
+  "covers": "Formulas with stored results of every kind: number, text, date, true or false, empty text, an array formula and all seven error values.",
+  "expected": "expected/excel__formulas.xlsx.json",
+  "open_questions": [
+   "Q7",
+   "Q12"
+  ]
+ },
+ {
+  "fixture": "excel/formulas_uncached.xlsx",
+  "covers": "Formulas with no stored results, as written by openpyxl.",
+  "expected": "expected/excel__formulas_uncached.xlsx.json",
+  "open_questions": [
+   "Q7",
+   "Q13"
+  ]
+ },
+ {
+  "fixture": "excel/formats.xlsx",
+  "covers": "One column per cell format: dates, date-times, times, custom and long date formats, dates typed as text, currency, percent, leading-zero format, thousands, scientific, numbers typed as text, true and false, long decimals, accounting, fractions, line breaks, padding spaces, mixed cells, durations, very large numbers. A second sheet holds 1900 serial dates.",
+  "expected": "expected/excel__formats.xlsx.json",
+  "open_questions": [
+   "Q10",
+   "Q11",
+   "Q12",
+   "Q19"
+  ]
+ },
+ {
+  "fixture": "excel/formats.xls",
+  "covers": "The same workbook as a genuine binary .xls.",
+  "expected": "expected/excel__formats.xls.json",
+  "open_questions": [
+   "Q10",
+   "Q11",
+   "Q12",
+   "Q19"
+  ]
+ },
+ {
+  "fixture": "excel/dates_1904.xlsx",
+  "covers": "A workbook on the 1904 date system, as older Mac versions of Excel wrote.",
+  "expected": "expected/excel__dates_1904.xlsx.json",
+  "open_questions": []
+ },
+ {
+  "fixture": "excel/sheet_names.xlsx",
+  "covers": "Sheet names that clash once cleaned, start with a digit, are reserved words, or hold accents, brackets and an emoji.",
+  "expected": "expected/excel__sheet_names.xlsx.json",
+  "open_questions": [
+   "Q2",
+   "Q3",
+   "Q4"
+  ]
+ },
+ {
+  "fixture": "excel/empty_sheets.xlsx",
+  "covers": "An empty sheet, a header-only sheet, a sheet of formatted but empty cells, a single cell, and a table with one stray value at H20.",
+  "expected": "expected/excel__empty_sheets.xlsx.json",
+  "open_questions": [
+   "Q7",
+   "Q16"
+  ]
+ },
+ {
+  "fixture": "excel/chart_sheet.xlsx",
+  "covers": "A data sheet and a chart sheet.",
+  "expected": "expected/excel__chart_sheet.xlsx.json",
+  "open_questions": [
+   "Q16"
+  ]
+ },
+ {
+  "fixture": "excel/xlwt_written.xls",
+  "covers": "A binary .xls from a different writer (xlwt): text with leading zeros, dates, a £ format, true and false, formulas with no stored result, a hidden and a very hidden sheet.",
+  "expected": "expected/excel__xlwt_written.xls.json",
+  "open_questions": [
+   "Q10",
+   "Q12",
+   "Q13"
+  ]
+ },
+ {
+  "fixture": "shopping_db.xlsx",
+  "covers": "The owner's real workbook: four sheets, true date cells.",
+  "expected": "expected/shopping_db.xlsx.json",
+  "open_questions": []
+ },
+ {
+  "fixture": "impostors/html_table.xls",
+  "covers": "An HTML table saved with an .xls extension, as many websites export.",
+  "expected": "expected/impostors__html_table.xls.json",
+  "open_questions": [
+   "Q18"
+  ]
+ },
+ {
+  "fixture": "impostors/spreadsheetml_2003.xls",
+  "covers": "An \"XML Spreadsheet 2003\" file with an .xls extension, as some reporting systems export.",
+  "expected": "expected/impostors__spreadsheetml_2003.xls.json",
+  "open_questions": [
+   "Q18"
+  ]
+ },
+ {
+  "fixture": "impostors/tab_text.xls",
+  "covers": "Tab-separated text with an .xls extension.",
+  "expected": "expected/impostors__tab_text.xls.json",
+  "open_questions": [
+   "Q18"
+  ]
+ },
+ {
+  "fixture": "impostors/renamed_csv.xlsx",
+  "covers": "A CSV file renamed to .xlsx.",
+  "expected": "expected/impostors__renamed_csv.xlsx.json",
+  "open_questions": [
+   "Q18"
+  ]
+ },
+ {
+  "fixture": "impostors/renamed_xlsx.csv",
+  "covers": "An Excel workbook renamed to .csv.",
+  "expected": "expected/impostors__renamed_xlsx.csv.json",
+  "open_questions": [
+   "Q18"
+  ]
+ },
+ {
+  "fixture": "impostors/truncated.xlsx",
+  "covers": "A workbook cut off part-way through.",
+  "expected": "expected/impostors__truncated.xlsx.json",
+  "open_questions": [
+   "Q18"
+  ]
+ },
+ {
+  "fixture": "impostors/zero_bytes.xlsx",
+  "covers": "A file of zero bytes with an .xlsx extension.",
+  "expected": "expected/impostors__zero_bytes.xlsx.json",
+  "open_questions": [
+   "Q18"
+  ]
+ },
+ {
+  "fixture": "impostors/random_bytes.xls",
+  "covers": "Meaningless bytes with an .xls extension.",
+  "expected": "expected/impostors__random_bytes.xls.json",
+  "open_questions": [
+   "Q18"
+  ]
+ },
+ {
+  "fixture": "impostors/password_protected.xlsx",
+  "covers": "A workbook encrypted with a password (the password is sqllab).",
+  "expected": "expected/impostors__password_protected.xlsx.json",
+  "open_questions": [
+   "Q18"
+  ]
+ },
+ {
+  "fixture": "export/export_edge_cases.db",
+  "covers": "A database of tables chosen to stress the CSV and Excel export.",
+  "expected": "expected/export.json",
+  "open_questions": [
+   "Q20",
+   "Q21",
+   "Q22",
+   "Q23",
+   "Q24",
+   "Q25",
+   "Q26"
+  ]
+ }
+]

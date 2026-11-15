@@ -1,0 +1,159 @@
+{
+ "fixture": "csv/header_names.csv",
+ "covers": "Awkward column names: duplicates that differ only by case, a clash with a generated name, blanks, reserved words, a leading digit, symbols, accents.",
+ "outcome": "import",
+ "settings": {
+  "encoding": "utf-8",
+  "delimiter": "comma",
+  "first_row_is_header": true
+ },
+ "tables": [
+  {
+   "name": "header_names",
+   "rows": 2,
+   "columns": [
+    {
+     "name": "Name",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "name_2",
+     "type": "TEXT",
+     "nulls": 0,
+     "original": "name"
+    },
+    {
+     "name": "NAME_3",
+     "type": "TEXT",
+     "nulls": 0,
+     "original": "NAME"
+    },
+    {
+     "name": "Name_2_2",
+     "type": "TEXT",
+     "nulls": 0,
+     "original": "Name_2"
+    },
+    {
+     "name": "column_5",
+     "type": "TEXT",
+     "nulls": 1,
+     "original": ""
+    },
+    {
+     "name": "Order",
+     "type": "INTEGER",
+     "nulls": 0
+    },
+    {
+     "name": "Group",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "c_2023_Sales",
+     "type": "INTEGER",
+     "nulls": 0,
+     "original": "2023 Sales"
+    },
+    {
+     "name": "Unit_Price_",
+     "type": "REAL",
+     "nulls": 0,
+     "original": "Unit Price (£)"
+    },
+    {
+     "name": "_Change",
+     "type": "TEXT",
+     "nulls": 0,
+     "original": "% Change"
+    },
+    {
+     "name": "Caf_",
+     "type": "TEXT",
+     "nulls": 0,
+     "original": "Café"
+    },
+    {
+     "name": "_City_",
+     "type": "TEXT",
+     "nulls": 0,
+     "original": "  City  "
+    },
+    {
+     "name": "_",
+     "type": "TEXT",
+     "nulls": 0,
+     "original": "###"
+    },
+    {
+     "name": "first_name",
+     "type": "TEXT",
+     "nulls": 0,
+     "original": "first.name"
+    },
+    {
+     "name": "select",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "column_16",
+     "type": "TEXT",
+     "nulls": 1,
+     "original": ""
+    }
+   ],
+   "data": [
+    [
+     "a",
+     "b",
+     "c",
+     "d",
+     "e",
+     1,
+     "g",
+     100,
+     9.99,
+     "5%",
+     "x",
+     "Leeds",
+     "z",
+     "Ann",
+     "s",
+     "last"
+    ],
+    [
+     "a2",
+     "b2",
+     "c2",
+     "d2",
+     null,
+     2,
+     "g2",
+     200,
+     19.99,
+     "-2%",
+     "y",
+     "York",
+     "z2",
+     "Bob",
+     "s2",
+     null
+    ]
+   ],
+   "source": "header_names.csv"
+  }
+ ],
+ "open_questions": [
+  "Q2",
+  "Q3",
+  "Q4",
+  "Q5"
+ ],
+ "notes": [
+  "SQLite compares column names without regard to case, so Name, name and NAME are duplicates.",
+  "The fourth header is Name_2, which is already taken by the time it is reached."
+ ]
+}

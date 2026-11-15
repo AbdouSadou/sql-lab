@@ -1,0 +1,45 @@
+{
+ "fixture": "impostors/spreadsheetml_2003.xls",
+ "covers": "An \"XML Spreadsheet 2003\" file with an .xls extension, as some reporting systems export.",
+ "outcome": "import_by_content_or_refuse",
+ "real_content": "spreadsheetml",
+ "tables_if_read_by_content": [
+  {
+   "name": "Report",
+   "rows": 2,
+   "columns": [
+    {
+     "name": "Ref",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "Posted",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "Amount",
+     "type": "REAL",
+     "nulls": 0
+    }
+   ],
+   "data": [
+    [
+     "00123",
+     "2023-08-05",
+     1234.5
+    ],
+    [
+     "00124",
+     "2023-08-06",
+     45.0
+    ]
+   ]
+  }
+ ],
+ "open_questions": [
+  "Q18"
+ ],
+ "notes": []
+}

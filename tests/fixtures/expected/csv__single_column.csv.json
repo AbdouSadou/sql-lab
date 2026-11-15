@@ -1,0 +1,37 @@
+{
+ "fixture": "csv/single_column.csv",
+ "covers": "One column, so there is no delimiter to detect.",
+ "outcome": "import",
+ "settings": {
+  "encoding": "utf-8",
+  "delimiter": "comma",
+  "first_row_is_header": true
+ },
+ "tables": [
+  {
+   "name": "single_column",
+   "rows": 3,
+   "columns": [
+    {
+     "name": "email",
+     "type": "TEXT",
+     "nulls": 0
+    }
+   ],
+   "data": [
+    [
+     "ann@example.com"
+    ],
+    [
+     "bob@example.com"
+    ],
+    [
+     "cat@example.com"
+    ]
+   ],
+   "source": "single_column.csv"
+  }
+ ],
+ "open_questions": [],
+ "notes": []
+}

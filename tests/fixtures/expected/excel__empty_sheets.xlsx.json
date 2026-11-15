@@ -1,0 +1,357 @@
+{
+ "fixture": "excel/empty_sheets.xlsx",
+ "covers": "An empty sheet, a header-only sheet, a sheet of formatted but empty cells, a single cell, and a table with one stray value at H20.",
+ "outcome": "import",
+ "sheets": [
+  {
+   "sheet": "Data",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Data",
+    "rows": 2,
+    "columns": [
+     {
+      "name": "id",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "name",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      1,
+      "Ann"
+     ],
+     [
+      2,
+      "Bob"
+     ]
+    ],
+    "source": "Data"
+   }
+  },
+  {
+   "sheet": "Empty",
+   "state": "visible",
+   "importable": false,
+   "ticked_by_default": false
+  },
+  {
+   "sheet": "Header only",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Header_only",
+    "rows": 0,
+    "columns": [
+     {
+      "name": "id",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "name",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "joined",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [],
+    "source": "Header only"
+   }
+  },
+  {
+   "sheet": "Formatting only",
+   "state": "visible",
+   "importable": false,
+   "ticked_by_default": false
+  },
+  {
+   "sheet": "Single cell",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Single_cell",
+    "rows": 0,
+    "columns": [
+     {
+      "name": "just_one_value",
+      "type": "TEXT",
+      "nulls": 0,
+      "original": "just one value"
+     }
+    ],
+    "data": [],
+    "source": "Single cell"
+   }
+  },
+  {
+   "sheet": "Stray cell",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Stray_cell",
+    "rows": 19,
+    "columns": [
+     {
+      "name": "id",
+      "type": "INTEGER",
+      "nulls": 17
+     },
+     {
+      "name": "name",
+      "type": "TEXT",
+      "nulls": 17
+     },
+     {
+      "name": "qty",
+      "type": "INTEGER",
+      "nulls": 17
+     },
+     {
+      "name": "column_4",
+      "type": "TEXT",
+      "nulls": 19,
+      "original": ""
+     },
+     {
+      "name": "column_5",
+      "type": "TEXT",
+      "nulls": 19,
+      "original": ""
+     },
+     {
+      "name": "column_6",
+      "type": "TEXT",
+      "nulls": 19,
+      "original": ""
+     },
+     {
+      "name": "column_7",
+      "type": "TEXT",
+      "nulls": 19,
+      "original": ""
+     },
+     {
+      "name": "column_8",
+      "type": "TEXT",
+      "nulls": 18,
+      "original": ""
+     }
+    ],
+    "data": [
+     [
+      1,
+      "Mug",
+      4,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      2,
+      "Plate",
+      6,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      "reviewed"
+     ]
+    ],
+    "source": "Stray cell"
+   }
+  }
+ ],
+ "chart_sheets_not_listed": [],
+ "open_questions": [
+  "Q7",
+  "Q16"
+ ],
+ "notes": []
+}

@@ -1,0 +1,432 @@
+{
+ "fixture": "messy_sales.csv",
+ "covers": "The plan's main messy file: leading zeros, £ amounts, dd/mm/yyyy dates, blanks, trailing spaces, quoted commas and line breaks, a short row, a row with an extra field, an exact duplicate row.",
+ "outcome": "import",
+ "settings": {
+  "encoding": "utf-8",
+  "delimiter": "comma",
+  "first_row_is_header": true
+ },
+ "tables": [
+  {
+   "name": "messy_sales",
+   "rows": 22,
+   "columns": [
+    {
+     "name": "Order_ID",
+     "type": "TEXT",
+     "nulls": 0,
+     "original": "Order ID"
+    },
+    {
+     "name": "Customer_Name",
+     "type": "TEXT",
+     "nulls": 0,
+     "original": "Customer Name"
+    },
+    {
+     "name": "Order_Date",
+     "type": "TEXT",
+     "nulls": 0,
+     "original": "Order Date"
+    },
+    {
+     "name": "Amount_",
+     "type": "TEXT",
+     "nulls": 1,
+     "original": "Amount (£)"
+    },
+    {
+     "name": "Quantity",
+     "type": "INTEGER",
+     "nulls": 3
+    },
+    {
+     "name": "Unit_Price",
+     "type": "REAL",
+     "nulls": 2,
+     "original": "Unit Price"
+    },
+    {
+     "name": "Discount",
+     "type": "TEXT",
+     "nulls": 12
+    },
+    {
+     "name": "Postcode",
+     "type": "TEXT",
+     "nulls": 2
+    },
+    {
+     "name": "Phone",
+     "type": "TEXT",
+     "nulls": 3
+    },
+    {
+     "name": "Weight_kg_",
+     "type": "TEXT",
+     "nulls": 2,
+     "original": "Weight (kg)",
+     "report_example": "N/A"
+    },
+    {
+     "name": "Units_In_Stock",
+     "type": "TEXT",
+     "nulls": 2,
+     "original": "Units In Stock",
+     "report_example": "1,200"
+    },
+    {
+     "name": "Notes",
+     "type": "TEXT",
+     "nulls": 8
+    },
+    {
+     "name": "extra_1",
+     "type": "TEXT",
+     "nulls": 21
+    }
+   ],
+   "data": [
+    [
+     "00123",
+     "Smith, John",
+     "05/08/2023",
+     "£1,234.50",
+     3,
+     411.5,
+     "10%",
+     "HD1 3DH",
+     "07700 900123",
+     "2.5",
+     "120",
+     "Repeat customer",
+     null
+    ],
+    [
+     "00124",
+     "Aisha Khan  ",
+     "06/08/2023",
+     "£45.00",
+     1,
+     45.0,
+     null,
+     "LS1 4AP",
+     "07700 900456",
+     "0.75",
+     "85",
+     null,
+     null
+    ],
+    [
+     "00125",
+     "O'Brien & Sons",
+     "13/08/2023",
+     "£310.00",
+     2,
+     155.0,
+     "5%",
+     "YO1 7HH",
+     "01632 960001",
+     "12",
+     "1,200",
+     "Said: \"deliver before noon\"",
+     null
+    ],
+    [
+     "00126",
+     "María José Fernández",
+     "14/08/2023",
+     "£89.99",
+     1,
+     89.99,
+     "0%",
+     "M1 1AE",
+     "07700 900789",
+     "N/A",
+     "40",
+     "Leave with neighbour\nat number 12",
+     null
+    ],
+    [
+     "00127",
+     "  Li Wei",
+     "15/08/2023",
+     "£15.50",
+     null,
+     15.5,
+     null,
+     "S1 2HE",
+     null,
+     "0.2",
+     "15",
+     null,
+     null
+    ],
+    [
+     "00128",
+     "Tom Baker",
+     "31/08/2023",
+     "£2,050.00",
+     5,
+     410.0,
+     "15%",
+     "hd1 3dh ",
+     "07700 900321",
+     "3.1",
+     "0",
+     "Postcode typed in lower case",
+     null
+    ],
+    [
+     "00129",
+     "Priya Patel",
+     "01/09/2023",
+     "-£20.00",
+     -1,
+     20.0,
+     null,
+     "BD1 1HU",
+     "07700 900654",
+     "0.5",
+     "60",
+     "Refund",
+     null
+    ],
+    [
+     "00130",
+     "Smith, John",
+     "2023-09-04",
+     "£410.00",
+     1,
+     410.0,
+     "10%",
+     "HD1 3DH",
+     "07700 900123",
+     "2.5",
+     "119",
+     "Date typed in ISO form",
+     null
+    ],
+    [
+     "00131",
+     "ACME Ltd",
+     "05/09/2023",
+     "£1,000",
+     10,
+     100.0,
+     "0%",
+     "WF1 2TB",
+     "+44 1632 960002",
+     "10.0",
+     "9",
+     "Unit price has no decimals",
+     null
+    ],
+    [
+     "00132",
+     "Aisha Khan",
+     "7/9/2023",
+     "£45.00",
+     1,
+     45.0,
+     null,
+     "LS1 4AP",
+     "07700 900456",
+     "0.75",
+     "84",
+     "Date typed without leading zeros",
+     null
+    ],
+    [
+     "00132",
+     "Aisha Khan",
+     "7/9/2023",
+     "£45.00",
+     1,
+     45.0,
+     null,
+     "LS1 4AP",
+     "07700 900456",
+     "0.75",
+     "84",
+     "Date typed without leading zeros",
+     null
+    ],
+    [
+     "00133",
+     "Zoë Müller",
+     "11/09/2023",
+     "£75.25",
+     2,
+     37.625,
+     null,
+     "HX1 1UJ",
+     "07700 900987",
+     "1.25",
+     "33",
+     "Accented name",
+     null
+    ],
+    [
+     "00134",
+     "Noah Williams",
+     "12/09/2023",
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     "00135",
+     "Emma Jones",
+     "13/09/2023",
+     "£60.00",
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     "00136",
+     "Oliver Brown",
+     "14/09/2023",
+     "£120.00",
+     2,
+     60.0,
+     "5%",
+     "HU1 1NQ",
+     "07700 900111",
+     "4",
+     "25",
+     "Two notes",
+     "second note in an extra field"
+    ],
+    [
+     "00137",
+     "Grace Taylor",
+     "15/09/2023",
+     "£ 35.00",
+     1,
+     35.0,
+     null,
+     "DN1 1AA",
+     "07700 900222",
+     "0.4",
+     "n/a",
+     "Space after the pound sign",
+     null
+    ],
+    [
+     "00138",
+     "Harry Evans",
+     "18/09/2023",
+     "£250.00",
+     4,
+     62.5,
+     "5%",
+     "HG1 1BG",
+     "07700 900333",
+     "6",
+     "48",
+     null,
+     null
+    ],
+    [
+     "00139",
+     "Isla Roberts",
+     "19/09/2023",
+     "£18.00",
+     2,
+     9.0,
+     null,
+     "BB1 1AA",
+     "07700 900444",
+     "0.3",
+     "200",
+     null,
+     null
+    ],
+    [
+     "00140",
+     "Jack Walker",
+     "20/09/2023",
+     "£999.99",
+     1,
+     999.99,
+     "0%",
+     "OL1 1AA",
+     "07700 900555",
+     "15.5",
+     "3",
+     "Last one in stock",
+     null
+    ],
+    [
+     "00141",
+     "Sophie Wright",
+     "21/09/2023",
+     "£64.00",
+     8,
+     8.0,
+     null,
+     "WA1 1AA",
+     "07700 900666",
+     "1.6",
+     "310",
+     null,
+     null
+    ],
+    [
+     "00142",
+     "George Hall",
+     "30/09/2023",
+     "£132.75",
+     3,
+     44.25,
+     "10%",
+     "CH1 1AA",
+     "07700 900777",
+     "2.25",
+     "77",
+     null,
+     null
+    ],
+    [
+     "00143",
+     "Mia Green",
+     "31/09/2023",
+     "£27.00",
+     3,
+     9.0,
+     null,
+     "PR1 1AA",
+     "07700 900888",
+     "0.45",
+     "199",
+     "31 September does not exist",
+     null
+    ]
+   ],
+   "source": "messy_sales.csv"
+  }
+ ],
+ "open_questions": [
+  "Q4"
+ ],
+ "notes": [
+  "Row 14 (00135) has 4 fields and is padded with NULL. Row 15 (00136) has 13 fields, which creates extra_1.",
+  "Unit_Price is REAL although one value is written 100 (Q6)."
+ ]
+}

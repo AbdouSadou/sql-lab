@@ -1,0 +1,1322 @@
+{
+ "fixture": "excel/messy_course_workbook.xlsx",
+ "covers": "A realistic course workbook: a read-me sheet, a sales sheet with a merged title, header on row 4, formulas, error values, a totals row and a hidden column; a customers sheet; a summary of formulas; a hidden lookup sheet; a very hidden sheet.",
+ "outcome": "import",
+ "sheets": [
+  {
+   "sheet": "Read me",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Read_me",
+    "rows": 5,
+    "columns": [
+     {
+      "name": "Northlight_Retail_course_dataset",
+      "type": "TEXT",
+      "nulls": 1,
+      "original": "Northlight Retail — course dataset"
+     }
+    ],
+    "data": [
+     [
+      null
+     ],
+     [
+      "Sheet \"Sales 2024\": one row per order line. Totals are at the bottom."
+     ],
+     [
+      "Sheet \"Customers\": one row per customer."
+     ],
+     [
+      "Sheet \"Summary\": calculated from the sales sheet. Do not edit."
+     ],
+     [
+      "Prices come from a hidden lookup sheet."
+     ]
+    ],
+    "source": "Read me"
+   }
+  },
+  {
+   "sheet": "Sales 2024",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Sales_2024",
+    "rows": 37,
+    "columns": [
+     {
+      "name": "Northlight_Retail_Sales_2024",
+      "type": "TEXT",
+      "nulls": 3,
+      "original": "Northlight Retail — Sales 2024"
+     },
+     {
+      "name": "column_2",
+      "type": "TEXT",
+      "nulls": 6,
+      "original": ""
+     },
+     {
+      "name": "column_3",
+      "type": "TEXT",
+      "nulls": 7,
+      "original": ""
+     },
+     {
+      "name": "column_4",
+      "type": "TEXT",
+      "nulls": 6,
+      "original": ""
+     },
+     {
+      "name": "column_5",
+      "type": "TEXT",
+      "nulls": 6,
+      "original": ""
+     },
+     {
+      "name": "column_6",
+      "type": "TEXT",
+      "nulls": 6,
+      "original": "",
+      "report_example": "Qty"
+     },
+     {
+      "name": "column_7",
+      "type": "TEXT",
+      "nulls": 6,
+      "original": "",
+      "report_example": "Unit Price"
+     },
+     {
+      "name": "column_8",
+      "type": "TEXT",
+      "nulls": 5,
+      "original": "",
+      "report_example": "Line Total"
+     },
+     {
+      "name": "column_9",
+      "type": "TEXT",
+      "nulls": 6,
+      "original": "",
+      "report_example": "Margin %"
+     }
+    ],
+    "data": [
+     [
+      "Prepared by Finance · figures in GBP · prices exclude VAT",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      "Order ID",
+      "Order Date",
+      "Region",
+      "Product Code",
+      "Product",
+      "Qty",
+      "Unit Price",
+      "Line Total",
+      "Margin %"
+     ],
+     [
+      "000101",
+      "2024-01-08",
+      "North",
+      "P-100",
+      "Desk Lamp",
+      "1",
+      "24.99",
+      "24.99",
+      "0.25"
+     ],
+     [
+      "000102",
+      "2024-01-19",
+      "South",
+      "P-105",
+      "Standing Desk",
+      "4",
+      "329",
+      "1316",
+      "0.3"
+     ],
+     [
+      "000103",
+      "2024-01-30",
+      "east",
+      "P-104",
+      "Wireless Mouse",
+      "7",
+      "18",
+      "126",
+      "0.35"
+     ],
+     [
+      "000104",
+      "2024-02-10",
+      "West",
+      "P-103",
+      "Notebook Set",
+      "3",
+      "7.25",
+      "21.75",
+      "0.4"
+     ],
+     [
+      "000105",
+      "2024-02-21",
+      "North",
+      "P-102",
+      "Monitor Stand",
+      "6",
+      "39.5",
+      "237",
+      "0.45"
+     ],
+     [
+      "000106",
+      "2024-03-03",
+      "South ",
+      "P-101",
+      "Office Chair",
+      "2",
+      "149",
+      "298",
+      "0.25"
+     ],
+     [
+      "000107",
+      "2024-03-14",
+      "East",
+      "P-100",
+      "Desk Lamp",
+      "5",
+      "24.99",
+      "124.95",
+      "0.3"
+     ],
+     [
+      "000108",
+      "2024-03-25",
+      "West",
+      "P-999",
+      "#N/A",
+      "1",
+      "#N/A",
+      "#N/A",
+      "0.35"
+     ],
+     [
+      "000109",
+      "2024-04-05",
+      "North",
+      "P-104",
+      "Wireless Mouse",
+      "4",
+      "18",
+      "72",
+      "0.4"
+     ],
+     [
+      "000110",
+      "2024-04-16",
+      null,
+      "P-103",
+      "Notebook Set",
+      "7",
+      "7.25",
+      "50.75",
+      "0.45"
+     ],
+     [
+      "000111",
+      "2024-04-27",
+      "East",
+      "P-102",
+      "Monitor Stand",
+      "3",
+      "39.5",
+      "118.5",
+      "0.25"
+     ],
+     [
+      "000112",
+      "2024-05-08",
+      "West",
+      "P-101",
+      "Office Chair",
+      "two",
+      "149",
+      "#VALUE!",
+      "0.3"
+     ],
+     [
+      "000113",
+      "2024-05-19",
+      "North",
+      "P-100",
+      "Desk Lamp",
+      "2",
+      "24.99",
+      "49.98",
+      "0.35"
+     ],
+     [
+      "000114",
+      "2024-05-30",
+      "South",
+      "P-105",
+      "Standing Desk",
+      "5",
+      "329",
+      "1645",
+      "0.4"
+     ],
+     [
+      "000115",
+      "2024-06-10",
+      "East",
+      "P-104",
+      "Wireless Mouse",
+      null,
+      "18",
+      "0",
+      "0.45"
+     ],
+     [
+      "000116",
+      "2024-06-21",
+      "West",
+      "P-103",
+      "Notebook Set",
+      "4",
+      "7.25",
+      "29",
+      "0.25"
+     ],
+     [
+      "000117",
+      "2024-07-02",
+      "North",
+      "P-102",
+      "Monitor Stand",
+      "7",
+      "39.5",
+      "276.5",
+      "0.3"
+     ],
+     [
+      "000118",
+      "2024-07-13",
+      "South",
+      "P-101",
+      "Office Chair",
+      "3",
+      "149",
+      "447",
+      "0.35"
+     ],
+     [
+      "000119",
+      "2024-07-24",
+      "East",
+      "P-100",
+      "Desk Lamp",
+      "6",
+      "24.99",
+      "149.94",
+      "0.4"
+     ],
+     [
+      "000120",
+      "2024-08-04",
+      "West",
+      "P-105",
+      "Standing Desk",
+      "2",
+      "329",
+      "658",
+      "0.45"
+     ],
+     [
+      "000121",
+      "31/02/2024",
+      "North",
+      "P-104",
+      "Wireless Mouse",
+      "5",
+      "18",
+      "90",
+      "0.25"
+     ],
+     [
+      "000122",
+      "2024-08-26",
+      "South",
+      "P-103",
+      "Notebook Set",
+      "1",
+      "7.25",
+      "7.25",
+      "0.3"
+     ],
+     [
+      "000123",
+      "2024-09-06",
+      "East",
+      "P-102",
+      "Monitor Stand",
+      "4",
+      "39.5",
+      "158",
+      "0.35"
+     ],
+     [
+      "000124",
+      "2024-09-17",
+      "West",
+      "P-101",
+      "Office Chair",
+      "7",
+      "149",
+      "1043",
+      "0.4"
+     ],
+     [
+      "000125",
+      "2024-09-28",
+      "North",
+      "P-100",
+      "Desk Lamp",
+      "3",
+      "24.99",
+      "74.97",
+      "0.45"
+     ],
+     [
+      "126 ",
+      "2024-10-09",
+      "South",
+      "P-105",
+      "Standing Desk",
+      "6",
+      "329",
+      "1974",
+      "0.25"
+     ],
+     [
+      "000127",
+      "2024-10-20",
+      "East",
+      "P-104",
+      "Wireless Mouse",
+      "2",
+      "18",
+      "36",
+      "0.3"
+     ],
+     [
+      "000128",
+      "2024-10-31",
+      "West",
+      "P-103",
+      "Notebook Set",
+      "5",
+      "7.25",
+      "36.25",
+      "0.35"
+     ],
+     [
+      "000129",
+      "2024-11-11",
+      "North",
+      "P-102",
+      "Monitor Stand",
+      "1",
+      "39.5",
+      "39.5",
+      "0.4"
+     ],
+     [
+      "000130",
+      "2024-11-22",
+      "South",
+      "P-101",
+      "Office Chair",
+      "4",
+      "149",
+      "596",
+      "0.45"
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      "Total",
+      null,
+      null,
+      null,
+      null,
+      "110",
+      null,
+      "#N/A",
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      "Note: regions follow the 2023 sales map.",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    ],
+    "source": "Sales 2024"
+   },
+   "table_if_header_row_can_be_chosen": {
+    "header_row": 4,
+    "name": "Sales_2024",
+    "rows": 34,
+    "columns": [
+     {
+      "name": "Order_ID",
+      "type": "TEXT",
+      "nulls": 2,
+      "original": "Order ID"
+     },
+     {
+      "name": "Order_Date",
+      "type": "TEXT",
+      "nulls": 4,
+      "original": "Order Date"
+     },
+     {
+      "name": "Region",
+      "type": "TEXT",
+      "nulls": 5
+     },
+     {
+      "name": "Product_Code",
+      "type": "TEXT",
+      "nulls": 4,
+      "original": "Product Code"
+     },
+     {
+      "name": "Product",
+      "type": "TEXT",
+      "nulls": 4
+     },
+     {
+      "name": "Qty",
+      "type": "TEXT",
+      "nulls": 4,
+      "report_example": "two"
+     },
+     {
+      "name": "Unit_Price",
+      "type": "TEXT",
+      "nulls": 4,
+      "original": "Unit Price",
+      "report_example": "#N/A"
+     },
+     {
+      "name": "Line_Total",
+      "type": "TEXT",
+      "nulls": 3,
+      "original": "Line Total",
+      "report_example": "#N/A"
+     },
+     {
+      "name": "Margin_",
+      "type": "REAL",
+      "nulls": 4,
+      "original": "Margin %"
+     }
+    ],
+    "data": [
+     [
+      "000101",
+      "2024-01-08",
+      "North",
+      "P-100",
+      "Desk Lamp",
+      "1",
+      "24.99",
+      "24.99",
+      0.25
+     ],
+     [
+      "000102",
+      "2024-01-19",
+      "South",
+      "P-105",
+      "Standing Desk",
+      "4",
+      "329",
+      "1316",
+      0.3
+     ],
+     [
+      "000103",
+      "2024-01-30",
+      "east",
+      "P-104",
+      "Wireless Mouse",
+      "7",
+      "18",
+      "126",
+      0.35
+     ],
+     [
+      "000104",
+      "2024-02-10",
+      "West",
+      "P-103",
+      "Notebook Set",
+      "3",
+      "7.25",
+      "21.75",
+      0.4
+     ],
+     [
+      "000105",
+      "2024-02-21",
+      "North",
+      "P-102",
+      "Monitor Stand",
+      "6",
+      "39.5",
+      "237",
+      0.45
+     ],
+     [
+      "000106",
+      "2024-03-03",
+      "South ",
+      "P-101",
+      "Office Chair",
+      "2",
+      "149",
+      "298",
+      0.25
+     ],
+     [
+      "000107",
+      "2024-03-14",
+      "East",
+      "P-100",
+      "Desk Lamp",
+      "5",
+      "24.99",
+      "124.95",
+      0.3
+     ],
+     [
+      "000108",
+      "2024-03-25",
+      "West",
+      "P-999",
+      "#N/A",
+      "1",
+      "#N/A",
+      "#N/A",
+      0.35
+     ],
+     [
+      "000109",
+      "2024-04-05",
+      "North",
+      "P-104",
+      "Wireless Mouse",
+      "4",
+      "18",
+      "72",
+      0.4
+     ],
+     [
+      "000110",
+      "2024-04-16",
+      null,
+      "P-103",
+      "Notebook Set",
+      "7",
+      "7.25",
+      "50.75",
+      0.45
+     ],
+     [
+      "000111",
+      "2024-04-27",
+      "East",
+      "P-102",
+      "Monitor Stand",
+      "3",
+      "39.5",
+      "118.5",
+      0.25
+     ],
+     [
+      "000112",
+      "2024-05-08",
+      "West",
+      "P-101",
+      "Office Chair",
+      "two",
+      "149",
+      "#VALUE!",
+      0.3
+     ],
+     [
+      "000113",
+      "2024-05-19",
+      "North",
+      "P-100",
+      "Desk Lamp",
+      "2",
+      "24.99",
+      "49.98",
+      0.35
+     ],
+     [
+      "000114",
+      "2024-05-30",
+      "South",
+      "P-105",
+      "Standing Desk",
+      "5",
+      "329",
+      "1645",
+      0.4
+     ],
+     [
+      "000115",
+      "2024-06-10",
+      "East",
+      "P-104",
+      "Wireless Mouse",
+      null,
+      "18",
+      "0",
+      0.45
+     ],
+     [
+      "000116",
+      "2024-06-21",
+      "West",
+      "P-103",
+      "Notebook Set",
+      "4",
+      "7.25",
+      "29",
+      0.25
+     ],
+     [
+      "000117",
+      "2024-07-02",
+      "North",
+      "P-102",
+      "Monitor Stand",
+      "7",
+      "39.5",
+      "276.5",
+      0.3
+     ],
+     [
+      "000118",
+      "2024-07-13",
+      "South",
+      "P-101",
+      "Office Chair",
+      "3",
+      "149",
+      "447",
+      0.35
+     ],
+     [
+      "000119",
+      "2024-07-24",
+      "East",
+      "P-100",
+      "Desk Lamp",
+      "6",
+      "24.99",
+      "149.94",
+      0.4
+     ],
+     [
+      "000120",
+      "2024-08-04",
+      "West",
+      "P-105",
+      "Standing Desk",
+      "2",
+      "329",
+      "658",
+      0.45
+     ],
+     [
+      "000121",
+      "31/02/2024",
+      "North",
+      "P-104",
+      "Wireless Mouse",
+      "5",
+      "18",
+      "90",
+      0.25
+     ],
+     [
+      "000122",
+      "2024-08-26",
+      "South",
+      "P-103",
+      "Notebook Set",
+      "1",
+      "7.25",
+      "7.25",
+      0.3
+     ],
+     [
+      "000123",
+      "2024-09-06",
+      "East",
+      "P-102",
+      "Monitor Stand",
+      "4",
+      "39.5",
+      "158",
+      0.35
+     ],
+     [
+      "000124",
+      "2024-09-17",
+      "West",
+      "P-101",
+      "Office Chair",
+      "7",
+      "149",
+      "1043",
+      0.4
+     ],
+     [
+      "000125",
+      "2024-09-28",
+      "North",
+      "P-100",
+      "Desk Lamp",
+      "3",
+      "24.99",
+      "74.97",
+      0.45
+     ],
+     [
+      "126 ",
+      "2024-10-09",
+      "South",
+      "P-105",
+      "Standing Desk",
+      "6",
+      "329",
+      "1974",
+      0.25
+     ],
+     [
+      "000127",
+      "2024-10-20",
+      "East",
+      "P-104",
+      "Wireless Mouse",
+      "2",
+      "18",
+      "36",
+      0.3
+     ],
+     [
+      "000128",
+      "2024-10-31",
+      "West",
+      "P-103",
+      "Notebook Set",
+      "5",
+      "7.25",
+      "36.25",
+      0.35
+     ],
+     [
+      "000129",
+      "2024-11-11",
+      "North",
+      "P-102",
+      "Monitor Stand",
+      "1",
+      "39.5",
+      "39.5",
+      0.4
+     ],
+     [
+      "000130",
+      "2024-11-22",
+      "South",
+      "P-101",
+      "Office Chair",
+      "4",
+      "149",
+      "596",
+      0.45
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      "Total",
+      null,
+      null,
+      null,
+      null,
+      "110",
+      null,
+      "#N/A",
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      "Note: regions follow the 2023 sales map.",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    ],
+    "source": "Sales 2024"
+   }
+  },
+  {
+   "sheet": "Customers",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Customers",
+    "rows": 8,
+    "columns": [
+     {
+      "name": "Customer_ID",
+      "type": "TEXT",
+      "nulls": 0,
+      "original": "Customer ID"
+     },
+     {
+      "name": "Name",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Phone",
+      "type": "TEXT",
+      "nulls": 1
+     },
+     {
+      "name": "Postcode",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Joined",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Credit_Limit",
+      "type": "REAL",
+      "nulls": 1,
+      "original": "Credit Limit"
+     },
+     {
+      "name": "Active",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Discount_",
+      "type": "REAL",
+      "nulls": 1,
+      "original": "Discount %"
+     }
+    ],
+    "data": [
+     [
+      "C001",
+      "Ava Hughes",
+      "07700 900101",
+      "HD1 3DH",
+      "2021-03-14",
+      5000.0,
+      "TRUE",
+      0.1
+     ],
+     [
+      "C002",
+      "Ben Carter ",
+      "07700 900102",
+      "LS1 4AP",
+      "2021-11-02",
+      2500.0,
+      "TRUE",
+      0.05
+     ],
+     [
+      "C003",
+      "Chloe Ward",
+      "01632 960103",
+      "YO1 7HH",
+      "13/02/2022",
+      1000.0,
+      "FALSE",
+      0.0
+     ],
+     [
+      "C004",
+      "Dev Sharma",
+      "07700 900104",
+      "M1 1AE",
+      "2022-07-30",
+      7500.5,
+      "TRUE",
+      0.125
+     ],
+     [
+      "C005",
+      "Ella Fox",
+      null,
+      "S1 2HE",
+      "2023-01-09",
+      null,
+      "TRUE",
+      null
+     ],
+     [
+      "C006",
+      "Finn Byrne",
+      "07700 900106",
+      "hu1 1nq",
+      "2023-06-21",
+      1500.0,
+      "FALSE",
+      0.05
+     ],
+     [
+      "C007",
+      "Gita Rao",
+      "07700 900107",
+      "BD1 1HU",
+      "2024-02-29",
+      3000.0,
+      "TRUE",
+      0.1
+     ],
+     [
+      "C008",
+      "Ava Hughes",
+      "07700 900101",
+      "HD1 3DH",
+      "2021-03-14",
+      5000.0,
+      "TRUE",
+      0.1
+     ]
+    ],
+    "source": "Customers"
+   }
+  },
+  {
+   "sheet": "Summary",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Summary",
+    "rows": 6,
+    "columns": [
+     {
+      "name": "Summary_by_region",
+      "type": "TEXT",
+      "nulls": 1,
+      "original": "Summary by region"
+     },
+     {
+      "name": "column_2",
+      "type": "TEXT",
+      "nulls": 1,
+      "original": "",
+      "report_example": "Orders"
+     },
+     {
+      "name": "column_3",
+      "type": "TEXT",
+      "nulls": 1,
+      "original": "",
+      "report_example": "Revenue"
+     }
+    ],
+    "data": [
+     [
+      null,
+      null,
+      null
+     ],
+     [
+      "Region",
+      "Orders",
+      "Revenue"
+     ],
+     [
+      "North",
+      "8",
+      "864.94"
+     ],
+     [
+      "South",
+      "6",
+      "5985.25"
+     ],
+     [
+      "East",
+      "7",
+      "713.39"
+     ],
+     [
+      "West",
+      "7",
+      "#N/A"
+     ]
+    ],
+    "source": "Summary"
+   },
+   "table_if_header_row_can_be_chosen": {
+    "header_row": 3,
+    "name": "Summary",
+    "rows": 4,
+    "columns": [
+     {
+      "name": "Region",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Orders",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "Revenue",
+      "type": "TEXT",
+      "nulls": 0,
+      "report_example": "#N/A"
+     }
+    ],
+    "data": [
+     [
+      "North",
+      8,
+      "864.94"
+     ],
+     [
+      "South",
+      6,
+      "5985.25"
+     ],
+     [
+      "East",
+      7,
+      "713.39"
+     ],
+     [
+      "West",
+      7,
+      "#N/A"
+     ]
+    ],
+    "source": "Summary"
+   }
+  },
+  {
+   "sheet": "Lookup",
+   "state": "hidden",
+   "importable": true,
+   "ticked_by_default": false,
+   "table": {
+    "name": "Lookup",
+    "rows": 6,
+    "columns": [
+     {
+      "name": "Product_Code",
+      "type": "TEXT",
+      "nulls": 0,
+      "original": "Product Code"
+     },
+     {
+      "name": "Product",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Unit_Price",
+      "type": "REAL",
+      "nulls": 0,
+      "original": "Unit Price"
+     }
+    ],
+    "data": [
+     [
+      "P-100",
+      "Desk Lamp",
+      24.99
+     ],
+     [
+      "P-101",
+      "Office Chair",
+      149.0
+     ],
+     [
+      "P-102",
+      "Monitor Stand",
+      39.5
+     ],
+     [
+      "P-103",
+      "Notebook Set",
+      7.25
+     ],
+     [
+      "P-104",
+      "Wireless Mouse",
+      18.0
+     ],
+     [
+      "P-105",
+      "Standing Desk",
+      329.0
+     ]
+    ],
+    "source": "Lookup"
+   }
+  },
+  {
+   "sheet": "Config",
+   "state": "veryHidden",
+   "importable": true,
+   "ticked_by_default": false,
+   "table": {
+    "name": "Config",
+    "rows": 3,
+    "columns": [
+     {
+      "name": "setting",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "value",
+      "type": "TEXT",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      "academic_year",
+      "2026/27"
+     ],
+     [
+      "dataset_version",
+      "3"
+     ],
+     [
+      "answer_key",
+      "do not share"
+     ]
+    ],
+    "source": "Config"
+   }
+  }
+ ],
+ "chart_sheets_not_listed": [],
+ "open_questions": [
+  "Q1",
+  "Q10",
+  "Q12",
+  "Q14",
+  "Q15"
+ ],
+ "notes": [
+  "Order ID is text with leading zeros. One id was retyped as \"126 \".",
+  "Product, Unit Price and Line Total are formulas. Row 12 has #N/A in all three and row 16 has #VALUE! in Line Total, so the Total row shows #N/A.",
+  "Column I (Margin %) is hidden."
+ ]
+}

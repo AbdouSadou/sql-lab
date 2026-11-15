@@ -1,0 +1,586 @@
+{
+ "fixture": "excel/title_rows_and_layouts.xlsx",
+ "covers": "One layout per sheet: title rows above the header; a table that starts at C5; a units row under the header; a two-level merged header; merged category cells; two tables side by side; a blank column and a blank row inside a table.",
+ "outcome": "import",
+ "sheets": [
+  {
+   "sheet": "Title above header",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Title_above_header",
+    "rows": 11,
+    "columns": [
+     {
+      "name": "Northlight_Retail",
+      "type": "TEXT",
+      "nulls": 2,
+      "original": "Northlight Retail"
+     },
+     {
+      "name": "column_2",
+      "type": "TEXT",
+      "nulls": 6,
+      "original": ""
+     },
+     {
+      "name": "column_3",
+      "type": "TEXT",
+      "nulls": 5,
+      "original": "",
+      "report_example": "Orders"
+     },
+     {
+      "name": "column_4",
+      "type": "TEXT",
+      "nulls": 5,
+      "original": "",
+      "report_example": "Revenue"
+     }
+    ],
+    "data": [
+     [
+      "Quarterly sales report - Q3 2023",
+      null,
+      null,
+      null
+     ],
+     [
+      "Generated 01/10/2023 09:15",
+      null,
+      null,
+      null
+     ],
+     [
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      "Region",
+      "Month",
+      "Orders",
+      "Revenue"
+     ],
+     [
+      "North",
+      "Jul",
+      "120",
+      "15400.5"
+     ],
+     [
+      "North",
+      "Aug",
+      "135",
+      "17250"
+     ],
+     [
+      "South",
+      "Jul",
+      "210",
+      "26800.75"
+     ],
+     [
+      "South",
+      "Aug",
+      "260",
+      "33859"
+     ],
+     [
+      "Total",
+      null,
+      "725",
+      "93310.25"
+     ],
+     [
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      "Source: finance system export",
+      null,
+      null,
+      null
+     ]
+    ],
+    "source": "Title above header"
+   },
+   "table_if_header_row_can_be_chosen": {
+    "header_row": 5,
+    "name": "Title_above_header",
+    "rows": 7,
+    "columns": [
+     {
+      "name": "Region",
+      "type": "TEXT",
+      "nulls": 1
+     },
+     {
+      "name": "Month",
+      "type": "TEXT",
+      "nulls": 3
+     },
+     {
+      "name": "Orders",
+      "type": "INTEGER",
+      "nulls": 2
+     },
+     {
+      "name": "Revenue",
+      "type": "REAL",
+      "nulls": 2
+     }
+    ],
+    "data": [
+     [
+      "North",
+      "Jul",
+      120,
+      15400.5
+     ],
+     [
+      "North",
+      "Aug",
+      135,
+      17250.0
+     ],
+     [
+      "South",
+      "Jul",
+      210,
+      26800.75
+     ],
+     [
+      "South",
+      "Aug",
+      260,
+      33859.0
+     ],
+     [
+      "Total",
+      null,
+      725,
+      93310.25
+     ],
+     [
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      "Source: finance system export",
+      null,
+      null,
+      null
+     ]
+    ],
+    "source": "Title above header"
+   }
+  },
+  {
+   "sheet": "Starts at C5",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Starts_at_C5",
+    "rows": 4,
+    "columns": [
+     {
+      "name": "Region",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Month",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Orders",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "Revenue",
+      "type": "REAL",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      "North",
+      "Jul",
+      120,
+      15400.5
+     ],
+     [
+      "North",
+      "Aug",
+      135,
+      17250.0
+     ],
+     [
+      "South",
+      "Jul",
+      210,
+      26800.75
+     ],
+     [
+      "South",
+      "Aug",
+      260,
+      33859.0
+     ]
+    ],
+    "source": "Starts at C5"
+   }
+  },
+  {
+   "sheet": "Two header rows",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Two_header_rows",
+    "rows": 4,
+    "columns": [
+     {
+      "name": "Product",
+      "type": "TEXT",
+      "nulls": 1
+     },
+     {
+      "name": "Weight",
+      "type": "TEXT",
+      "nulls": 0,
+      "report_example": "(kg)"
+     },
+     {
+      "name": "Price",
+      "type": "TEXT",
+      "nulls": 0,
+      "report_example": "(£)"
+     },
+     {
+      "name": "Stock",
+      "type": "TEXT",
+      "nulls": 0,
+      "report_example": "(units)"
+     }
+    ],
+    "data": [
+     [
+      null,
+      "(kg)",
+      "(£)",
+      "(units)"
+     ],
+     [
+      "Mug",
+      "0.35",
+      "6.5",
+      "40"
+     ],
+     [
+      "Plate",
+      "0.6",
+      "8",
+      "25"
+     ],
+     [
+      "Bowl",
+      "0.45",
+      "5.75",
+      "0"
+     ]
+    ],
+    "source": "Two header rows"
+   }
+  },
+  {
+   "sheet": "Grouped header",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Grouped_header",
+    "rows": 3,
+    "columns": [
+     {
+      "name": "Region",
+      "type": "TEXT",
+      "nulls": 1
+     },
+     {
+      "name": "c_2023",
+      "type": "TEXT",
+      "nulls": 0,
+      "original": "2023",
+      "report_example": "H1"
+     },
+     {
+      "name": "column_3",
+      "type": "TEXT",
+      "nulls": 0,
+      "original": "",
+      "report_example": "H2"
+     },
+     {
+      "name": "c_2024",
+      "type": "TEXT",
+      "nulls": 0,
+      "original": "2024",
+      "report_example": "H1"
+     },
+     {
+      "name": "column_5",
+      "type": "TEXT",
+      "nulls": 0,
+      "original": "",
+      "report_example": "H2"
+     }
+    ],
+    "data": [
+     [
+      null,
+      "H1",
+      "H2",
+      "H1",
+      "H2"
+     ],
+     [
+      "North",
+      "10",
+      "12",
+      "14",
+      "15"
+     ],
+     [
+      "South",
+      "20",
+      "19",
+      "23",
+      "27"
+     ]
+    ],
+    "source": "Grouped header"
+   }
+  },
+  {
+   "sheet": "Merged categories",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Merged_categories",
+    "rows": 5,
+    "columns": [
+     {
+      "name": "Category",
+      "type": "TEXT",
+      "nulls": 3
+     },
+     {
+      "name": "Product",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Price",
+      "type": "REAL",
+      "nulls": 0
+     }
+    ],
+    "data": [
+     [
+      "Kitchen",
+      "Mug",
+      6.5
+     ],
+     [
+      null,
+      "Plate",
+      8.0
+     ],
+     [
+      null,
+      "Bowl",
+      5.75
+     ],
+     [
+      "Office",
+      "Desk Lamp",
+      24.99
+     ],
+     [
+      null,
+      "Stapler",
+      4.2
+     ]
+    ],
+    "source": "Merged categories"
+   }
+  },
+  {
+   "sheet": "Side by side",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Side_by_side",
+    "rows": 4,
+    "columns": [
+     {
+      "name": "Region",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Month",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Orders",
+      "type": "INTEGER",
+      "nulls": 0
+     },
+     {
+      "name": "Revenue",
+      "type": "REAL",
+      "nulls": 0
+     },
+     {
+      "name": "column_5",
+      "type": "TEXT",
+      "nulls": 4,
+      "original": ""
+     },
+     {
+      "name": "Code",
+      "type": "TEXT",
+      "nulls": 2
+     },
+     {
+      "name": "Meaning",
+      "type": "TEXT",
+      "nulls": 2
+     }
+    ],
+    "data": [
+     [
+      "North",
+      "Jul",
+      120,
+      15400.5,
+      null,
+      "N",
+      "North"
+     ],
+     [
+      "North",
+      "Aug",
+      135,
+      17250.0,
+      null,
+      "S",
+      "South"
+     ],
+     [
+      "South",
+      "Jul",
+      210,
+      26800.75,
+      null,
+      null,
+      null
+     ],
+     [
+      "South",
+      "Aug",
+      260,
+      33859.0,
+      null,
+      null,
+      null
+     ]
+    ],
+    "source": "Side by side"
+   }
+  },
+  {
+   "sheet": "Blank column and row",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Blank_column_and_row",
+    "rows": 4,
+    "columns": [
+     {
+      "name": "Region",
+      "type": "TEXT",
+      "nulls": 1
+     },
+     {
+      "name": "Month",
+      "type": "TEXT",
+      "nulls": 1
+     },
+     {
+      "name": "column_3",
+      "type": "TEXT",
+      "nulls": 4,
+      "original": ""
+     },
+     {
+      "name": "Orders",
+      "type": "INTEGER",
+      "nulls": 1
+     }
+    ],
+    "data": [
+     [
+      "North",
+      "Jul",
+      null,
+      120
+     ],
+     [
+      "North",
+      "Aug",
+      null,
+      135
+     ],
+     [
+      null,
+      null,
+      null,
+      null
+     ],
+     [
+      "South",
+      "Jul",
+      null,
+      210
+     ]
+    ],
+    "source": "Blank column and row"
+   }
+  }
+ ],
+ "chart_sheets_not_listed": [],
+ "open_questions": [
+  "Q1",
+  "Q8",
+  "Q15",
+  "Q16"
+ ],
+ "notes": []
+}

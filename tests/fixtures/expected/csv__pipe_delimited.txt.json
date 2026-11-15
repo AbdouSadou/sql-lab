@@ -1,0 +1,61 @@
+{
+ "fixture": "csv/pipe_delimited.txt",
+ "covers": "Pipe delimiter in a .txt file, with a quoted pipe in the data.",
+ "outcome": "import",
+ "settings": {
+  "encoding": "utf-8",
+  "delimiter": "pipe",
+  "first_row_is_header": true
+ },
+ "tables": [
+  {
+   "name": "pipe_delimited",
+   "rows": 3,
+   "columns": [
+    {
+     "name": "sku",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "description",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "price",
+     "type": "REAL",
+     "nulls": 0
+    },
+    {
+     "name": "stock",
+     "type": "INTEGER",
+     "nulls": 1
+    }
+   ],
+   "data": [
+    [
+     "A-100",
+     "Mug, large, blue",
+     6.5,
+     40
+    ],
+    [
+     "A-101",
+     "Jug | glass",
+     3.25,
+     0
+    ],
+    [
+     "A-102",
+     "Plate; dinner",
+     8.0,
+     null
+    ]
+   ],
+   "source": "pipe_delimited.txt"
+  }
+ ],
+ "open_questions": [],
+ "notes": []
+}

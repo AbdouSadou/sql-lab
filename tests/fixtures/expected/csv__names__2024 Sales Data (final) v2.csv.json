@@ -1,0 +1,41 @@
+{
+ "fixture": "csv/names/2024 Sales Data (final) v2.csv",
+ "covers": "A file name with a leading digit, spaces and brackets, for the table name.",
+ "outcome": "import",
+ "settings": {
+  "encoding": "utf-8",
+  "delimiter": "comma",
+  "first_row_is_header": true
+ },
+ "tables": [
+  {
+   "name": "c_2024_Sales_Data_final_v2",
+   "rows": 2,
+   "columns": [
+    {
+     "name": "region",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "orders",
+     "type": "INTEGER",
+     "nulls": 0
+    }
+   ],
+   "data": [
+    [
+     "North",
+     12
+    ],
+    [
+     "South",
+     30
+    ]
+   ],
+   "source": "2024 Sales Data (final) v2.csv"
+  }
+ ],
+ "open_questions": [],
+ "notes": []
+}

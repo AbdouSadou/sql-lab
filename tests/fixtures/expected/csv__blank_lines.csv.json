@@ -1,0 +1,56 @@
+{
+ "fixture": "csv/blank_lines.csv",
+ "covers": "Blank lines before the header, between rows and at the end; a line of spaces; a line holding only a comma.",
+ "outcome": "import",
+ "settings": {
+  "encoding": "utf-8",
+  "delimiter": "comma",
+  "first_row_is_header": true
+ },
+ "tables": [
+  {
+   "name": "blank_lines",
+   "rows": 5,
+   "columns": [
+    {
+     "name": "id",
+     "type": "TEXT",
+     "nulls": 1,
+     "report_example": "   "
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "nulls": 2
+    }
+   ],
+   "data": [
+    [
+     "1",
+     "Ann"
+    ],
+    [
+     "2",
+     "Bob"
+    ],
+    [
+     "   ",
+     null
+    ],
+    [
+     null,
+     null
+    ],
+    [
+     "3",
+     "Cat"
+    ]
+   ],
+   "source": "blank_lines.csv"
+  }
+ ],
+ "open_questions": [
+  "Q8"
+ ],
+ "notes": []
+}

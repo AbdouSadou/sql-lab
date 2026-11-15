@@ -1,0 +1,12 @@
+﻿id,i,r,note
+1,0,0.0,zero
+2,-1,-1.5,negative
+3,9007199254740993,0.1,integer just above 2^53
+4,9223372036854775807,0.30000000000000004,largest integer; a float with 17 significant digits
+5,-9223372036854775808,1.0,smallest integer; a real with a whole value
+6,42,0.0000001,a real JavaScript prints as 1e-7
+7,1000000,150000000000000000000.0,a real JavaScript prints as 150000000000000000000
+8,,123456.789,NULL integer
+9,7,,NULL real
+10,123456789012345,1000000000000000.0,15-digit integer
+11,1234567890123456,0.000123,16-digit integer

@@ -1,0 +1,10 @@
+{
+ "fixture": "csv/wide_2100_columns.csv",
+ "covers": "2,100 columns: more than SQLite allows in one table.",
+ "outcome": "refuse",
+ "reason": "SQLite stops at 2,000 columns. Refuse with a message that says so; create no table and no database.",
+ "open_questions": [
+  "Q17"
+ ],
+ "notes": []
+}

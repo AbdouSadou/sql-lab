@@ -1,0 +1,72 @@
+{
+ "fixture": "windows1252.csv",
+ "covers": "Windows-1252 bytes: £, é, €, curly quotes and a dash, as Excel saves a CSV.",
+ "outcome": "import",
+ "settings": {
+  "encoding": "windows-1252",
+  "delimiter": "comma",
+  "first_row_is_header": true
+ },
+ "tables": [
+  {
+   "name": "windows1252",
+   "rows": 4,
+   "columns": [
+    {
+     "name": "Product",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "Price",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "Caf_",
+     "type": "TEXT",
+     "nulls": 0,
+     "original": "Café"
+    },
+    {
+     "name": "Note",
+     "type": "TEXT",
+     "nulls": 0
+    }
+   ],
+   "data": [
+    [
+     "Crème brûlée",
+     "£4.50",
+     "Café Rouge",
+     "“Best seller”"
+    ],
+    [
+     "Jalapeño bites",
+     "£3.25",
+     "El Niño",
+     "Costs €3 abroad"
+    ],
+    [
+     "Smörgåsbord",
+     "£12.00",
+     "Björk’s",
+     "Naïve façade — déjà vu"
+    ],
+    [
+     "Plain item",
+     "£1.00",
+     "None",
+     "ASCII only"
+    ]
+   ],
+   "source": "windows1252.csv"
+  }
+ ],
+ "open_questions": [
+  "Q3"
+ ],
+ "notes": [
+  "The € sign and curly quotes are bytes 0x80 to 0x9F, which exist in Windows-1252 but not in Latin-1."
+ ]
+}

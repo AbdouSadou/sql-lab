@@ -1,0 +1,93 @@
+{
+ "fixture": "csv/ragged_rows.csv",
+ "covers": "Rows shorter and longer than the header.",
+ "outcome": "import",
+ "settings": {
+  "encoding": "utf-8",
+  "delimiter": "comma",
+  "first_row_is_header": true
+ },
+ "tables": [
+  {
+   "name": "ragged_rows",
+   "rows": 5,
+   "columns": [
+    {
+     "name": "a",
+     "type": "INTEGER",
+     "nulls": 0
+    },
+    {
+     "name": "b",
+     "type": "INTEGER",
+     "nulls": 1
+    },
+    {
+     "name": "c",
+     "type": "INTEGER",
+     "nulls": 2
+    },
+    {
+     "name": "d",
+     "type": "INTEGER",
+     "nulls": 2
+    },
+    {
+     "name": "extra_1",
+     "type": "INTEGER",
+     "nulls": 3
+    },
+    {
+     "name": "extra_2",
+     "type": "INTEGER",
+     "nulls": 4
+    }
+   ],
+   "data": [
+    [
+     1,
+     2,
+     3,
+     4,
+     null,
+     null
+    ],
+    [
+     5,
+     6,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     7,
+     8,
+     9,
+     10,
+     11,
+     12
+    ],
+    [
+     13,
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    [
+     14,
+     15,
+     16,
+     17,
+     18,
+     null
+    ]
+   ],
+   "source": "ragged_rows.csv"
+  }
+ ],
+ "open_questions": [],
+ "notes": []
+}

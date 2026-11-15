@@ -1,0 +1,85 @@
+{
+ "fixture": "semicolon.csv",
+ "covers": "Semicolon delimiter with decimal commas and commas inside unquoted fields.",
+ "outcome": "import",
+ "settings": {
+  "encoding": "utf-8",
+  "delimiter": "semicolon",
+  "first_row_is_header": true
+ },
+ "tables": [
+  {
+   "name": "semicolon",
+   "rows": 5,
+   "columns": [
+    {
+     "name": "Produkt",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "Preis",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "Menge",
+     "type": "INTEGER",
+     "nulls": 1
+    },
+    {
+     "name": "Datum",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "Beschreibung",
+     "type": "TEXT",
+     "nulls": 1
+    }
+   ],
+   "data": [
+    [
+     "Kaffee",
+     "12,50",
+     3,
+     "05.08.2023",
+     "Bohnen; ganz"
+    ],
+    [
+     "Tee",
+     "4,00",
+     10,
+     "06.08.2023",
+     "Schwarz, lose"
+    ],
+    [
+     "Zucker",
+     "1,25",
+     null,
+     "07.08.2023",
+     null
+    ],
+    [
+     "Milch",
+     "0,99",
+     24,
+     "08.08.2023",
+     "1,5 % Fett"
+    ],
+    [
+     "Brot",
+     "2,10",
+     6,
+     "09.08.2023",
+     "Vollkorn, geschnitten, 500 g"
+    ]
+   ],
+   "source": "semicolon.csv"
+  }
+ ],
+ "open_questions": [],
+ "notes": [
+  "Commas outnumber semicolons on some lines, so delimiter detection must not be a simple count of the first line."
+ ]
+}

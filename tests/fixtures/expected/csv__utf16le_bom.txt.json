@@ -1,0 +1,61 @@
+{
+ "fixture": "csv/utf16le_bom.txt",
+ "covers": "UTF-16 little-endian with a byte-order mark and tabs: Excel's \"Unicode Text\".",
+ "outcome": "import",
+ "settings": {
+  "encoding": "utf-16le",
+  "delimiter": "tab",
+  "first_row_is_header": true
+ },
+ "tables": [
+  {
+   "name": "utf16le_bom",
+   "rows": 3,
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "nulls": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "city",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "balance",
+     "type": "TEXT",
+     "nulls": 0
+    }
+   ],
+   "data": [
+    [
+     1,
+     "Chloé Dubois",
+     "Leeds",
+     "£120.50"
+    ],
+    [
+     2,
+     "Søren Østergaard",
+     "York",
+     "£0.00"
+    ],
+    [
+     3,
+     "Zoë Müller",
+     "Hull",
+     "£75.25"
+    ]
+   ],
+   "source": "utf16le_bom.txt"
+  }
+ ],
+ "open_questions": [],
+ "notes": []
+}

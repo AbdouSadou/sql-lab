@@ -1,0 +1,24 @@
+Order ID,Customer Name,Order Date,Amount (£),Quantity,Unit Price,Discount,Postcode,Phone,Weight (kg),Units In Stock,Notes
+00123,"Smith, John",05/08/2023,"£1,234.50",3,411.50,10%,HD1 3DH,07700 900123,2.5,120,Repeat customer
+00124,Aisha Khan  ,06/08/2023,£45.00,1,45.00,,LS1 4AP,07700 900456,0.75,85,
+00125,O'Brien & Sons,13/08/2023,£310.00,2,155.00,5%,YO1 7HH,01632 960001,12,"1,200","Said: ""deliver before noon"""
+00126,María José Fernández,14/08/2023,£89.99,1,89.99,0%,M1 1AE,07700 900789,N/A,40,"Leave with neighbour
+at number 12"
+00127,  Li Wei,15/08/2023,£15.50,,15.50,,S1 2HE,,0.2,15,
+00128,Tom Baker,31/08/2023,"£2,050.00",5,410.00,15%,hd1 3dh ,07700 900321,3.1,0,Postcode typed in lower case
+00129,Priya Patel,01/09/2023,-£20.00,-1,20.00,,BD1 1HU,07700 900654,0.5,60,Refund
+00130,"Smith, John",2023-09-04,£410.00,1,410.00,10%,HD1 3DH,07700 900123,2.5,119,Date typed in ISO form
+00131,ACME Ltd,05/09/2023,"£1,000",10,100,0%,WF1 2TB,+44 1632 960002,10.0,9,Unit price has no decimals
+00132,Aisha Khan,7/9/2023,£45.00,1,45.00,,LS1 4AP,07700 900456,0.75,84,Date typed without leading zeros
+00132,Aisha Khan,7/9/2023,£45.00,1,45.00,,LS1 4AP,07700 900456,0.75,84,Date typed without leading zeros
+00133,Zoë Müller,11/09/2023,£75.25,2,37.625,,HX1 1UJ,07700 900987,1.25,33,Accented name
+00134,Noah Williams,12/09/2023,,,,,,,,,
+00135,Emma Jones,13/09/2023,£60.00
+00136,Oliver Brown,14/09/2023,£120.00,2,60.00,5%,HU1 1NQ,07700 900111,4,25,Two notes,second note in an extra field
+00137,Grace Taylor,15/09/2023,£ 35.00,1,35.00,,DN1 1AA,07700 900222,0.4,n/a,Space after the pound sign
+00138,Harry Evans,18/09/2023,£250.00,4,62.50,5%,HG1 1BG,07700 900333,6,48,
+00139,Isla Roberts,19/09/2023,£18.00,2,9.00,,BB1 1AA,07700 900444,0.3,200,
+00140,Jack Walker,20/09/2023,£999.99,1,999.99,0%,OL1 1AA,07700 900555,15.5,3,Last one in stock
+00141,Sophie Wright,21/09/2023,£64.00,8,8.00,,WA1 1AA,07700 900666,1.6,310,
+00142,George Hall,30/09/2023,£132.75,3,44.25,10%,CH1 1AA,07700 900777,2.25,77,
+00143,Mia Green,31/09/2023,£27.00,3,9.00,,PR1 1AA,07700 900888,0.45,199,31 September does not exist

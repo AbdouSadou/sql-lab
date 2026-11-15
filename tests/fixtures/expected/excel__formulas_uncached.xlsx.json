@@ -1,0 +1,88 @@
+{
+ "fixture": "excel/formulas_uncached.xlsx",
+ "covers": "Formulas with no stored results, as written by openpyxl.",
+ "outcome": "import",
+ "sheets": [
+  {
+   "sheet": "Calc",
+   "state": "visible",
+   "importable": true,
+   "ticked_by_default": true,
+   "table": {
+    "name": "Calc",
+    "rows": 5,
+    "columns": [
+     {
+      "name": "Item",
+      "type": "TEXT",
+      "nulls": 0
+     },
+     {
+      "name": "Qty",
+      "type": "INTEGER",
+      "nulls": 1
+     },
+     {
+      "name": "Price",
+      "type": "REAL",
+      "nulls": 1
+     },
+     {
+      "name": "Total",
+      "type": "TEXT",
+      "nulls": 5
+     },
+     {
+      "name": "Label",
+      "type": "TEXT",
+      "nulls": 5
+     }
+    ],
+    "data": [
+     [
+      "Mug",
+      4,
+      6.5,
+      null,
+      null
+     ],
+     [
+      "Plate",
+      2,
+      8.0,
+      null,
+      null
+     ],
+     [
+      "Bowl",
+      3,
+      5.75,
+      null,
+      null
+     ],
+     [
+      "Jug",
+      0,
+      12.0,
+      null,
+      null
+     ],
+     [
+      "Total",
+      null,
+      null,
+      null,
+      null
+     ]
+    ],
+    "source": "Calc"
+   }
+  }
+ ],
+ "chart_sheets_not_listed": [],
+ "open_questions": [
+  "Q7",
+  "Q13"
+ ],
+ "notes": []
+}

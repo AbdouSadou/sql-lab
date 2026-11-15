@@ -1,0 +1,43 @@
+{
+ "fixture": "csv/names/Order.csv",
+ "covers": "A file whose name is a reserved word.",
+ "outcome": "import",
+ "settings": {
+  "encoding": "utf-8",
+  "delimiter": "comma",
+  "first_row_is_header": true
+ },
+ "tables": [
+  {
+   "name": "Order",
+   "rows": 2,
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "nulls": 0
+    },
+    {
+     "name": "item",
+     "type": "TEXT",
+     "nulls": 0
+    }
+   ],
+   "data": [
+    [
+     1,
+     "Mug"
+    ],
+    [
+     2,
+     "Plate"
+    ]
+   ],
+   "source": "Order.csv"
+  }
+ ],
+ "open_questions": [
+  "Q2"
+ ],
+ "notes": []
+}

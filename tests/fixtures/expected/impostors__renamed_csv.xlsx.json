@@ -1,0 +1,45 @@
+{
+ "fixture": "impostors/renamed_csv.xlsx",
+ "covers": "A CSV file renamed to .xlsx.",
+ "outcome": "import_by_content_or_refuse",
+ "real_content": "text",
+ "tables_if_read_by_content": [
+  {
+   "name": "renamed_csv",
+   "rows": 2,
+   "columns": [
+    {
+     "name": "id",
+     "type": "INTEGER",
+     "nulls": 0
+    },
+    {
+     "name": "name",
+     "type": "TEXT",
+     "nulls": 0
+    },
+    {
+     "name": "qty",
+     "type": "INTEGER",
+     "nulls": 0
+    }
+   ],
+   "data": [
+    [
+     1,
+     "Mug",
+     4
+    ],
+    [
+     2,
+     "Plate",
+     2
+    ]
+   ]
+  }
+ ],
+ "open_questions": [
+  "Q18"
+ ],
+ "notes": []
+}
