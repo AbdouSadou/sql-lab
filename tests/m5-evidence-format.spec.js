@@ -413,7 +413,7 @@ test.describe("verify", () => {
         expect((await verifyEvidence(sample({ appName: "Café 日本" }))).status).toBe("valid");
     });
 
-    test("the first line must still end in 'evidence export v1'", async () => {
+    test("the first line must still end in 'evidence export v1' (v2 is taken only over a body that lists an event: tests/aw0-evidence.spec.js)", async () => {
         const { verifyEvidence } = await load("evidence.js");
         const body = sample().split("\n");
         for (const first of ["SQL Lab evidence export v2", "SQL Lab evidence export", "evidence export v1x", "Notes", ""]) {

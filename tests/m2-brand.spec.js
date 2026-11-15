@@ -55,6 +55,9 @@ test("brand: the app name is written in js/lab/config.js and nowhere else", () =
     // may well have the app's name in its path once the owner sets it; its line is left out here.
     const named = hits.filter((hit) => !/^js\/lab\/config\.js:\d+: export const SITE_URL = /.test(hit));
     expect(named.map((h) => h.replace(/:\d+:/, ":"))).toEqual([
+        // the events of the evidence log (assessment plan, Phase 0), kept beside the run log; its
+        // settings are in a file of their own, which the walk reaches before config.js
+        'js/lab/config-workflow.js: export const EVENTS_PREFIX = "sqllab.events.";',
         'js/lab/config.js: export const APP_NAME = "SQL Lab";',
         // the key the pane sizes and the collapsed sidebar are kept under (UI plan, Phase 2): a
         // storage key like the others, not the app name

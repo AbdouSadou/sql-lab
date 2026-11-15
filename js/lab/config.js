@@ -557,7 +557,8 @@ export const historyRowsText = (count) => `${count} ${count === 1 ? "row" : "row
 // The student number typed at export time must match this. One constant, used by the dialog
 // only: the verify page never applies it, so changing it does not invalidate older files.
 export const STUDENT_ID_PATTERN = /^[A-Za-z0-9]{6,12}$/;
-// The first line of a file is "<APP_NAME> evidence export v1".
+// The first line of a version 1 file is "<APP_NAME> evidence export v1" (a file that lists
+// events is version 2: EVIDENCE_TITLE_SUFFIX_V2, at the end of this file).
 export const EVIDENCE_TITLE_SUFFIX = "evidence export v1";
 export const EVIDENCE_MIDDLE_DOT = "\u00b7";
 // A line of SQL that looks like an entry header ("[4] 2026-11-09T13:58:12Z · 1 row") is written
@@ -596,3 +597,18 @@ export const VERIFY_READ_FAILED_REASON = "The file could not be read as text.";
 // The file is a valid evidence file followed by nothing but line breaks. Still EDITED (any change
 // to the file is reported), but it reads as a stray newline, not as tampering.
 export const VERIFY_EXTRA_BLANK_LINES_REASON = "Extra blank lines were added after the checksum line.";
+
+// ---- Assessment workflow plan (the plan is in docs/) ----
+//
+// What this plan adds is set in js/lab/config-workflow.js, not here: this file is loaded whole by
+// verify.html, which is held to a size (tests/m5-verify-page.spec.js). Only what the evidence file
+// itself needs is here, because the verify page reads that file.
+
+// An evidence file that holds events (a file imported, tables exported) is version 2: its first
+// line ends in this, and an event's header is "[n] <time> · event: <kind>". A log with no events
+// is still written as version 1.
+export const EVIDENCE_TITLE_SUFFIX_V2 = "evidence export v2";
+export const EVIDENCE_EVENT_WORD = "event:";
+// The kinds of event. A new kind, like any change to what an event may hold, needs a new
+// EVENTS_VERSION (js/lab/config-workflow.js), or a tab of an older release would drop it.
+export const EVENT_KINDS = ["import", "export", "reset", "reopen"];

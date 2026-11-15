@@ -3,7 +3,7 @@
 // are committed, like vendor/editor.js. A whole class opening the site at once from one school
 // network is one burst of requests from one address, and GitHub Pages answered a large burst with
 // "429 Rate limit exceeded" for minutes during the first check of the live site: a first visit
-// asked for 85 files then (87 in Firefox), and asks for 16 now (18). js/ and css/ stay the source
+// asked for 85 files then (87 in Firefox), and asks for 18 now (20). js/ and css/ stay the source
 // (About and the evidence check page load their few files from them directly, and the app's page
 // its three classic scripts).
 
@@ -41,7 +41,25 @@ test("a test that imports bundle/app.js reaches the modules the page runs, with 
         return { names: Object.keys(bundle).sort(), pristine: bundle.datasets.getPristineId() };
     });
     expect(seen.pristine).toBe(DEFAULT_DATASET.id);
-    expect(seen.names).toEqual(["checker", "datasets", "dbPath", "exercises", "manager", "progress", "results", "router", "runLog", "runner", "share", "storage"]);
+    expect(seen.names).toEqual([
+        "checker",
+        "datasets",
+        "dbPath",
+        // the assessment plan's groundwork (Phase 0): the events of the evidence log, the preview
+        // flags and the loader for vendored libraries
+        "events",
+        "exercises",
+        "flags",
+        "manager",
+        "progress",
+        "results",
+        "router",
+        "runLog",
+        "runner",
+        "share",
+        "storage",
+        "vendorLoader",
+    ]);
 });
 
 test("no test imports a module of js/ into the app's page: that would be a second, separate copy", () => {
@@ -105,7 +123,8 @@ test("a first visit asks for at most 20 files, each once: no stylesheet of css/,
     const paths = net.paths;
     // the page, the theme's script, the two bundles, CodeMirror, the guards, the engine and its
     // .wasm, lz-string, the typefaces in use, the datasets' manifest and the database, the exercise
-    // listing and its set, and (in some browsers) icons: 16 in Chromium, 18 in Firefox
+    // listing and its sets (three today, a request each), and (in some browsers) icons: 18 in
+    // Chromium, 20 in Firefox
     expect(paths.length, paths.join("\n")).toBeLessThanOrEqual(20);
     expect(new Set(paths).size, "each file once").toBe(paths.length);
     expect(paths.filter((file) => file.startsWith("css/"))).toEqual([]);

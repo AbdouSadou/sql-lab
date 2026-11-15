@@ -15,7 +15,7 @@ var __export = (target, all) => {
 };
 
 // js/lab/config.js
-var APP_NAME, RESTORED_MESSAGE, OPEN_URL_TITLE, OPEN_URL_INTRO, OPEN_URL_LABEL, OPEN_URL_HINT, OPEN_URL_SUBMIT_TEXT, OPEN_URL_CANCEL_TEXT, OPEN_URL_EMPTY_MESSAGE, OPEN_URL_UNSUPPORTED_MESSAGE, SHARE_PARAM, SHARE_VERSION, SHARE_ID_PATTERN, SHARE_MAX_PAYLOAD_CHARS, SHARE_MAX_JSON_CHARS, SHARE_MAX_SQL_CHARS, SHARED_MESSAGE, BAD_LINK_MESSAGE, LINK_COPIED_MESSAGE, LINK_COPY_FAILED_TITLE, LINK_COPY_FAILED_MESSAGE, LINK_FIELD_LABEL, LINK_TOO_LONG_MESSAGE, RESULT_SCROLL_NOTE, RESULT_REGION_LABEL, VACUUM_INTO_MESSAGE, SQL_NUL_MESSAGE, LOADING_BUSY_MESSAGE, NO_DATABASE_MESSAGE, loadFailedMessage, MANIFEST_URL, DATASET_PARAM, SQLITE_HEADER, DATABASE_MENU_LABEL, DATABASE_LOADING, DATABASE_NONE, databaseButtonLabel, OPEN_FILE_TEXT, OPEN_FILE_DESCRIPTION, OPEN_URL_TEXT, OPEN_URL_DESCRIPTION, databaseSizeText, EXPORT_MENU_LABEL, EXPORT_DATABASE_TEXT, EXPORT_BUTTON_TITLE, EXPORT_RESULTS_TEXT, EXPORT_RESULTS_DESCRIPTION, EXPORT_RESULTS_NONE, EXPORT_EVIDENCE_TEXT, EXPORT_EVIDENCE_DESCRIPTION, EXPORT_DIALOG_TITLE, EXPORT_DIALOG_TEXT, EXPORT_NAME_LABEL, EXPORT_NAME_HINT, EXPORT_SUBMIT_TEXT, EXPORT_CANCEL_TEXT, LAYOUT_STORAGE_KEY, SIDEBAR_WIDTH, SIDEBAR_HIDE_BELOW, EDITOR_SHARE, EDITOR_MIN_HEIGHT, RESULTS_MIN_HEIGHT, PROMPT_SHARE, PROMPT_MIN_HEIGHT, SPLITTER_STEP, sidebarWidthText, editorHeightText, DRAWER_QUERY, PHONE_QUERY, MORE_MENU_LABEL, MORE_EXPORT_LABEL, MORE_THEME_LABEL, MORE_COPY_LINK_TEXT, MORE_HELP_TEXT, TEXT_SIZE_STORAGE_KEY, TEXT_SIZES, TEXT_SIZE_DEFAULT, textSizeAnnouncement, TEXT_SIZE_SMALLEST, TEXT_SIZE_LARGEST, EDITOR_LABEL, EDITOR_PLACEHOLDER, EDITOR_HINT_ID, EDITOR_UPGRADE_WAIT_MS, COMPLETION_TABLE, COMPLETION_VIEW, COMPLETION_FUNCTION, COMPLETION_TYPE, completionsOpenedText, STATUS_NO_RUN, STATUS_RUN_FAILED, statusRowsText, statusTimeText, statusVersionText, THEME_STORAGE_KEY, THEME_BUTTON_TEXT, THEME_MENU_LABEL, THEME_OPTIONS, MANIFEST_NAME, MANIFEST_UNREACHABLE_MESSAGE, manifestInvalidMessage, datasetUnavailableMessage, datasetSwitchFailedMessage, unknownDatasetMessage, LINK_NO_DATASET_MESSAGE, NOT_IN_LINK_MESSAGE, EXPORT_EMPTY_MESSAGE, EXPORT_FAILED_MESSAGE, exportedMessage, EXPORT_FALLBACK_NAME, SCHEMA_TABLES_HEADING, SCHEMA_VIEWS_HEADING, SCHEMA_FILTER_FROM, SCHEMA_FILTER_LABEL, SCHEMA_NO_MATCH, SCHEMA_MORE_TEXT, SCHEMA_LESS_TEXT, SCHEMA_PRIMARY_KEY, schemaForeignKeyLabel, SCHEMA_EMPTY_MESSAGE, SCHEMA_ERROR_MESSAGE, SCHEMA_DASH, schemaExpandLabel, schemaInsertLabel, schemaInsertColumnLabel, schemaRowsWord, SCHEMA_COUNT_UNAVAILABLE, SCHEMA_COLUMNS_UNAVAILABLE, SET_PARAM, EXERCISE_PARAM, EXERCISES_DIR, exerciseSetUrl, MAX_LISTED_SETS, PROGRESS_PREFIX, PROGRESS_VERSION, LISTED_NAME_MAX_CHARS, setInvalidMessage, setUnreachableMessage, SET_BAD_ID_MESSAGE, SET_NOT_JSON_MESSAGE, SET_BAD_FILE_NAME_MESSAGE, setNoticeMessage, setDatasetMissingReason, unknownExerciseMessage, DIFF_MAX_CELL_CHARS, DIFF_MAX_ROWS, checkColumnsMessage, checkColumnNameMessage, checkRowsMessage, checkRowMessage, CHECK_BROKEN_MESSAGE, CHECK_INTERNAL_MESSAGE, CHECK_NO_DATASET_MESSAGE, SET_PICKER_LABEL, SET_PICKER_MENU_LABEL, SET_PICKER_NONE, setPickerBrokenLabel, EXERCISE_RESET_TEXT, EXERCISE_RESET_TITLE, exerciseResetConfirm, exerciseProgressText, exerciseListLabel, exerciseButtonLabel, exerciseHintText, exerciseHintLabel, EXERCISE_HINTS_LABEL, EXERCISE_PREVIOUS_TEXT, EXERCISE_NEXT_TEXT, EXERCISE_NAV_LABEL, exerciseTargetText, EXERCISE_FIRST_TEXT, EXERCISE_LAST_TEXT, NEXT_EXERCISE_TEXT, exerciseAllCompleteText, exerciseAnnouncement, CHECK_BUTTON_TEXT, CHECK_BUTTON_TITLE, CHECK_PASS_HEADLINE, checkPassMessage, CHECK_PASS_MESSAGE, CHECK_FAIL_HEADLINE, CHECK_UNAVAILABLE_HEADLINE, CHECK_EMPTY_HEADLINE, CHECK_EMPTY_MESSAGE, CHECK_EXPECTED_LABEL, CHECK_GOT_LABEL, CHECK_ROW_HEADER, CHECK_DIFFERS_TEXT, VERDICT_DIFF_NOTE, verdictHiddenDiffNote, CHECK_SQL_ERROR_BELOW, VERDICT_SCROLL_NOTE, CHECK_COPY_NOTE, setOpenFailedMessage, ROW_LIMIT, countText, rowsWord, resultRowsText, resultCappedText, resultDoneText, resultTimeText, resultRowsAnnouncement, resultCappedAnnouncement, resultDoneAnnouncement, RUNNING_TEXT, ERROR_HEADING, errorAnnouncement, errorStatementText, STATEMENT_QUOTE_CHARS, STATEMENT_ELLIPSIS, NULL_TEXT, CELL_MAX_CHARS, CELL_MORE_HINT, cellPopoverTitle, cellPopoverLength, EMPTY_TITLE, EMPTY_SAMPLES_TEXT, EMPTY_SAMPLES_LABEL, MAX_SAMPLES, SAMPLE_SQL_CHARS, SAMPLE_LABEL_CHARS, firstRowsSampleLabel, EMPTY_EXERCISE_TEXT, EMPTY_DATABASE_TEXT, EMPTY_FUNCTIONS_TEXT, emptyAboutText, loadingTitle, loadedSize, loadingSizeText, openedMessage, TOAST_MS, CSV_BUTTON_TEXT, CSV_BUTTON_TITLE, CSV_FILE_SUFFIX, CSV_FAILED_MESSAGE, RUN_LOG_PREFIX, RUN_LOG_VERSION, RUN_LOG_MAX_ENTRIES, RUN_LOG_MAX_BYTES, RUN_LOG_FILE_PREFIX, STORAGE_STATE_EVENT, STORAGE_NOTICE_LOG, STORAGE_NOTICE_PROGRESS, HISTORY_LIST_LABEL, HISTORY_EMPTY_MESSAGE, HISTORY_RESTORED_MESSAGE, HISTORY_ERROR_WORD, HISTORY_TIME_ZONE, HISTORY_SQL_PREVIEW_CHARS, historyRowsText, STUDENT_ID_PATTERN, EVIDENCE_TITLE_SUFFIX, EVIDENCE_MIDDLE_DOT, EVIDENCE_SQL_ESCAPE, EVIDENCE_MAX_BYTES, EVIDENCE_EMPTY_MESSAGE, EVIDENCE_NO_CRYPTO_MESSAGE, EVIDENCE_FAILED_MESSAGE, evidenceSavedMessage, EVIDENCE_DIALOG_TITLE, EVIDENCE_DIALOG_TEXT, EVIDENCE_FILE_LABEL, EVIDENCE_LABEL, EVIDENCE_HINT, EVIDENCE_INVALID_MESSAGE, EVIDENCE_SUBMIT_TEXT, EVIDENCE_CANCEL_TEXT;
+var APP_NAME, RESTORED_MESSAGE, OPEN_URL_TITLE, OPEN_URL_INTRO, OPEN_URL_LABEL, OPEN_URL_HINT, OPEN_URL_SUBMIT_TEXT, OPEN_URL_CANCEL_TEXT, OPEN_URL_EMPTY_MESSAGE, OPEN_URL_UNSUPPORTED_MESSAGE, SHARE_PARAM, SHARE_VERSION, SHARE_ID_PATTERN, SHARE_MAX_PAYLOAD_CHARS, SHARE_MAX_JSON_CHARS, SHARE_MAX_SQL_CHARS, SHARED_MESSAGE, BAD_LINK_MESSAGE, LINK_COPIED_MESSAGE, LINK_COPY_FAILED_TITLE, LINK_COPY_FAILED_MESSAGE, LINK_FIELD_LABEL, LINK_TOO_LONG_MESSAGE, RESULT_SCROLL_NOTE, RESULT_REGION_LABEL, VACUUM_INTO_MESSAGE, SQL_NUL_MESSAGE, LOADING_BUSY_MESSAGE, NO_DATABASE_MESSAGE, loadFailedMessage, MANIFEST_URL, DATASET_PARAM, SQLITE_HEADER, DATABASE_MENU_LABEL, DATABASE_LOADING, DATABASE_NONE, databaseButtonLabel, OPEN_FILE_TEXT, OPEN_FILE_DESCRIPTION, OPEN_URL_TEXT, OPEN_URL_DESCRIPTION, databaseSizeText, EXPORT_MENU_LABEL, EXPORT_DATABASE_TEXT, EXPORT_BUTTON_TITLE, EXPORT_RESULTS_TEXT, EXPORT_RESULTS_DESCRIPTION, EXPORT_RESULTS_NONE, EXPORT_EVIDENCE_TEXT, EXPORT_EVIDENCE_DESCRIPTION, EXPORT_DIALOG_TITLE, EXPORT_DIALOG_TEXT, EXPORT_NAME_LABEL, EXPORT_NAME_HINT, EXPORT_SUBMIT_TEXT, EXPORT_CANCEL_TEXT, LAYOUT_STORAGE_KEY, SIDEBAR_WIDTH, SIDEBAR_HIDE_BELOW, EDITOR_SHARE, EDITOR_MIN_HEIGHT, RESULTS_MIN_HEIGHT, PROMPT_SHARE, PROMPT_MIN_HEIGHT, SPLITTER_STEP, sidebarWidthText, editorHeightText, DRAWER_QUERY, PHONE_QUERY, MORE_MENU_LABEL, MORE_EXPORT_LABEL, MORE_THEME_LABEL, MORE_COPY_LINK_TEXT, MORE_HELP_TEXT, TEXT_SIZE_STORAGE_KEY, TEXT_SIZES, TEXT_SIZE_DEFAULT, textSizeAnnouncement, TEXT_SIZE_SMALLEST, TEXT_SIZE_LARGEST, EDITOR_LABEL, EDITOR_PLACEHOLDER, EDITOR_HINT_ID, EDITOR_UPGRADE_WAIT_MS, COMPLETION_TABLE, COMPLETION_VIEW, COMPLETION_FUNCTION, COMPLETION_TYPE, completionsOpenedText, STATUS_NO_RUN, STATUS_RUN_FAILED, statusRowsText, statusTimeText, statusVersionText, THEME_STORAGE_KEY, THEME_BUTTON_TEXT, THEME_MENU_LABEL, THEME_OPTIONS, MANIFEST_NAME, MANIFEST_UNREACHABLE_MESSAGE, manifestInvalidMessage, datasetUnavailableMessage, datasetSwitchFailedMessage, unknownDatasetMessage, LINK_NO_DATASET_MESSAGE, NOT_IN_LINK_MESSAGE, EXPORT_EMPTY_MESSAGE, EXPORT_FAILED_MESSAGE, exportedMessage, EXPORT_FALLBACK_NAME, SCHEMA_TABLES_HEADING, SCHEMA_VIEWS_HEADING, SCHEMA_FILTER_FROM, SCHEMA_FILTER_LABEL, SCHEMA_NO_MATCH, SCHEMA_MORE_TEXT, SCHEMA_LESS_TEXT, SCHEMA_PRIMARY_KEY, schemaForeignKeyLabel, SCHEMA_EMPTY_MESSAGE, SCHEMA_ERROR_MESSAGE, SCHEMA_DASH, schemaExpandLabel, schemaInsertLabel, schemaInsertColumnLabel, schemaRowsWord, SCHEMA_COUNT_UNAVAILABLE, SCHEMA_COLUMNS_UNAVAILABLE, SET_PARAM, EXERCISE_PARAM, EXERCISES_DIR, exerciseSetUrl, MAX_LISTED_SETS, PROGRESS_PREFIX, PROGRESS_VERSION, LISTED_NAME_MAX_CHARS, setInvalidMessage, setUnreachableMessage, SET_BAD_ID_MESSAGE, SET_NOT_JSON_MESSAGE, SET_BAD_FILE_NAME_MESSAGE, setNoticeMessage, setDatasetMissingReason, unknownExerciseMessage, DIFF_MAX_CELL_CHARS, DIFF_MAX_ROWS, checkColumnsMessage, checkColumnNameMessage, checkRowsMessage, checkRowMessage, CHECK_BROKEN_MESSAGE, CHECK_INTERNAL_MESSAGE, CHECK_NO_DATASET_MESSAGE, SET_PICKER_LABEL, SET_PICKER_MENU_LABEL, SET_PICKER_NONE, setPickerBrokenLabel, EXERCISE_RESET_TEXT, EXERCISE_RESET_TITLE, exerciseResetConfirm, exerciseProgressText, exerciseListLabel, exerciseButtonLabel, exerciseHintText, exerciseHintLabel, EXERCISE_HINTS_LABEL, EXERCISE_PREVIOUS_TEXT, EXERCISE_NEXT_TEXT, EXERCISE_NAV_LABEL, exerciseTargetText, EXERCISE_FIRST_TEXT, EXERCISE_LAST_TEXT, NEXT_EXERCISE_TEXT, exerciseAllCompleteText, exerciseAnnouncement, CHECK_BUTTON_TEXT, CHECK_BUTTON_TITLE, CHECK_PASS_HEADLINE, checkPassMessage, CHECK_PASS_MESSAGE, CHECK_FAIL_HEADLINE, CHECK_UNAVAILABLE_HEADLINE, CHECK_EMPTY_HEADLINE, CHECK_EMPTY_MESSAGE, CHECK_EXPECTED_LABEL, CHECK_GOT_LABEL, CHECK_ROW_HEADER, CHECK_DIFFERS_TEXT, VERDICT_DIFF_NOTE, verdictHiddenDiffNote, CHECK_SQL_ERROR_BELOW, VERDICT_SCROLL_NOTE, CHECK_COPY_NOTE, setOpenFailedMessage, ROW_LIMIT, countText, rowsWord, resultRowsText, resultCappedText, resultDoneText, resultTimeText, resultRowsAnnouncement, resultCappedAnnouncement, resultDoneAnnouncement, RUNNING_TEXT, ERROR_HEADING, errorAnnouncement, errorStatementText, STATEMENT_QUOTE_CHARS, STATEMENT_ELLIPSIS, NULL_TEXT, CELL_MAX_CHARS, CELL_MORE_HINT, cellPopoverTitle, cellPopoverLength, EMPTY_TITLE, EMPTY_SAMPLES_TEXT, EMPTY_SAMPLES_LABEL, MAX_SAMPLES, SAMPLE_SQL_CHARS, SAMPLE_LABEL_CHARS, firstRowsSampleLabel, EMPTY_EXERCISE_TEXT, EMPTY_DATABASE_TEXT, EMPTY_FUNCTIONS_TEXT, emptyAboutText, loadingTitle, loadedSize, loadingSizeText, openedMessage, TOAST_MS, CSV_BUTTON_TEXT, CSV_BUTTON_TITLE, CSV_FILE_SUFFIX, CSV_FAILED_MESSAGE, RUN_LOG_PREFIX, RUN_LOG_VERSION, RUN_LOG_MAX_ENTRIES, RUN_LOG_MAX_BYTES, RUN_LOG_FILE_PREFIX, STORAGE_STATE_EVENT, STORAGE_NOTICE_LOG, STORAGE_NOTICE_PROGRESS, HISTORY_LIST_LABEL, HISTORY_EMPTY_MESSAGE, HISTORY_RESTORED_MESSAGE, HISTORY_ERROR_WORD, HISTORY_TIME_ZONE, HISTORY_SQL_PREVIEW_CHARS, historyRowsText, STUDENT_ID_PATTERN, EVIDENCE_TITLE_SUFFIX, EVIDENCE_MIDDLE_DOT, EVIDENCE_SQL_ESCAPE, EVIDENCE_MAX_BYTES, EVIDENCE_EMPTY_MESSAGE, EVIDENCE_NO_CRYPTO_MESSAGE, EVIDENCE_FAILED_MESSAGE, evidenceSavedMessage, EVIDENCE_DIALOG_TITLE, EVIDENCE_DIALOG_TEXT, EVIDENCE_FILE_LABEL, EVIDENCE_LABEL, EVIDENCE_HINT, EVIDENCE_INVALID_MESSAGE, EVIDENCE_SUBMIT_TEXT, EVIDENCE_CANCEL_TEXT, EVIDENCE_TITLE_SUFFIX_V2, EVIDENCE_EVENT_WORD, EVENT_KINDS;
 var init_config = __esm({
   "js/lab/config.js"() {
     APP_NAME = "SQL Lab";
@@ -289,6 +289,9 @@ var init_config = __esm({
     EVIDENCE_INVALID_MESSAGE = "That is not a valid student number. Use 6 to 12 letters or digits, with no spaces or punctuation.";
     EVIDENCE_SUBMIT_TEXT = "Export";
     EVIDENCE_CANCEL_TEXT = "Cancel";
+    EVIDENCE_TITLE_SUFFIX_V2 = "evidence export v2";
+    EVIDENCE_EVENT_WORD = "event:";
+    EVENT_KINDS = ["import", "export", "reset", "reopen"];
   }
 });
 
@@ -520,9 +523,9 @@ function columnOptionsOf(schema) {
   }
   return [...owners].map(([name, tables]) => nameOption(name, "property", tables.join(", "), -1));
 }
-function nameBefore(state, dot) {
-  const line = state.doc.lineAt(dot);
-  const match = QUALIFIER.exec(state.sliceDoc(line.from, dot));
+function nameBefore(state2, dot) {
+  const line = state2.doc.lineAt(dot);
+  const match = QUALIFIER.exec(state2.sliceDoc(line.from, dot));
   if (!match) {
     return null;
   }
@@ -542,11 +545,11 @@ function withoutTyped(source) {
     }
     const all = result.options;
     const valid = result.validFor;
-    const stillValid = (text, from, to, state) => typeof valid === "function" ? valid(text, from, to, state) : valid instanceof RegExp && new RegExp(`^(?:${valid.source})$`, valid.flags).test(text);
+    const stillValid = (text, from, to, state2) => typeof valid === "function" ? valid(text, from, to, state2) : valid instanceof RegExp && new RegExp(`^(?:${valid.source})$`, valid.flags).test(text);
     const shown = (typed) => all.filter((option) => option.label.toLowerCase() !== typed.toLowerCase());
-    const update = (current3, from, to, next) => {
+    const update = (current4, from, to, next) => {
       const text = next.state.sliceDoc(from, to);
-      return stillValid(text, from, to, next.state) ? { ...current3, from, options: shown(text) } : null;
+      return stillValid(text, from, to, next.state) ? { ...current4, from, options: shown(text) } : null;
     };
     return { ...result, validFor: void 0, update, options: shown(context2.state.sliceDoc(result.from, context2.pos)) };
   };
@@ -833,10 +836,10 @@ function createCodeEditor(cm, host, { doc = "", anchor = 0, head = anchor, schem
     // place since the app last set the text). A space is added on either side where the
     // neighbouring text would otherwise run into it; the caret ends right after the text.
     insert(text, { atCaret = true, spaceBefore, spaceAfter } = {}) {
-      const state = view.state;
-      const range = atCaret ? state.selection.main : { from: state.doc.length, to: state.doc.length };
-      const before = state.sliceDoc(Math.max(0, range.from - 1), range.from);
-      const after = state.sliceDoc(range.to, range.to + 1);
+      const state2 = view.state;
+      const range = atCaret ? state2.selection.main : { from: state2.doc.length, to: state2.doc.length };
+      const before = state2.sliceDoc(Math.max(0, range.from - 1), range.from);
+      const after = state2.sliceDoc(range.to, range.to + 1);
       const lead = before && !spaceBefore.test(before) ? " " : "";
       const trail = after && !spaceAfter.test(after) ? " " : "";
       view.focus();
@@ -1934,7 +1937,7 @@ function isShareFragment(hash) {
   return typeof hash === "string" && SHARE_START.test(hash);
 }
 var isId = (value) => typeof value === "string" && SHARE_ID_PATTERN.test(value);
-function encodeShare(state) {
+function encodeShare(state2) {
   const out = { v: SHARE_VERSION };
   const ids = [
     ["d", "dataset"],
@@ -1942,12 +1945,12 @@ function encodeShare(state) {
     ["e", "exercise"]
   ];
   for (const [short, long] of ids) {
-    const value = state?.[long];
+    const value = state2?.[long];
     if (value === void 0 || value === null || value === "") continue;
     if (!isId(value)) throw new Error(`invalid ${long} id`);
     out[short] = value;
   }
-  const sql = state?.sql;
+  const sql = state2?.sql;
   if (typeof sql === "string" && sql.trim() !== "") out.q = sql;
   return lz().compressToEncodedURIComponent(JSON.stringify(out));
 }
@@ -1972,7 +1975,7 @@ function decodeShare(hash) {
     }
     if (data === null || typeof data !== "object" || Array.isArray(data)) return fail("shape");
     if (data.v !== SHARE_VERSION) return fail("version");
-    const state = {};
+    const state2 = {};
     for (const [short, long] of [
       ["d", "dataset"],
       ["x", "set"],
@@ -1980,14 +1983,14 @@ function decodeShare(hash) {
     ]) {
       if (!Object.hasOwn(data, short)) continue;
       if (!isId(data[short])) return fail(typeof data[short] === "string" ? "id" : "shape");
-      state[long] = data[short];
+      state2[long] = data[short];
     }
     if (Object.hasOwn(data, "q")) {
       if (typeof data.q !== "string") return fail("shape");
       if (data.q.length > SHARE_MAX_SQL_CHARS) return fail("sql");
-      state.sql = data.q;
+      state2.sql = data.q;
     }
-    return { ok: true, state };
+    return { ok: true, state: state2 };
   } catch {
     return fail("payload");
   }
@@ -1995,8 +1998,8 @@ function decodeShare(hash) {
 function fail(reason) {
   return { ok: false, reason };
 }
-function shareFragment(state) {
-  const payload = encodeShare(state);
+function shareFragment(state2) {
+  const payload = encodeShare(state2);
   return payload.length > SHARE_MAX_PAYLOAD_CHARS ? null : `#${PREFIX3}${payload}`;
 }
 function shareUrl(sql, pageUrl = globalThis.location.href) {
@@ -2480,7 +2483,7 @@ function mountDatabaseSwitcher({ button, label, menu, onSelect, onOpenFile, onOp
   let datasets = [];
   let manifestKnown = false;
   let loaded2 = false;
-  let current3 = { id: null, name: "" };
+  let current4 = { id: null, name: "" };
   let chosen = null;
   const sizes = /* @__PURE__ */ new Map();
   let sizesAsked = false;
@@ -2489,8 +2492,8 @@ function mountDatabaseSwitcher({ button, label, menu, onSelect, onOpenFile, onOp
     if (!manifestKnown && !loaded2) {
       return DATABASE_LOADING;
     }
-    const builtIn = loaded2 ? datasets.find((d) => d.id === current3.id) : null;
-    return builtIn ? builtIn.name : loaded2 ? current3.name : DATABASE_NONE;
+    const builtIn = loaded2 ? datasets.find((d) => d.id === current4.id) : null;
+    return builtIn ? builtIn.name : loaded2 ? current4.name : DATABASE_NONE;
   }
   function describe(dataset) {
     const parts = [];
@@ -2505,7 +2508,7 @@ function mountDatabaseSwitcher({ button, label, menu, onSelect, onOpenFile, onOp
     button.setAttribute("aria-label", databaseButtonLabel(name));
     button.disabled = !manifestKnown && !loaded2;
     for (const item2 of menu.querySelectorAll("[data-dataset-id]")) {
-      item2.setAttribute("aria-checked", String(loaded2 && item2.dataset.datasetId === current3.id));
+      item2.setAttribute("aria-checked", String(loaded2 && item2.dataset.datasetId === current4.id));
     }
   }
   function renderMenu() {
@@ -2572,8 +2575,8 @@ function mountDatabaseSwitcher({ button, label, menu, onSelect, onOpenFile, onOp
   document.addEventListener("lab:database-loaded", (event) => {
     const { database: database2, dataset } = event.detail;
     loaded2 = true;
-    current3 = { id: dataset ? dataset.id : null, name: database2.name };
-    chosen = current3.id;
+    current4 = { id: dataset ? dataset.id : null, name: database2.name };
+    chosen = current4.id;
     renderButton();
   });
   renderMenu();
@@ -2585,11 +2588,11 @@ function mountDatabaseSwitcher({ button, label, menu, onSelect, onOpenFile, onOp
     },
     // a switch did not happen: the open database is the one asked for again
     sync() {
-      chosen = loaded2 ? current3.id : null;
+      chosen = loaded2 ? current4.id : null;
       renderButton();
     },
     rename(name) {
-      current3.name = name;
+      current4.name = name;
       renderButton();
     }
   };
@@ -3114,38 +3117,38 @@ function emptyState() {
   return { passed: /* @__PURE__ */ new Set(), drafts: /* @__PURE__ */ new Map() };
 }
 function parse(text) {
-  const state = emptyState();
+  const state2 = emptyState();
   let data;
   try {
     data = JSON.parse(text);
   } catch {
-    return state;
+    return state2;
   }
   if (data === null || typeof data !== "object" || Array.isArray(data) || data.v !== PROGRESS_VERSION) {
-    return state;
+    return state2;
   }
   const { passed, drafts } = data;
   if (passed !== null && typeof passed === "object" && !Array.isArray(passed)) {
     for (const [id, value] of Object.entries(passed)) {
       if (value === true && isId3(id)) {
-        state.passed.add(id);
+        state2.passed.add(id);
       }
     }
   }
   if (drafts !== null && typeof drafts === "object" && !Array.isArray(drafts)) {
     for (const [id, value] of Object.entries(drafts)) {
       if (typeof value === "string" && isId3(id)) {
-        state.drafts.set(id, value);
+        state2.drafts.set(id, value);
       }
     }
   }
-  return state;
+  return state2;
 }
-function serialize(state) {
+function serialize(state2) {
   return JSON.stringify({
     v: PROGRESS_VERSION,
-    passed: Object.fromEntries([...state.passed].map((id) => [id, true])),
-    drafts: Object.fromEntries(state.drafts)
+    passed: Object.fromEntries([...state2.passed].map((id) => [id, true])),
+    drafts: Object.fromEntries(state2.drafts)
   });
 }
 function read(setId) {
@@ -3159,30 +3162,30 @@ function read(setId) {
     return { ...emptyState(), unread: true };
   }
 }
-function write(setId, state) {
+function write(setId, state2) {
   try {
-    if (inMemory.has(setId) && !pendingResets.has(setId) || state.unread) {
+    if (inMemory.has(setId) && !pendingResets.has(setId) || state2.unread) {
       const text = localStorage.getItem(PROGRESS_PREFIX + setId);
       if (text !== null && text !== void 0) {
         const theirs = parse(text);
         for (const id of theirs.passed) {
-          state.passed.add(id);
+          state2.passed.add(id);
         }
         const emptied = emptiedDrafts.get(setId);
         for (const [id, sql] of theirs.drafts) {
-          if (!state.drafts.has(id) && !emptied?.has(id)) {
-            state.drafts.set(id, sql);
+          if (!state2.drafts.has(id) && !emptied?.has(id)) {
+            state2.drafts.set(id, sql);
           }
         }
       }
     }
-    localStorage.setItem(PROGRESS_PREFIX + setId, serialize(state));
+    localStorage.setItem(PROGRESS_PREFIX + setId, serialize(state2));
     inMemory.delete(setId);
     emptiedDrafts.delete(setId);
     pendingResets.delete(setId);
     reportStorage("progress", inMemory.size === 0);
   } catch {
-    inMemory.set(setId, state);
+    inMemory.set(setId, state2);
     reportStorage("progress", false);
   }
 }
@@ -3193,10 +3196,10 @@ function markPassed(setId, exerciseId) {
   if (!isId3(setId) || !isId3(exerciseId)) {
     return;
   }
-  const state = read(setId);
-  if (!state.passed.has(exerciseId)) {
-    state.passed.add(exerciseId);
-    write(setId, state);
+  const state2 = read(setId);
+  if (!state2.passed.has(exerciseId)) {
+    state2.passed.add(exerciseId);
+    write(setId, state2);
   }
 }
 function passedCount(setId, exerciseIds = null) {
@@ -3216,21 +3219,21 @@ function saveDraft(setId, exerciseId, sql) {
   if (!isId3(setId) || !isId3(exerciseId) || typeof sql !== "string") {
     return;
   }
-  const state = read(setId);
+  const state2 = read(setId);
   const empty = sql.trim() === "";
-  if (empty && !state.drafts.has(exerciseId) && !state.unread) {
+  if (empty && !state2.drafts.has(exerciseId) && !state2.unread) {
     return;
   }
   const emptied = emptiedDrafts.get(setId) ?? /* @__PURE__ */ new Set();
   emptiedDrafts.set(setId, emptied);
   if (empty) {
-    state.drafts.delete(exerciseId);
+    state2.drafts.delete(exerciseId);
     emptied.add(exerciseId);
   } else {
-    state.drafts.set(exerciseId, sql);
+    state2.drafts.set(exerciseId, sql);
     emptied.delete(exerciseId);
   }
-  write(setId, state);
+  write(setId, state2);
 }
 function resetSet(setId) {
   if (!isId3(setId)) {
@@ -3340,7 +3343,7 @@ function mountExercises({
   };
   const checker = createChecker();
   let set2 = null;
-  let current3 = null;
+  let current4 = null;
   let rovingId = null;
   let generation = 0;
   let checking = -1;
@@ -3467,7 +3470,7 @@ function mountExercises({
     itemButtons().forEach((button, index) => {
       const exercise = set2.exercises[index];
       const passed = isPassed(set2.id, exercise.id);
-      const active = exercise.id === current3.id;
+      const active = exercise.id === current4.id;
       button.querySelector(".exercise-mark-passed").classList.toggle("hidden", !passed);
       button.querySelector(".exercise-mark-open").classList.toggle("hidden", passed);
       button.setAttribute("aria-label", exerciseButtonLabel(index + 1, total, exercise.title, passed));
@@ -3518,31 +3521,31 @@ function mountExercises({
       buttons[Math.max(0, Math.min(buttons.length - 1, moves[event.key]))].focus();
     }
   });
-  const hintKey = () => `${set2.id}/${current3.id}`;
+  const hintKey = () => `${set2.id}/${current4.id}`;
   function hintItem(position, text) {
     const item2 = el("li", "exercise-hint");
     item2.append(el("span", "visually-hidden", `${exerciseHintLabel(position)}: `), document.createTextNode(text));
     return item2;
   }
   function renderPrompt() {
-    const position = set2.exercises.indexOf(current3) + 1;
+    const position = set2.exercises.indexOf(current4) + 1;
     const heading = el("div", "exercise-heading");
-    const title = el("h2", "exercise-title", current3.title);
+    const title = el("h2", "exercise-title", current4.title);
     title.id = "exercise-prompt-title";
     heading.append(title, el("p", "exercise-kicker", `Exercise ${position} of ${set2.exercises.length}`));
-    els.prompt.replaceChildren(heading, el("p", "exercise-text", current3.prompt));
+    els.prompt.replaceChildren(heading, el("p", "exercise-text", current4.prompt));
   }
   function renderHints() {
     const shown = hintsShown.get(hintKey()) ?? 0;
     els.hints.removeAttribute("aria-live");
-    els.hints.replaceChildren(...current3.hints.slice(0, shown).map((text, i) => hintItem(i + 1, text)));
+    els.hints.replaceChildren(...current4.hints.slice(0, shown).map((text, i) => hintItem(i + 1, text)));
     els.hints.hidden = shown === 0;
     requestAnimationFrame(() => els.hints.setAttribute("aria-live", "polite"));
     refreshHintButton();
   }
   function refreshHintButton() {
     const shown = hintsShown.get(hintKey()) ?? 0;
-    const total = current3.hints.length;
+    const total = current4.hints.length;
     els.hintButton.hidden = shown >= total;
     els.hintButton.textContent = shown < total ? exerciseHintText(shown + 1, total) : "";
   }
@@ -3552,12 +3555,12 @@ function mountExercises({
       return;
     }
     const shown = hintsShown.get(hintKey()) ?? 0;
-    if (shown >= current3.hints.length) {
+    if (shown >= current4.hints.length) {
       return;
     }
     const hadFocus = document.activeElement === els.hintButton;
     hintsShown.set(hintKey(), shown + 1);
-    const item2 = hintItem(shown + 1, current3.hints[shown]);
+    const item2 = hintItem(shown + 1, current4.hints[shown]);
     item2.tabIndex = -1;
     els.hints.append(item2);
     els.hints.hidden = false;
@@ -3571,7 +3574,7 @@ function mountExercises({
   els.next.textContent = EXERCISE_NEXT_TEXT;
   els.nav.setAttribute("aria-label", EXERCISE_NAV_LABEL);
   function neighbour(step) {
-    return set2.exercises[set2.exercises.indexOf(current3) + step] ?? null;
+    return set2.exercises[set2.exercises.indexOf(current4) + step] ?? null;
   }
   function refreshNav() {
     for (const [button, step, endText] of [
@@ -3762,7 +3765,7 @@ function mountExercises({
     window.addEventListener("resize", refreshScroll);
   }
   function nextUnpassed() {
-    const at = set2.exercises.indexOf(current3);
+    const at = set2.exercises.indexOf(current4);
     for (let step = 1; step < set2.exercises.length; step++) {
       const candidate = set2.exercises[(at + step) % set2.exercises.length];
       if (!isPassed(set2.id, candidate.id)) {
@@ -3830,7 +3833,7 @@ function mountExercises({
     revealDifference();
   }
   async function runCheck() {
-    if (!set2 || !current3 || checking === generation) {
+    if (!set2 || !current4 || checking === generation) {
       return;
     }
     const sql = ui2.editor.query;
@@ -3845,7 +3848,7 @@ function mountExercises({
     }
     const token = generation;
     const checkedSet = set2;
-    const exercise = current3;
+    const exercise = current4;
     checking = token;
     checkButton?.setAttribute("aria-busy", "true");
     try {
@@ -3923,8 +3926,8 @@ function mountExercises({
     generation++;
     asked = null;
     set2 = newSet;
-    current3 = chooseExercise(newSet, exerciseId);
-    rovingId = current3.id;
+    current4 = chooseExercise(newSet, exerciseId);
+    rovingId = current4.id;
     els.title.textContent = set2.title;
     els.title.hidden = false;
     els.panel.hidden = false;
@@ -3939,7 +3942,7 @@ function mountExercises({
     refreshNav();
     clearFeedback();
     renderPicker();
-    setShareContext({ set: set2.id, exercise: current3.id });
+    setShareContext({ set: set2.id, exercise: current4.id });
     showTab();
     modeChanged();
   }
@@ -3947,7 +3950,7 @@ function mountExercises({
     generation++;
     asked = null;
     set2 = null;
-    current3 = null;
+    current4 = null;
     rovingId = null;
     els.title.textContent = "";
     els.title.hidden = true;
@@ -3966,19 +3969,19 @@ function mountExercises({
   }
   function announceExercise() {
     els.announce.textContent = exerciseAnnouncement(
-      set2.exercises.indexOf(current3) + 1,
+      set2.exercises.indexOf(current4) + 1,
       set2.exercises.length,
-      current3.title,
-      current3.prompt
+      current4.title,
+      current4.prompt
     );
   }
   function select(id) {
     const next = set2.exercises.find((e) => e.id === id);
-    if (!next || next === current3) {
+    if (!next || next === current4) {
       return;
     }
     generation++;
-    current3 = next;
+    current4 = next;
     rovingId = next.id;
     ui2.editor.value = getDraft(set2.id, next.id) ?? "";
     resetWorkArea();
@@ -4008,12 +4011,12 @@ function mountExercises({
   });
   ui2.editor.addEventListener("input", () => {
     if (set2) {
-      saveDraft(set2.id, current3.id, ui2.editor.value);
+      saveDraft(set2.id, current4.id, ui2.editor.value);
     }
   });
   document.addEventListener("lab:run-finished", (event) => {
     if (set2 && !event.detail.preview) {
-      saveDraft(set2.id, current3.id, ui2.editor.value);
+      saveDraft(set2.id, current4.id, ui2.editor.value);
     }
   });
   document.addEventListener("lab:database-loaded", (event) => {
@@ -4242,11 +4245,44 @@ function mountExportMenu({ button, menu, onDatabase, results: results2, evidence
 // js/lab/evidence-dialog.js
 init_config();
 
+// js/lab/config-workflow.js
+var PREVIEW_PARAM = "preview";
+var PREVIEW_FLAGS = {
+  import: false,
+  export: false,
+  "excel-import": false,
+  "excel-export": false
+};
+var PREVIEW_FLAG_NEEDS = { "excel-import": "import", "excel-export": "export" };
+var EVENTS_PREFIX = "sqllab.events.";
+var EVENTS_VERSION = 1;
+var EVENTS_MAX = 1e3;
+var EVENTS_MAX_BYTES = 1e6;
+var EVENT_MAX_LINES = 200;
+var EVENT_MAX_LINE_CHARS = 500;
+var evidenceSavedWithEventsMessage = (filename, queries, events) => `Exported ${filename} with ${queries} ${queries === 1 ? "query" : "queries"} and ${events} ${events === 1 ? "event" : "events"}`;
+var VENDOR_LOAD_TIMEOUT_MS = 3e4;
+
+// js/lab/events.js
+var events_exports = {};
+__export(events_exports, {
+  readEvents: () => readEvents,
+  recordEvent: () => recordEvent,
+  timeline: () => timeline
+});
+init_config();
+
 // js/lab/evidence.js
 init_config();
+var TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 var FIRST_LINE = new RegExp(`^.* ${EVIDENCE_TITLE_SUFFIX}$`);
 var HEADER_LINE = new RegExp(
   `^\\[(\\d+)\\] \\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z ${EVIDENCE_MIDDLE_DOT} (?:\\d+ rows?|error: .*)$`
+);
+var FIRST_LINE_V2 = new RegExp(`^.* ${EVIDENCE_TITLE_SUFFIX_V2}$`);
+var EVENT_HEADER_LINE = new RegExp(
+  `^\\[(\\d+)\\] \\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z ${EVIDENCE_MIDDLE_DOT} ${EVIDENCE_EVENT_WORD} (.*)$`,
+  "s"
 );
 var LINE_BREAKERS = /[\u0000-\u001f\u007f\u0085\u2028\u2029]/;
 function utcTimestamp(date = /* @__PURE__ */ new Date()) {
@@ -4258,6 +4294,17 @@ function sanitizeLine(text) {
 var normalizeNewlines = (text) => String(text).replace(/\r\n?/g, "\n");
 function escapeSql(sql) {
   return normalizeNewlines(sql).split("\n").map((line) => HEADER_LINE.test(line) ? `${EVIDENCE_SQL_ESCAPE}${line}` : line).join("\n");
+}
+var isHeaderV2 = (line) => HEADER_LINE.test(line) || EVENT_HEADER_LINE.test(line);
+var escapeV2 = (line) => isHeaderV2(line) ? `${EVIDENCE_SQL_ESCAPE}${line}` : line;
+var escapeSqlV2 = (sql) => normalizeNewlines(sql).split("\n").map(escapeV2).join("\n");
+var isEvent = (entry2) => entry2 !== null && typeof entry2 === "object" && entry2.sql === void 0 && (entry2.kind !== void 0 || entry2.lines !== void 0);
+function eventLines(event) {
+  const lines = Array.isArray(event.lines) ? event.lines.map(sanitizeLine).filter((line) => line.trim() !== "") : [];
+  if (!EVENT_KINDS.includes(event.kind) || !lines.length || typeof event.t !== "string" || !TIMESTAMP.test(event.t)) {
+    throw new RangeError("an event needs its time, a known kind and a line of detail");
+  }
+  return lines.map(escapeV2);
 }
 function outcomeText(entry2) {
   if (typeof entry2.error === "string") {
@@ -4272,15 +4319,22 @@ function formatEvidence({ entries, dataset, exported, student }) {
   if (typeof student !== "string" || !student || LINE_BREAKERS.test(student)) {
     throw new RangeError("the student number cannot be written on one line");
   }
+  const v2 = entries.some(isEvent);
   const lines = [
-    `${sanitizeLine(APP_NAME)} ${EVIDENCE_TITLE_SUFFIX}`,
+    `${sanitizeLine(APP_NAME)} ${v2 ? EVIDENCE_TITLE_SUFFIX_V2 : EVIDENCE_TITLE_SUFFIX}`,
     `dataset: ${sanitizeLine(dataset)}`,
     `exported: ${exported}`,
     ""
   ];
   entries.forEach((entry2, index) => {
+    if (isEvent(entry2)) {
+      const detail = eventLines(entry2);
+      lines.push(`[${index + 1}] ${entry2.t} ${EVIDENCE_MIDDLE_DOT} ${EVIDENCE_EVENT_WORD} ${entry2.kind}`);
+      lines.push(...detail, "");
+      return;
+    }
     lines.push(`[${index + 1}] ${entry2.t} ${EVIDENCE_MIDDLE_DOT} ${outcomeText(entry2)}`);
-    lines.push(escapeSql(entry2.sql));
+    lines.push(v2 ? escapeSqlV2(entry2.sql) : escapeSql(entry2.sql));
     if (entry2.link) {
       lines.push(`link: ${entry2.link}`);
     }
@@ -4316,7 +4370,7 @@ __export(run_log_exports, {
   readLog: () => readLog
 });
 init_config();
-var TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+var TIMESTAMP2 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 function logKeyFor(dataset, databaseName) {
   return dataset ? dataset.id : `${RUN_LOG_FILE_PREFIX}${databaseName ?? ""}`;
 }
@@ -4328,7 +4382,7 @@ function isEntry(entry2) {
   if (entry2 === null || typeof entry2 !== "object" || Array.isArray(entry2)) {
     return false;
   }
-  if (typeof entry2.t !== "string" || !TIMESTAMP.test(entry2.t) || typeof entry2.sql !== "string" || !entry2.sql) {
+  if (typeof entry2.t !== "string" || !TIMESTAMP2.test(entry2.t) || typeof entry2.sql !== "string" || !entry2.sql) {
     return false;
   }
   const hasRows = Object.hasOwn(entry2, "rows");
@@ -4564,6 +4618,187 @@ function mountRunLog({ ui: ui2, list, isShown = () => true }) {
   };
 }
 
+// js/lab/events.js
+var CUT = "…";
+var memory3 = /* @__PURE__ */ new Map();
+var isLine = (line) => typeof line === "string" && line.trim() !== "" && line.length <= EVENT_MAX_LINE_CHARS && sanitizeLine(line) === line;
+function isEvent2(event) {
+  if (event === null || typeof event !== "object" || Array.isArray(event)) {
+    return false;
+  }
+  return typeof event.t === "string" && TIMESTAMP.test(event.t) && EVENT_KINDS.includes(event.kind) && Number.isSafeInteger(event.after) && event.after >= 0 && Array.isArray(event.lines) && event.lines.length > 0 && event.lines.length <= EVENT_MAX_LINES && event.lines.every(isLine);
+}
+var copyEvent = (event) => ({ t: event.t, kind: event.kind, after: event.after, lines: event.lines.slice() });
+var storageKey3 = (key) => `${EVENTS_PREFIX}${key}`;
+function stored2(key) {
+  let text;
+  try {
+    text = localStorage.getItem(storageKey3(key));
+  } catch {
+    return null;
+  }
+  if (text === null || text === void 0) {
+    return [];
+  }
+  try {
+    const data = JSON.parse(text);
+    if (data === null || typeof data !== "object" || Array.isArray(data)) {
+      return [];
+    }
+    if (typeof data.v === "number" && data.v > EVENTS_VERSION) {
+      return null;
+    }
+    if (data.v !== EVENTS_VERSION || !Array.isArray(data.events)) {
+      return [];
+    }
+    return data.events.filter(isEvent2).map(copyEvent).slice(-EVENTS_MAX);
+  } catch {
+    return [];
+  }
+}
+var encoder2 = new TextEncoder();
+var byteLength2 = (event) => event.lines.reduce((sum, line) => sum + encoder2.encode(line).length, 0);
+function cap2(events) {
+  const newest = events.slice(-EVENTS_MAX);
+  let total = 0;
+  let from = newest.length;
+  while (from > 0) {
+    const size = byteLength2(newest[from - 1]);
+    if (from < newest.length && total + size > EVENTS_MAX_BYTES) {
+      break;
+    }
+    total += size;
+    from--;
+  }
+  return newest.slice(from);
+}
+var sameEvent = (a, b) => a.t === b.t && a.kind === b.kind && a.after === b.after && a.lines.join("\n") === b.lines.join("\n");
+var byTime = (a, b) => a.t < b.t ? -1 : a.t > b.t ? 1 : 0;
+function combine2(mine, theirs) {
+  const left = mine.slice();
+  const others = [];
+  for (const event of theirs) {
+    const at = left.findIndex((own) => sameEvent(own, event));
+    if (at === -1) {
+      others.push(event);
+    } else {
+      left.splice(at, 1);
+    }
+  }
+  return others.length ? others.concat(mine).sort(byTime) : mine.slice();
+}
+function current2(key) {
+  const theirs = stored2(key) ?? [];
+  return memory3.has(key) ? cap2(combine2(memory3.get(key), theirs)) : theirs;
+}
+function readEvents(key) {
+  try {
+    return typeof key === "string" && key ? current2(key).map(copyEvent) : [];
+  } catch {
+    return [];
+  }
+}
+function write3(key, events) {
+  try {
+    localStorage.setItem(storageKey3(key), JSON.stringify({ v: EVENTS_VERSION, events }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+function writeNewest(key, events) {
+  if (write3(key, events)) {
+    return events.length;
+  }
+  let stored3 = 0;
+  let low = 1;
+  let high = events.length - 1;
+  while (low <= high) {
+    const count = low + high >> 1;
+    if (write3(key, events.slice(-count))) {
+      stored3 = count;
+      low = count + 1;
+    } else {
+      high = count - 1;
+    }
+  }
+  return stored3;
+}
+function cutLine(line) {
+  if (line.length <= EVENT_MAX_LINE_CHARS) {
+    return line;
+  }
+  let kept = "";
+  for (const character of line) {
+    if (kept.length + character.length > EVENT_MAX_LINE_CHARS - CUT.length) {
+      break;
+    }
+    kept += character;
+  }
+  return `${kept}${CUT}`;
+}
+function tidy(lines) {
+  const clean = lines.map((line) => sanitizeLine(line)).filter((line) => line.trim() !== "").map(cutLine);
+  if (clean.length <= EVENT_MAX_LINES) {
+    return clean;
+  }
+  const kept = clean.slice(0, EVENT_MAX_LINES - 1);
+  return kept.concat(`(${clean.length - kept.length} more lines are not listed)`);
+}
+function recordEvent(key, detail, now = /* @__PURE__ */ new Date()) {
+  try {
+    const { kind, lines } = detail ?? {};
+    if (typeof key !== "string" || !key || !EVENT_KINDS.includes(kind) || !Array.isArray(lines)) {
+      return null;
+    }
+    const clean = tidy(lines);
+    const t = utcTimestamp(now);
+    if (!clean.length || !TIMESTAMP.test(t)) {
+      return null;
+    }
+    const event = { t, kind, after: readLog(key).filter((entry2) => entry2.t === t).length, lines: clean };
+    const theirs = stored2(key);
+    const own = memory3.get(key);
+    const all = cap2((own ? combine2(own, theirs ?? []) : theirs ?? []).concat(event));
+    if (theirs === null) {
+      memory3.set(key, all);
+      return copyEvent(event);
+    }
+    if (writeNewest(key, all) === all.length) {
+      memory3.delete(key);
+    } else {
+      memory3.set(key, all);
+    }
+    return copyEvent(event);
+  } catch {
+    return null;
+  }
+}
+function timeline(queries, events) {
+  const places = Array.from({ length: queries.length + 1 }, () => []);
+  for (const event of events.slice().sort(byTime)) {
+    const sameSecond = [];
+    queries.forEach((query, index) => {
+      if (query.t === event.t) {
+        sameSecond.push(index);
+      }
+    });
+    let at;
+    if (sameSecond.length) {
+      const after = Number.isSafeInteger(event.after) && event.after > 0 ? event.after : 0;
+      const passed = Math.min(after, sameSecond.length);
+      at = passed === 0 ? sameSecond[0] : sameSecond[passed - 1] + 1;
+    } else {
+      at = queries.findIndex((query) => query.t > event.t);
+      if (at === -1) {
+        at = queries.length;
+      }
+    }
+    places[at].push({ t: event.t, kind: event.kind, lines: event.lines.slice() });
+  }
+  return places.flatMap((before, index) => index < queries.length ? [...before, queries[index]] : before);
+}
+
 // js/lab/evidence-dialog.js
 var evidenceFileName = (key) => `evidence-${safeBaseName(key)}.txt`;
 function linkFor(key, entry2, pageUrl = globalThis.location.href) {
@@ -4635,7 +4870,7 @@ function mountEvidence({ runLog: runLog2, returnFocus }) {
   }
   function open() {
     const { key, entries } = runLog2.current();
-    if (!entries.length) {
+    if (!entries.length && !readEvents(key).length) {
       toast(EVIDENCE_EMPTY_MESSAGE, { tone: "note" });
       return;
     }
@@ -4680,13 +4915,15 @@ function mountEvidence({ runLog: runLog2, returnFocus }) {
     busyToken = token;
     try {
       const { key, entries } = runLog2.current();
-      if (!entries.length) {
+      const events = readEvents(key);
+      if (!entries.length && !events.length) {
         closeDialog();
         toast(EVIDENCE_EMPTY_MESSAGE, { tone: "note" });
         return;
       }
+      const linked = entries.map((entry2) => ({ ...entry2, link: linkFor(key, entry2) }));
       const text = await buildEvidence({
-        entries: entries.map((entry2) => ({ ...entry2, link: linkFor(key, entry2) })),
+        entries: events.length ? timeline(linked, events) : linked,
         dataset: key,
         exported: utcTimestamp(),
         student
@@ -4697,7 +4934,9 @@ function mountEvidence({ runLog: runLog2, returnFocus }) {
       const filename = evidenceFileName(key);
       saveFile(text, filename, "text/plain;charset=utf-8");
       closeDialog();
-      toast(evidenceSavedMessage(filename, entries.length));
+      toast(
+        events.length ? evidenceSavedWithEventsMessage(filename, entries.length, events.length) : evidenceSavedMessage(filename, entries.length)
+      );
     } catch {
       if (token !== exportToken) {
         return;
@@ -4736,6 +4975,59 @@ function mountEvidence({ runLog: runLog2, returnFocus }) {
     }
   });
   return { open };
+}
+
+// js/lab/flags.js
+var flags_exports = {};
+__export(flags_exports, {
+  flagOn: () => flagOn,
+  flags: () => flags,
+  readFlags: () => readFlags
+});
+function readFlags(search, defaults = PREVIEW_FLAGS, needs = PREVIEW_FLAG_NEEDS) {
+  const on = {};
+  for (const name of Object.keys(defaults)) {
+    on[name] = defaults[name] === true;
+  }
+  let asked = [];
+  try {
+    asked = new URLSearchParams(String(search ?? "")).getAll(PREVIEW_PARAM);
+  } catch {
+    asked = [];
+  }
+  for (const value of asked) {
+    for (const part of value.split(",")) {
+      const name = part.trim();
+      if (Object.hasOwn(on, name)) {
+        on[name] = true;
+      }
+    }
+  }
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const [name, needed] of Object.entries(needs)) {
+      if (on[name] === true && on[needed] !== true) {
+        on[name] = false;
+        changed = true;
+      }
+    }
+  }
+  return on;
+}
+function searchAtLoad() {
+  try {
+    return typeof location === "object" && location ? location.search : "";
+  } catch {
+    return "";
+  }
+}
+var state = Object.freeze(readFlags(searchAtLoad()));
+function flagOn(name) {
+  return Object.hasOwn(state, name) && state[name];
+}
+function flags() {
+  return { ...state };
 }
 
 // js/lab/help.js
@@ -4791,19 +5083,19 @@ init_config();
 init_config();
 var DARK_QUERY = "(prefers-color-scheme: dark)";
 var CHOICES = new Set(THEME_OPTIONS.map((option) => option.value));
-var current2 = readStoredChoice();
+var current3 = readStoredChoice();
 function readStoredChoice() {
   try {
-    const stored2 = localStorage.getItem(THEME_STORAGE_KEY);
-    return stored2 === "light" || stored2 === "dark" ? stored2 : "device";
+    const stored3 = localStorage.getItem(THEME_STORAGE_KEY);
+    return stored3 === "light" || stored3 === "dark" ? stored3 : "device";
   } catch {
     return "device";
   }
 }
 function themeChoice() {
-  return current2;
+  return current3;
 }
-function resolvedTheme(choice = current2) {
+function resolvedTheme(choice = current3) {
   if (choice === "light" || choice === "dark") {
     return choice;
   }
@@ -4813,7 +5105,7 @@ function setThemeChoice(choice) {
   if (!CHOICES.has(choice)) {
     return;
   }
-  current2 = choice;
+  current3 = choice;
   try {
     if (choice === "device") {
       localStorage.removeItem(THEME_STORAGE_KEY);
@@ -4827,14 +5119,14 @@ function setThemeChoice(choice) {
 }
 function applyTheme() {
   const root = document.documentElement;
-  if (current2 === "light" || current2 === "dark") {
-    root.dataset.theme = current2;
+  if (current3 === "light" || current3 === "dark") {
+    root.dataset.theme = current3;
   } else {
     delete root.dataset.theme;
   }
   for (const meta of document.querySelectorAll('meta[name="theme-color"][data-scheme]')) {
     const scheme = meta.dataset.scheme;
-    meta.media = current2 === "device" ? `(prefers-color-scheme: ${scheme})` : scheme === current2 ? "all" : "not all";
+    meta.media = current3 === "device" ? `(prefers-color-scheme: ${scheme})` : scheme === current3 ? "all" : "not all";
   }
 }
 function mountThemeMenu(container, { before = null, buttonClass = "button button--small" } = {}) {
@@ -4873,7 +5165,7 @@ function mountThemeMenu(container, { before = null, buttonClass = "button button
     sun.classList.toggle("hidden", dark);
     moon.classList.toggle("hidden", !dark);
     for (const item2 of menu.querySelectorAll("[data-theme-choice]")) {
-      item2.setAttribute("aria-checked", String(item2.dataset.themeChoice === current2));
+      item2.setAttribute("aria-checked", String(item2.dataset.themeChoice === current3));
     }
   }
   mountMenu(button, menu, {
@@ -5013,58 +5305,58 @@ function mountLayout({
   result,
   feedback
 }) {
-  const stored2 = readStored();
-  const width = Number(stored2?.sidebar);
-  const share = Number(stored2?.editor);
-  const state = {
+  const stored3 = readStored();
+  const width = Number(stored3?.sidebar);
+  const share = Number(stored3?.editor);
+  const state2 = {
     v: 1,
     sidebar: Number.isFinite(width) && width >= SIDEBAR_WIDTH.min && width <= SIDEBAR_WIDTH.max ? Math.round(width) : SIDEBAR_WIDTH.initial,
-    collapsed: stored2?.collapsed === true,
+    collapsed: stored3?.collapsed === true,
     editor: Number.isFinite(share) && share > 0.05 && share < 0.95 ? share : EDITOR_SHARE
   };
   const drawer = window.matchMedia(DRAWER_QUERY);
   const phone = window.matchMedia(PHONE_QUERY);
   function save() {
     try {
-      localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(state2));
     } catch {
     }
   }
   function applySidebar() {
-    app.style.setProperty("--sidebar-width", `${state.sidebar}px`);
-    app.classList.toggle("app--sidebar-collapsed", state.collapsed);
-    sidebar.inert = state.collapsed && !drawer.matches;
-    const now = state.collapsed ? 0 : state.sidebar;
+    app.style.setProperty("--sidebar-width", `${state2.sidebar}px`);
+    app.classList.toggle("app--sidebar-collapsed", state2.collapsed);
+    sidebar.inert = state2.collapsed && !drawer.matches;
+    const now = state2.collapsed ? 0 : state2.sidebar;
     sidebarSplitter.setAttribute("aria-valuemin", "0");
     sidebarSplitter.setAttribute("aria-valuemax", String(SIDEBAR_WIDTH.max));
     sidebarSplitter.setAttribute("aria-valuenow", String(now));
     sidebarSplitter.setAttribute("aria-valuetext", sidebarWidthText(now));
   }
   function setSidebar(width2, { collapsed = false } = {}) {
-    state.collapsed = collapsed;
+    state2.collapsed = collapsed;
     if (!collapsed) {
-      state.sidebar = Math.round(clamp(width2, SIDEBAR_WIDTH.min, SIDEBAR_WIDTH.max));
+      state2.sidebar = Math.round(clamp(width2, SIDEBAR_WIDTH.min, SIDEBAR_WIDTH.max));
     }
     applySidebar();
     applyEditor();
   }
   function toggleSidebar() {
-    setSidebar(state.sidebar, { collapsed: !state.collapsed });
+    setSidebar(state2.sidebar, { collapsed: !state2.collapsed });
     save();
   }
   function showSidebar() {
-    if (state.collapsed && !drawer.matches) {
-      setSidebar(state.sidebar, { collapsed: false });
+    if (state2.collapsed && !drawer.matches) {
+      setSidebar(state2.sidebar, { collapsed: false });
       save();
     }
   }
   sidebarSplitter.addEventListener("keydown", (event) => {
     const keys = {
-      ArrowLeft: () => !state.collapsed && setSidebar(state.sidebar - SPLITTER_STEP),
-      ArrowRight: () => setSidebar(state.collapsed ? SIDEBAR_WIDTH.min : state.sidebar + SPLITTER_STEP),
+      ArrowLeft: () => !state2.collapsed && setSidebar(state2.sidebar - SPLITTER_STEP),
+      ArrowRight: () => setSidebar(state2.collapsed ? SIDEBAR_WIDTH.min : state2.sidebar + SPLITTER_STEP),
       Home: () => setSidebar(SIDEBAR_WIDTH.min),
       End: () => setSidebar(SIDEBAR_WIDTH.max),
-      Enter: () => setSidebar(state.sidebar, { collapsed: !state.collapsed })
+      Enter: () => setSidebar(state2.sidebar, { collapsed: !state2.collapsed })
     };
     if (keys[event.key] && !event.altKey && !event.ctrlKey && !event.metaKey) {
       event.preventDefault();
@@ -5074,7 +5366,7 @@ function mountLayout({
   });
   sidebarSplitter.addEventListener("dblclick", toggleSidebar);
   drag(sidebarSplitter, (start2) => {
-    const from = state.collapsed ? 0 : sidebar.getBoundingClientRect().width;
+    const from = state2.collapsed ? 0 : sidebar.getBoundingClientRect().width;
     return (event) => {
       const width2 = from + event.clientX - start2.clientX;
       setSidebar(width2, { collapsed: width2 < SIDEBAR_HIDE_BELOW });
@@ -5101,8 +5393,8 @@ function mountLayout({
   }
   function capPrompt() {
     const free = main.clientHeight - toolbar.offsetHeight - editorSplitter.offsetHeight - EDITOR_MIN_HEIGHT - resultsNeed();
-    const cap2 = Math.max(PROMPT_MIN_HEIGHT, Math.min(PROMPT_SHARE * window.innerHeight, free));
-    main.style.setProperty("--prompt-max", `${Math.floor(cap2)}px`);
+    const cap3 = Math.max(PROMPT_MIN_HEIGHT, Math.min(PROMPT_SHARE * window.innerHeight, free));
+    main.style.setProperty("--prompt-max", `${Math.floor(cap3)}px`);
   }
   function applyEditor() {
     if (phone.matches) {
@@ -5115,7 +5407,7 @@ function mountLayout({
     if (room <= 0) {
       return;
     }
-    const height = Math.round(clamp(state.editor * room - bar, min, max));
+    const height = Math.round(clamp(state2.editor * room - bar, min, max));
     main.style.setProperty("--editor-height", `${height}px`);
     editorSplitter.setAttribute("aria-valuemin", String(min));
     editorSplitter.setAttribute("aria-valuemax", String(Math.round(max)));
@@ -5127,7 +5419,7 @@ function mountLayout({
     if (room <= 0) {
       return;
     }
-    state.editor = (clamp(height, min, max) + bar) / room;
+    state2.editor = (clamp(height, min, max) + bar) / room;
     applyEditor();
   }
   editorSplitter.addEventListener("keydown", (event) => {
@@ -5265,7 +5557,7 @@ function mountLayout({
     showSidebar,
     closeDrawer,
     showView,
-    state: () => ({ ...state })
+    state: () => ({ ...state2 })
   };
 }
 
@@ -5734,9 +6026,9 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
   const popoverElement = document.getElementById("cell-popover");
   const cellPopover = popoverElement ? mountCellPopover(popoverElement) : { close() {
   } };
-  function setState(state) {
-    pane.dataset.state = state;
-    summary.hidden = !(state === "result" || state === "done");
+  function setState(state2) {
+    pane.dataset.state = state2;
+    summary.hidden = !(state2 === "result" || state2 === "done");
     cellPopover.close?.();
     clearTimeout(announceTimer);
     announcer.textContent = "";
@@ -5953,8 +6245,8 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
       if (ownLoad) {
         restore();
       }
-      const state = pane.dataset.state;
-      if (getDatabase() && state && (state !== "loading" || !ownLoad)) {
+      const state2 = pane.dataset.state;
+      if (getDatabase() && state2 && (state2 !== "loading" || !ownLoad)) {
         problemSlot.replaceChildren(problemBand(message));
         problemSlot.hidden = false;
         announce2(message);
@@ -6001,16 +6293,16 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
       ui2.result.replaceChildren(block);
       setState("loading");
       setSummary();
-      const current3 = () => block.isConnected;
+      const current4 = () => block.isConnected;
       return {
         name(next) {
-          if (current3()) {
+          if (current4()) {
             title.textContent = loadingTitle(next);
           }
         },
         // loaded bytes of total (0: unknown, the bar waits without moving)
         progress(loaded2, total) {
-          if (!current3()) {
+          if (!current4()) {
             return;
           }
           const known = total > 0 && loaded2 <= total;
@@ -6039,7 +6331,7 @@ __export(router_exports, {
   resolveRoute: () => resolveRoute
 });
 init_config();
-async function resolveRoute(location) {
+async function resolveRoute(location2) {
   const manifest = await getManifest();
   const route = {
     database: "",
@@ -6051,7 +6343,7 @@ async function resolveRoute(location) {
     problem: null,
     manifest
   };
-  const hash = location.hash;
+  const hash = location2.hash;
   if (isShareFragment(hash)) {
     const decoded = decodeShare(hash);
     if (!decoded.ok) {
@@ -6080,7 +6372,7 @@ async function resolveRoute(location) {
     }
     return route;
   }
-  const query = new URLSearchParams(location.search);
+  const query = new URLSearchParams(location2.search);
   const requestedSet = query.get(SET_PARAM);
   if (requestedSet && await openSet(route, requestedSet, query.get(EXERCISE_PARAM))) {
     return route;
@@ -6336,7 +6628,7 @@ function signature(database2) {
 var COUNT_FORMAT = new Intl.NumberFormat("en");
 function mountSchema({ container, editor }) {
   const tracker = trackEditorSelection(editor);
-  let current3 = { database: null, dataset: null };
+  let current4 = { database: null, dataset: null };
   let seen = null;
   let filterText = "";
   let objectCount = 0;
@@ -6404,7 +6696,7 @@ function mountSchema({ container, editor }) {
     }).observe(datasetDescription);
   }
   function renderDataset() {
-    const entry2 = current3.dataset;
+    const entry2 = current4.dataset;
     dataset.hidden = !entry2;
     datasetName.textContent = entry2 ? entry2.name : "";
     datasetDescription.textContent = entry2 && entry2.description ? entry2.description : "";
@@ -6541,7 +6833,7 @@ function mountSchema({ container, editor }) {
     }).observe(scroller());
   }
   function render() {
-    const database2 = current3.database;
+    const database2 = current4.database;
     const scrollTop = scroller().scrollTop;
     const focused = panel.contains(document.activeElement) ? document.activeElement.dataset.focusKey : null;
     let objects = [];
@@ -6594,21 +6886,21 @@ function mountSchema({ container, editor }) {
     render();
   });
   document.addEventListener("lab:database-loaded", (event) => {
-    current3 = { database: event.detail.database, dataset: event.detail.dataset };
+    current4 = { database: event.detail.database, dataset: event.detail.dataset };
     expanded.clear();
     filterText = "";
     filter.value = "";
     tracker.forget();
-    seen = signature(current3.database);
+    seen = signature(current4.database);
     renderDataset();
     render();
     scrollToTop();
   });
   document.addEventListener("lab:run-finished", (event) => {
-    if (event.detail.database !== current3.database) {
+    if (event.detail.database !== current4.database) {
       return;
     }
-    const now = signature(current3.database);
+    const now = signature(current4.database);
     if (now !== seen) {
       seen = now;
       render();
@@ -6855,8 +7147,8 @@ function mountTabs(tablist, { onShow = () => {
 init_config();
 function readTextSize() {
   try {
-    const stored2 = Number(localStorage.getItem(TEXT_SIZE_STORAGE_KEY));
-    return TEXT_SIZES.includes(stored2) ? stored2 : TEXT_SIZE_DEFAULT;
+    const stored3 = Number(localStorage.getItem(TEXT_SIZE_STORAGE_KEY));
+    return TEXT_SIZES.includes(stored3) ? stored3 : TEXT_SIZE_DEFAULT;
   } catch {
     return TEXT_SIZE_DEFAULT;
   }
@@ -6902,6 +7194,71 @@ function mountTextSize({ smaller, larger, said }) {
   return { size: () => size };
 }
 
+// js/lab/vendor-loader.js
+var vendor_loader_exports = {};
+__export(vendor_loader_exports, {
+  loadVendor: () => loadVendor
+});
+var VENDOR_DIR = "vendor/";
+var PLAIN_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+var loading2 = /* @__PURE__ */ new Map();
+function onPage(globalName) {
+  try {
+    return globalThis[globalName];
+  } catch {
+    return void 0;
+  }
+}
+function loadVendor(file, globalName) {
+  if (typeof file !== "string" || !PLAIN_NAME.test(file) || file.includes("..")) {
+    return Promise.reject(new Error(`not a file of ${VENDOR_DIR}`));
+  }
+  if (typeof globalName !== "string" || !globalName) {
+    return Promise.reject(new Error("not the name of a library"));
+  }
+  const present = onPage(globalName);
+  if (present !== void 0) {
+    return Promise.resolve(present);
+  }
+  const known = loading2.get(file);
+  if (known) {
+    return known;
+  }
+  let waiting = true;
+  const promise = new Promise((resolve, reject) => {
+    let script = null;
+    let timer = null;
+    const settle = (library) => {
+      if (!waiting) {
+        return;
+      }
+      waiting = false;
+      clearTimeout(timer);
+      loading2.delete(file);
+      if (library === void 0) {
+        script?.remove();
+        reject(new Error(`could not load ${VENDOR_DIR}${file}`));
+      } else {
+        resolve(library);
+      }
+    };
+    try {
+      script = document.createElement("script");
+      script.addEventListener("load", () => settle(onPage(globalName)));
+      script.addEventListener("error", () => settle(void 0));
+      timer = setTimeout(() => settle(void 0), VENDOR_LOAD_TIMEOUT_MS);
+      script.src = `${VENDOR_DIR}${file}`;
+      document.head.append(script);
+    } catch {
+      settle(void 0);
+    }
+  });
+  if (waiting) {
+    loading2.set(file, promise);
+  }
+  return promise;
+}
+
 // js/index.js
 var ui = {
   buttons: {
@@ -6944,16 +7301,16 @@ var database;
 var openDataset = null;
 var pageStarted = false;
 var latestLoad = 0;
-var loading2 = false;
+var loading3 = false;
 function beginLoad() {
-  loading2 = true;
+  loading3 = true;
   return ++latestLoad;
 }
 function endLoad(ticket, opened) {
   if (ticket !== latestLoad) {
     return;
   }
-  loading2 = false;
+  loading3 = false;
   if (!opened) {
     picker.sync();
     lab.syncPicker();
@@ -6995,7 +7352,7 @@ var lab = mountExercises({
   ui,
   // a Check's visible run: shown in the results pane, but the verdict is what is said
   execute: (sql) => execute(sql, { quiet: true }),
-  isLoading: () => loading2,
+  isLoading: () => loading3,
   openSet: (set2) => setActions.openSet(set2),
   closeSet: () => setActions.closeSet(),
   // a set that opens shows its tab, and the sidebar if it was hidden: the exercise list,
@@ -7017,7 +7374,7 @@ var lab = mountExercises({
 var setActions = createSetActions({
   lab: () => lab,
   hasDatabase: () => Boolean(database),
-  isLoading: () => loading2,
+  isLoading: () => loading3,
   cancelLoad: () => endLoad(beginLoad(), false),
   loadDataset: startFromDataset,
   pushUrl: (search) => history.pushState(database.name, null, search),
@@ -7336,7 +7693,7 @@ function changedRows(run, before, sql) {
 }
 var RUN_DROPPED = Object.freeze({ dropped: true });
 function execute(sql, { quiet = false } = {}) {
-  if (loading2) {
+  if (loading3) {
     toast(LOADING_BUSY_MESSAGE, { tone: "note" });
     return Promise.reject();
   }
@@ -7356,7 +7713,7 @@ function execute(sql, { quiet = false } = {}) {
   const endRun = results.startRun();
   pendingRuns++;
   return afterPaint().then(() => {
-    if (run !== database || loading2) {
+    if (run !== database || loading3) {
       return Promise.reject(RUN_DROPPED);
     }
     let outcome;
@@ -7463,7 +7820,9 @@ export {
   checker_exports as checker,
   datasets_exports as datasets,
   db_path_exports as dbPath,
+  events_exports as events,
   exercises_exports as exercises,
+  flags_exports as flags,
   manager_exports as manager,
   progress_exports as progress,
   results_exports as results,
@@ -7471,5 +7830,6 @@ export {
   run_log_exports as runLog,
   runner_exports as runner,
   share_exports as share,
-  storage_exports as storage
+  storage_exports as storage,
+  vendor_loader_exports as vendorLoader
 };

@@ -28,6 +28,7 @@ The tool is live and in use for teaching, so every phase ships switched off and 
 - **Audience**: an autonomous coding agent, later. Work the phases in §8 in order, one PR per phase. The phases are independent: stop after any of them. (Since the revision, some phases need an earlier one; §8 says which.)
 - **Sub-agents**: any sub-agent you spawn, whatever its purpose, runs on Claude Sonnet 5.5 at high reasoning effort. Set both explicitly on every spawn; sub-agents never inherit this session's model.
 - **Preview switch**: each new feature sits behind a named flag in one config file, off by default, and can be turned on for a single visit with a URL parameter such as `?preview=import`. The owner flips the default when ready.
+  - The file is `js/lab/config-workflow.js`. The texts and settings of this plan's features go there and not in `js/lab/config.js`, for the reason given under "The verify page stays small" below. The one exception is what the verify page itself needs to read a version 2 file: the heading, the word `event:` and the list of kinds are in `config.js`.
   - The flags for import and export are `import`, `export`, `excel-import` and `excel-export` (§8). Several can be given at once: `?preview=import,export`. A name the app does not know is ignored.
   - `excel-import` does nothing without `import`, and `excel-export` does nothing without `export`. With `import` alone, a workbook is refused with a message that Excel files cannot be imported yet.
   - The other phases name their flags when they are built. Phase 1 moves stored data, so it must say what its flag can and cannot switch off.
@@ -36,13 +37,14 @@ The tool is live and in use for teaching, so every phase ships switched off and 
 - **One earlier rule changes**: the working database no longer lives only in memory. Imported and opened databases are also saved in the browser's IndexedDB (§4). OPFS stays ruled out.
 - **New libraries are vendored and loaded on demand**: they are fetched only when a student first imports or exports, so the initial load stays at or under 3 MB.
   - The check is `tests/ac9-size.spec.js`: at most 3,000,000 bytes, uncompressed, with `datasets/` left out. A first visit is about 2.2 MB today. `tests/app-bundle.spec.js` also holds a first visit to 20 requests.
-  - Each library is the publisher's own minified file, unchanged, in `vendor/` with its licence beside it. The page adds it as an ordinary `<script>` the first time it is needed, and requests it once, however often it is used.
+  - Each library is the publisher's own minified file, unchanged, in `vendor/` with its licence beside it. The page adds it as an ordinary `<script>` the first time it is needed, and requests it once, however often it is used. So it must be a build that attaches itself to the page as a global, and the loader (`js/lab/vendor-loader.js`) takes a plain file name of `vendor/`, never a path.
   - It is not imported into the app bundle: `tools/build-app.mjs` refuses any import from `vendor/` except the editor. The deploy already copies `vendor/` as it is, so neither the build nor the deploy changes, and the deploy stays free of npm.
-  - Loading can fail: a lab PC offline, or a missing file. The loader then removes its script tag and forgets the attempt, so the next use tries again. The dialog says in plain words that the tool could not be loaded, and the page stays usable.
+  - Loading can fail: a lab PC offline, a missing file, a file that is not the library, or no answer within 30 seconds. The loader then removes its script tag, forgets the attempt and gives every caller that was waiting the same error, so the next use tries again. The dialog says in plain words that the tool could not be loaded, and the page stays usable.
 - **The app bundle**: after any change under `js/` or `css/`, run `npm run build:app` and commit `bundle/`. Otherwise `tests/app-bundle.spec.js` fails, and the old bundle is what deploys.
   - A new stylesheet must also be added to `STYLES` in `tools/build-app.mjs` and to `CASCADE` in that test.
   - A test can reach a module only when it is listed in `EXPOSE` in `tools/build-app.mjs`; the same test checks that list.
-- **The verify page stays small**: `tests/m5-verify-page.spec.js` holds it to 100,000 bytes without fonts. It is about 79,000 today, and that counts `js/lab/config.js` whole. So the texts and settings of the new dialogs go in a module the verify page does not load.
+  - Three tests hold lists that a phase changes on purpose: `tests/app-bundle.spec.js` names every module a test can reach; `tests/m2-brand.spec.js` lists every line of source that holds the app's name or `sqllab`, a new storage key included; and `tests/aw0-flags.spec.js` names the flags. That last file also has a group, "nothing a student can see", which compares the page with every flag on against the page with none. It holds while nothing reads a flag, so the phase that first reads one rewrites the tests its flag changes.
+- **The verify page stays small**: `tests/m5-verify-page.spec.js` holds it to 100,000 bytes without fonts. It was about 79,700 in Chromium (82,800 in Firefox) before Phase 0 and is about 85,600 (88,700) with it, and that counts `js/lab/config.js` whole. So the texts and settings of the new dialogs go in a module the verify page does not load, and a test in `tests/aw0-evidence.spec.js` lists the scripts the page may load.
 - **Behaviour freeze**: course databases, exercises and checking, share links, `Ctrl+Enter`, and the evidence checksum rule stay as they are. Evidence files exported before this work must still verify as VALID. The results pane's own Download CSV also stays as it is (§5).
 - **Never clean on import** (§3): cleaning is the assessed skill.
 - **First step of any phase**: confirm today's behaviour in the code before changing it. The first version of this plan was written from the live site and its About page, not from the source. The points it asked about were checked on Nov 14, 2026 at commit `1e981e3`. Check them again, because the code moves:
@@ -268,19 +270,24 @@ The evidence file is the only SQL the marker sees, so it must hold everything a 
 How events are kept, until Phase 1 replaces the log's storage:
 
 - Events are kept apart from queries. They would not last in the query log: today's code throws away any entry that is not a query whenever it writes, so a tab still running an older release would erase them, and the 200-entry cap would push an import out first.
-- They are stored under `sqllab.events.<log key>`, as `{"v": 1, "events": [...]}`, oldest first. Until Phase 1 removes the cap, the newest 1,000 are kept. The key must not start with `sqllab.log.`: tests list the keys under that prefix exactly. The query log keeps its own key and its version 1.
-- An event is one file imported or exported, or one reset or reopening. It is stored as `{"t", "kind", "lines", "after"}`: its time to the second, as a query's is; its kind, one of `import`, `export`, `reset` and `reopen`; its detail lines, as they will be written; and a count, explained next.
+- They are stored under `sqllab.events.<log key>`, as `{"v": 1, "events": [...]}`, oldest first. Until Phase 1 removes the cap, the newest 1,000 are kept, with at most 1 MB of text in their lines. The key must not start with `sqllab.log.`: tests list the keys under that prefix exactly. The query log keeps its own key and its version 1.
+- An event is one file imported or exported, or one reset or reopening. It is stored as `{"t", "kind", "lines", "after"}`: its time to the second, as a query's is; its kind, one of `import`, `export`, `reset` and `reopen`; its detail lines; and a count, explained next. An event holds at most 200 lines of at most 500 characters (as JavaScript counts them: an emoji is two): a longer line is cut, and past 200 the last line says how many are not listed. So a caller puts what matters first.
 - `after` is how many queries of the event's own second were already in the log. The export places the event after that many of the second's queries, or after all of them when fewer are left. Events of one second keep their stored order. The timeline is then right even when a query and an event share a second, with no ids added to queries.
 - One function records an event. Phase 0's tests call it directly, because no phase before Phase 2 produces one.
+- A stored value with a later version number was written by a newer release. It is never written over, so any change to what an event may hold needs a new version number.
+- When the browser has no room, the newest events that fit are stored, and the page keeps all of them in memory for as long as it is open. Events that cannot be read are never written over either.
+- Phase 0 shows no notice when events cannot be stored, as the run log does for queries. Phase 2, the first to record one, decides that, and adds the events to About's list of what the browser remembers.
 - Phase 1 moves the events into the new store with the queries, and removes the separate key.
 
 The version 2 file:
 
 - A log with no events still exports a version 1 file, byte for byte as today. Version 2 is written only when there is an event to record.
-- A log that holds events and no queries can be exported. Today's dialog refuses a log with no entries, and today's verify page calls a file with no queries EDITED; both change for version 2.
+- A log that holds events and no queries can be exported. Before Phase 0 the dialog refused a log with no entries, and the verify page called a file with no queries EDITED; Phase 0 changed both for version 2. A version 2 file must list at least one event: the verify page calls one with none EDITED.
+- After an export with events, the toast counts both: "Exported evidence-northlight.txt with 3 queries and 1 event".
 - An event's header line is `[n]`, its time, the middle dot, then `event:` and its kind. It is numbered in the same sequence as the queries. Its detail lines follow, with one `table:` line for each table in the file. For a workbook, that line ends with the sheet the table came from.
-- In a version 2 file, the rule that escapes header-shaped lines inside SQL covers the event header's shape too. A version 1 file is written with today's rule, unchanged. Names taken from files go through the same one-line filter as the dataset name. Numbers are written as plain digits.
-- The verify page reads the version from the first line, which today must end in `v1`. A version 1 file is checked exactly as today. For a version 2 file, the page counts both shapes of header in one sequence, and reports queries and events separately.
+- In a version 2 file, the rule that escapes header-shaped lines inside SQL covers the event header's shape too, whatever kind it names, and an event's detail lines are escaped by the same rule. A version 1 file is written with today's rule, unchanged. Names taken from files go through the same one-line filter as the dataset name. Numbers are written as plain digits.
+- The verify page reads the version from the first line, which before Phase 0 had to end in `v1`. A version 1 file is checked exactly as it was then. For a version 2 file, the page counts both shapes of header in one sequence, and reports queries and events separately.
+- The verify page knows the four kinds of event. A file that lists any other kind is EDITED, with a reason that says the page may be out of date. So a later release that adds a kind must get its verify page out before anything writes that kind, as Phase 0's verify page goes out before Phase 2 records an event.
 
 A version 2 file looks like this:
 
@@ -370,7 +377,7 @@ Two notes on order:
 
 Each phase adds test files and automated checks, and the existing acceptance suite stays green throughout.
 
-**Test files** in `tests/fixtures/` — the README there describes every fixture, and how the set was made and checked.
+**Test files** in `tests/fixtures/` — the README there describes every fixture of the import and export work, and how the set was made and checked. The folder `evidence/` is apart from that set: it holds the evidence files saved from the build before Phase 0, with a README of its own, and is never made again.
 
 - `messy_sales.csv`: ids with leading zeros, amounts with a £ sign, `dd/mm/yyyy` dates, blanks, trailing spaces, quoted commas and line breaks, and one row with an extra field.
 - `windows1252.csv` (a £ and an é, saved the way Excel saves them) and `semicolon.csv`.

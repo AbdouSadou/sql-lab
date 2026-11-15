@@ -1,0 +1,40 @@
+SQL Lab evidence export v1
+dataset: northlight
+exported: 2026-11-15T18:30:27Z
+
+[1] 2026-11-15T18:30:27Z · 1 row
+SELECT COUNT(*) AS orders FROM orders;
+link: http://127.0.0.1:4373/#s=N4IgbiBcCMA0IBMogHYHsBOAXAFgGwEsBzHLEeAR2QGUBRAGVoGEAVAAiYHkBVAORYAUAKgCUbAILU2mBAFMMAZzYAxAEqcAstIxzFAbhABfIA
+
+[2] 2026-11-15T18:30:27Z · 0 rows
+SELECT first_name, last_name, city
+FROM customers
+WHERE city = 'Zürich' OR last_name LIKE '%é%'
+ORDER BY last_name
+LIMIT 5;
+link: http://127.0.0.1:4373/#s=N4IgbiBcCMA0IBMogHYHsBOAXAFgGwEsBzHLEeAR2QGUBRAGVoGEAVAAgDMCMBnLAfRQBDALYBTWGzxC+g0RLYBjAlgCeAHRQAxAEoB5ALJKArnzTjemgOoAJWjtpKVqtgF42AcgBaAH4wFFHA82PR0pGQFhcTZ6AEkAaUcPAFIAS+SPTVCAEXs2ACEATXDZKLFNOINY9gBWAG4QAF8gA
+
+[3] 2026-11-15T18:30:27Z · error: no such column: pric
+SELECT pric FROM products;
+
+[4] 2026-11-15T18:30:27Z · 1 row
+SELECT product_name, unit_price
+FROM products
+
+WHERE unit_price > 100
+ORDER BY unit_price DESC
+LIMIT 3;
+link: http://127.0.0.1:4373/#s=N4IgbiBcCMA0IBMogHYHsBOAXAFgGwEsBzHLEeAR2QGUBRAGVoGEAVAAgAcM0EBXAYywB9FAEMAtgFNYbXigLCuBfpIA6KAGIAlAPIBZTtz6CAzuvUB1ABK0ttWfMUZlktgD420AAxf1OrQAitmwAQgCaDgpCSipsQdRM6vQAknrJ7ADMANwgAL5AA
+
+[5] 2026-11-15T18:30:27Z · 1 row
+SELECT 1 AS one
+/* the next line looks like the heading of an entry
+\[9] 2026-01-01T00:00:00Z · 3 rows
+and the one after it like the heading of an event
+
+[9] 2026-01-01T00:00:00Z · event: import
+*/;
+link: http://127.0.0.1:4373/#s=N4IgbiBcCMA0IBMogHYHsBOAXAFgGwEsBzHLEeAR2QGUBRAGVoGEAVAAmjYEFq20UApgB0UAegBUbXALaCAHljaFBStGgDWAZyUF1M6WxwCAhggIoifAGZtjKNgJRYMATxEBtAJwBdNgCYABj8ANgBaAOhw6BYAgMhY+ICALTYAdrYAZjYMNAB3TRE7BCkjPhVjKywBDDYCRUI9EpkjU3NLNBs7BzBHLBEPH38gsIiomLiE2JT0gR6nSFqAWwAHTD6UcVEAbhAAXyA
+
+student: U2034567
+sha256: ad8d59d9d7bd0e2649ce6b4e2c83c7b3ca9bbac9546d8b507447c6169a840283

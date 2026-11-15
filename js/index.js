@@ -35,6 +35,10 @@ import { createExportAction, exportProblem } from "./lab/export.js";
 import { mountExportDialog } from "./lab/export-dialog.js";
 import { mountExportMenu } from "./lab/export-menu.js";
 import { mountEvidence } from "./lab/evidence-dialog.js";
+// Groundwork of the assessment plan (its Phase 0), in the bundle from here on. The preview flags
+// are read from the address when this import runs, before anything below can rewrite it; the
+// loader for vendored libraries has no caller until the import dialog (Phase 2).
+import "./lab/flags.js";
 import { mountHelp } from "./lab/help.js";
 import { mountMoreMenu } from "./lab/more-menu.js";
 import { showPlatformKeys } from "./lab/keys.js";
@@ -56,6 +60,7 @@ import { mountTabs } from "./lab/tabs.js";
 import { mountThemeMenu } from "./lab/theme.js";
 import { mountTextSize } from "./lab/text-size.js";
 import { toast } from "./lab/toast.js";
+import "./lab/vendor-loader.js";
 
 const ui = {
     buttons: {

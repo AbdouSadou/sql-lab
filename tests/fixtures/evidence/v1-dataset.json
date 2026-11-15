@@ -1,0 +1,47 @@
+{
+  "made": "Exported through the Export evidence dialog of the build at commit 3c87ff7, on a course dataset (Northlight Retail), 2026-11-15.",
+  "downloaded_as": "evidence-northlight.txt",
+  "input": {
+    "entries": [
+      {
+        "t": "2026-11-15T18:30:27Z",
+        "sql": "SELECT COUNT(*) AS orders FROM orders;",
+        "rows": 1,
+        "link": "http://127.0.0.1:4373/#s=N4IgbiBcCMA0IBMogHYHsBOAXAFgGwEsBzHLEeAR2QGUBRAGVoGEAVAAiYHkBVAORYAUAKgCUbAILU2mBAFMMAZzYAxAEqcAstIxzFAbhABfIA"
+      },
+      {
+        "t": "2026-11-15T18:30:27Z",
+        "sql": "SELECT first_name, last_name, city\nFROM customers\nWHERE city = 'Zürich' OR last_name LIKE '%é%'\nORDER BY last_name\nLIMIT 5;",
+        "rows": 0,
+        "link": "http://127.0.0.1:4373/#s=N4IgbiBcCMA0IBMogHYHsBOAXAFgGwEsBzHLEeAR2QGUBRAGVoGEAVAAgDMCMBnLAfRQBDALYBTWGzxC+g0RLYBjAlgCeAHRQAxAEoB5ALJKArnzTjemgOoAJWjtpKVqtgF42AcgBaAH4wFFHA82PR0pGQFhcTZ6AEkAaUcPAFIAS+SPTVCAEXs2ACEATXDZKLFNOINY9gBWAG4QAF8gA"
+      },
+      {
+        "t": "2026-11-15T18:30:27Z",
+        "sql": "SELECT pric FROM products;",
+        "error": "no such column: pric"
+      },
+      {
+        "t": "2026-11-15T18:30:27Z",
+        "sql": "SELECT product_name, unit_price\nFROM products\n\nWHERE unit_price > 100\nORDER BY unit_price DESC\nLIMIT 3;",
+        "rows": 1,
+        "link": "http://127.0.0.1:4373/#s=N4IgbiBcCMA0IBMogHYHsBOAXAFgGwEsBzHLEeAR2QGUBRAGVoGEAVAAgAcM0EBXAYywB9FAEMAtgFNYbXigLCuBfpIA6KAGIAlAPIBZTtz6CAzuvUB1ABK0ttWfMUZlktgD420AAxf1OrQAitmwAQgCaDgpCSipsQdRM6vQAknrJ7ADMANwgAL5AA"
+      },
+      {
+        "t": "2026-11-15T18:30:27Z",
+        "sql": "SELECT 1 AS one\n/* the next line looks like the heading of an entry\n[9] 2026-01-01T00:00:00Z · 3 rows\nand the one after it like the heading of an event\n\n[9] 2026-01-01T00:00:00Z · event: import\n*/;",
+        "rows": 1,
+        "link": "http://127.0.0.1:4373/#s=N4IgbiBcCMA0IBMogHYHsBOAXAFgGwEsBzHLEeAR2QGUBRAGVoGEAVAAmjYEFq20UApgB0UAegBUbXALaCAHljaFBStGgDWAZyUF1M6WxwCAhggIoifAGZtjKNgJRYMATxEBtAJwBdNgCYABj8ANgBaAOhw6BYAgMhY+ICALTYAdrYAZjYMNAB3TRE7BCkjPhVjKywBDDYCRUI9EpkjU3NLNBs7BzBHLBEPH38gsIiomLiE2JT0gR6nSFqAWwAHTD6UcVEAbhAAXyA"
+      }
+    ],
+    "dataset": "northlight",
+    "exported": "2026-11-15T18:30:27Z",
+    "student": "U2034567"
+  },
+  "verdict": {
+    "status": "valid",
+    "student": "U2034567",
+    "queries": 5,
+    "exported": "2026-11-15T18:30:27Z",
+    "dataset": "northlight"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "made": "Exported through the Export evidence dialog of the build at commit 3c87ff7, on an opened file (tests/fixtures/sample.db as mine.db), 2026-11-15.",
+  "downloaded_as": "evidence-file_mine.db.txt",
+  "input": {
+    "entries": [
+      {
+        "t": "2026-11-15T18:30:28Z",
+        "sql": "SELECT name, price FROM fruit ORDER BY price DESC;",
+        "rows": 4
+      },
+      {
+        "t": "2026-11-15T18:30:28Z",
+        "sql": "UPDATE fruit SET note = 'checked' WHERE price IS NULL;",
+        "rows": 0
+      },
+      {
+        "t": "2026-11-15T18:30:28Z",
+        "sql": "SELECT * FROM frut;",
+        "error": "no such table: frut"
+      },
+      {
+        "t": "2026-11-15T18:30:28Z",
+        "sql": "SELECT COUNT(*) AS n FROM fruit WHERE note = 'checked';",
+        "rows": 1
+      }
+    ],
+    "dataset": "file:mine.db",
+    "exported": "2026-11-15T18:30:28Z",
+    "student": "U2034567"
+  },
+  "verdict": {
+    "status": "valid",
+    "student": "U2034567",
+    "queries": 4,
+    "exported": "2026-11-15T18:30:28Z",
+    "dataset": "file:mine.db"
+  }
+}

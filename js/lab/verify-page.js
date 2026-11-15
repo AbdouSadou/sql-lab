@@ -5,7 +5,8 @@
 // with the file input, and the Verify button checks what is in the box (typed text, or text
 // that is still exactly what was pasted). The result goes to #verify-result (role="status"),
 // built with textContent only: VALID with the student number, query count, export time and
-// dataset, EDITED with the reason, or (no crypto.subtle: an http address that is not
+// dataset (and the event count, for a version 2 file, which lists files imported and tables
+// exported among the queries), EDITED with the reason, or (no crypto.subtle: an http address that is not
 // localhost) a message that says neither. The page scrolls just far enough to bring the
 // verdict into view.
 //
@@ -53,14 +54,18 @@ function details(rows) {
 function render(result) {
     const box = el("div", `verdict verdict--${result.status}`);
     if (result.status === "valid") {
+        const rows = [
+            ["Student number", result.student],
+            ["Queries", result.queries],
+        ];
+        // a version 2 file: the events it lists, counted apart from the queries
+        if (result.events !== undefined) {
+            rows.push(["Events", result.events]);
+        }
+        rows.push(["Exported", result.exported], ["Dataset", result.dataset]);
         box.append(
             el("p", "verdict-word", VERIFY_VALID_WORD),
-            details([
-                ["Student number", result.student],
-                ["Queries", result.queries],
-                ["Exported", result.exported],
-                ["Dataset", result.dataset],
-            ]),
+            details(rows),
             el("p", "verdict-note", "The checksum matches, so the file is as it was exported. It does not prove who ran the queries.")
         );
     } else if (result.status === "edited") {

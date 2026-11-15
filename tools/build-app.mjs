@@ -1,8 +1,8 @@
 // Builds bundle/app.js and bundle/app.css: the scripts and the stylesheets of the app's page,
 // index.html, each in one file. A whole class opening the site at once from one school network is
 // one burst of requests from one address, and GitHub Pages answers a large burst with "429 Rate
-// limit exceeded" for minutes; a first visit asked for 85 files (87 in Firefox), and asks for 16
-// (18) with the bundles. Like vendor/editor.js, the output is committed, so the site itself still needs no
+// limit exceeded" for minutes; a first visit asked for 85 files (87 in Firefox), and asks for 18
+// (20) with the bundles. Like vendor/editor.js, the output is committed, so the site itself still needs no
 // build. Dev tooling, not deployed; run it after changing anything in js/ or css/:
 //
 //   npm ci && npm run build:app
@@ -76,13 +76,16 @@ const EXPOSE = [
     "js/db-path.js",
     "js/lab/checker.js",
     "js/lab/datasets.js",
+    "js/lab/events.js",
     "js/lab/exercises.js",
+    "js/lab/flags.js",
     "js/lab/progress.js",
     "js/lab/results.js",
     "js/lab/router.js",
     "js/lab/run-log.js",
     "js/lab/runner.js",
     "js/lab/share.js",
+    "js/lab/vendor-loader.js",
     "js/sqlite/manager.js",
     "js/storage.js",
 ];

@@ -20,6 +20,11 @@
 // that query and dataset alone, on the page address without its query string. An error entry,
 // an entry on an uploaded or URL database (a link could not reopen it) and an entry whose link
 // would be too long or would not open have none.
+//
+// Events (js/lab/events.js: a file imported, tables exported) are listed among the queries, in
+// their place in time; an event never has a link. A log that holds events and no queries can be
+// exported. With no event the file is version 1, byte for byte as it was before events existed
+// (the assessment plan, section 6); with one, js/lab/evidence.js writes version 2.
 
 import {
     EVIDENCE_CANCEL_TEXT,
@@ -36,6 +41,8 @@ import {
     EVIDENCE_FILE_LABEL,
     evidenceSavedMessage,
 } from "./config.js";
+import { evidenceSavedWithEventsMessage } from "./config-workflow.js";
+import { readEvents, timeline } from "./events.js";
 import { buildEvidence, hasCrypto, utcTimestamp } from "./evidence.js";
 import { safeBaseName, saveFile } from "./export.js";
 import { isDatasetKey } from "./run-log.js";
@@ -128,7 +135,7 @@ export function mountEvidence({ runLog, returnFocus }) {
 
     function open() {
         const { key, entries } = runLog.current();
-        if (!entries.length) {
+        if (!entries.length && !readEvents(key).length) {
             toast(EVIDENCE_EMPTY_MESSAGE, { tone: "note" });
             return;
         }
@@ -185,13 +192,16 @@ export function mountEvidence({ runLog, returnFocus }) {
         try {
             // read again: another tab may have added entries since the dialog opened
             const { key, entries } = runLog.current();
-            if (!entries.length) {
+            const events = readEvents(key);
+            if (!entries.length && !events.length) {
                 closeDialog();
                 toast(EVIDENCE_EMPTY_MESSAGE, { tone: "note" });
                 return;
             }
+            // the links are the queries' alone; the events then take their places among them
+            const linked = entries.map((entry) => ({ ...entry, link: linkFor(key, entry) }));
             const text = await buildEvidence({
-                entries: entries.map((entry) => ({ ...entry, link: linkFor(key, entry) })),
+                entries: events.length ? timeline(linked, events) : linked,
                 dataset: key,
                 exported: utcTimestamp(),
                 student,
@@ -203,7 +213,11 @@ export function mountEvidence({ runLog, returnFocus }) {
             const filename = evidenceFileName(key);
             saveFile(text, filename, "text/plain;charset=utf-8");
             closeDialog();
-            toast(evidenceSavedMessage(filename, entries.length));
+            toast(
+                events.length
+                    ? evidenceSavedWithEventsMessage(filename, entries.length, events.length)
+                    : evidenceSavedMessage(filename, entries.length)
+            );
         } catch {
             if (token !== exportToken) {
                 // cancelled before it failed (and perhaps opened again since): the dialog on the

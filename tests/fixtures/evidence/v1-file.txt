@@ -1,0 +1,18 @@
+SQL Lab evidence export v1
+dataset: file:mine.db
+exported: 2026-11-15T18:30:28Z
+
+[1] 2026-11-15T18:30:28Z · 4 rows
+SELECT name, price FROM fruit ORDER BY price DESC;
+
+[2] 2026-11-15T18:30:28Z · 0 rows
+UPDATE fruit SET note = 'checked' WHERE price IS NULL;
+
+[3] 2026-11-15T18:30:28Z · error: no such table: frut
+SELECT * FROM frut;
+
+[4] 2026-11-15T18:30:28Z · 1 row
+SELECT COUNT(*) AS n FROM fruit WHERE note = 'checked';
+
+student: U2034567
+sha256: ea5c86eda7311e0076345dedd140d4410e863c4efeab6b00e1d128dc61142615
