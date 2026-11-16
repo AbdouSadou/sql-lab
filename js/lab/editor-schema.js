@@ -1,11 +1,13 @@
 // The names the SQL editor completes (UI plan, section 5): the tables and views of the open
-// database with their columns. They are read when a database opens and again after a run that
-// changed the schema (PRAGMA schema_version moves on CREATE, DROP and ALTER), and handed to the
-// editor (js/components/sqlime-editor.js setSchema; the plain editor ignores them).
+// database with their columns. They are read when a database opens and again after a run, or
+// an import into the open database, that changed the schema (PRAGMA schema_version moves on
+// CREATE, DROP and ALTER), and handed to the editor (js/components/sqlime-editor.js setSchema;
+// the plain editor ignores them).
 //
-// mountEditorSchema({editor}) follows the two events index.js announces:
+// mountEditorSchema({editor}) follows the three events index.js announces:
 //   lab:database-loaded  read the names of the new database
 //   lab:run-finished     read them again if the schema changed
+//   lab:database-changed the same, after an import into the open database
 //
 // The names come from the database file and are untrusted: they only ever become completion
 // labels (text) and are quoted by identifierForSql when one is inserted.
@@ -59,12 +61,15 @@ export function mountEditorSchema({ editor }) {
         read();
     });
 
-    document.addEventListener("lab:run-finished", (event) => {
+    // a run may have changed the schema, and so may an import into the open database
+    const catchUp = (event) => {
         if (event.detail.database !== database) {
             return;
         }
         if (schemaVersion(database) !== seen) {
             read();
         }
-    });
+    };
+    document.addEventListener("lab:run-finished", catchUp);
+    document.addEventListener("lab:database-changed", catchUp);
 }

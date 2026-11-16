@@ -35,11 +35,12 @@ import { createExportAction, exportProblem } from "./lab/export.js";
 import { mountExportDialog } from "./lab/export-dialog.js";
 import { mountExportMenu } from "./lab/export-menu.js";
 import { mountEvidence } from "./lab/evidence-dialog.js";
-// Groundwork of the assessment plan (its Phase 0), in the bundle from here on. The preview flags
-// are read from the address when this import runs, before anything below can rewrite it; the
-// loader for vendored libraries has no caller until the import dialog (Phase 2).
-import "./lab/flags.js";
+// The preview flags of the assessment plan are read from the address when this import runs,
+// before anything below can rewrite it.
+import { flagOn } from "./lab/flags.js";
+import { IMPORT_BUSY_MESSAGE, OPEN_FILE_WITH_IMPORT_DESCRIPTION } from "./lab/config-workflow.js";
 import { mountHelp } from "./lab/help.js";
+import { mountImport } from "./lab/import.js";
 import { mountMoreMenu } from "./lab/more-menu.js";
 import { showPlatformKeys } from "./lab/keys.js";
 import { mountLayout } from "./lab/layout.js";
@@ -60,7 +61,6 @@ import { mountTabs } from "./lab/tabs.js";
 import { mountThemeMenu } from "./lab/theme.js";
 import { mountTextSize } from "./lab/text-size.js";
 import { toast } from "./lab/toast.js";
-import "./lab/vendor-loader.js";
 
 const ui = {
     buttons: {
@@ -92,6 +92,9 @@ const actions = {
 
 const shortcuts = {
     o: () => {
+        if (importInTheWay()) {
+            return;
+        }
         // a menu left open would still be there when the file chooser closes (":popover-open"
         // is a selector only where the popover attribute exists)
         if (typeof HTMLElement.prototype.hidePopover === "function") {
@@ -168,9 +171,22 @@ const picker = mountDatabaseSwitcher({
     button: document.querySelector("#database-button"),
     label: document.querySelector("#database-button-name"),
     menu: document.querySelector("#database-menu"),
-    onSelect: startFromDataset,
-    onOpenFile: () => ui.fileInput.click(),
+    onSelect: (dataset) => {
+        if (refusedWhileImporting()) {
+            // the switcher has already ticked the choice: it shows what is open again
+            picker.sync();
+            return;
+        }
+        startFromDataset(dataset);
+    },
+    onOpenFile: () => {
+        if (!importInTheWay()) {
+            ui.fileInput.click();
+        }
+    },
     onOpenUrl: () => openUrl(document.querySelector("#database-button")),
+    // with the import on, the entry says what else it takes (the assessment plan's Phase 2)
+    openFileDescription: flagOn("import") ? OPEN_FILE_WITH_IMPORT_DESCRIPTION : undefined,
 });
 
 // "Open from URL…": its dialog (js/lab/open-url-dialog.js)
@@ -197,9 +213,22 @@ const lab = mountExercises({
     ui: ui,
     // a Check's visible run: shown in the results pane, but the verdict is what is said
     execute: (sql) => execute(sql, { quiet: true }),
-    isLoading: () => loading,
-    openSet: (set) => setActions.openSet(set),
-    closeSet: () => setActions.closeSet(),
+    // (an import counts: a Check would otherwise go on to mark the answer after its run was refused)
+    isLoading: () => loading || importer.busy(),
+    openSet: (set) => {
+        if (refusedWhileImporting()) {
+            lab.syncPicker();
+            return undefined;
+        }
+        return setActions.openSet(set);
+    },
+    closeSet: () => {
+        if (refusedWhileImporting()) {
+            lab.syncPicker();
+            return;
+        }
+        setActions.closeSet();
+    },
     // a set that opens shows its tab, and the sidebar if it was hidden: the exercise list,
     // the progress and Reset progress live there
     showTab: () => {
@@ -275,8 +304,12 @@ mountStorageNotice({ ui, before: ui.summary });
 const exportDialog = mountExportDialog({
     returnFocus: exportReturn,
     getName: () => (database ? database.name : null),
-    getProblem: () => exportProblem(database),
+    // (a database exported part-way through an import would hold half of it)
+    getProblem: () => (importer.busy() ? IMPORT_BUSY_MESSAGE : exportProblem(database)),
     onExport: (name) => {
+        if (importer.busy()) {
+            return;
+        }
         if (name !== database.name) {
             changeName(name);
         }
@@ -296,6 +329,46 @@ mountMoreMenu({
     evidence,
     help,
 });
+// Import of CSV files (js/lab/import.js; the assessment plan's Phase 2). Behind the "import"
+// flag: with it off, nothing below changes what a choice or a drop of files does.
+// The address when an import began: Back and Forward put it back (see popstate, below).
+let addressAtImport = null;
+const importer = mountImport({
+    fileInput: ui.fileInput,
+    returnFocus: document.querySelector("#database-button"),
+    getDatabase: () => database,
+    getDatabaseLabel: () => (openDataset ? openDataset.name : database.name),
+    isCourseDatabase: () => openDataset !== null,
+    // (no import starts while a database is on its way: it would close the open one under it)
+    isLoading: () => loading,
+    openBuilt,
+    announceChanged: (changed) => announce("lab:database-changed", { database: changed }),
+    runLog,
+    results,
+    showResult: () => layout.showView("result"),
+    onBusy: (busy) => {
+        addressAtImport = busy ? { href: location.href, state: history.state } : null;
+    },
+});
+
+// While an import runs, the database it writes to must stay as it is: nothing else is run on it,
+// nothing exports it, and no other database is opened over it (the plan's section 7). The page's
+// own loading state will not do for this: closing an exercise set clears it.
+// refusedWhileImporting says so in a toast, and answers whether the caller must stop.
+function refusedWhileImporting() {
+    if (!importer.busy()) {
+        return false;
+    }
+    toast(IMPORT_BUSY_MESSAGE, { tone: "note" });
+    return true;
+}
+
+// importInTheWay: the same, and also while the import's dialog is open (Ctrl+O and Ctrl+U reach
+// the page under a dialog: a second set of files, or another database, would start there)
+function importInTheWay() {
+    return refusedWhileImporting() || importer.dialogOpen();
+}
+
 // A− and A+ in the editor toolbar: the size of the SQL and of the results (js/lab/text-size.js)
 mountTextSize({
     smaller: document.querySelector("#text-smaller"),
@@ -362,6 +435,8 @@ guardFileDrops();
 //                        how long a successful run took, in whole ms; resultSet whether a
 //                        statement returned a result set; changes, for a run with none, the rows
 //                        it changed by the engine's count (null for none to report)
+//   lab:database-changed detail {database}: an import into the open database has ended, and the
+//                        database has gained tables. Not a run: nothing goes into the run log.
 function announce(type, detail) {
     document.dispatchEvent(new CustomEvent(type, { detail }));
 }
@@ -465,6 +540,9 @@ function datasetSource(dataset, buffer) {
 // If anything fails the previous database stays open and the picker goes back to it.
 // exercise ({set, exerciseId}) opens an exercise set with the dataset: ?set=<id> instead.
 async function startFromDataset(dataset, exercise = null) {
+    if (importer.busy()) {
+        return;
+    }
     const ticket = beginLoad();
     const loader = results.showLoading({ name: dataset.name });
     let success = false;
@@ -501,6 +579,9 @@ async function startFromDataset(dataset, exercise = null) {
 // startFromUrl loads existing database
 // from specified url
 async function startFromUrl(url) {
+    if (refusedWhileImporting()) {
+        return;
+    }
     const ticket = beginLoad();
     const path = new DatabasePath(url);
     const name = path.extractName();
@@ -522,6 +603,9 @@ async function startFromUrl(url) {
 // startFromFile loads existing database
 // from binary or sql file
 async function startFromFile(file, contents, fileType) {
+    if (refusedWhileImporting()) {
+        return;
+    }
     const ticket = beginLoad();
     const path = new DatabasePath(contents, fileType);
     const name = file.name;
@@ -540,19 +624,44 @@ async function startFromFile(file, contents, fileType) {
     showStarted();
 }
 
+// openBuilt makes a database that was built apart the open one, as an opened file is: the address
+// becomes "./" and its run log is kept under its name. The import calls it with the database it
+// has filled (js/lab/import.js), and shows its own report afterwards, so there is no "no result
+// yet" here and no toast. Returns false when it could not be opened: the database is then closed.
+async function openBuilt(built) {
+    const ticket = beginLoad();
+    let success = false;
+    try {
+        success = await start(built.name, built.path, { ticket, built });
+    } finally {
+        endLoad(ticket, success);
+    }
+    if (!success) {
+        if (database !== built) {
+            closeDatabase(built);
+        }
+        return false;
+    }
+    history.pushState(database.name, null, "./");
+    pageStarted = true;
+    return true;
+}
+
 // start loads existing database or creates a new one
 // using specified database path.
 // ticket comes from beginLoad. sql (from a share link) wins over the SQL saved in storage.
 // dataset is the manifest entry being opened, or null; pristine is its bytes as fetched.
 // keepFocus leaves the keyboard focus where it is (the picker), instead of moving it to
 // the editor.
+// built is a database that is open already (openBuilt): it is taken as it is, and nothing is
+// fetched or read.
 // A load that is no longer the latest (its ticket is old) is dropped without a trace.
 // The caller has put the results pane in its loading state; a failure shows the error band there
 // (with the database that stays open under it, if one does).
 async function start(
     name,
     path,
-    { sql = null, dataset = null, pristine = null, ticket, keepFocus = false, exercise = null } = {}
+    { sql = null, dataset = null, pristine = null, ticket, keepFocus = false, exercise = null, built = null } = {}
 ) {
     // The path and the exception text come from the URL, a file or the engine: the error band
     // shows them as text.
@@ -562,7 +671,8 @@ async function start(
         // text once it is drawn (CodeMirror, or the plain box if that did not load in time),
         // so the text and the caret are not carried from one to the other.
         // (An unsupported address opens nothing, so its error is shown without waiting.)
-        const [loadedDatabase] = path.type == "unsupported" ? [null] : await Promise.all([manager.init(name, path), ui.editor.ready]);
+        const [loadedDatabase] =
+            path.type == "unsupported" ? [null] : await Promise.all([built ?? manager.init(name, path), ui.editor.ready]);
         console.debug(loadedDatabase);
         if (ticket !== latestLoad) {
             closeDatabase(loadedDatabase);
@@ -679,6 +789,10 @@ const RUN_DROPPED = Object.freeze({ dropped: true });
 // that was replaced in that frame is not run on: the request is dropped, as a stale load is.
 // quiet: the outcome is shown but not said (a Check's run: the exercise's verdict is said).
 function execute(sql, { quiet = false } = {}) {
+    if (refusedWhileImporting()) {
+        // nothing is run: it would run inside the import, on tables that are half made
+        return Promise.reject();
+    }
     if (loading) {
         // nothing is run and nothing is saved: the database it would run on is going away
         toast(LOADING_BUSY_MESSAGE, { tone: "note" });
@@ -706,7 +820,7 @@ function execute(sql, { quiet = false } = {}) {
             // replaced in that frame, or about to be (a load began): the run would land on a database
             // that is going away, so it is dropped, as Run is refused while a database loads; the
             // rejection says so (a Check whose run was dropped checks nothing)
-            if (run !== database || loading) {
+            if (run !== database || loading || importer.busy()) {
                 return Promise.reject(RUN_DROPPED);
             }
             let outcome;
@@ -743,6 +857,9 @@ function execute(sql, { quiet = false } = {}) {
 // openUrl asks for a database's address in a dialog (js/lab/open-url-dialog.js); the focus goes
 // back to returnFocus if the student cancels
 function openUrl(returnFocus) {
+    if (importInTheWay()) {
+        return;
+    }
     // a menu left open would sit above the dialog's backdrop
     if (typeof HTMLElement.prototype.hidePopover === "function") {
         for (const popover of document.querySelectorAll(":popover-open")) {
@@ -810,17 +927,13 @@ function showError(exc, details) {
 // shown in the results pane, so there is nothing left to report.
 function ignoreRejection() {}
 
-// "Open a file…" (the database switcher, Ctrl/Cmd+O): the chosen file
-ui.fileInput.addEventListener("change", () => {
-    const file = ui.fileInput.files[0];
-    if (!file) {
-        return;
-    }
+// openFile opens a database file or a SQL script from the device; read() is called once the file
+// has been read
+function openFile(file, read = () => {}) {
     const reader = new FileReader();
     const fileType = file.name.endsWith(".sql") ? "sql" : "binary";
     reader.onload = function () {
-        // forget the chosen file, so choosing the same file again fires a new change event
-        ui.fileInput.value = "";
+        read();
         startFromFile(file, reader.result, fileType);
     };
     if (fileType == "sql") {
@@ -828,10 +941,57 @@ ui.fileInput.addEventListener("change", () => {
     } else {
         reader.readAsArrayBuffer(file);
     }
+}
+
+// "Open a file…" (the database switcher, Ctrl/Cmd+O): the chosen file. With the import on, the
+// files are offered to it first: CSV files open its dialog, and it leaves a single database or
+// script to be opened as ever.
+ui.fileInput.addEventListener("change", () => {
+    // (a copy: the input's own list is emptied with its value)
+    const files = Array.from(ui.fileInput.files);
+    if (!files.length) {
+        return;
+    }
+    if (importer.take(files)) {
+        ui.fileInput.value = "";
+        return;
+    }
+    openFile(files[0], () => {
+        // forget the chosen file, so choosing the same file again fires a new change event
+        ui.fileInput.value = "";
+    });
 });
+
+// With the import on, files dropped anywhere on the page are taken exactly as if they had been
+// chosen (the assessment plan, section 3). The drop itself is refused as ever (js/lab/plain-text.js:
+// it puts no text in the editor, and the browser does not open the file); a drop is ignored while
+// a dialog is open or an import is running.
+if (importer.enabled) {
+    document.addEventListener("drop", (event) => {
+        // (taken now: the list is gone once the event is over)
+        const files = Array.from(event.dataTransfer?.files ?? []);
+        if (!files.length) {
+            return;
+        }
+        event.preventDefault();
+        if (document.querySelector("dialog[open]") || importer.busy()) {
+            return;
+        }
+        if (!importer.take(files)) {
+            openFile(files[0]);
+        }
+    });
+}
 
 // Navigate back to previous database
 window.addEventListener("popstate", () => {
+    if (importer.busy()) {
+        // Back or Forward cannot be refused: the address has changed already. Nothing is opened
+        // (it would close the database the import is writing to), and the address is put back.
+        history.pushState(addressAtImport?.state ?? null, "", addressAtImport?.href ?? location.href);
+        toast(IMPORT_BUSY_MESSAGE, { tone: "note" });
+        return;
+    }
     startFromCurrentUrl();
 });
 

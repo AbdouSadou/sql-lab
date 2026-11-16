@@ -220,11 +220,11 @@ var init_config = __esm({
     countText = (n) => Number(n).toLocaleString("en");
     rowsWord = (n) => n === 1 ? "row" : "rows";
     resultRowsText = (total) => `${countText(total)} ${rowsWord(total)} in `;
-    resultCappedText = (shown, total) => `Showing ${countText(shown)} of ${countText(total)} rows in `;
+    resultCappedText = (shown2, total) => `Showing ${countText(shown2)} of ${countText(total)} rows in `;
     resultDoneText = (changes) => changes === null ? "Done in " : `Done. ${countText(changes)} ${rowsWord(changes)} changed in `;
     resultTimeText = (ms) => `${ms} ms`;
     resultRowsAnnouncement = (total) => `${countText(total)} ${rowsWord(total)} returned`;
-    resultCappedAnnouncement = (shown, total) => `${countText(total)} rows returned. The first ${countText(shown)} are shown.`;
+    resultCappedAnnouncement = (shown2, total) => `${countText(total)} rows returned. The first ${countText(shown2)} are shown.`;
     resultDoneAnnouncement = (changes) => changes === null ? "Done." : `Done. ${countText(changes)} ${rowsWord(changes)} changed.`;
     RUNNING_TEXT = "Running…";
     ERROR_HEADING = "This query has an error";
@@ -546,12 +546,12 @@ function withoutTyped(source) {
     const all = result.options;
     const valid = result.validFor;
     const stillValid = (text, from, to, state2) => typeof valid === "function" ? valid(text, from, to, state2) : valid instanceof RegExp && new RegExp(`^(?:${valid.source})$`, valid.flags).test(text);
-    const shown = (typed) => all.filter((option) => option.label.toLowerCase() !== typed.toLowerCase());
+    const shown2 = (typed) => all.filter((option) => option.label.toLowerCase() !== typed.toLowerCase());
     const update = (current4, from, to, next) => {
       const text = next.state.sliceDoc(from, to);
-      return stillValid(text, from, to, next.state) ? { ...current4, from, options: shown(text) } : null;
+      return stillValid(text, from, to, next.state) ? { ...current4, from, options: shown2(text) } : null;
     };
-    return { ...result, validFor: void 0, update, options: shown(context2.state.sliceDoc(result.from, context2.pos)) };
+    return { ...result, validFor: void 0, update, options: shown2(context2.state.sliceDoc(result.from, context2.pos)) };
   };
 }
 function readSoundly(source) {
@@ -893,11 +893,11 @@ function titleFor(part) {
 function apply() {
   const title = document.querySelector("title");
   document.title = titleFor(title ? title.dataset.pageTitle : "");
-  for (const el7 of document.querySelectorAll("[data-app-name]")) {
-    el7.textContent = APP_NAME;
+  for (const el9 of document.querySelectorAll("[data-app-name]")) {
+    el9.textContent = APP_NAME;
   }
-  for (const el7 of document.querySelectorAll("[data-app-label]")) {
-    el7.setAttribute("aria-label", `${APP_NAME}${el7.dataset.appLabel}`);
+  for (const el9 of document.querySelectorAll("[data-app-label]")) {
+    el9.setAttribute("aria-label", `${APP_NAME}${el9.dataset.appLabel}`);
   }
 }
 if (document.readyState === "loading") {
@@ -1556,8 +1556,8 @@ var ActionController = class {
   }
   // listen listens for clicks
   listen(...elems) {
-    for (const el7 of elems) {
-      el7.addEventListener("click", this.onClick.bind(this));
+    for (const el9 of elems) {
+      el9.addEventListener("click", this.onClick.bind(this));
     }
   }
   // onClick executes an action
@@ -1587,8 +1587,8 @@ var ShortcutController = class {
   }
   // listen listens for shortcuts
   listen(...elems) {
-    for (const el7 of elems) {
-      el7.addEventListener("keydown", this.onKeydown.bind(this));
+    for (const el9 of elems) {
+      el9.addEventListener("keydown", this.onKeydown.bind(this));
     }
   }
   // onClick executes an action
@@ -2083,21 +2083,21 @@ function createCopyLinkAction({ editor, button, popover, altAnchor = null }) {
 }
 function copyText(text) {
   const before = document.activeElement;
-  const field2 = document.createElement("textarea");
-  field2.value = text;
-  field2.readOnly = true;
-  field2.className = "visually-hidden";
-  field2.setAttribute("aria-hidden", "true");
-  field2.tabIndex = -1;
-  document.body.append(field2);
-  field2.select();
+  const field3 = document.createElement("textarea");
+  field3.value = text;
+  field3.readOnly = true;
+  field3.className = "visually-hidden";
+  field3.setAttribute("aria-hidden", "true");
+  field3.tabIndex = -1;
+  document.body.append(field3);
+  field3.select();
   let ok = false;
   try {
     ok = document.execCommand("copy");
   } catch {
     ok = false;
   }
-  field2.remove();
+  field3.remove();
   if (before instanceof HTMLElement) {
     before.focus({ preventScroll: true });
     if (document.activeElement !== before) {
@@ -2133,23 +2133,23 @@ function mountFallback(popover, anchor) {
   label.className = "share-popover-label";
   label.htmlFor = "share-link-field";
   label.textContent = LINK_FIELD_LABEL;
-  const field2 = document.createElement("input");
-  field2.type = "text";
-  field2.id = "share-link-field";
-  field2.className = "share-link-field";
-  field2.readOnly = true;
-  field2.spellcheck = false;
-  const warning = document.createElement("p");
-  warning.className = "share-popover-text share-link-warning";
-  warning.hidden = true;
+  const field3 = document.createElement("input");
+  field3.type = "text";
+  field3.id = "share-link-field";
+  field3.className = "share-link-field";
+  field3.readOnly = true;
+  field3.spellcheck = false;
+  const warning2 = document.createElement("p");
+  warning2.className = "share-popover-text share-link-warning";
+  warning2.hidden = true;
   popover.setAttribute("role", "dialog");
   popover.setAttribute("aria-labelledby", title.id);
-  popover.replaceChildren(title, text, label, field2, warning);
+  popover.replaceChildren(title, text, label, field3, warning2);
   popover.addEventListener("toggle", (event) => {
     if (event.newState === "open" && popover.matches(":popover-open")) {
       placePopover(popover, anchor());
-      field2.focus({ preventScroll: true });
-      field2.select();
+      field3.focus({ preventScroll: true });
+      field3.select();
       return;
     }
     const focused = document.activeElement;
@@ -2164,12 +2164,12 @@ function mountFallback(popover, anchor) {
   });
   return {
     show(url, note) {
-      field2.value = url;
-      warning.textContent = note;
-      warning.hidden = !note;
+      field3.value = url;
+      warning2.textContent = note;
+      warning2.hidden = !note;
       if (popover.matches(":popover-open")) {
-        field2.focus({ preventScroll: true });
-        field2.select();
+        field3.focus({ preventScroll: true });
+        field3.select();
       } else {
         placePopover(popover, anchor());
         popover.showPopover();
@@ -2478,7 +2478,7 @@ function shortcutHint(key) {
   hint.textContent = `${MOD_KEY} ${key}`;
   return hint;
 }
-function mountDatabaseSwitcher({ button, label, menu, onSelect, onOpenFile, onOpenUrl }) {
+function mountDatabaseSwitcher({ button, label, menu, onSelect, onOpenFile, onOpenUrl, openFileDescription = OPEN_FILE_DESCRIPTION }) {
   menu.setAttribute("aria-label", DATABASE_MENU_LABEL);
   let datasets = [];
   let manifestKnown = false;
@@ -2526,13 +2526,13 @@ function mountDatabaseSwitcher({ button, label, menu, onSelect, onOpenFile, onOp
     });
     const separator2 = element("div", "menu-separator");
     separator2.setAttribute("role", "separator");
-    const openFile = menuItem({ role: "menuitem", id: "open-file", glyph: icon("file-up"), label: OPEN_FILE_TEXT, description: OPEN_FILE_DESCRIPTION });
-    openFile.setAttribute("aria-keyshortcuts", "Control+O Meta+O");
-    openFile.append(shortcutHint("O"));
+    const openFile2 = menuItem({ role: "menuitem", id: "open-file", glyph: icon("file-up"), label: OPEN_FILE_TEXT, description: openFileDescription });
+    openFile2.setAttribute("aria-keyshortcuts", "Control+O Meta+O");
+    openFile2.append(shortcutHint("O"));
     const openUrl2 = menuItem({ role: "menuitem", id: "open-url", glyph: icon("globe"), label: OPEN_URL_TEXT, description: OPEN_URL_DESCRIPTION });
     openUrl2.setAttribute("aria-keyshortcuts", "Control+U Meta+U");
     openUrl2.append(shortcutHint("U"));
-    menu.replaceChildren(...items, ...items.length ? [separator2] : [], openFile, openUrl2);
+    menu.replaceChildren(...items, ...items.length ? [separator2] : [], openFile2, openUrl2);
     renderButton();
   }
   function askSizes() {
@@ -2620,7 +2620,7 @@ function readSchema(database2) {
   return objects.map(([type, name]) => {
     let columns = [];
     try {
-      columns = rows(database2, pragmaTableInfoSql(name)).map(([, column, columnType]) => ({ name: column, type: columnType }));
+      columns = rows(database2, pragmaTableInfoSql(name)).map(([, column, columnType2]) => ({ name: column, type: columnType2 }));
     } catch (exc) {
     }
     return { name, type, columns };
@@ -2637,14 +2637,16 @@ function mountEditorSchema({ editor }) {
     database2 = event.detail.database;
     read2();
   });
-  document.addEventListener("lab:run-finished", (event) => {
+  const catchUp = (event) => {
     if (event.detail.database !== database2) {
       return;
     }
     if (schemaVersion(database2) !== seen) {
       read2();
     }
-  });
+  };
+  document.addEventListener("lab:run-finished", catchUp);
+  document.addEventListener("lab:database-changed", catchUp);
 }
 
 // js/lab/exercise-panel.js
@@ -2755,9 +2757,9 @@ function compareResults(expected, got, { orderMatters = false, checkColumnNames 
   if (first === -1) {
     return { status: "pass", rows: want.length };
   }
-  const shown = (rows3) => rows3.slice(first, first + DIFF_MAX_ROWS).map((r) => Array.from(r.row, displayValue));
-  const wantShown = shown(want);
-  const haveShown = shown(have);
+  const shown2 = (rows3) => rows3.slice(first, first + DIFF_MAX_ROWS).map((r) => Array.from(r.row, displayValue));
+  const wantShown = shown2(want);
+  const haveShown = shown2(have);
   const sorted = !orderMatters;
   return fail2("row", rowMessage(first + 1, sorted, wantShown, haveShown), {
     rowIndex: first + 1,
@@ -2928,17 +2930,17 @@ function validateSet(data, expectedId) {
       return fail2(`the exercise id "${raw.id}" is used more than once.`);
     }
     seen.add(raw.id);
-    for (const field2 of ["title", "prompt", "model_query"]) {
-      if (!isText(raw[field2])) {
-        return fail2(`exercise "${raw.id}" needs a "${field2}" (text that is not blank).`);
+    for (const field3 of ["title", "prompt", "model_query"]) {
+      if (!isText(raw[field3])) {
+        return fail2(`exercise "${raw.id}" needs a "${field3}" (text that is not blank).`);
       }
     }
     if (raw.hints !== void 0 && (!Array.isArray(raw.hints) || !raw.hints.every((h) => typeof h === "string"))) {
       return fail2(`the "hints" of exercise "${raw.id}" must be a list of text.`);
     }
-    for (const field2 of ["order_matters", "check_column_names"]) {
-      if (raw[field2] !== void 0 && typeof raw[field2] !== "boolean") {
-        return fail2(`the "${field2}" of exercise "${raw.id}" must be true or false.`);
+    for (const field3 of ["order_matters", "check_column_names"]) {
+      if (raw[field3] !== void 0 && typeof raw[field3] !== "boolean") {
+        return fail2(`the "${field3}" of exercise "${raw.id}" must be true or false.`);
       }
     }
     exercises.push({
@@ -3076,7 +3078,125 @@ init_config();
 
 // js/lab/storage-notice.js
 init_config();
-var TEXTS = { log: STORAGE_NOTICE_LOG, progress: STORAGE_NOTICE_PROGRESS };
+
+// js/lab/config-workflow.js
+var PREVIEW_PARAM = "preview";
+var PREVIEW_FLAGS = {
+  import: false,
+  export: false,
+  "excel-import": false,
+  "excel-export": false
+};
+var PREVIEW_FLAG_NEEDS = { "excel-import": "import", "excel-export": "export" };
+var EVENTS_PREFIX = "sqllab.events.";
+var EVENTS_VERSION = 1;
+var EVENTS_MAX = 1e3;
+var EVENTS_MAX_BYTES = 1e6;
+var EVENT_MAX_LINES = 200;
+var EVENT_MAX_LINE_CHARS = 500;
+var STORAGE_NOTICE_EVENTS = "Your browser could not save the record of the files you brought in. It is kept until this tab is closed: export your evidence before you close it.";
+var evidenceSavedWithEventsMessage = (filename, queries, events) => `Exported ${filename} with ${queries} ${queries === 1 ? "query" : "queries"} and ${events} ${events === 1 ? "event" : "events"}`;
+var VENDOR_LOAD_TIMEOUT_MS = 3e4;
+var IMPORT_SLICE_BYTES = 64 * 1024;
+var INSPECT_SLICE_BYTES = 4 * 1024 * 1024;
+var PREVIEW_BYTES = 1024 * 1024;
+var PREVIEW_ROWS = 20;
+var COPY_CELLS = 15e4;
+var PAINT_EVERY_MS = 150;
+var FRAME_MAX_MS = 250;
+var IMPORT_TEXT_WARN_BYTES = 50 * 1024 * 1024;
+var IMPORT_TEXT_MAX_BYTES = 250 * 1024 * 1024;
+var OPEN_FILE_WITH_IMPORT_DESCRIPTION = "A SQLite database, a .sql script, or CSV files to bring in as tables";
+var IMPORT_MIXED_MESSAGE = "Nothing was opened. Choose CSV files to bring in together, or one database or script on its own.";
+var IMPORT_SEVERAL_DATABASES_MESSAGE = "Nothing was opened. Only one database or script can be opened at a time.";
+var IMPORT_BUSY_MESSAGE = "An import is running, so nothing else was done. Wait for it to end, or cancel it.";
+var IMPORT_LOADING_MESSAGE = "A database is still loading, so the files were not taken. Choose them again once it has opened.";
+var IMPORT_LIBRARY_FAILED_MESSAGE = "The CSV reader could not be loaded, so nothing was imported. Check the connection and try again.";
+var IMPORT_DIALOG_TITLE = "Import files";
+var IMPORT_DIALOG_TEXT = "Each file becomes a table, read as it is: nothing in it is cleaned or changed.";
+var IMPORT_TABS_LABEL = "Files";
+var IMPORT_SUBMIT_TEXT = "Import";
+var IMPORT_CANCEL_TEXT = "Cancel";
+var IMPORT_CLOSE_TEXT = "Close";
+var IMPORT_REFUSED_TAB_TEXT = "cannot be imported";
+var IMPORT_READING_TEXT = "Reading the file…";
+var IMPORT_TABLE_NAME_LABEL = "Table name";
+var IMPORT_TABLE_NAME_HINT = "Letters, digits and underscores. Anything else becomes an underscore.";
+var IMPORT_NAME_EMPTY_MESSAGE = "Give the table a name.";
+var IMPORT_NAME_RESERVED_MESSAGE = "A name cannot start with sqlite_: SQLite keeps those for itself.";
+var IMPORT_NAME_TWICE_MESSAGE = "Another file here has this table name. Change one of them.";
+var importNameTakenMessage = (database2) => `${database2} already has a table, view or index with this name.`;
+var IMPORT_NAME_TEMPORARY_MESSAGE = "A temporary table or view already has this name.";
+var IMPORT_DELIMITER_LABEL = "Delimiter";
+var IMPORT_DELIMITER_NAMES = { ",": "Comma", ";": "Semicolon", "	": "Tab", "|": "Pipe" };
+var IMPORT_ENCODING_LABEL = "Text encoding";
+var IMPORT_ENCODING_NAMES = {
+  "utf-8": "UTF-8",
+  "utf-16le": "UTF-16, little-endian",
+  "utf-16be": "UTF-16, big-endian",
+  "windows-1252": "Windows-1252"
+};
+var importEncodingMessage = (encoding) => `The bytes of this file are not ${IMPORT_ENCODING_NAMES[encoding]}. Choose another encoding.`;
+var IMPORT_HAS_NAMES_LABEL = "The file has a row of column names";
+var IMPORT_NAMES_ROW_LABEL = "Column names are on row";
+var importNamesRowMessage = (rows3) => rows3 === 1 ? "The part of the file shown here has only 1 row." : `The part of the file shown here has only ${rows3} rows.`;
+var IMPORT_NAMES_ROW_NOT_A_ROW_MESSAGE = "Give the row as a whole number, 1 or more.";
+var IMPORT_PREVIEW_LABEL = "The first rows, as read";
+var IMPORT_PREVIEW_ROW_HEADING = "Row";
+var IMPORT_PREVIEW_LEFT_OUT = "left out";
+var IMPORT_PREVIEW_NAMES = "column names";
+var IMPORT_PREVIEW_BLANK = "blank";
+var importPreviewAboveMessage = (rows3) => rows3 === 1 ? "1 more row above is left out." : `${rows3} more rows above are left out.`;
+var IMPORT_PREVIEW_NO_DATA_MESSAGE = "No rows of data under the column names.";
+var IMPORT_DESTINATION_LABEL = "Import into";
+var IMPORT_NEW_DATABASE_LABEL = "A new database";
+var IMPORT_NEW_DATABASE_NAME_LABEL = "Name of the new database";
+var IMPORT_NEW_DATABASE_EMPTY_MESSAGE = "Give the new database a name.";
+var importOpenDatabaseLabel = (name) => `The open database, ${name}`;
+var IMPORT_COURSE_DATABASE_NOTE = "Files are never imported into a course database.";
+var IMPORT_EMPTY_REASON = "This file is empty, so there is nothing to import.";
+var IMPORT_WORKBOOK_REASON = "This is an Excel workbook, and Excel files cannot be imported yet. In Excel, save the sheet as CSV, and import that.";
+var IMPORT_NOT_TEXT_REASON = "This file is not text, so it cannot be read as CSV.";
+var IMPORT_TOO_LARGE_REASON = "This file is over 250 MB, which is more than the browser can import.";
+var IMPORT_TOO_WIDE_REASON = "A row of this file has more than 2,000 columns, which is more than a table can have. Nothing of it was imported.";
+var IMPORT_UNREADABLE_REASON = "The browser could not read this file.";
+var IMPORT_NO_NAMES_ROW_REASON = "The file ends before the row that was said to hold the column names.";
+var IMPORT_NO_ROW_REASON = "The first megabyte of this file does not hold one complete row, so its rows cannot be shown before they are imported. A quote mark near the start of the file may never be closed.";
+var IMPORT_CHANGED_REASON = "This file was changed after it was chosen, so it is no longer the file that was shown here. Choose it again.";
+var IMPORT_SETTINGS_TOO_WIDE_MESSAGE = "Read this way, a row of the file has more than 2,000 columns, which is more than a table can have. Choose another delimiter or text encoding.";
+var IMPORT_SETTINGS_NO_ROW_MESSAGE = "Read this way, the start of the file does not hold one complete row. Choose another delimiter or text encoding.";
+var importHoldReadingMessage = (name) => `Still reading ${name}. Import can be pressed once every file has been read.`;
+var importHoldWaitingMessage = (name) => `${name} is waiting for an answer in its tab. Import can be pressed after that.`;
+var importHoldProblemMessage = (name) => `${name} cannot be imported as it is set. Its tab says why.`;
+var importLargeFileMessage = (megabytes) => `This file is ${megabytes} MB. Reading it takes a while, and the page may be slow meanwhile.`;
+var IMPORT_LARGE_FILE_CONTINUE_TEXT = "Read this file";
+var IMPORT_LARGE_FILE_LEAVE_TEXT = "Leave this file out";
+var IMPORT_LEFT_OUT_REASON = "You left this file out, so it will not be imported. To import it after all, choose the files again.";
+var IMPORT_LEFT_OUT_TAB_TEXT = "left out";
+var importProgressTitle = (at, of, name) => of === 1 ? `Importing ${name}` : `Importing file ${at} of ${of}: ${name}`;
+var IMPORT_PROGRESS_READING = "Reading rows";
+var IMPORT_PROGRESS_COPYING = "Making the table";
+var IMPORT_FAILED_MESSAGE = "The import failed, and nothing was imported.";
+var IMPORT_OUT_OF_MEMORY_MESSAGE = "The browser ran out of memory, and nothing was imported.";
+var IMPORT_LOST_TRANSACTION_MESSAGE = " The transaction you had open was undone as well.";
+var IMPORT_NOT_OPENED_MESSAGE = "The new database could not be opened, and nothing was imported.";
+var IMPORT_LOADING_DIALOG_MESSAGE = "A database is still loading, so nothing was imported. Once it has opened, choose the files again. If it does not open, press Import again.";
+var IMPORT_DESTINATION_GONE_MESSAGE = "Nothing was imported: files cannot go into the database that is open now. Choose a new database, or close this and choose the files again.";
+var importedMessage = (tables, database2) => `Imported ${tables} ${tables === 1 ? "table" : "tables"} into ${database2}`;
+var importReportTableLine = (rows3, columns, source) => `${rows3} ${rows3 === 1 ? "row" : "rows"}, ${columns} ${columns === 1 ? "column" : "columns"}, from ${source}`;
+var IMPORT_REPORT_COLUMN_HEADING = "Column";
+var IMPORT_REPORT_ORIGINAL_HEADING = "Name in the file";
+var IMPORT_REPORT_TYPE_HEADING = "Type";
+var IMPORT_REPORT_BLANKS_HEADING = "Blanks";
+var IMPORT_REPORT_NOTE_HEADING = "Note";
+var IMPORT_REPORT_BLANK_NAME = "blank";
+var IMPORT_REPORT_BLOCKING_NOTE = "Mostly numbers. The first value that is not:";
+var IMPORT_REPORT_QUOTES_WARNING = "A quote in this file has no partner. Everything after it may have been read as one field: look at the last rows.";
+var importEventFileLine = (name, bytes) => `file: ${name}, ${bytes} bytes`;
+var importEventTableLine = (table, rows3, columns) => `table: ${table}, ${rows3} rows, ${columns} columns`;
+
+// js/lab/storage-notice.js
+var TEXTS = { log: STORAGE_NOTICE_LOG, events: STORAGE_NOTICE_EVENTS, progress: STORAGE_NOTICE_PROGRESS };
 function reportStorage(what, ok) {
   try {
     if (typeof document !== "undefined" && typeof CustomEvent === "function") {
@@ -3403,8 +3523,8 @@ function mountExercises({
         item2.setAttribute("aria-checked", String(item2.dataset.setId === chosen));
       }
     }
-    const shown = chosen === "" ? null : listed.find((e) => e.ok && e.id === chosen)?.set ?? set2;
-    const label = shown ? shown.title : SET_PICKER_NONE;
+    const shown2 = chosen === "" ? null : listed.find((e) => e.ok && e.id === chosen)?.set ?? set2;
+    const label = shown2 ? shown2.title : SET_PICKER_NONE;
     pickerLabel.textContent = label;
     picker2.setAttribute("aria-label", `${SET_PICKER_LABEL}: ${label}`);
     picker2.disabled = items.length <= 1;
@@ -3491,7 +3611,7 @@ function mountExercises({
   els.list.addEventListener("click", (event) => {
     const button = event.target.closest("button.exercise-item");
     if (button && set2) {
-      select(button.dataset.exerciseId);
+      select2(button.dataset.exerciseId);
     }
   });
   els.list.addEventListener("focusin", (event) => {
@@ -3536,31 +3656,31 @@ function mountExercises({
     els.prompt.replaceChildren(heading, el("p", "exercise-text", current4.prompt));
   }
   function renderHints() {
-    const shown = hintsShown.get(hintKey()) ?? 0;
+    const shown2 = hintsShown.get(hintKey()) ?? 0;
     els.hints.removeAttribute("aria-live");
-    els.hints.replaceChildren(...current4.hints.slice(0, shown).map((text, i) => hintItem(i + 1, text)));
-    els.hints.hidden = shown === 0;
+    els.hints.replaceChildren(...current4.hints.slice(0, shown2).map((text, i) => hintItem(i + 1, text)));
+    els.hints.hidden = shown2 === 0;
     requestAnimationFrame(() => els.hints.setAttribute("aria-live", "polite"));
     refreshHintButton();
   }
   function refreshHintButton() {
-    const shown = hintsShown.get(hintKey()) ?? 0;
+    const shown2 = hintsShown.get(hintKey()) ?? 0;
     const total = current4.hints.length;
-    els.hintButton.hidden = shown >= total;
-    els.hintButton.textContent = shown < total ? exerciseHintText(shown + 1, total) : "";
+    els.hintButton.hidden = shown2 >= total;
+    els.hintButton.textContent = shown2 < total ? exerciseHintText(shown2 + 1, total) : "";
   }
   els.hints.setAttribute("aria-label", EXERCISE_HINTS_LABEL);
   els.hintButton.addEventListener("click", () => {
     if (!set2) {
       return;
     }
-    const shown = hintsShown.get(hintKey()) ?? 0;
-    if (shown >= current4.hints.length) {
+    const shown2 = hintsShown.get(hintKey()) ?? 0;
+    if (shown2 >= current4.hints.length) {
       return;
     }
     const hadFocus = document.activeElement === els.hintButton;
-    hintsShown.set(hintKey(), shown + 1);
-    const item2 = hintItem(shown + 1, current4.hints[shown]);
+    hintsShown.set(hintKey(), shown2 + 1);
+    const item2 = hintItem(shown2 + 1, current4.hints[shown2]);
     item2.tabIndex = -1;
     els.hints.append(item2);
     els.hints.hidden = false;
@@ -3598,7 +3718,7 @@ function mountExercises({
     button.addEventListener("click", () => {
       const target = set2 && button.getAttribute("aria-disabled") !== "true" ? neighbour(step) : null;
       if (target) {
-        select(target.id);
+        select2(target.id);
       }
     });
   }
@@ -3781,7 +3901,7 @@ function mountExercises({
     button.title = exerciseTargetText(set2.exercises.indexOf(next) + 1, set2.exercises.length, next.title);
     button.addEventListener("click", () => {
       if (set2 === openedSet) {
-        select(next.id);
+        select2(next.id);
         ui2.editor.focus();
       }
     });
@@ -3975,7 +4095,7 @@ function mountExercises({
       current4.prompt
     );
   }
-  function select(id) {
+  function select2(id) {
     const next = set2.exercises.find((e) => e.id === id);
     if (!next || next === current4) {
       return;
@@ -4245,24 +4365,6 @@ function mountExportMenu({ button, menu, onDatabase, results: results2, evidence
 // js/lab/evidence-dialog.js
 init_config();
 
-// js/lab/config-workflow.js
-var PREVIEW_PARAM = "preview";
-var PREVIEW_FLAGS = {
-  import: false,
-  export: false,
-  "excel-import": false,
-  "excel-export": false
-};
-var PREVIEW_FLAG_NEEDS = { "excel-import": "import", "excel-export": "export" };
-var EVENTS_PREFIX = "sqllab.events.";
-var EVENTS_VERSION = 1;
-var EVENTS_MAX = 1e3;
-var EVENTS_MAX_BYTES = 1e6;
-var EVENT_MAX_LINES = 200;
-var EVENT_MAX_LINE_CHARS = 500;
-var evidenceSavedWithEventsMessage = (filename, queries, events) => `Exported ${filename} with ${queries} ${queries === 1 ? "query" : "queries"} and ${events} ${events === 1 ? "event" : "events"}`;
-var VENDOR_LOAD_TIMEOUT_MS = 3e4;
-
 // js/lab/events.js
 var events_exports = {};
 __export(events_exports, {
@@ -4504,33 +4606,33 @@ function sqlPreview(sql) {
   return lines.length > 1 ? `${first} ${STATEMENT_ELLIPSIS}` : first;
 }
 function span(className, text) {
-  const el7 = document.createElement("span");
-  el7.className = className;
-  el7.textContent = text;
-  return el7;
+  const el9 = document.createElement("span");
+  el9.className = className;
+  el9.textContent = text;
+  return el9;
 }
 function mountRunLog({ ui: ui2, list, isShown = () => true }) {
   const editor = ui2.editor;
   const keys = /* @__PURE__ */ new WeakMap();
   let currentKey = null;
-  let shown = [];
+  let shown2 = [];
   let roving = 0;
   list.setAttribute("role", "group");
   list.setAttribute("aria-label", HISTORY_LIST_LABEL);
   const entryButtons = () => [...list.querySelectorAll("button.run-history-entry")];
   function render() {
     const focusedIndex = list.contains(document.activeElement) ? Number(document.activeElement.dataset.index) : null;
-    shown = currentKey === null ? [] : readLog(currentKey).reverse();
+    shown2 = currentKey === null ? [] : readLog(currentKey).reverse();
     list.replaceChildren();
-    if (!shown.length) {
+    if (!shown2.length) {
       const empty = document.createElement("p");
       empty.className = "run-history-empty";
       empty.textContent = HISTORY_EMPTY_MESSAGE;
       list.append(empty);
       return;
     }
-    roving = Math.min(roving, shown.length - 1);
-    shown.forEach((entry2, index) => {
+    roving = Math.min(roving, shown2.length - 1);
+    shown2.forEach((entry2, index) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "run-history-entry";
@@ -4548,7 +4650,7 @@ function mountRunLog({ ui: ui2, list, isShown = () => true }) {
       list.append(button);
     });
     if (focusedIndex !== null) {
-      entryButtons()[Math.min(focusedIndex, shown.length - 1)]?.focus();
+      entryButtons()[Math.min(focusedIndex, shown2.length - 1)]?.focus();
     }
   }
   function refresh() {
@@ -4557,7 +4659,7 @@ function mountRunLog({ ui: ui2, list, isShown = () => true }) {
     }
   }
   function restore(index) {
-    const entry2 = shown[index];
+    const entry2 = shown2[index];
     if (!entry2) {
       return;
     }
@@ -4762,6 +4864,7 @@ function recordEvent(key, detail, now = /* @__PURE__ */ new Date()) {
     const all = cap2((own ? combine2(own, theirs ?? []) : theirs ?? []).concat(event));
     if (theirs === null) {
       memory3.set(key, all);
+      reportStorage("events", false);
       return copyEvent(event);
     }
     if (writeNewest(key, all) === all.length) {
@@ -4769,6 +4872,7 @@ function recordEvent(key, detail, now = /* @__PURE__ */ new Date()) {
     } else {
       memory3.set(key, all);
     }
+    reportStorage("events", memory3.size === 0);
     return copyEvent(event);
   } catch {
     return null;
@@ -5076,6 +5180,1902 @@ function mountHelp({ button, popover, altAnchor = null }) {
   };
 }
 
+// js/lab/import.js
+var import_exports = {};
+__export(import_exports, {
+  mountImport: () => mountImport
+});
+
+// js/lab/import-rules.js
+var WHOLE = /^-?(?:0|[1-9][0-9]{0,14})$/;
+var DECIMAL = /^-?(?:0|[1-9][0-9]*)\.[0-9]+$/;
+var SURE_DECIMAL_CHARS = 300;
+var LARGEST_SURE = 1e300;
+var SMALLEST_SURE = 1e-300;
+var A_DIGIT_NOT_ZERO = /[1-9]/;
+function fitsANumber(text) {
+  const size = Math.abs(Number(text));
+  return size <= LARGEST_SURE && (size >= SMALLEST_SURE || !A_DIGIT_NOT_ZERO.test(text));
+}
+var isWhole = (text) => typeof text === "string" && text !== "-0" && WHOLE.test(text);
+var isDecimal = (text) => typeof text === "string" && DECIMAL.test(text) && (text.length <= SURE_DECIMAL_CHARS || fitsANumber(text));
+var isPlainNumber = (text) => isWhole(text) || isDecimal(text);
+function newTally() {
+  return { values: 0, empty: 0, whole: 0, decimal: 0, text: 0, firstText: null };
+}
+function tallyValue(tally, value) {
+  tally.values++;
+  if (value === null) {
+    tally.empty++;
+  } else if (isWhole(value)) {
+    tally.whole++;
+  } else if (isDecimal(value)) {
+    tally.decimal++;
+  } else {
+    if (tally.text === 0) {
+      tally.firstText = value;
+    }
+    tally.text++;
+  }
+}
+function columnType(tally) {
+  if (tally.text > 0 || tally.whole + tally.decimal === 0) {
+    return "TEXT";
+  }
+  return tally.decimal > 0 ? "REAL" : "INTEGER";
+}
+function blockingValue(tally) {
+  const numbers = tally.whole + tally.decimal;
+  return tally.text > 0 && numbers * 2 >= numbers + tally.text ? tally.firstText : null;
+}
+var FALLBACK_TABLE_NAME = "table";
+function sanitiseName(text) {
+  const name = String(text).replace(/[^A-Za-z0-9_]+/g, "_");
+  return /^[0-9]/.test(name) ? `c_${name}` : name;
+}
+var isBlankName = (text) => text === null || text === void 0 || String(text).trim() === "";
+var sameNameKey = (name) => String(name).replace(/[A-Z]/g, (letter) => letter.toLowerCase());
+function uniqueName(base, used) {
+  let name = base;
+  for (let n = 2; used.has(sameNameKey(name)); n++) {
+    name = `${base}_${n}`;
+  }
+  used.add(sameNameKey(name));
+  return name;
+}
+function columnNames(header, width) {
+  const used = /* @__PURE__ */ new Set();
+  const names = [];
+  for (let i = 0; i < width; i++) {
+    let original = null;
+    let base;
+    if (header === null) {
+      base = `column_${i + 1}`;
+    } else if (i >= header.length) {
+      base = `extra_${i - header.length + 1}`;
+    } else {
+      original = header[i] ?? "";
+      base = isBlankName(original) ? `column_${i + 1}` : sanitiseName(original);
+    }
+    names.push({ name: uniqueName(base, used), original });
+  }
+  return names;
+}
+function tableNameFor(fileName) {
+  const name = String(fileName);
+  const dot = name.lastIndexOf(".");
+  const base = dot === -1 ? name : name.slice(0, dot);
+  return base === "" ? FALLBACK_TABLE_NAME : sanitiseName(base);
+}
+var firstRowLooksLikeNames = (row) => Array.isArray(row) && !row.some((field3) => isPlainNumber(field3));
+
+// js/lab/import-csv.js
+var DELIMITERS = [
+  { value: ",", name: "comma" },
+  { value: ";", name: "semicolon" },
+  { value: "	", name: "tab" },
+  { value: "|", name: "pipe" }
+];
+var MAX_COLUMNS = 2e3;
+var ImportRefused = class extends Error {
+  constructor(reason) {
+    super(`import refused: ${reason}`);
+    this.name = "ImportRefused";
+    this.reason = reason;
+  }
+};
+var QUOTE_ERRORS = /* @__PURE__ */ new Set(["InvalidQuotes", "MissingQuotes"]);
+var settings = (delimiter, newline) => ({ delimiter, newline, skipEmptyLines: true, header: false, dynamicTyping: false });
+var QUOTE = '"';
+var BYTE_ORDER_MARK = 65279;
+var WHITE_SPACE = /\s/;
+function closingQuote(text, open, endsField) {
+  let at = open;
+  for (; ; ) {
+    at = text.indexOf(QUOTE, at + 1);
+    if (at === -1) {
+      return -1;
+    }
+    if (text[at + 1] === QUOTE) {
+      at++;
+      continue;
+    }
+    let next = at + 1;
+    while (next < text.length && !endsField(text[next]) && WHITE_SPACE.test(text[next])) {
+      next++;
+    }
+    if (next >= text.length || endsField(text[next])) {
+      return at;
+    }
+  }
+}
+function outsideQuotes(text, delimiters) {
+  const endsField = (character) => character === "\n" || character === "\r" || delimiters.includes(character);
+  let outside = "";
+  let from = 0;
+  let quote = text.indexOf(QUOTE);
+  while (quote !== -1) {
+    if (quote !== 0 && !endsField(text[quote - 1])) {
+      quote = text.indexOf(QUOTE, quote + 1);
+      continue;
+    }
+    outside += text.slice(from, quote);
+    const close = closingQuote(text, quote, endsField);
+    if (close === -1) {
+      return outside;
+    }
+    from = close + 1;
+    quote = text.indexOf(QUOTE, from);
+  }
+  return outside + text.slice(from);
+}
+function lineEnding(text, delimiters) {
+  const outside = outsideQuotes(text, delimiters);
+  const firstReturn = outside.indexOf("\r");
+  const firstFeed = outside.indexOf("\n");
+  if (firstReturn === -1 || firstFeed !== -1 && firstFeed < firstReturn) {
+    return "\n";
+  }
+  let returns = 0;
+  let pairs = 0;
+  for (let at = firstReturn; at !== -1; at = outside.indexOf("\r", at + 1)) {
+    returns++;
+    if (outside[at + 1] === "\n") {
+      pairs++;
+    }
+  }
+  return pairs >= (returns + 1) / 2 ? "\r\n" : "\r";
+}
+function readStart(Papa, text, { whole = true, delimiter = "" } = {}) {
+  const candidates = DELIMITERS.map((d) => d.value);
+  const given = text.charCodeAt(0) === BYTE_ORDER_MARK ? `\uFEFF${text}` : text;
+  const read2 = (newline2, separator2) => Papa.parse(given, { ...settings(separator2, newline2), delimitersToGuess: candidates });
+  const counted = !whole && text.endsWith("\r") ? text.slice(0, -1) : text;
+  let newline = lineEnding(counted, delimiter === "" ? candidates : [delimiter]);
+  let result = read2(newline, delimiter);
+  const guessed = delimiter === "" && !result.errors.some((error) => error.code === "UndetectableDelimiter");
+  if (delimiter === "") {
+    const settled = lineEnding(counted, [result.meta.delimiter]);
+    if (settled !== newline) {
+      newline = settled;
+      result = read2(newline, result.meta.delimiter);
+    }
+  }
+  const rows3 = result.data;
+  if (!whole && rows3.length) {
+    rows3.pop();
+  }
+  return { rows: rows3, delimiter: result.meta.delimiter, newline, guessed };
+}
+async function readPieces(Papa, pieces, { delimiter, newline, onRows }) {
+  const listeners = {};
+  const input = {
+    readable: true,
+    read() {
+    },
+    pause() {
+    },
+    resume() {
+    },
+    on: (type, listener) => listeners[type] = listener,
+    removeListener: (type, listener) => listeners[type] === listener && delete listeners[type]
+  };
+  let badQuotes = false;
+  let failure = null;
+  let began = 0;
+  Papa.parse(input, {
+    ...settings(delimiter, newline),
+    chunk(results2) {
+      const ended = results2.meta.cursor - began;
+      badQuotes ||= results2.errors.some((error) => QUOTE_ERRORS.has(error.code) && error.index <= ended);
+      began = results2.meta.cursor;
+      onRows(results2.data);
+    },
+    // (what onRows throws comes back through here: Papa catches it)
+    error: (error) => failure = error
+  });
+  const send = (type, piece) => {
+    listeners[type]?.(piece);
+    if (failure) {
+      throw failure;
+    }
+  };
+  for await (const piece of pieces) {
+    send("data", piece);
+  }
+  send("end");
+  return { badQuotes };
+}
+function newTableReader({ hasNames, namesRow = 1 }) {
+  let seen = 0;
+  let names = hasNames ? void 0 : null;
+  let width = 0;
+  let rows3 = 0;
+  const tallies = [];
+  const checkWidth = (row) => {
+    if (row.length > MAX_COLUMNS) {
+      throw new ImportRefused("too-wide");
+    }
+  };
+  return {
+    take(read2) {
+      const data = [];
+      for (const row of read2) {
+        seen++;
+        checkWidth(row);
+        if (hasNames && seen <= namesRow) {
+          if (seen === namesRow) {
+            names = row;
+          }
+          continue;
+        }
+        const values = row.map((field3) => field3 === "" ? null : field3);
+        values.forEach((value, i) => tallyValue(tallies[i] ??= newTally(), value));
+        width = Math.max(width, values.length);
+        rows3++;
+        data.push(values);
+      }
+      return data;
+    },
+    finish() {
+      if (names === void 0) {
+        throw new ImportRefused(seen === 0 ? "empty" : "no-names-row");
+      }
+      const columns = columnNames(names, Math.max(width, names?.length ?? 0));
+      if (!columns.length) {
+        throw new ImportRefused("empty");
+      }
+      return {
+        rows: rows3,
+        columns: columns.map(({ name, original }, i) => {
+          const tally = tallies[i] ?? newTally();
+          return {
+            name,
+            original,
+            type: columnType(tally),
+            blanks: tally.empty + (rows3 - tally.values),
+            blocking: blockingValue(tally)
+          };
+        })
+      };
+    }
+  };
+}
+
+// js/lab/import-db.js
+init_sql();
+var SAVEPOINT = "lab_import";
+var STAGE_NAME = "import_stage";
+var OUT_OF_MEMORY = 7;
+function takenNames(database2) {
+  const taken = /* @__PURE__ */ new Map();
+  const note = (temporary, sql) => database2.db.selectValues(sql).forEach((name) => taken.set(sameNameKey(name), temporary));
+  note(true, "select name from temp.sqlite_schema where type in ('table', 'view')");
+  note(false, "select name from main.sqlite_schema where type in ('table', 'view', 'index')");
+  return taken;
+}
+var inTransaction = (database2) => database2.capi.sqlite3_get_autocommit(database2.db.pointer) === 0;
+function beginImport(database2) {
+  const ticket = { hadTransaction: inTransaction(database2) };
+  database2.db.exec(`savepoint ${SAVEPOINT}`);
+  return ticket;
+}
+function endImport(database2) {
+  database2.db.exec(`release ${SAVEPOINT}`);
+}
+function undoImport(database2, ticket) {
+  try {
+    if (!inTransaction(database2)) {
+      return { undone: true, lostTransaction: ticket.hadTransaction };
+    }
+    database2.db.exec(`rollback to ${SAVEPOINT}`);
+    database2.db.exec(`release ${SAVEPOINT}`);
+    return { undone: true, lostTransaction: false };
+  } catch {
+    return { undone: false, lostTransaction: ticket.hadTransaction && !inTransactionSafely(database2) };
+  }
+}
+function inTransactionSafely(database2) {
+  try {
+    return inTransaction(database2);
+  } catch {
+    return false;
+  }
+}
+var isOutOfMemory = (error) => error?.resultCode === OUT_OF_MEMORY || error?.name === "WasmAllocError";
+function freeStageName(db) {
+  const taken = new Set(db.selectValues("select name from sqlite_temp_schema").map(sameNameKey));
+  let name = STAGE_NAME;
+  for (let n = 2; taken.has(sameNameKey(name)); n++) {
+    name = `${STAGE_NAME}_${n}`;
+  }
+  return name;
+}
+var stageColumns = (from, to) => Array.from({ length: to - from }, (unused, i) => `c${from + i + 1}`);
+function newStage(database2) {
+  const db = database2.db;
+  const table = `temp.${quoteIdent(freeStageName(db))}`;
+  let width = 0;
+  let insert = null;
+  let dropped = false;
+  const stage = { rows: 0 };
+  const create2 = (columns) => db.exec(`create table ${table} (${stageColumns(0, columns).map((c) => `${c} text`).join(", ")})`);
+  create2(1);
+  width = 1;
+  function widen(to) {
+    insert?.finalize();
+    insert = null;
+    if (stage.rows === 0) {
+      db.exec(`drop table ${table}`);
+      create2(to);
+    } else {
+      for (const column of stageColumns(width, to)) {
+        db.exec(`alter table ${table} add column ${column} text`);
+      }
+    }
+    width = to;
+  }
+  stage.add = (rows3) => {
+    const widest = rows3.reduce((most, row) => Math.max(most, row.length), 0);
+    if (widest > width) {
+      widen(widest);
+    }
+    insert ??= db.prepare(`insert into ${table} (${stageColumns(0, width).join(", ")}) values (${stageColumns(0, width).map(() => "?").join(", ")})`);
+    for (const row of rows3) {
+      insert.bind(row).step();
+      insert.reset(true);
+      stage.rows++;
+    }
+  };
+  stage.copyInto = async (name, columns, { rest, onStep = () => {
+  } }) => {
+    insert?.finalize();
+    insert = null;
+    const target = `main.${quoteIdent(name)}`;
+    db.exec(`create table ${target} (${columns.map((column) => `${quoteIdent(column.name)} ${column.type}`).join(", ")})`);
+    const values = columns.map((column, i) => i < width ? `c${i + 1}` : "null").join(", ");
+    const copy = db.prepare(`insert into ${target} select ${values} from ${table} where rowid > ?1 and rowid <= ?2`);
+    try {
+      const step = Math.max(1, Math.floor(COPY_CELLS / columns.length));
+      for (let done = 0; done < stage.rows; done += step) {
+        copy.bind([done, done + step]).step();
+        copy.reset(true);
+        onStep(Math.min(done + step, stage.rows), stage.rows);
+        await rest();
+      }
+    } finally {
+      copy.finalize();
+    }
+  };
+  stage.drop = () => {
+    if (dropped) {
+      return;
+    }
+    dropped = true;
+    try {
+      insert?.finalize();
+      insert = null;
+      db.exec(`drop table if exists ${table}`);
+    } catch {
+    }
+  };
+  return stage;
+}
+
+// js/lab/import-dialog.js
+init_config();
+
+// js/lab/import-pace.js
+var channel = null;
+var waiting = [];
+function turn() {
+  if (typeof globalThis.scheduler?.yield === "function") {
+    return globalThis.scheduler.yield();
+  }
+  if (!channel) {
+    channel = new MessageChannel();
+    channel.port1.onmessage = () => waiting.shift()?.();
+  }
+  return new Promise((resolve) => {
+    waiting.push(resolve);
+    channel.port2.postMessage(null);
+  });
+}
+function frame() {
+  return new Promise((resolve) => {
+    let done = false;
+    const go = () => {
+      if (!done) {
+        done = true;
+        resolve();
+      }
+    };
+    requestAnimationFrame(() => setTimeout(go, 0));
+    setTimeout(go, FRAME_MAX_MS);
+  });
+}
+function newPace() {
+  let drawn = performance.now();
+  return {
+    async rest() {
+      if (performance.now() - drawn >= PAINT_EVERY_MS) {
+        await frame();
+        drawn = performance.now();
+      } else {
+        await turn();
+      }
+    }
+  };
+}
+
+// js/lab/import-text.js
+var ENCODINGS = ["utf-8", "utf-16le", "utf-16be", "windows-1252"];
+var HEAD_BYTES = 4096;
+var TEXT_SLICE_BYTES = 1024 * 1024;
+var ZIP = [80, 75, 3, 4];
+var OLE2 = [208, 207, 17, 224, 161, 177, 26, 225];
+var BOMS = [
+  ["utf-8", [239, 187, 191]],
+  ["utf-16le", [255, 254]],
+  ["utf-16be", [254, 255]]
+];
+var startsWith = (bytes, start2) => bytes.length >= start2.length && start2.every((byte, i) => bytes[i] === byte);
+function bomOf(head) {
+  const found = BOMS.find(([, bytes]) => startsWith(head, bytes));
+  return found ? found[0] : null;
+}
+var WORKBOOK_NAME = /\.xlsx?$/i;
+function kindByStart(head, size, fileName) {
+  if (size === 0) {
+    return "empty";
+  }
+  if (startsWith(head, ZIP)) {
+    return "zip";
+  }
+  if (startsWith(head, OLE2)) {
+    return "ole2";
+  }
+  if (WORKBOOK_NAME.test(String(fileName))) {
+    const bom = bomOf(head);
+    const start2 = new TextDecoder(bom ?? "utf-8").decode(head);
+    if (start2.trimStart().startsWith("<")) {
+      return "markup";
+    }
+  }
+  return "text";
+}
+async function* slicesOf(blob, sliceBytes) {
+  for (let at = 0; at < blob.size; at += sliceBytes) {
+    yield new Uint8Array(await blob.slice(at, at + sliceBytes).arrayBuffer());
+  }
+}
+var strictDecoder = (encoding) => new TextDecoder(encoding, { fatal: true });
+function fits(decoder, bytes, last) {
+  try {
+    decoder.decode(bytes, { stream: !last });
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function inspectText(blob, { sliceBytes = TEXT_SLICE_BYTES, between = null } = {}) {
+  const head = new Uint8Array(await blob.slice(0, HEAD_BYTES).arrayBuffer());
+  const result = { bom: bomOf(head), hasZero: false, validUtf8: true };
+  const decoder = strictDecoder("utf-8");
+  let read2 = 0;
+  for await (const bytes of slicesOf(blob, sliceBytes)) {
+    read2 += bytes.length;
+    result.hasZero ||= bytes.includes(0);
+    result.validUtf8 &&= fits(decoder, bytes, read2 >= blob.size);
+    if (between) {
+      await between(read2);
+    }
+  }
+  return result;
+}
+var guessEncoding = ({ bom, validUtf8 }) => bom ?? (validUtf8 ? "utf-8" : "windows-1252");
+async function fitsEncoding(blob, encoding, { sliceBytes = TEXT_SLICE_BYTES, between = null } = {}) {
+  const decoder = strictDecoder(encoding);
+  let read2 = 0;
+  for await (const bytes of slicesOf(blob, sliceBytes)) {
+    read2 += bytes.length;
+    if (!fits(decoder, bytes, read2 >= blob.size)) {
+      return false;
+    }
+    if (between) {
+      await between(read2);
+    }
+  }
+  return true;
+}
+async function startOfText(blob, encoding, maxBytes) {
+  const whole = blob.size <= maxBytes;
+  const bytes = new Uint8Array(await blob.slice(0, maxBytes).arrayBuffer());
+  return { text: strictDecoder(encoding).decode(bytes, { stream: !whole }), whole };
+}
+var TextChanged = class extends Error {
+};
+var MARK_START = 2166136261;
+var MARK_STEP = 16777619;
+function markMore(hash, text) {
+  for (let i = 0; i < text.length; i++) {
+    hash = Math.imul(hash ^ text.charCodeAt(i), MARK_STEP);
+  }
+  return hash;
+}
+var markOf = (text) => ({ length: text.length, hash: markMore(MARK_START, text) });
+async function* sameStart(pieces, mark) {
+  let seen = 0;
+  let hash = MARK_START;
+  for await (const piece of pieces) {
+    if (seen < mark.length) {
+      const part = piece.length > mark.length - seen ? piece.slice(0, mark.length - seen) : piece;
+      hash = markMore(hash, part);
+      seen += part.length;
+      if (seen === mark.length && hash !== mark.hash) {
+        throw new TextChanged();
+      }
+    }
+    yield piece;
+  }
+  if (seen < mark.length) {
+    throw new TextChanged();
+  }
+}
+async function* textPieces(blob, encoding, { sliceBytes = TEXT_SLICE_BYTES, between = null } = {}) {
+  const decoder = strictDecoder(encoding);
+  let held = "";
+  let read2 = 0;
+  for await (const bytes of slicesOf(blob, sliceBytes)) {
+    read2 += bytes.length;
+    let text = held + decoder.decode(bytes, { stream: true });
+    held = "";
+    if (text.endsWith("\r")) {
+      held = "\r";
+      text = text.slice(0, -1);
+    }
+    if (text) {
+      yield text;
+    }
+    if (between) {
+      await between(read2);
+    }
+  }
+  const tail = held + decoder.decode();
+  if (tail) {
+    yield tail;
+  }
+}
+
+// js/lab/tabs.js
+function mountTabs(tablist, { onShow = () => {
+} } = {}) {
+  const tabs2 = [...tablist.querySelectorAll('[role="tab"]')];
+  const panelOf = (tab) => document.getElementById(tab.getAttribute("aria-controls"));
+  let selected = tabs2.find((tab) => tab.getAttribute("aria-selected") === "true") ?? tabs2[0];
+  function show(tab, { focus = false } = {}) {
+    for (const other of tabs2) {
+      const on = other === tab;
+      other.setAttribute("aria-selected", String(on));
+      other.tabIndex = on ? 0 : -1;
+      panelOf(other).hidden = !on;
+    }
+    selected = tab;
+    if (focus) {
+      tab.focus();
+    }
+    onShow(tab.id);
+  }
+  tablist.addEventListener("click", (event) => {
+    const tab = event.target.closest('[role="tab"]');
+    if (tab && tabs2.includes(tab)) {
+      show(tab);
+    }
+  });
+  tablist.addEventListener("keydown", (event) => {
+    const at = tabs2.indexOf(document.activeElement);
+    if (at === -1 || event.altKey || event.ctrlKey || event.metaKey) {
+      return;
+    }
+    const moves = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: tabs2.length - 1 };
+    if (!(event.key in moves)) {
+      return;
+    }
+    event.preventDefault();
+    show(tabs2[(moves[event.key] + tabs2.length) % tabs2.length], { focus: true });
+  });
+  show(selected);
+  return {
+    show(id) {
+      const tab = tabs2.find((candidate) => candidate.id === id);
+      if (tab && tab !== selected) {
+        show(tab);
+      }
+    },
+    current: () => selected.id
+  };
+}
+
+// js/lab/import-dialog.js
+var ROWS_ABOVE = 3;
+var PREVIEW_CELL_CHARS = 80;
+var CUT2 = "…";
+var RESERVED_NAME = /^sqlite_/i;
+var SPACE_AT_AN_END = /^\s|\s$/;
+function el4(tag, props = {}, text = "") {
+  const node = document.createElement(tag);
+  Object.assign(node, props);
+  if (text) {
+    node.textContent = text;
+  }
+  return node;
+}
+function field(id, labelText, control, { hint = "" } = {}) {
+  const box = el4("div", { className: "import-field" });
+  const label = el4("label", { className: "app-dialog-label", htmlFor: id }, labelText);
+  control.id = id;
+  const error = el4("p", { id: `${id}-error`, className: "app-dialog-error", hidden: true });
+  error.setAttribute("role", "alert");
+  box.append(label, control);
+  let hintLine = null;
+  if (hint) {
+    hintLine = el4("p", { id: `${id}-hint`, className: "app-dialog-hint" }, hint);
+    control.setAttribute("aria-describedby", hintLine.id);
+    box.append(hintLine);
+  }
+  box.append(error);
+  return {
+    box,
+    control,
+    showError(message) {
+      error.textContent = message;
+      error.hidden = false;
+      control.setAttribute("aria-invalid", "true");
+      control.setAttribute("aria-describedby", hintLine ? `${error.id} ${hintLine.id}` : error.id);
+    },
+    clearError() {
+      error.textContent = "";
+      error.hidden = true;
+      control.removeAttribute("aria-invalid");
+      if (hintLine) {
+        control.setAttribute("aria-describedby", hintLine.id);
+      } else {
+        control.removeAttribute("aria-describedby");
+      }
+    }
+  };
+}
+function select(options, value) {
+  const control = el4("select", { className: "import-select" });
+  for (const [optionValue, optionText] of options) {
+    control.append(el4("option", { value: optionValue }, optionText));
+  }
+  control.value = value;
+  return control;
+}
+function previewCell(text, { names = false } = {}) {
+  const cell2 = el4("td");
+  if (text === void 0 || text === "") {
+    cell2.append(el4("span", { className: "cell-null" }, names ? IMPORT_PREVIEW_BLANK : NULL_TEXT));
+    return cell2;
+  }
+  const cut2 = text.length > PREVIEW_CELL_CHARS;
+  const shown2 = el4("span", { className: "import-cell-text" }, cut2 ? `${text.slice(0, PREVIEW_CELL_CHARS)}${CUT2}` : text);
+  if (cut2) {
+    shown2.title = text;
+  }
+  cell2.append(shown2);
+  if (SPACE_AT_AN_END.test(text)) {
+    cell2.classList.add("import-cell--spaces");
+  }
+  return cell2;
+}
+function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }) {
+  const dialog = el4("dialog", { id: "import-dialog", className: "app-dialog import-dialog" });
+  dialog.setAttribute("aria-labelledby", "import-title");
+  dialog.setAttribute("aria-describedby", "import-text");
+  const form = el4("form", { id: "import-form", className: "import-form", noValidate: true });
+  const files = el4("div", { className: "import-files" });
+  const destination = el4("fieldset", { className: "import-destination" });
+  destination.append(el4("legend", { className: "app-dialog-label" }, IMPORT_DESTINATION_LABEL));
+  const newChoice = el4("input", { type: "radio", name: "import-destination", id: "import-into-new", value: "new" });
+  const openChoice = el4("input", { type: "radio", name: "import-destination", id: "import-into-open", value: "open" });
+  const newLabel = el4("label", { className: "import-check", htmlFor: newChoice.id });
+  newLabel.append(newChoice, el4("span", {}, IMPORT_NEW_DATABASE_LABEL));
+  const openText = el4("span");
+  const openLabel = el4("label", { className: "import-check", htmlFor: openChoice.id });
+  openLabel.append(openChoice, openText);
+  const openNote = el4("p", { id: "import-into-open-note", className: "app-dialog-hint", hidden: true });
+  const databaseName = field(
+    "import-database-name",
+    IMPORT_NEW_DATABASE_NAME_LABEL,
+    el4("input", { type: "text", className: "app-dialog-input", autocomplete: "off", spellcheck: false })
+  );
+  databaseName.control.setAttribute("autocapitalize", "off");
+  databaseName.control.setAttribute("autocorrect", "off");
+  const intoNew = el4("div", { className: "import-destination-choice" });
+  intoNew.append(newLabel, databaseName.box);
+  const intoOpen = el4("div", { className: "import-destination-choice" });
+  intoOpen.append(openLabel, openNote);
+  const choices = el4("div", { className: "import-destination-choices" });
+  choices.append(intoNew, intoOpen);
+  destination.append(choices);
+  const hold = el4("p", { id: "import-hold", className: "app-dialog-hint import-hold", hidden: true });
+  const error = el4("p", { id: "import-error", className: "app-dialog-error", hidden: true });
+  error.setAttribute("role", "alert");
+  const progress = el4("div", { className: "import-progress", hidden: true });
+  const progressTitle = el4("h3", { id: "import-progress-title", className: "results-loading-title" });
+  const progressPart = el4("p", { className: "results-loading-size" });
+  const progressBar = el4("progress", { className: "results-progress", max: 1 });
+  progressBar.setAttribute("aria-labelledby", progressTitle.id);
+  progress.append(progressTitle, progressPart, progressBar);
+  const submit = el4("button", { type: "submit", className: "button button--primary" }, IMPORT_SUBMIT_TEXT);
+  const cancel = el4("button", { type: "button", className: "button" }, IMPORT_CANCEL_TEXT);
+  const actions2 = el4("div", { className: "app-dialog-actions" });
+  actions2.append(submit, cancel);
+  const body = el4("div", { className: "import-body" });
+  body.append(
+    el4("h2", { id: "import-title", className: "app-dialog-title" }, IMPORT_DIALOG_TITLE),
+    el4("p", { id: "import-text", className: "app-dialog-text" }, IMPORT_DIALOG_TEXT),
+    destination,
+    files,
+    progress
+  );
+  const foot = el4("div", { className: "import-foot" });
+  foot.append(hold, error, actions2);
+  form.append(body, foot);
+  dialog.append(form);
+  document.body.append(dialog);
+  let session = 0;
+  let tabs2 = [];
+  let tabList = null;
+  let running = null;
+  let opened = 0;
+  let pressing = false;
+  let pointerDown = false;
+  let owed = null;
+  const importable = () => tabs2.filter((tab) => tab.state !== "refused");
+  const usesOpenDatabase = () => openChoice.checked;
+  function newTab(file, n) {
+    const id = `import-file-${opened}-${n}`;
+    const button = el4("button", { id: `${id}-tab`, className: "tab import-tab", type: "button" });
+    button.setAttribute("role", "tab");
+    button.setAttribute("aria-controls", `${id}-panel`);
+    button.setAttribute("aria-selected", String(n === 0));
+    button.append(el4("span", { className: "import-tab-name", title: file.name }, file.name));
+    const panel = el4("div", { id: `${id}-panel`, className: "import-panel" });
+    panel.setAttribute("role", "tabpanel");
+    panel.setAttribute("aria-labelledby", button.id);
+    return {
+      id,
+      file,
+      button,
+      panel,
+      state: "reading",
+      reason: "",
+      encoding: "utf-8",
+      encodingFits: true,
+      delimiter: ",",
+      newline: "\n",
+      rows: [],
+      whole: true,
+      hasNames: true,
+      namesRow: 1,
+      tableName: "",
+      // what the student has set by hand is left alone when the file is read again
+      nameEdited: false,
+      delimiterChosen: false,
+      namesChosen: false,
+      // the encoding that is being checked against the bytes, while it is
+      checking: null,
+      // readings of the start of the file are numbered: a newer one takes over from an
+      // older one that has not ended, and until the newest has ended the tab is unsettled
+      turn: 0,
+      unsettled: false,
+      // when its first reading began (performance.now())
+      readingSince: 0,
+      // what cannot be made a table as the student has set the reading, or ""
+      problem: "",
+      // the mark of the text the preview was read from (markOf)
+      mark: null,
+      controls: null
+    };
+  }
+  function refuse(tab, reason, { own = false } = {}) {
+    const hadFocus = tab.panel.contains(document.activeElement);
+    tab.state = "refused";
+    tab.reason = reason;
+    tab.controls = null;
+    if (!tab.button.querySelector(".import-tab-refused")) {
+      const mark = icon("circle-alert");
+      mark.classList.add("import-tab-refused");
+      mark.classList.toggle("import-tab-refused--own", own);
+      tab.button.prepend(mark);
+      tab.button.append(el4("span", { className: "visually-hidden" }, `(${own ? IMPORT_LEFT_OUT_TAB_TEXT : IMPORT_REFUSED_TAB_TEXT})`));
+    }
+    tab.panel.replaceChildren(el4("p", { className: "import-refusal" }, reason));
+    tab.panel.tabIndex = 0;
+    if (hadFocus) {
+      tab.button.focus();
+    }
+    suggestDatabaseName();
+    suggestNames();
+    refresh();
+  }
+  function showReading(tab) {
+    tab.state = "reading";
+    tab.readingSince = performance.now();
+    tab.controls = null;
+    const line = el4("p", { className: "import-reading" }, IMPORT_READING_TEXT);
+    line.setAttribute("role", "status");
+    tab.panel.replaceChildren(line);
+    tab.panel.tabIndex = 0;
+    refresh();
+  }
+  function showWarning(tab, mine) {
+    tab.state = "warning";
+    const megabytes = Math.round(tab.file.size / (1024 * 1024));
+    const go = el4("button", { type: "button", className: "button" }, IMPORT_LARGE_FILE_CONTINUE_TEXT);
+    go.addEventListener("click", () => {
+      showReading(tab);
+      tab.button.focus();
+      read2(tab, mine);
+    });
+    const leave = el4("button", { type: "button", className: "button" }, IMPORT_LARGE_FILE_LEAVE_TEXT);
+    leave.addEventListener("click", () => {
+      refuse(tab, IMPORT_LEFT_OUT_REASON, { own: true });
+      tab.button.focus();
+    });
+    const answers = el4("div", { className: "import-warning-answers" });
+    answers.append(go, leave);
+    const box = el4("div", { className: "import-warning" });
+    box.append(el4("p", { className: "import-warning-text" }, importLargeFileMessage(megabytes)), answers);
+    tab.panel.replaceChildren(box);
+    tab.panel.removeAttribute("tabindex");
+    refresh();
+  }
+  async function look(tab, mine) {
+    let kind;
+    try {
+      const head = new Uint8Array(await tab.file.slice(0, HEAD_BYTES).arrayBuffer());
+      kind = kindByStart(head, tab.file.size, tab.file.name);
+    } catch {
+      kind = "unreadable";
+    }
+    if (mine !== session) {
+      return;
+    }
+    if (kind === "empty") {
+      refuse(tab, IMPORT_EMPTY_REASON);
+    } else if (kind === "unreadable") {
+      refuse(tab, IMPORT_UNREADABLE_REASON);
+    } else if (kind !== "text") {
+      refuse(tab, IMPORT_WORKBOOK_REASON);
+    } else if (tab.file.size > IMPORT_TEXT_MAX_BYTES) {
+      refuse(tab, IMPORT_TOO_LARGE_REASON);
+    } else if (tab.file.size > IMPORT_TEXT_WARN_BYTES) {
+      showWarning(tab, mine);
+    } else {
+      await read2(tab, mine);
+    }
+  }
+  async function read2(tab, mine) {
+    const pace = newPace();
+    const between = async () => {
+      await pace.rest();
+      if (mine !== session) {
+        throw new Error("the dialog has moved on");
+      }
+    };
+    let info;
+    try {
+      info = await inspectText(tab.file, { sliceBytes: INSPECT_SLICE_BYTES, between });
+    } catch {
+      if (mine === session) {
+        refuse(tab, IMPORT_UNREADABLE_REASON);
+      }
+      return;
+    }
+    if (mine !== session) {
+      return;
+    }
+    if (info.hasZero && !(info.bom ?? "").startsWith("utf-16")) {
+      refuse(tab, IMPORT_NOT_TEXT_REASON);
+      return;
+    }
+    tab.encoding = guessEncoding(info);
+    try {
+      tab.encodingFits = tab.encoding === "utf-8" ? info.validUtf8 : await fitsEncoding(tab.file, tab.encoding, { sliceBytes: INSPECT_SLICE_BYTES, between });
+    } catch {
+      if (mine === session) {
+        refuse(tab, IMPORT_UNREADABLE_REASON);
+      }
+      return;
+    }
+    if (mine !== session) {
+      return;
+    }
+    await readPreview(tab, mine, { first: true });
+  }
+  async function readPreview(tab, mine, { first = false, delimiter = "" } = {}) {
+    const turn2 = ++tab.turn;
+    tab.unsettled = true;
+    refresh();
+    const stale = () => mine !== session || turn2 !== tab.turn;
+    let reader;
+    try {
+      reader = await loadReader();
+    } catch {
+      if (!stale()) {
+        refuse(tab, IMPORT_LIBRARY_FAILED_MESSAGE);
+      }
+      return;
+    }
+    if (stale()) {
+      return;
+    }
+    if (tab.encodingFits) {
+      let start2;
+      try {
+        start2 = await startOfText(tab.file, tab.encoding, PREVIEW_BYTES);
+      } catch {
+        if (!stale()) {
+          refuse(tab, IMPORT_UNREADABLE_REASON);
+        }
+        return;
+      }
+      if (stale()) {
+        return;
+      }
+      const read3 = readStart(reader, start2.text, { whole: start2.whole, delimiter });
+      const tooWide = read3.rows.some((row) => row.length > MAX_COLUMNS);
+      const noRow = !read3.rows.length;
+      if (first && (tooWide || noRow)) {
+        refuse(tab, tooWide ? IMPORT_TOO_WIDE_REASON : start2.whole ? IMPORT_EMPTY_REASON : IMPORT_NO_ROW_REASON);
+        return;
+      }
+      tab.rows = read3.rows;
+      tab.whole = start2.whole;
+      tab.delimiter = read3.delimiter;
+      tab.newline = read3.newline;
+      tab.mark = markOf(start2.text);
+      tab.problem = tooWide ? IMPORT_SETTINGS_TOO_WIDE_MESSAGE : noRow ? IMPORT_SETTINGS_NO_ROW_MESSAGE : "";
+      if (!tab.namesChosen) {
+        tab.hasNames = firstRowLooksLikeNames(read3.rows[0]);
+        tab.namesRow = 1;
+      }
+    }
+    tab.unsettled = false;
+    if (tab.state !== "ready") {
+      tab.state = "ready";
+      buildControls(tab, mine);
+      suggestNames();
+    }
+    draw(tab);
+    refresh();
+  }
+  function buildControls(tab, mine) {
+    const name = field(
+      `${tab.id}-name`,
+      IMPORT_TABLE_NAME_LABEL,
+      el4("input", { type: "text", className: "app-dialog-input", autocomplete: "off", spellcheck: false }),
+      { hint: IMPORT_TABLE_NAME_HINT }
+    );
+    name.control.setAttribute("autocapitalize", "off");
+    name.control.setAttribute("autocorrect", "off");
+    name.control.addEventListener("input", () => {
+      tab.nameEdited = true;
+      tab.tableName = name.control.value;
+      name.clearError();
+    });
+    name.control.addEventListener("change", () => {
+      if (name.control.value !== "") {
+        name.control.value = sanitiseName(name.control.value);
+        tab.tableName = name.control.value;
+      }
+    });
+    const delimiter = field(
+      `${tab.id}-delimiter`,
+      IMPORT_DELIMITER_LABEL,
+      select(DELIMITERS.map((d) => [d.value, IMPORT_DELIMITER_NAMES[d.value]]), tab.delimiter)
+    );
+    delimiter.control.addEventListener("change", () => {
+      tab.delimiterChosen = true;
+      readPreview(tab, mine, { delimiter: delimiter.control.value });
+    });
+    const encoding = field(
+      `${tab.id}-encoding`,
+      IMPORT_ENCODING_LABEL,
+      select(ENCODINGS.map((name2) => [name2, IMPORT_ENCODING_NAMES[name2]]), tab.encoding)
+    );
+    encoding.control.addEventListener("change", async () => {
+      const chosen = encoding.control.value;
+      tab.encoding = chosen;
+      tab.encodingFits = false;
+      tab.checking = chosen;
+      tab.problem = "";
+      draw(tab);
+      refresh();
+      let fits2 = false;
+      try {
+        fits2 = await fitsEncoding(tab.file, chosen, { sliceBytes: INSPECT_SLICE_BYTES });
+      } catch {
+        fits2 = false;
+      }
+      if (mine !== session || tab.checking !== chosen || tab.state !== "ready") {
+        return;
+      }
+      tab.checking = null;
+      tab.encodingFits = fits2;
+      await readPreview(tab, mine, { delimiter: tab.delimiterChosen ? tab.delimiter : "" });
+    });
+    const hasNames = el4("input", { type: "checkbox", id: `${tab.id}-has-names` });
+    const hasNamesLabel = el4("label", { className: "import-check", htmlFor: hasNames.id });
+    hasNamesLabel.append(hasNames, el4("span", {}, IMPORT_HAS_NAMES_LABEL));
+    const namesRow = field(
+      `${tab.id}-names-row`,
+      IMPORT_NAMES_ROW_LABEL,
+      el4("input", { type: "number", className: "app-dialog-input import-number", min: "1", step: "1", inputMode: "numeric" })
+    );
+    hasNames.addEventListener("change", () => {
+      tab.namesChosen = true;
+      tab.hasNames = hasNames.checked;
+      draw(tab);
+      refresh();
+    });
+    namesRow.control.addEventListener("input", () => {
+      tab.namesChosen = true;
+      const text = namesRow.control.value.trim();
+      tab.namesRow = /^[0-9]+$/.test(text) ? Number(text) : NaN;
+      draw(tab);
+      refresh();
+    });
+    const names = el4("div", { className: "import-names" });
+    names.append(hasNamesLabel, namesRow.box);
+    const settings2 = el4("div", { className: "import-settings" });
+    settings2.append(name.box, delimiter.box, encoding.box, names);
+    const preview = el4("div", { className: "import-preview" });
+    preview.setAttribute("role", "region");
+    preview.setAttribute("aria-label", IMPORT_PREVIEW_LABEL);
+    preview.tabIndex = 0;
+    const note = el4("p", { className: "app-dialog-hint import-preview-note", hidden: true });
+    const problem = el4("p", { className: "app-dialog-error import-problem", hidden: true });
+    problem.setAttribute("role", "alert");
+    tab.controls = { name, delimiter, encoding, hasNames, namesRow, preview, note, problem };
+    tab.panel.removeAttribute("tabindex");
+    tab.panel.replaceChildren(settings2, el4("p", { className: "app-dialog-label import-preview-title" }, IMPORT_PREVIEW_LABEL), problem, note, preview);
+  }
+  function namesRowProblem(tab) {
+    if (!tab.hasNames || !tab.encodingFits || tab.problem) {
+      return "";
+    }
+    if (!Number.isSafeInteger(tab.namesRow) || tab.namesRow < 1) {
+      return IMPORT_NAMES_ROW_NOT_A_ROW_MESSAGE;
+    }
+    return tab.namesRow > tab.rows.length ? importNamesRowMessage(tab.rows.length) : "";
+  }
+  function draw(tab) {
+    const { name, delimiter, encoding, hasNames, namesRow, preview, note, problem: problemLine } = tab.controls;
+    if (name.control.value !== tab.tableName && !tab.nameEdited) {
+      name.control.value = tab.tableName;
+    }
+    delimiter.control.value = tab.delimiter;
+    encoding.control.value = tab.encoding;
+    hasNames.checked = tab.hasNames;
+    if (Number.isSafeInteger(tab.namesRow) && namesRow.control.value.trim() !== String(tab.namesRow)) {
+      namesRow.control.value = String(tab.namesRow);
+    }
+    namesRow.control.disabled = !tab.hasNames;
+    if (tab.encodingFits || tab.checking) {
+      encoding.clearError();
+    } else {
+      encoding.showError(importEncodingMessage(tab.encoding));
+    }
+    const problem = namesRowProblem(tab);
+    if (problem) {
+      namesRow.showError(problem);
+    } else {
+      namesRow.clearError();
+    }
+    delimiter.control.disabled = !tab.encodingFits;
+    const cannot = tab.encodingFits ? tab.problem : "";
+    if (problemLine.textContent !== cannot) {
+      problemLine.textContent = cannot;
+    }
+    problemLine.hidden = !cannot;
+    if (!tab.encodingFits || cannot) {
+      preview.replaceChildren();
+      preview.hidden = true;
+      note.hidden = true;
+      return;
+    }
+    preview.hidden = false;
+    const namesAt = tab.hasNames && !problem ? tab.namesRow : 0;
+    const first = Math.max(1, namesAt - ROWS_ABOVE);
+    const shown2 = tab.rows.slice(first - 1, namesAt + PREVIEW_ROWS);
+    const width = shown2.reduce((most, row) => Math.max(most, row.length), 0);
+    const table = el4("table", { className: "result-table import-preview-table" });
+    const head = el4("tr");
+    head.append(el4("th", { scope: "col", className: "import-row-heading" }, IMPORT_PREVIEW_ROW_HEADING));
+    for (let column = 1; column <= width; column++) {
+      head.append(el4("th", { scope: "col" }, String(column)));
+    }
+    table.createTHead().append(head);
+    const body2 = table.createTBody();
+    shown2.forEach((row, i) => {
+      const number = first + i;
+      const line = el4("tr");
+      const heading = el4("th", { scope: "row", className: "import-row-heading" });
+      heading.append(el4("span", { className: "import-row-number" }, String(number)));
+      const isNames = number === namesAt;
+      if (number < namesAt) {
+        line.className = "import-row--out";
+        heading.append(el4("span", { className: "import-row-tag" }, IMPORT_PREVIEW_LEFT_OUT));
+      } else if (isNames) {
+        line.className = "import-row--names";
+        heading.append(el4("span", { className: "import-row-tag" }, IMPORT_PREVIEW_NAMES));
+      }
+      line.append(heading);
+      for (let column = 0; column < width; column++) {
+        line.append(previewCell(row[column], { names: isNames }));
+      }
+      body2.append(line);
+    });
+    preview.replaceChildren(table);
+    const notes = [];
+    if (first > 1) {
+      notes.push(importPreviewAboveMessage(first - 1));
+    }
+    if (namesAt && tab.whole && tab.rows.length === namesAt) {
+      notes.push(IMPORT_PREVIEW_NO_DATA_MESSAGE);
+    }
+    note.textContent = notes.join(" ");
+    note.hidden = !notes.length;
+  }
+  function suggestNames() {
+    const used = new Set(usesOpenDatabase() ? getDestination().taken().keys() : []);
+    for (const tab of importable()) {
+      if (tab.nameEdited) {
+        used.add(sameNameKey(sanitiseName(tab.tableName)));
+      } else {
+        tab.tableName = uniqueName(tableNameFor(tab.file.name), used);
+        if (tab.controls) {
+          tab.controls.name.control.value = tab.tableName;
+          tab.controls.name.clearError();
+        }
+      }
+    }
+  }
+  function checkNames() {
+    const taken = usesOpenDatabase() ? getDestination().taken() : /* @__PURE__ */ new Map();
+    const seen = /* @__PURE__ */ new Map();
+    let firstBad = null;
+    for (const tab of importable()) {
+      const { name } = tab.controls;
+      name.control.value = name.control.value === "" ? "" : sanitiseName(name.control.value);
+      tab.tableName = name.control.value;
+      const key = sameNameKey(tab.tableName);
+      let problem = "";
+      if (tab.tableName === "") {
+        problem = IMPORT_NAME_EMPTY_MESSAGE;
+      } else if (RESERVED_NAME.test(tab.tableName)) {
+        problem = IMPORT_NAME_RESERVED_MESSAGE;
+      } else if (seen.has(key)) {
+        problem = IMPORT_NAME_TWICE_MESSAGE;
+      } else if (taken.has(key)) {
+        problem = taken.get(key) ? IMPORT_NAME_TEMPORARY_MESSAGE : importNameTakenMessage(getDestination().name);
+      }
+      seen.set(key, tab);
+      if (problem) {
+        name.showError(problem);
+        firstBad ??= tab;
+      } else {
+        name.clearError();
+      }
+    }
+    if (firstBad) {
+      tabList.show(firstBad.button.id);
+      firstBad.controls.name.control.focus();
+    }
+    return !firstBad;
+  }
+  function showError2(message) {
+    error.textContent = message;
+    error.hidden = false;
+  }
+  function clearError() {
+    error.textContent = "";
+    error.hidden = true;
+  }
+  function holding(tab) {
+    if (tab.state !== "ready") {
+      return tab.state === "warning" ? "waiting" : "reading";
+    }
+    if (tab.checking || tab.unsettled) {
+      return "settling";
+    }
+    return !tab.encodingFits || tab.problem || namesRowProblem(tab) ? "problem" : "";
+  }
+  const HOLD_MESSAGES = { reading: importHoldReadingMessage, waiting: importHoldWaitingMessage, problem: importHoldProblemMessage };
+  const HOLD_READING_AFTER_MS = 600;
+  let holdTimer = 0;
+  function showWhole(control) {
+    if (!pressing && control.matches(":focus-visible")) {
+      control.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+  }
+  function isWhole2(control) {
+    const box = control.getBoundingClientRect();
+    const shown2 = body.getBoundingClientRect();
+    return box.top >= shown2.top && box.bottom <= shown2.bottom;
+  }
+  function focusedWhole() {
+    const focused = document.activeElement;
+    return focused && body.contains(focused) && isWhole2(focused) ? focused : null;
+  }
+  function keepWhole(control) {
+    if (pointerDown) {
+      owed = { control, at: body.scrollTop };
+    } else if (control.isConnected && !isWhole2(control)) {
+      control.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+  }
+  function refresh() {
+    const left = importable();
+    const held = left.find((tab) => holding(tab) !== "");
+    const nothing = left.length === 0;
+    submit.hidden = nothing || Boolean(running);
+    submit.disabled = nothing || Boolean(held);
+    destination.hidden = nothing || Boolean(running);
+    cancel.textContent = nothing && !running ? IMPORT_CLOSE_TEXT : IMPORT_CANCEL_TEXT;
+    databaseName.control.disabled = !newChoice.checked;
+    clearTimeout(holdTimer);
+    const current4 = tabList?.current();
+    const nameable = (tab) => {
+      const state2 = holding(tab);
+      return state2 === "waiting" || (state2 === "reading" || state2 === "problem") && tab.button.id !== current4;
+    };
+    const named = running ? void 0 : left.find(nameable);
+    let message = named ? HOLD_MESSAGES[holding(named)] : null;
+    if (message === importHoldReadingMessage) {
+      const waited = performance.now() - named.readingSince;
+      if (waited < HOLD_READING_AFTER_MS) {
+        holdTimer = setTimeout(refresh, HOLD_READING_AFTER_MS - waited);
+        message = null;
+      }
+    }
+    const why = message ? message(named.file.name) : "";
+    const changed = hold.textContent !== why;
+    const whole = changed ? focusedWhole() : null;
+    if (changed) {
+      hold.textContent = why;
+    }
+    hold.hidden = !why;
+    if (why) {
+      submit.setAttribute("aria-describedby", hold.id);
+    } else {
+      submit.removeAttribute("aria-describedby");
+    }
+    if (whole) {
+      keepWhole(whole);
+    }
+  }
+  const baseName = (name) => name.lastIndexOf(".") > 0 ? name.slice(0, name.lastIndexOf(".")) : name;
+  let databaseNameEdited = false;
+  function suggestDatabaseName() {
+    const first = importable()[0] ?? tabs2[0];
+    if (first && !databaseNameEdited) {
+      databaseName.control.value = baseName(first.file.name);
+    }
+  }
+  function fillDestination() {
+    const target = getDestination();
+    newChoice.checked = true;
+    openChoice.checked = false;
+    openChoice.disabled = !target.allowed;
+    intoOpen.hidden = target.name === null;
+    openText.textContent = importOpenDatabaseLabel(target.name ?? "");
+    openNote.textContent = IMPORT_COURSE_DATABASE_NOTE;
+    openNote.hidden = target.allowed || target.name === null;
+    if (openNote.hidden) {
+      openChoice.removeAttribute("aria-describedby");
+    } else {
+      openChoice.setAttribute("aria-describedby", openNote.id);
+    }
+    databaseNameEdited = false;
+    databaseName.clearError();
+    suggestDatabaseName();
+  }
+  function setRunning(state2) {
+    running = state2;
+    files.hidden = Boolean(state2);
+    progress.hidden = !state2;
+    if (state2) {
+      dialog.setAttribute("aria-busy", "true");
+    } else {
+      dialog.removeAttribute("aria-busy");
+    }
+    refresh();
+  }
+  function open(chosen) {
+    session++;
+    opened++;
+    const mine = session;
+    clearError();
+    setRunning(null);
+    tabs2 = chosen.map((file, n) => newTab(file, n));
+    const list = el4("div", { className: "tabs import-tabs" });
+    list.setAttribute("role", "tablist");
+    list.setAttribute("aria-label", IMPORT_TABS_LABEL);
+    list.append(...tabs2.map((tab) => tab.button));
+    const panels = el4("div", { className: "import-panels" });
+    panels.append(...tabs2.map((tab) => tab.panel));
+    files.replaceChildren(list, panels);
+    tabList = null;
+    tabList = mountTabs(list, { onShow: () => refresh() });
+    fillDestination();
+    for (const tab of tabs2) {
+      showReading(tab);
+    }
+    refresh();
+    if (!dialog.open) {
+      dialog.showModal();
+    }
+    tabs2[0].button.focus();
+    (async () => {
+      for (const tab of tabs2) {
+        if (mine !== session) {
+          return;
+        }
+        await look(tab, mine);
+      }
+    })();
+  }
+  function endSession() {
+    session++;
+    if (running) {
+      running.stop = true;
+      running = null;
+    }
+    clearTimeout(holdTimer);
+    dialog.removeAttribute("aria-busy");
+    files.replaceChildren();
+    tabs2 = [];
+  }
+  function close() {
+    endSession();
+    if (dialog.open) {
+      dialog.close();
+    }
+    restoreFocus();
+  }
+  function restoreFocus() {
+    const focused = document.activeElement;
+    if (!focused || focused === document.body || dialog.contains(focused)) {
+      returnFocus.focus();
+    }
+  }
+  async function importNow() {
+    if (running || submit.disabled) {
+      return;
+    }
+    clearError();
+    if (!checkNames()) {
+      return;
+    }
+    let target = { kind: "open" };
+    if (newChoice.checked) {
+      const name = databaseName.control.value.trim();
+      if (!name) {
+        databaseName.showError(IMPORT_NEW_DATABASE_EMPTY_MESSAGE);
+        databaseName.control.focus();
+        return;
+      }
+      target = { kind: "new", name };
+    }
+    const mine = session;
+    const job = {
+      files: importable().map((tab) => ({
+        id: tab.id,
+        file: tab.file,
+        encoding: tab.encoding,
+        delimiter: tab.delimiter,
+        newline: tab.newline,
+        hasNames: tab.hasNames,
+        namesRow: tab.namesRow,
+        tableName: tab.tableName,
+        mark: tab.mark
+      })),
+      destination: target
+    };
+    const state2 = { stop: false };
+    progressTitle.textContent = importProgressTitle(1, job.files.length, job.files[0].file.name);
+    progressPart.textContent = IMPORT_PROGRESS_READING;
+    progressBar.value = 0;
+    setRunning(state2);
+    cancel.focus();
+    let outcome;
+    try {
+      outcome = await onImport(job, {
+        cancelled: () => state2.stop,
+        progress({ at, of, name, part, done, total }) {
+          progressTitle.textContent = importProgressTitle(at, of, name);
+          progressPart.textContent = part === "copy" ? IMPORT_PROGRESS_COPYING : IMPORT_PROGRESS_READING;
+          progressBar.value = total > 0 ? Math.min(1, done / total) : 0;
+        }
+      });
+    } catch {
+      outcome = { ok: false, message: "" };
+    }
+    if (mine !== session) {
+      return;
+    }
+    if (outcome.ok) {
+      running = null;
+      endSession();
+      dialog.close();
+      return;
+    }
+    setRunning(null);
+    if (outcome.refused) {
+      const tab = tabs2.find((candidate) => candidate.id === outcome.refused.id);
+      if (tab) {
+        refuse(tab, outcome.refused.reason);
+        tabList.show(tab.button.id);
+        tab.button.focus();
+      }
+    } else if (outcome.message) {
+      showError2(outcome.message);
+      cancel.focus();
+    }
+    refresh();
+  }
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    importNow();
+  });
+  cancel.addEventListener("click", close);
+  databaseName.control.addEventListener("input", () => {
+    databaseNameEdited = true;
+    databaseName.clearError();
+  });
+  for (const choice of [newChoice, openChoice]) {
+    choice.addEventListener("change", () => {
+      databaseName.clearError();
+      suggestNames();
+      refresh();
+    });
+  }
+  dialog.addEventListener(
+    "mousedown",
+    (event) => {
+      pressing = true;
+      if (event.button === 0) {
+        pointerDown = true;
+      }
+      setTimeout(() => {
+        pressing = false;
+      }, 0);
+    },
+    true
+  );
+  dialog.addEventListener("focusin", (event) => showWhole(event.target));
+  const released = () => {
+    pointerDown = false;
+    const waiting2 = owed;
+    owed = null;
+    if (waiting2 && waiting2.control === document.activeElement && Math.abs(body.scrollTop - waiting2.at) < 1) {
+      keepWhole(waiting2.control);
+    }
+  };
+  for (const type of ["mouseup", "pointerup", "pointercancel", "dragend", "contextmenu"]) {
+    window.addEventListener(type, released, true);
+  }
+  window.addEventListener("blur", (event) => {
+    if (event.target === window) {
+      released();
+    }
+  });
+  document.addEventListener("lab:database-loaded", () => {
+    if (dialog.open && !running) {
+      close();
+    }
+  });
+  dialog.addEventListener("close", () => {
+    if (dialog.open) {
+      return;
+    }
+    endSession();
+    restoreFocus();
+  });
+  return {
+    open,
+    isOpen: () => dialog.open
+  };
+}
+
+// js/lab/import-report.js
+var import_report_exports = {};
+__export(import_report_exports, {
+  buildImportReport: () => buildImportReport
+});
+function el5(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) {
+    node.className = className;
+  }
+  if (text !== void 0 && text !== null) {
+    node.textContent = text;
+  }
+  return node;
+}
+var REPORT_VALUE_CHARS = 80;
+var CUT3 = "…";
+var reports = 0;
+function shown(node, text) {
+  if (text.length > REPORT_VALUE_CHARS) {
+    node.textContent = `${text.slice(0, REPORT_VALUE_CHARS)}${CUT3}`;
+    node.title = text;
+  } else {
+    node.textContent = text;
+  }
+  return node;
+}
+var asRead = (text) => shown(el5("span", "import-cell-text"), text);
+function originalCell(column) {
+  const cell2 = el5("td");
+  if (column.original === null || column.original === column.name) {
+    return cell2;
+  }
+  cell2.append(isBlankName(column.original) ? el5("span", "cell-null", IMPORT_REPORT_BLANK_NAME) : asRead(column.original));
+  return cell2;
+}
+function noteCell(column) {
+  const cell2 = el5("td", "import-report-note");
+  if (column.blocking !== null) {
+    cell2.append(el5("span", null, `${IMPORT_REPORT_BLOCKING_NOTE} `), asRead(column.blocking));
+  }
+  return cell2;
+}
+function columnsTable(table, headingId) {
+  const node = el5("table", "result-table import-report-columns");
+  node.setAttribute("aria-labelledby", headingId);
+  const head = el5("tr");
+  for (const [text, className] of [
+    [IMPORT_REPORT_COLUMN_HEADING, null],
+    [IMPORT_REPORT_ORIGINAL_HEADING, null],
+    [IMPORT_REPORT_TYPE_HEADING, null],
+    [IMPORT_REPORT_BLANKS_HEADING, "num"],
+    [IMPORT_REPORT_NOTE_HEADING, null]
+  ]) {
+    const heading = el5("th", className, text);
+    heading.scope = "col";
+    head.append(heading);
+  }
+  node.createTHead().append(head);
+  const body = node.createTBody();
+  for (const column of table.columns) {
+    const row = el5("tr");
+    const name = shown(el5("th", "import-report-column"), column.name);
+    name.scope = "row";
+    row.append(name, originalCell(column), el5("td", null, column.type), el5("td", "num", String(column.blanks)), noteCell(column));
+    body.append(row);
+  }
+  return node;
+}
+function warning(text) {
+  const node = el5("p", "import-report-warning");
+  const glyph = icon("circle-alert");
+  glyph.classList.add("import-report-warning-icon");
+  node.append(glyph, el5("span", null, text));
+  return node;
+}
+function buildImportReport(tables) {
+  const report = el5("div", "import-report");
+  reports++;
+  tables.forEach((table, n) => {
+    const section = el5("section", "import-report-table");
+    const heading = el5("h2", "import-report-name", table.name);
+    heading.id = `import-report-${reports}-${n + 1}`;
+    section.append(heading, el5("p", "import-report-line", importReportTableLine(table.rows, table.columns.length, table.source)));
+    if (table.badQuotes) {
+      section.append(warning(IMPORT_REPORT_QUOTES_WARNING));
+    }
+    section.append(columnsTable(table, heading.id));
+    report.append(section);
+  });
+  return report;
+}
+
+// js/lab/vendor-loader.js
+var vendor_loader_exports = {};
+__export(vendor_loader_exports, {
+  loadVendor: () => loadVendor
+});
+var VENDOR_DIR = "vendor/";
+var PLAIN_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+var loading2 = /* @__PURE__ */ new Map();
+function onPage(globalName) {
+  try {
+    return globalThis[globalName];
+  } catch {
+    return void 0;
+  }
+}
+function loadVendor(file, globalName) {
+  if (typeof file !== "string" || !PLAIN_NAME.test(file) || file.includes("..")) {
+    return Promise.reject(new Error(`not a file of ${VENDOR_DIR}`));
+  }
+  if (typeof globalName !== "string" || !globalName) {
+    return Promise.reject(new Error("not the name of a library"));
+  }
+  const present = onPage(globalName);
+  if (present !== void 0) {
+    return Promise.resolve(present);
+  }
+  const known = loading2.get(file);
+  if (known) {
+    return known;
+  }
+  let waiting2 = true;
+  const promise = new Promise((resolve, reject) => {
+    let script = null;
+    let timer = null;
+    const settle = (library) => {
+      if (!waiting2) {
+        return;
+      }
+      waiting2 = false;
+      clearTimeout(timer);
+      loading2.delete(file);
+      if (library === void 0) {
+        script?.remove();
+        reject(new Error(`could not load ${VENDOR_DIR}${file}`));
+      } else {
+        resolve(library);
+      }
+    };
+    try {
+      script = document.createElement("script");
+      script.addEventListener("load", () => settle(onPage(globalName)));
+      script.addEventListener("error", () => settle(void 0));
+      timer = setTimeout(() => settle(void 0), VENDOR_LOAD_TIMEOUT_MS);
+      script.src = `${VENDOR_DIR}${file}`;
+      document.head.append(script);
+    } catch {
+      settle(void 0);
+    }
+  });
+  if (waiting2) {
+    loading2.set(file, promise);
+  }
+  return promise;
+}
+
+// js/lab/import.js
+var IMPORT_NAME = /\.(?:csv|tsv|txt|xlsx|xls)$/i;
+var READER_FILE = "papaparse.min.js";
+var READER_GLOBAL = "Papa";
+var REFUSAL_TEXT = {
+  "too-wide": IMPORT_TOO_WIDE_REASON,
+  "no-names-row": IMPORT_NO_NAMES_ROW_REASON,
+  empty: IMPORT_EMPTY_REASON,
+  unreadable: IMPORT_UNREADABLE_REASON,
+  changed: IMPORT_CHANGED_REASON
+};
+var ImportCancelled = class extends Error {
+};
+var isEngineError = (error) => error?.name === "SQLite3Error" || error?.name === "WasmAllocError";
+function mountImport({
+  fileInput,
+  returnFocus,
+  getDatabase,
+  getDatabaseLabel,
+  isCourseDatabase,
+  isLoading = () => false,
+  openBuilt: openBuilt2,
+  announceChanged,
+  runLog: runLog2,
+  results: results2,
+  showResult: showResult2,
+  onBusy = () => {
+  }
+}) {
+  const enabled = flagOn("import");
+  let running = false;
+  if (!enabled) {
+    return { enabled, take: () => false, busy: () => false, dialogOpen: () => false };
+  }
+  fileInput.multiple = true;
+  const loadReader = () => loadVendor(READER_FILE, READER_GLOBAL);
+  async function importFile(database2, item2, { reader, pace, cancelled, report }) {
+    const rest = async () => {
+      await pace.rest();
+      if (cancelled()) {
+        throw new ImportCancelled();
+      }
+    };
+    const table = newTableReader({ hasNames: item2.hasNames, namesRow: item2.namesRow });
+    const stage = newStage(database2);
+    try {
+      const text = textPieces(item2.file, item2.encoding, {
+        sliceBytes: IMPORT_SLICE_BYTES,
+        between: async (read3) => {
+          report("read", read3, item2.file.size);
+          await rest();
+        }
+      });
+      const pieces = item2.mark ? sameStart(text, item2.mark) : text;
+      let read2;
+      try {
+        read2 = await readPieces(reader, pieces, {
+          delimiter: item2.delimiter,
+          newline: item2.newline,
+          onRows: (rows3) => stage.add(table.take(rows3))
+        });
+      } catch (error) {
+        if (error instanceof ImportCancelled || error instanceof ImportRefused || isEngineError(error)) {
+          throw error;
+        }
+        if (error instanceof TextChanged) {
+          throw new ImportRefused("changed");
+        }
+        throw new ImportRefused("unreadable");
+      }
+      const made = table.finish();
+      await stage.copyInto(item2.tableName, made.columns, { rest, onStep: (done, total) => report("copy", done, total) });
+      return {
+        name: item2.tableName,
+        rows: made.rows,
+        columns: made.columns,
+        source: item2.file.name,
+        bytes: item2.file.size,
+        badQuotes: read2.badQuotes
+      };
+    } finally {
+      stage.drop();
+    }
+  }
+  async function run(job, { progress, cancelled }) {
+    const own = job.destination.kind === "new";
+    if (isLoading()) {
+      return { ok: false, message: IMPORT_LOADING_DIALOG_MESSAGE };
+    }
+    if (!own && (!getDatabase() || isCourseDatabase())) {
+      return { ok: false, message: IMPORT_DESTINATION_GONE_MESSAGE };
+    }
+    running = true;
+    onBusy(true);
+    let database2 = null;
+    let ticket = null;
+    let current4 = null;
+    try {
+      const reader = await loadReader().catch(() => null);
+      if (!reader) {
+        return { ok: false, message: IMPORT_LIBRARY_FAILED_MESSAGE };
+      }
+      database2 = own ? await manager_default.init(job.destination.name, new DatabasePath("")) : getDatabase();
+      ticket = beginImport(database2);
+      const pace = newPace();
+      const tables = [];
+      for (const [index, item2] of job.files.entries()) {
+        current4 = item2;
+        const report = (part, done, total) => progress({ at: index + 1, of: job.files.length, name: item2.file.name, part, done, total });
+        report("read", 0, item2.file.size);
+        tables.push(await importFile(database2, item2, { reader, pace, cancelled, report }));
+      }
+      endImport(database2);
+      ticket = null;
+      if (own) {
+        const built = database2;
+        database2 = null;
+        if (!await openBuilt2(built)) {
+          return { ok: false, message: IMPORT_NOT_OPENED_MESSAGE };
+        }
+      } else {
+        announceChanged(database2);
+      }
+      const name = getDatabase().name;
+      const key = runLog2.current().key;
+      for (const table of tables) {
+        recordEvent(key, {
+          kind: "import",
+          lines: [importEventFileLine(table.source, table.bytes), importEventTableLine(table.name, table.rows, table.columns.length)]
+        });
+      }
+      const said = importedMessage(tables.length, name);
+      results2.showReport(buildImportReport(tables), { summary: said });
+      showResult2();
+      toast(said);
+      return { ok: true };
+    } catch (error) {
+      let lostTransaction = false;
+      if (database2 && ticket) {
+        ({ lostTransaction } = undoImport(database2, ticket));
+      }
+      if (error instanceof ImportCancelled) {
+        return { ok: false, cancelled: true };
+      }
+      if (error instanceof ImportRefused && current4) {
+        return { ok: false, refused: { id: current4.id, reason: REFUSAL_TEXT[error.reason] ?? IMPORT_UNREADABLE_REASON } };
+      }
+      const alsoLost = lostTransaction ? IMPORT_LOST_TRANSACTION_MESSAGE : "";
+      if (isOutOfMemory(error)) {
+        return { ok: false, message: `${IMPORT_OUT_OF_MEMORY_MESSAGE}${alsoLost}` };
+      }
+      console.debug("the import failed", error);
+      return { ok: false, message: `${IMPORT_FAILED_MESSAGE}${alsoLost}` };
+    } finally {
+      if (own && database2) {
+        try {
+          database2.db.close();
+        } catch {
+        }
+      }
+      running = false;
+      onBusy(false);
+    }
+  }
+  const dialog = mountImportDialog({
+    returnFocus,
+    loadReader,
+    getDestination() {
+      const database2 = getDatabase();
+      return {
+        name: database2 ? getDatabaseLabel() : null,
+        allowed: Boolean(database2) && !isCourseDatabase(),
+        taken: () => database2 ? takenNames(database2) : /* @__PURE__ */ new Map()
+      };
+    },
+    onImport: run
+  });
+  function take(files) {
+    const ours = files.filter((file) => IMPORT_NAME.test(file.name));
+    if (files.length === 1 && !ours.length) {
+      return false;
+    }
+    if (running) {
+      toast(IMPORT_BUSY_MESSAGE, { tone: "note" });
+      return true;
+    }
+    if (ours.length && isLoading()) {
+      toast(IMPORT_LOADING_MESSAGE, { tone: "note" });
+      return true;
+    }
+    if (!ours.length) {
+      toast(IMPORT_SEVERAL_DATABASES_MESSAGE, { tone: "note" });
+      return true;
+    }
+    if (ours.length !== files.length) {
+      toast(IMPORT_MIXED_MESSAGE, { tone: "note" });
+      return true;
+    }
+    dialog.open(files);
+    return true;
+  }
+  return { enabled, take, busy: () => running, dialogOpen: dialog.isOpen };
+}
+
 // js/lab/more-menu.js
 init_config();
 
@@ -5183,7 +7183,7 @@ function mountThemeMenu(container, { before = null, buttonClass = "button button
 }
 
 // js/lab/more-menu.js
-function el4(tag, className, text) {
+function el6(tag, className, text) {
   const node = document.createElement(tag);
   if (className) {
     node.className = className;
@@ -5194,23 +7194,23 @@ function el4(tag, className, text) {
   return node;
 }
 function entry(id, glyph, label, { role = "menuitem", description = null } = {}) {
-  const node = el4("button", description ? "menu-item menu-item--two-line" : "menu-item");
+  const node = el6("button", description ? "menu-item menu-item--two-line" : "menu-item");
   node.type = "button";
   node.id = id;
   node.tabIndex = -1;
   node.setAttribute("role", role);
-  const text = el4("span", "menu-item-text");
-  text.append(el4("span", description ? "menu-item-label" : null, label));
+  const text = el6("span", "menu-item-text");
+  text.append(el6("span", description ? "menu-item-label" : null, label));
   if (description) {
-    text.append(el4("span", "menu-item-description", description));
+    text.append(el6("span", "menu-item-description", description));
   }
   node.append(glyph, text);
   return node;
 }
 function group(label, entries) {
-  const node = el4("div", "menu-group");
+  const node = el6("div", "menu-group");
   node.setAttribute("role", "group");
-  const heading = el4("p", "menu-heading", label);
+  const heading = el6("p", "menu-heading", label);
   heading.id = `more-${label.toLowerCase()}-heading`;
   heading.setAttribute("aria-hidden", "true");
   node.setAttribute("aria-labelledby", heading.id);
@@ -5218,7 +7218,7 @@ function group(label, entries) {
   return node;
 }
 function separator() {
-  const node = el4("div", "menu-separator");
+  const node = el6("div", "menu-separator");
   node.setAttribute("role", "separator");
   return node;
 }
@@ -5563,7 +7563,7 @@ function mountLayout({
 
 // js/lab/open-url-dialog.js
 init_config();
-function el5(tag, props = {}, text = "") {
+function el7(tag, props = {}, text = "") {
   const node = document.createElement(tag);
   Object.assign(node, props);
   if (text) {
@@ -5572,10 +7572,10 @@ function el5(tag, props = {}, text = "") {
   return node;
 }
 function mountOpenUrlDialog({ onOpen }) {
-  const dialog = el5("dialog", { id: "open-url-dialog", className: "app-dialog" });
+  const dialog = el7("dialog", { id: "open-url-dialog", className: "app-dialog" });
   dialog.setAttribute("aria-labelledby", "open-url-title");
-  const form = el5("form", { method: "dialog", noValidate: true });
-  const input = el5("input", {
+  const form = el7("form", { method: "dialog", noValidate: true });
+  const input = el7("input", {
     id: "open-url-input",
     type: "text",
     inputMode: "url",
@@ -5586,18 +7586,18 @@ function mountOpenUrlDialog({ onOpen }) {
   input.setAttribute("autocapitalize", "off");
   input.setAttribute("autocorrect", "off");
   input.setAttribute("aria-describedby", "open-url-hint");
-  const error = el5("p", { id: "open-url-error", className: "app-dialog-error", hidden: true });
+  const error = el7("p", { id: "open-url-error", className: "app-dialog-error", hidden: true });
   error.setAttribute("role", "alert");
-  const submit = el5("button", { type: "submit", className: "button button--primary" }, OPEN_URL_SUBMIT_TEXT);
-  const cancel = el5("button", { type: "button", className: "button" }, OPEN_URL_CANCEL_TEXT);
-  const actions2 = el5("div", { className: "app-dialog-actions" });
+  const submit = el7("button", { type: "submit", className: "button button--primary" }, OPEN_URL_SUBMIT_TEXT);
+  const cancel = el7("button", { type: "button", className: "button" }, OPEN_URL_CANCEL_TEXT);
+  const actions2 = el7("div", { className: "app-dialog-actions" });
   actions2.append(submit, cancel);
   form.append(
-    el5("h2", { id: "open-url-title", className: "app-dialog-title" }, OPEN_URL_TITLE),
-    el5("p", { className: "app-dialog-text" }, OPEN_URL_INTRO),
-    el5("label", { htmlFor: "open-url-input", className: "app-dialog-label" }, OPEN_URL_LABEL),
+    el7("h2", { id: "open-url-title", className: "app-dialog-title" }, OPEN_URL_TITLE),
+    el7("p", { className: "app-dialog-text" }, OPEN_URL_INTRO),
+    el7("label", { htmlFor: "open-url-input", className: "app-dialog-label" }, OPEN_URL_LABEL),
     input,
-    el5("p", { id: "open-url-hint", className: "app-dialog-hint" }, OPEN_URL_HINT),
+    el7("p", { id: "open-url-hint", className: "app-dialog-hint" }, OPEN_URL_HINT),
     error,
     actions2
   );
@@ -5865,13 +7865,13 @@ function mountCellPopover(popover) {
       value.textContent = "";
     }
   });
-  let frame = 0;
+  let frame2 = 0;
   function follow() {
-    if (frame) {
+    if (frame2) {
       return;
     }
-    frame = requestAnimationFrame(() => {
-      frame = 0;
+    frame2 = requestAnimationFrame(() => {
+      frame2 = 0;
       if (popover.matches(":popover-open") && source?.isConnected) {
         placePopover(popover, source);
       }
@@ -5938,14 +7938,14 @@ function failedStatement(exc) {
 }
 var NEEDS_QUOTES = /[",\r\n]/;
 var NON_ASCII = /[^\u0000-\u007f]/;
-function field(value) {
+function field2(value) {
   const text = cellText(value);
   return NEEDS_QUOTES.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 function toCsv({ columns, values }) {
-  const lines = [columns.map(field).join(",")];
+  const lines = [columns.map(field2).join(",")];
   for (const row of values) {
-    lines.push(Array.from(row, field).join(","));
+    lines.push(Array.from(row, field2).join(","));
   }
   return lines.join("\r\n") + "\r\n";
 }
@@ -5956,7 +7956,7 @@ function csvBytes(result) {
 function csvFileName(databaseName) {
   return `${safeBaseName(databaseName).replace(/\.(db|sqlite|sqlite3)$/i, "")}${CSV_FILE_SUFFIX}`;
 }
-function el6(tag, className, text) {
+function el8(tag, className, text) {
   const node = document.createElement(tag);
   if (className) {
     node.className = className;
@@ -5967,33 +7967,33 @@ function el6(tag, className, text) {
   return node;
 }
 function withTime(text, ms) {
-  return [text, el6("span", "status-time", resultTimeText(ms))];
+  return [text, el8("span", "status-time", resultTimeText(ms))];
 }
 function band(...body) {
-  const node = el6("div", "results-band");
+  const node = el8("div", "results-band");
   const glyph = icon("circle-alert");
   glyph.classList.add("results-band-icon");
-  const content = el6("div", "results-band-body");
+  const content = el8("div", "results-band-body");
   content.append(...body);
   node.append(glyph, content);
   return node;
 }
 function errorBand(exc) {
   const message = engineMessage(exc) || String(exc);
-  const parts = [el6("h2", "results-band-title", ERROR_HEADING), el6("p", "results-band-message", message)];
+  const parts = [el8("h2", "results-band-title", ERROR_HEADING), el8("p", "results-band-message", message)];
   const failed = failedStatement(exc);
   if (failed) {
-    const where = el6("div", "results-band-statement");
+    const where = el8("div", "results-band-statement");
     where.append(
-      el6("p", "results-band-where", errorStatementText(failed.position, failed.count)),
-      el6("pre", "results-band-quote", statementQuote(failed.text))
+      el8("p", "results-band-where", errorStatementText(failed.position, failed.count)),
+      el8("pre", "results-band-quote", statementQuote(failed.text))
     );
     parts.push(where);
   }
   return band(...parts);
 }
 function problemBand(message) {
-  const node = band(el6("p", "results-band-text", message));
+  const node = band(el8("p", "results-band-text", message));
   node.classList.add("results-band--problem");
   return node;
 }
@@ -6003,10 +8003,10 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
   button.type = "button";
   button.className = "button button--quiet results-download";
   button.title = CSV_BUTTON_TITLE;
-  button.append(icon("download"), el6("span", null, CSV_BUTTON_TEXT));
+  button.append(icon("download"), el8("span", null, CSV_BUTTON_TEXT));
   button.hidden = true;
   summary.append(button);
-  const announcer = el6("p", "visually-hidden");
+  const announcer = el8("p", "visually-hidden");
   announcer.id = "results-announce";
   announcer.setAttribute("role", "status");
   announcer.setAttribute("aria-live", "polite");
@@ -6020,7 +8020,7 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
       announcer.textContent = text;
     }, 60);
   }
-  const problemSlot = el6("div", "results-problem");
+  const problemSlot = el8("div", "results-problem");
   problemSlot.hidden = true;
   summary.before(problemSlot);
   const popoverElement = document.getElementById("cell-popover");
@@ -6028,7 +8028,7 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
   } };
   function setState(state2) {
     pane.dataset.state = state2;
-    summary.hidden = !(state2 === "result" || state2 === "done");
+    summary.hidden = !(state2 === "result" || state2 === "done" || state2 === "report");
     cellPopover.close?.();
     clearTimeout(announceTimer);
     announcer.textContent = "";
@@ -6088,17 +8088,17 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
   }
   button.addEventListener("click", download);
   function emptyBlock({ variant = "fresh", notice = null }) {
-    const block = el6("div", "results-empty");
-    const intro = el6("div", "results-empty-intro");
-    intro.append(el6("h2", "results-empty-title", EMPTY_TITLE));
+    const block = el8("div", "results-empty");
+    const intro = el8("div", "results-empty-intro");
+    intro.append(el8("h2", "results-empty-title", EMPTY_TITLE));
     if (notice) {
-      intro.append(el6("p", "results-empty-text results-empty-notice", notice));
+      intro.append(el8("p", "results-empty-text results-empty-notice", notice));
     }
     const exercise = isExercise();
     if (variant === "restored" || variant === "shared") {
-      intro.append(el6("p", "results-empty-text", variant === "shared" ? SHARED_MESSAGE : RESTORED_MESSAGE));
+      intro.append(el8("p", "results-empty-text", variant === "shared" ? SHARED_MESSAGE : RESTORED_MESSAGE));
     } else if (exercise) {
-      intro.append(el6("p", "results-empty-text", EMPTY_EXERCISE_TEXT));
+      intro.append(el8("p", "results-empty-text", EMPTY_EXERCISE_TEXT));
     }
     block.append(intro);
     if (exercise) {
@@ -6106,14 +8106,14 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
     }
     const samples = getSamples();
     if (samples.length) {
-      intro.append(el6("p", "results-empty-text", EMPTY_SAMPLES_TEXT));
-      const list = el6("ul", "results-samples");
+      intro.append(el8("p", "results-empty-text", EMPTY_SAMPLES_TEXT));
+      const list = el8("ul", "results-samples");
       list.setAttribute("aria-label", EMPTY_SAMPLES_LABEL);
       for (const sample of samples) {
-        const item2 = el6("li");
-        const choose = el6("button", "results-sample");
+        const item2 = el8("li");
+        const choose = el8("button", "results-sample");
         choose.type = "button";
-        choose.append(el6("span", "results-sample-label", cut(sample.label, SAMPLE_LABEL_CHARS)), el6("span", "results-sample-sql", sampleText(sample.sql)));
+        choose.append(el8("span", "results-sample-label", cut(sample.label, SAMPLE_LABEL_CHARS)), el8("span", "results-sample-sql", sampleText(sample.sql)));
         choose.addEventListener("click", () => {
           ui2.editor.fill(sample.sql);
         });
@@ -6122,15 +8122,15 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
       }
       block.append(list);
     } else if (getDatabase()) {
-      intro.append(el6("p", "results-empty-text", EMPTY_DATABASE_TEXT));
-      const links = el6("p", "results-empty-links");
-      const about = el6("a", null, emptyAboutText(APP_NAME));
+      intro.append(el8("p", "results-empty-text", EMPTY_DATABASE_TEXT));
+      const links = el8("p", "results-empty-links");
+      const about = el8("a", null, emptyAboutText(APP_NAME));
       about.href = "about.html";
-      const functions = el6("a", null, EMPTY_FUNCTIONS_TEXT);
+      const functions = el8("a", null, EMPTY_FUNCTIONS_TEXT);
       functions.href = "https://sqlite.org/lang_corefunc.html";
       functions.target = "_blank";
       functions.rel = "noopener noreferrer";
-      const dot = el6("span", null, "·");
+      const dot = el8("span", null, "·");
       dot.setAttribute("aria-hidden", "true");
       links.append(about, " ", dot, " ", functions);
       block.append(links);
@@ -6182,19 +8182,31 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
         return;
       }
       const total = result.values.length;
-      const shown = Math.min(total, ROW_LIMIT);
-      const rows3 = total > shown ? result.values.slice(0, ROW_LIMIT) : result.values;
+      const shown2 = Math.min(total, ROW_LIMIT);
+      const rows3 = total > shown2 ? result.values.slice(0, ROW_LIMIT) : result.values;
       const printed = buildResultTable({ columns: result.columns, values: rows3 }, { popover: popoverElement });
       ui2.result.replaceChildren(printed);
       followHeader(printed);
       setState("result");
-      setSummary(...withTime(total > shown ? resultCappedText(shown, total) : resultRowsText(total), elapsed));
+      setSummary(...withTime(total > shown2 ? resultCappedText(shown2, total) : resultRowsText(total), elapsed));
       if (total) {
         offer(result, printed);
       }
       if (!quiet) {
-        announce2(total > shown ? resultCappedAnnouncement(shown, total) : resultRowsAnnouncement(total));
+        announce2(total > shown2 ? resultCappedAnnouncement(shown2, total) : resultRowsAnnouncement(total));
       }
+    },
+    // A report of the page's own in place of a result (an import's, js/lab/import-report.js):
+    // the node it is given, with a summary line above it that is also said. The pane's state
+    // is "report". The next run, or the next "no result yet", replaces it as it replaces a
+    // result.
+    showReport(node, { summary: line }) {
+      beforeLoad = null;
+      retire();
+      ui2.result.replaceChildren(node);
+      setState("report");
+      setSummary(line);
+      announce2(line);
     },
     // a run that failed: the engine's exception, or a message of the page's own
     showError(exc, { quiet = false } = {}) {
@@ -6279,11 +8291,11 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
       offered = null;
       table = null;
       button.hidden = true;
-      const block = el6("div", "results-loading");
-      const title = el6("h2", "results-loading-title", loadingTitle(name));
+      const block = el8("div", "results-loading");
+      const title = el8("h2", "results-loading-title", loadingTitle(name));
       title.id = "results-loading-title";
-      const sizeLine = el6("p", "results-loading-size", loadingSizeText(0, size));
-      const bar = el6("progress", "results-progress");
+      const sizeLine = el8("p", "results-loading-size", loadingSizeText(0, size));
+      const bar = el8("progress", "results-progress");
       bar.max = 1;
       if (size) {
         bar.value = 0;
@@ -6316,7 +8328,7 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
       };
     },
     startRun() {
-      const overlay = el6("div", "results-running", RUNNING_TEXT);
+      const overlay = el8("div", "results-running", RUNNING_TEXT);
       overlay.setAttribute("aria-hidden", "true");
       (summary.hidden ? ui2.result : summary).append(overlay);
       return () => overlay.remove();
@@ -6594,14 +8606,14 @@ function insertByHand(range, text) {
 // js/lab/schema.js
 init_sql();
 function element2(tag, className, text) {
-  const el7 = document.createElement(tag);
+  const el9 = document.createElement(tag);
   if (className) {
-    el7.className = className;
+    el9.className = className;
   }
   if (text !== void 0) {
-    el7.textContent = text;
+    el9.textContent = text;
   }
-  return el7;
+  return el9;
 }
 function hiddenText(text) {
   return element2("span", "visually-hidden", text);
@@ -6742,7 +8754,7 @@ function mountSchema({ container, editor }) {
       return;
     }
     const references = type === "table" ? foreignKeys(database2, name) : /* @__PURE__ */ new Map();
-    for (const [, columnName, columnType, , , pk] of found) {
+    for (const [, columnName, columnType2, , , pk] of found) {
       const item2 = element2("li", "schema-column");
       const insert = element2("button", "schema-insert schema-insert-column", columnName);
       insert.type = "button";
@@ -6756,8 +8768,8 @@ function mountSchema({ container, editor }) {
       if (references.has(columnName)) {
         item2.append(namedIcon(icon("link-2"), schemaForeignKeyLabel(references.get(columnName)), "schema-fk"));
       }
-      if (columnType) {
-        item2.append(element2("span", "schema-type", columnType));
+      if (columnType2) {
+        item2.append(element2("span", "schema-type", columnType2));
       }
       columns.append(item2);
     }
@@ -6860,12 +8872,12 @@ function mountSchema({ container, editor }) {
       filterText = "";
       filter.value = "";
     }
-    const shown = objects.map((object, index) => ({ object, index })).filter(({ object }) => matches(object.name));
-    if (!text && objects.length && !shown.length) {
+    const shown2 = objects.map((object, index) => ({ object, index })).filter(({ object }) => matches(object.name));
+    if (!text && objects.length && !shown2.length) {
       text = SCHEMA_NO_MATCH;
     }
     showMessage(text);
-    const build = (kind) => shown.filter(({ object }) => object.type === kind).map(({ object, index }) => buildItem(database2, object, index));
+    const build = (kind) => shown2.filter(({ object }) => object.type === kind).map(({ object, index }) => buildItem(database2, object, index));
     const tableItems = build("table");
     const viewItems = build("view");
     tableList.replaceChildren(...tableItems);
@@ -6896,7 +8908,7 @@ function mountSchema({ container, editor }) {
     render();
     scrollToTop();
   });
-  document.addEventListener("lab:run-finished", (event) => {
+  const catchUp = (event) => {
     if (event.detail.database !== current4.database) {
       return;
     }
@@ -6905,7 +8917,9 @@ function mountSchema({ container, editor }) {
       seen = now;
       render();
     }
-  });
+  };
+  document.addEventListener("lab:run-finished", catchUp);
+  document.addEventListener("lab:database-changed", catchUp);
   renderDataset();
   showMessage("");
   tables.hidden = true;
@@ -7094,55 +9108,6 @@ function mountStatusBar({ database: databaseEl, run: runEl, version: versionEl }
   };
 }
 
-// js/lab/tabs.js
-function mountTabs(tablist, { onShow = () => {
-} } = {}) {
-  const tabs2 = [...tablist.querySelectorAll('[role="tab"]')];
-  const panelOf = (tab) => document.getElementById(tab.getAttribute("aria-controls"));
-  let selected = tabs2.find((tab) => tab.getAttribute("aria-selected") === "true") ?? tabs2[0];
-  function show(tab, { focus = false } = {}) {
-    for (const other of tabs2) {
-      const on = other === tab;
-      other.setAttribute("aria-selected", String(on));
-      other.tabIndex = on ? 0 : -1;
-      panelOf(other).hidden = !on;
-    }
-    selected = tab;
-    if (focus) {
-      tab.focus();
-    }
-    onShow(tab.id);
-  }
-  tablist.addEventListener("click", (event) => {
-    const tab = event.target.closest('[role="tab"]');
-    if (tab && tabs2.includes(tab)) {
-      show(tab);
-    }
-  });
-  tablist.addEventListener("keydown", (event) => {
-    const at = tabs2.indexOf(document.activeElement);
-    if (at === -1 || event.altKey || event.ctrlKey || event.metaKey) {
-      return;
-    }
-    const moves = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: tabs2.length - 1 };
-    if (!(event.key in moves)) {
-      return;
-    }
-    event.preventDefault();
-    show(tabs2[(moves[event.key] + tabs2.length) % tabs2.length], { focus: true });
-  });
-  show(selected);
-  return {
-    show(id) {
-      const tab = tabs2.find((candidate) => candidate.id === id);
-      if (tab && tab !== selected) {
-        show(tab);
-      }
-    },
-    current: () => selected.id
-  };
-}
-
 // js/lab/text-size.js
 init_config();
 function readTextSize() {
@@ -7194,71 +9159,6 @@ function mountTextSize({ smaller, larger, said }) {
   return { size: () => size };
 }
 
-// js/lab/vendor-loader.js
-var vendor_loader_exports = {};
-__export(vendor_loader_exports, {
-  loadVendor: () => loadVendor
-});
-var VENDOR_DIR = "vendor/";
-var PLAIN_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-var loading2 = /* @__PURE__ */ new Map();
-function onPage(globalName) {
-  try {
-    return globalThis[globalName];
-  } catch {
-    return void 0;
-  }
-}
-function loadVendor(file, globalName) {
-  if (typeof file !== "string" || !PLAIN_NAME.test(file) || file.includes("..")) {
-    return Promise.reject(new Error(`not a file of ${VENDOR_DIR}`));
-  }
-  if (typeof globalName !== "string" || !globalName) {
-    return Promise.reject(new Error("not the name of a library"));
-  }
-  const present = onPage(globalName);
-  if (present !== void 0) {
-    return Promise.resolve(present);
-  }
-  const known = loading2.get(file);
-  if (known) {
-    return known;
-  }
-  let waiting = true;
-  const promise = new Promise((resolve, reject) => {
-    let script = null;
-    let timer = null;
-    const settle = (library) => {
-      if (!waiting) {
-        return;
-      }
-      waiting = false;
-      clearTimeout(timer);
-      loading2.delete(file);
-      if (library === void 0) {
-        script?.remove();
-        reject(new Error(`could not load ${VENDOR_DIR}${file}`));
-      } else {
-        resolve(library);
-      }
-    };
-    try {
-      script = document.createElement("script");
-      script.addEventListener("load", () => settle(onPage(globalName)));
-      script.addEventListener("error", () => settle(void 0));
-      timer = setTimeout(() => settle(void 0), VENDOR_LOAD_TIMEOUT_MS);
-      script.src = `${VENDOR_DIR}${file}`;
-      document.head.append(script);
-    } catch {
-      settle(void 0);
-    }
-  });
-  if (waiting) {
-    loading2.set(file, promise);
-  }
-  return promise;
-}
-
 // js/index.js
 var ui = {
   buttons: {
@@ -7288,6 +9188,9 @@ var actions = {
 };
 var shortcuts = {
   o: () => {
+    if (importInTheWay()) {
+      return;
+    }
     if (typeof HTMLElement.prototype.hidePopover === "function") {
       for (const popover of document.querySelectorAll(":popover-open")) {
         popover.hidePopover();
@@ -7332,9 +9235,21 @@ var picker = mountDatabaseSwitcher({
   button: document.querySelector("#database-button"),
   label: document.querySelector("#database-button-name"),
   menu: document.querySelector("#database-menu"),
-  onSelect: startFromDataset,
-  onOpenFile: () => ui.fileInput.click(),
-  onOpenUrl: () => openUrl(document.querySelector("#database-button"))
+  onSelect: (dataset) => {
+    if (refusedWhileImporting()) {
+      picker.sync();
+      return;
+    }
+    startFromDataset(dataset);
+  },
+  onOpenFile: () => {
+    if (!importInTheWay()) {
+      ui.fileInput.click();
+    }
+  },
+  onOpenUrl: () => openUrl(document.querySelector("#database-button")),
+  // with the import on, the entry says what else it takes (the assessment plan's Phase 2)
+  openFileDescription: flagOn("import") ? OPEN_FILE_WITH_IMPORT_DESCRIPTION : void 0
 });
 var openUrlDialog = mountOpenUrlDialog({ onOpen: startFromUrl });
 mountThemeMenu(document.querySelector(".topbar-theme"), { buttonClass: "button button--quiet" });
@@ -7352,9 +9267,22 @@ var lab = mountExercises({
   ui,
   // a Check's visible run: shown in the results pane, but the verdict is what is said
   execute: (sql) => execute(sql, { quiet: true }),
-  isLoading: () => loading3,
-  openSet: (set2) => setActions.openSet(set2),
-  closeSet: () => setActions.closeSet(),
+  // (an import counts: a Check would otherwise go on to mark the answer after its run was refused)
+  isLoading: () => loading3 || importer.busy(),
+  openSet: (set2) => {
+    if (refusedWhileImporting()) {
+      lab.syncPicker();
+      return void 0;
+    }
+    return setActions.openSet(set2);
+  },
+  closeSet: () => {
+    if (refusedWhileImporting()) {
+      lab.syncPicker();
+      return;
+    }
+    setActions.closeSet();
+  },
   // a set that opens shows its tab, and the sidebar if it was hidden: the exercise list,
   // the progress and Reset progress live there
   showTab: () => {
@@ -7409,8 +9337,12 @@ mountStorageNotice({ ui, before: ui.summary });
 var exportDialog = mountExportDialog({
   returnFocus: exportReturn,
   getName: () => database ? database.name : null,
-  getProblem: () => exportProblem(database),
+  // (a database exported part-way through an import would hold half of it)
+  getProblem: () => importer.busy() ? IMPORT_BUSY_MESSAGE : exportProblem(database),
   onExport: (name) => {
+    if (importer.busy()) {
+      return;
+    }
     if (name !== database.name) {
       changeName(name);
     }
@@ -7429,6 +9361,34 @@ mountMoreMenu({
   evidence,
   help
 });
+var addressAtImport = null;
+var importer = mountImport({
+  fileInput: ui.fileInput,
+  returnFocus: document.querySelector("#database-button"),
+  getDatabase: () => database,
+  getDatabaseLabel: () => openDataset ? openDataset.name : database.name,
+  isCourseDatabase: () => openDataset !== null,
+  // (no import starts while a database is on its way: it would close the open one under it)
+  isLoading: () => loading3,
+  openBuilt,
+  announceChanged: (changed) => announce("lab:database-changed", { database: changed }),
+  runLog,
+  results,
+  showResult: () => layout.showView("result"),
+  onBusy: (busy) => {
+    addressAtImport = busy ? { href: location.href, state: history.state } : null;
+  }
+});
+function refusedWhileImporting() {
+  if (!importer.busy()) {
+    return false;
+  }
+  toast(IMPORT_BUSY_MESSAGE, { tone: "note" });
+  return true;
+}
+function importInTheWay() {
+  return refusedWhileImporting() || importer.dialogOpen();
+}
 mountTextSize({
   smaller: document.querySelector("#text-smaller"),
   larger: document.querySelector("#text-larger"),
@@ -7545,6 +9505,9 @@ function datasetSource(dataset, buffer) {
   return { path, name };
 }
 async function startFromDataset(dataset, exercise = null) {
+  if (importer.busy()) {
+    return;
+  }
   const ticket = beginLoad();
   const loader = results.showLoading({ name: dataset.name });
   let success = false;
@@ -7576,6 +9539,9 @@ async function startFromDataset(dataset, exercise = null) {
   showStarted({ focus: false, exercise });
 }
 async function startFromUrl(url) {
+  if (refusedWhileImporting()) {
+    return;
+  }
   const ticket = beginLoad();
   const path = new DatabasePath(url);
   const name = path.extractName();
@@ -7593,6 +9559,9 @@ async function startFromUrl(url) {
   showStarted();
 }
 async function startFromFile(file, contents, fileType) {
+  if (refusedWhileImporting()) {
+    return;
+  }
   const ticket = beginLoad();
   const path = new DatabasePath(contents, fileType);
   const name = file.name;
@@ -7609,9 +9578,27 @@ async function startFromFile(file, contents, fileType) {
   history.pushState(database.name, null, "./");
   showStarted();
 }
-async function start(name, path, { sql = null, dataset = null, pristine: pristine2 = null, ticket, keepFocus = false, exercise = null } = {}) {
+async function openBuilt(built) {
+  const ticket = beginLoad();
+  let success = false;
   try {
-    const [loadedDatabase] = path.type == "unsupported" ? [null] : await Promise.all([manager_default.init(name, path), ui.editor.ready]);
+    success = await start(built.name, built.path, { ticket, built });
+  } finally {
+    endLoad(ticket, success);
+  }
+  if (!success) {
+    if (database !== built) {
+      closeDatabase(built);
+    }
+    return false;
+  }
+  history.pushState(database.name, null, "./");
+  pageStarted = true;
+  return true;
+}
+async function start(name, path, { sql = null, dataset = null, pristine: pristine2 = null, ticket, keepFocus = false, exercise = null, built = null } = {}) {
+  try {
+    const [loadedDatabase] = path.type == "unsupported" ? [null] : await Promise.all([built ?? manager_default.init(name, path), ui.editor.ready]);
     console.debug(loadedDatabase);
     if (ticket !== latestLoad) {
       closeDatabase(loadedDatabase);
@@ -7693,6 +9680,9 @@ function changedRows(run, before, sql) {
 }
 var RUN_DROPPED = Object.freeze({ dropped: true });
 function execute(sql, { quiet = false } = {}) {
+  if (refusedWhileImporting()) {
+    return Promise.reject();
+  }
   if (loading3) {
     toast(LOADING_BUSY_MESSAGE, { tone: "note" });
     return Promise.reject();
@@ -7713,7 +9703,7 @@ function execute(sql, { quiet = false } = {}) {
   const endRun = results.startRun();
   pendingRuns++;
   return afterPaint().then(() => {
-    if (run !== database || loading3) {
+    if (run !== database || loading3 || importer.busy()) {
       return Promise.reject(RUN_DROPPED);
     }
     let outcome;
@@ -7737,13 +9727,16 @@ function execute(sql, { quiet = false } = {}) {
     endRun();
     pendingRuns--;
     if (pendingRuns === 0) {
-      const waiting = idleWaiters;
+      const waiting2 = idleWaiters;
       idleWaiters = [];
-      waiting.forEach((resolve) => resolve());
+      waiting2.forEach((resolve) => resolve());
     }
   });
 }
 function openUrl(returnFocus) {
+  if (importInTheWay()) {
+    return;
+  }
   if (typeof HTMLElement.prototype.hidePopover === "function") {
     for (const popover of document.querySelectorAll(":popover-open")) {
       popover.hidePopover();
@@ -7784,15 +9777,12 @@ function showError(exc, details) {
 }
 function ignoreRejection() {
 }
-ui.fileInput.addEventListener("change", () => {
-  const file = ui.fileInput.files[0];
-  if (!file) {
-    return;
-  }
+function openFile(file, read2 = () => {
+}) {
   const reader = new FileReader();
   const fileType = file.name.endsWith(".sql") ? "sql" : "binary";
   reader.onload = function() {
-    ui.fileInput.value = "";
+    read2();
     startFromFile(file, reader.result, fileType);
   };
   if (fileType == "sql") {
@@ -7800,8 +9790,41 @@ ui.fileInput.addEventListener("change", () => {
   } else {
     reader.readAsArrayBuffer(file);
   }
+}
+ui.fileInput.addEventListener("change", () => {
+  const files = Array.from(ui.fileInput.files);
+  if (!files.length) {
+    return;
+  }
+  if (importer.take(files)) {
+    ui.fileInput.value = "";
+    return;
+  }
+  openFile(files[0], () => {
+    ui.fileInput.value = "";
+  });
 });
+if (importer.enabled) {
+  document.addEventListener("drop", (event) => {
+    const files = Array.from(event.dataTransfer?.files ?? []);
+    if (!files.length) {
+      return;
+    }
+    event.preventDefault();
+    if (document.querySelector("dialog[open]") || importer.busy()) {
+      return;
+    }
+    if (!importer.take(files)) {
+      openFile(files[0]);
+    }
+  });
+}
 window.addEventListener("popstate", () => {
+  if (importer.busy()) {
+    history.pushState(addressAtImport?.state ?? null, "", addressAtImport?.href ?? location.href);
+    toast(IMPORT_BUSY_MESSAGE, { tone: "note" });
+    return;
+  }
   startFromCurrentUrl();
 });
 ui.editor.addEventListener("execute", (event) => {
@@ -7823,6 +9846,8 @@ export {
   events_exports as events,
   exercises_exports as exercises,
   flags_exports as flags,
+  import_exports as import,
+  import_report_exports as importReport,
   manager_exports as manager,
   progress_exports as progress,
   results_exports as results,

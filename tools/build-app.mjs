@@ -62,6 +62,7 @@ const STYLES = [
     "css/editor.css",
     "css/result.css",
     "css/evidence.css",
+    "css/import.css",
     "css/toast.css",
 ];
 
@@ -79,6 +80,8 @@ const EXPOSE = [
     "js/lab/events.js",
     "js/lab/exercises.js",
     "js/lab/flags.js",
+    "js/lab/import-report.js",
+    "js/lab/import.js",
     "js/lab/progress.js",
     "js/lab/results.js",
     "js/lab/router.js",

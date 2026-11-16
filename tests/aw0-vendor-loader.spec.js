@@ -4,7 +4,8 @@ const { test, expect, fakeStorage, inNode, NORTHLIGHT_URL } = require("./helpers
 
 // The loader for vendored libraries (js/lab/vendor-loader.js; assessment plan, section 2, "New
 // libraries are vendored and loaded on demand"). It belongs to the plan's Phase 0, the groundwork
-// that no student can see: nothing calls the loader yet, so these tests answer made-up files
+// that no student can see. These tests are of the loader itself, apart from what uses it (the
+// import, since Phase 2: tests/aw2-import-page.spec.js): they answer made-up files
 // (vendor/aw0-probe.js and others, through page.route) and call it in the page through
 // bundle/app.js: (await import("./bundle/app.js")).vendorLoader.loadVendor(file, globalName).
 //

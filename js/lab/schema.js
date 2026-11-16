@@ -5,11 +5,12 @@
 // appears once there are more than SCHEMA_FILTER_FROM objects.
 //
 // mountSchema({container, editor}) builds the panel inside `container` (#schema) and follows the
-// page through two events (index.js announces them):
+// page through three events (index.js announces them):
 //   lab:database-loaded  render from scratch (the expanded tables and the filter are forgotten)
 //   lab:run-finished     render again only if the schema or the data changed: PRAGMA
 //                        schema_version moves on CREATE/DROP/ALTER, total_changes() on
 //                        INSERT/UPDATE/DELETE, and a SELECT moves neither
+//   lab:database-changed the same, after an import into the open database
 //
 // Every name comes from the database file and is untrusted, so the DOM is built with
 // createElement and textContent only. A name is also never spliced into SQL unquoted.
@@ -398,7 +399,8 @@ export function mountSchema({ container, editor }) {
         scrollToTop();
     });
 
-    document.addEventListener("lab:run-finished", (event) => {
+    // a run may have changed the database, and so may an import into it (lab:database-changed)
+    const catchUp = (event) => {
         if (event.detail.database !== current.database) {
             return;
         }
@@ -407,7 +409,9 @@ export function mountSchema({ container, editor }) {
             seen = now;
             render();
         }
-    });
+    };
+    document.addEventListener("lab:run-finished", catchUp);
+    document.addEventListener("lab:database-changed", catchUp);
 
     // nothing is drawn until the first database is open
     renderDataset();

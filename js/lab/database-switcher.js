@@ -79,7 +79,7 @@ function shortcutHint(key) {
     return hint;
 }
 
-export function mountDatabaseSwitcher({ button, label, menu, onSelect, onOpenFile, onOpenUrl }) {
+export function mountDatabaseSwitcher({ button, label, menu, onSelect, onOpenFile, onOpenUrl, openFileDescription = OPEN_FILE_DESCRIPTION }) {
     menu.setAttribute("aria-label", DATABASE_MENU_LABEL);
 
     let datasets = [];
@@ -139,7 +139,7 @@ export function mountDatabaseSwitcher({ button, label, menu, onSelect, onOpenFil
         });
         const separator = element("div", "menu-separator");
         separator.setAttribute("role", "separator");
-        const openFile = menuItem({ role: "menuitem", id: "open-file", glyph: icon("file-up"), label: OPEN_FILE_TEXT, description: OPEN_FILE_DESCRIPTION });
+        const openFile = menuItem({ role: "menuitem", id: "open-file", glyph: icon("file-up"), label: OPEN_FILE_TEXT, description: openFileDescription });
         openFile.setAttribute("aria-keyshortcuts", "Control+O Meta+O");
         openFile.append(shortcutHint("O"));
         const openUrl = menuItem({ role: "menuitem", id: "open-url", glyph: icon("globe"), label: OPEN_URL_TEXT, description: OPEN_URL_DESCRIPTION });

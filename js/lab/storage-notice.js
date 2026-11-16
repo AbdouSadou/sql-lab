@@ -1,10 +1,10 @@
-// One line of notice while the browser cannot keep the run log or the exercise progress
-// (storage full or blocked). The two modules that write to localStorage (run-log.js,
-// progress.js) report each write; this module shows what is wrong, so a student is not left
-// believing work is saved when it is not.
+// One line of notice while the browser cannot keep the run log, the events of the evidence log
+// or the exercise progress (storage full or blocked). The modules that write them to
+// localStorage (run-log.js, events.js, progress.js) report each write; this module shows what
+// is wrong, so a student is not left believing work is saved when it is not.
 //
 //   reportStorage(what, ok)
-//       what is "log" or "progress". Dispatches the document event STORAGE_STATE_EVENT
+//       what is "log", "events" or "progress". Dispatches the document event STORAGE_STATE_EVENT
 //       ({what, ok}). Does nothing where there is no document (the modules are also run
 //       in Node by the tests). ok is true when the write kept everything and no other
 //       log or set of the same subject is still only in memory.
@@ -15,8 +15,9 @@
 //       more. Text is set with textContent.
 
 import { STORAGE_NOTICE_LOG, STORAGE_NOTICE_PROGRESS, STORAGE_STATE_EVENT } from "./config.js";
+import { STORAGE_NOTICE_EVENTS } from "./config-workflow.js";
 
-const TEXTS = { log: STORAGE_NOTICE_LOG, progress: STORAGE_NOTICE_PROGRESS };
+const TEXTS = { log: STORAGE_NOTICE_LOG, events: STORAGE_NOTICE_EVENTS, progress: STORAGE_NOTICE_PROGRESS };
 
 export function reportStorage(what, ok) {
     try {

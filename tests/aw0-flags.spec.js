@@ -560,19 +560,23 @@ async function visit(browser, baseURL, address) {
     }
 }
 
-// This group holds for the groundwork alone: nothing reads a flag yet, so the page with every
-// flag on is the page with none. The phase that first reads one (the plan's Phase 2) rewrites the
-// tests of this group that its flag changes: with its flag on, what the feature adds; with it off,
-// the page as it was. It is not the pattern for a feature's own test.
+// A flag that nothing reads changes nothing: the page with it on is the page with it off. That
+// held for all four while only the groundwork was built. Since the plan's Phase 2 the import
+// flag is read, so the first and the last test of this group turn on every flag but that one
+// (excel-import with it: it does nothing without import), and the test after them says what the
+// import flag alone adds to a page on which nothing has been chosen yet. A phase that reads
+// another flag does the same again: takes its flag out of UNREAD_FLAGS and adds a test for what
+// it adds. This group is not the pattern for a feature's own tests (those are tests/aw2-*).
 test.describe("nothing a student can see", () => {
     const ALL_FLAGS = "preview=import,export,excel-import,excel-export";
+    const UNREAD_FLAGS = "preview=export,excel-import,excel-export";
 
-    test("all four flags on, the page shows what it shows with none: menus, file chooser, toasts, errors, storage, history, requests", async ({
+    test("every flag that nothing reads yet on, the page shows what it shows with none: menus, file chooser, toasts, errors, storage, history, requests", async ({
         browser,
         baseURL,
     }) => {
         const plain = await visit(browser, baseURL, "./");
-        const flagged = await visit(browser, baseURL, `./?${ALL_FLAGS}`);
+        const flagged = await visit(browser, baseURL, `./?${UNREAD_FLAGS}`);
 
         // the page the plain visit opens is a real one (so the comparison is not of two blanks)
         expect(plain.exportItems.length).toBeGreaterThan(0);
@@ -619,12 +623,49 @@ test.describe("nothing a student can see", () => {
         expect(plain.url).toBe("");
     });
 
-    test("all four flags on, the Export menu offers the entries it offers today (no Excel or import item has appeared)", async ({
+    test("every flag that nothing reads yet on, the menus offer the entries they offer today (no Excel or import item has appeared)", async ({
         browser,
         baseURL,
     }) => {
-        const flagged = await visit(browser, baseURL, `./?${ALL_FLAGS}`);
+        const flagged = await visit(browser, baseURL, `./?${UNREAD_FLAGS}`);
         const joined = flagged.exportItems.concat(flagged.databaseItems).join("\n");
         expect(joined).not.toMatch(/excel|xlsx|\.xls|import/i);
+    });
+
+    test("the import flag on, and nothing chosen yet: the file chooser takes several files, the menu entry says what else it takes, and nothing else differs", async ({
+        browser,
+        baseURL,
+    }) => {
+        const { OPEN_FILE_DESCRIPTION } = await load("config.js");
+        const { OPEN_FILE_WITH_IMPORT_DESCRIPTION } = await load("config-workflow.js");
+        const plain = await visit(browser, baseURL, "./");
+        const flagged = await visit(browser, baseURL, "./?preview=import");
+
+        // what the flag adds
+        expect(plain.fileInput.multiple).toBe(false);
+        expect(flagged.fileInput).toEqual({ ...plain.fileInput, multiple: true });
+        // (no accept list: a database can have any name, and the chooser must go on showing it)
+        expect(flagged.fileInput.accept).toBe("");
+        const openFile = plain.databaseItems.find((item) => item.startsWith("open-file|"));
+        expect(openFile).toContain(OPEN_FILE_DESCRIPTION);
+        expect(OPEN_FILE_WITH_IMPORT_DESCRIPTION).toMatch(/CSV/);
+        expect(flagged.databaseItems).toEqual(
+            plain.databaseItems.map((item) => (item === openFile ? item.replace(OPEN_FILE_DESCRIPTION, OPEN_FILE_WITH_IMPORT_DESCRIPTION) : item))
+        );
+
+        // and nothing else: no new menu entry, no toast, no error, no key in storage, no step in
+        // the history, and no file fetched (the CSV reader is asked for when a file is first read)
+        expect(flagged.exportItems).toEqual(plain.exportItems);
+        expect(flagged.toasts).toEqual(plain.toasts);
+        expect(flagged.errors).toEqual([]);
+        expect(flagged.pane).toBe(plain.pane);
+        expect(flagged.database).toBe(plain.database);
+        expect(flagged.title).toBe(plain.title);
+        expect(flagged.toolbar).toBe(plain.toolbar);
+        expect(flagged.requests).toEqual(plain.requests);
+        expect(flagged.requests.filter((file) => /papaparse/i.test(file))).toEqual([]);
+        expect(flagged.storageKeys).toEqual(plain.storageKeys);
+        expect(flagged.historyLength).toBe(plain.historyLength);
+        expect(flagged.historyCalls).toEqual(plain.historyCalls);
     });
 });

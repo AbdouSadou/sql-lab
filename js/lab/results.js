@@ -267,7 +267,7 @@ export function mountResults({ ui, pane, summary, getDatabase, getSamples = () =
     // problem shown over the old view goes with it
     function setState(state) {
         pane.dataset.state = state;
-        summary.hidden = !(state === "result" || state === "done");
+        summary.hidden = !(state === "result" || state === "done" || state === "report");
         cellPopover.close?.();
         clearTimeout(announceTimer);
         announcer.textContent = "";
@@ -474,6 +474,19 @@ export function mountResults({ ui, pane, summary, getDatabase, getSamples = () =
             if (!quiet) {
                 announce(total > shown ? resultCappedAnnouncement(shown, total) : resultRowsAnnouncement(total));
             }
+        },
+
+        // A report of the page's own in place of a result (an import's, js/lab/import-report.js):
+        // the node it is given, with a summary line above it that is also said. The pane's state
+        // is "report". The next run, or the next "no result yet", replaces it as it replaces a
+        // result.
+        showReport(node, { summary: line }) {
+            beforeLoad = null;
+            retire();
+            ui.result.replaceChildren(node);
+            setState("report");
+            setSummary(line);
+            announce(line);
         },
 
         // a run that failed: the engine's exception, or a message of the page's own

@@ -31,8 +31,9 @@
 // this page is complete while it is open. Stored events that cannot be read (getItem throws, or
 // a newer release's value) are never written over: the new events then live in memory only, and
 // are stored with the others once the stored ones can be read again. Events that were stored
-// before the trouble began are out of reach until then. There is no notice for any of this yet:
-// until Phase 2 of the plan nothing in the page records an event. Nothing here throws.
+// before the trouble began are out of reach until then. Each write is reported to the page's
+// storage notice (js/lab/storage-notice.js, "events"), which says so in one line while events
+// are held in memory alone. Nothing here throws.
 //
 // What this does not promise (limits kept on purpose; the first two are the run log's too):
 //   - Events carry no ids. Two that are equal in every field (time, kind, `after`, lines) count
@@ -73,6 +74,7 @@ import {
 // (TIMESTAMP: an event's time goes into the evidence file, so it has the shape the file takes)
 import { TIMESTAMP, sanitizeLine, utcTimestamp } from "./evidence.js";
 import { readLog } from "./run-log.js";
+import { reportStorage } from "./storage-notice.js";
 
 // the end of a line that was cut
 const CUT = "…";
@@ -277,6 +279,7 @@ export function recordEvent(key, detail, now = new Date()) {
             // Events that cannot be read are not events that can be added to: writing would
             // replace them with what this page holds alone.
             memory.set(key, all);
+            reportStorage("events", false);
             return copyEvent(event);
         }
         if (writeNewest(key, all) === all.length) {
@@ -286,6 +289,8 @@ export function recordEvent(key, detail, now = new Date()) {
             // from it is complete for as long as it is open
             memory.set(key, all);
         }
+        // (as the run log reports: fine only when no log's events are still in memory alone)
+        reportStorage("events", memory.size === 0);
         return copyEvent(event);
     } catch {
         // an event that cannot be kept must not stop an import or an export

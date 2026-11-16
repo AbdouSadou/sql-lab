@@ -25,6 +25,7 @@
 //   const { test, expect } = require("./helpers");
 //   test("AC1 ...", async ({ page, net, app }) => { ... });
 
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -105,7 +106,7 @@ async function expectEditorTextOnly(page) {
 
 // The results pane once a load has finished: anything but "loading" (and not the blank page
 // before the first load). "empty" is the usual end of a load; "error" a load that failed.
-const READY_PANE = '#results-pane:is([data-state="empty"], [data-state="result"], [data-state="done"], [data-state="error"])';
+const READY_PANE = '#results-pane:is([data-state="empty"], [data-state="result"], [data-state="done"], [data-state="error"], [data-state="report"])';
 
 // A payload that would create an element and run script if it ever reached innerHTML.
 // No quotes inside, so it can also sit in a SQL identifier or a URL.
@@ -431,6 +432,98 @@ class App {
             await this.page.waitForFunction((old) => window.app.database !== old, before);
             await this.waitReady();
         }
+    }
+
+    // chooseFiles feeds one or several files (paths, or {name, mimeType, buffer}) to the "open
+    // file" input and waits for nothing: with the import on (?preview=import), CSV files open the
+    // import's dialog and no database changes until Import is pressed. (Several files need the
+    // flag: without it the input takes one.)
+    async chooseFiles(files) {
+        await this.page.locator("#open-file-input").setInputFiles(files);
+    }
+
+    // dropFiles drops files on the page as a browser's drag would: dragover, then drop, on the
+    // element `target` (a selector). files are paths, or {name, buffer} (a Buffer or text), or
+    // {name, size} for a file of zeros made in the page (for the size limits: no bytes travel).
+    // Returns whether the drop was cancelled (defaultPrevented): it always must be.
+    async dropFiles(files, { target = "body" } = {}) {
+        const list = (Array.isArray(files) ? files : [files]).map((file) => {
+            if (typeof file === "string") {
+                return { name: path.basename(file), base64: fs.readFileSync(file).toString("base64") };
+            }
+            if (file.size !== undefined && file.buffer === undefined) {
+                return { name: file.name, size: file.size };
+            }
+            return { name: file.name, base64: Buffer.from(file.buffer).toString("base64") };
+        });
+        return this.page.evaluate(
+            ([selector, given]) => {
+                const data = new DataTransfer();
+                for (const file of given) {
+                    const parts = file.base64 === undefined ? [new Uint8Array(file.size)] : [Uint8Array.from(atob(file.base64), (ch) => ch.charCodeAt(0))];
+                    data.items.add(new File(parts, file.name));
+                }
+                const element = document.querySelector(selector);
+                const fire = (type) => {
+                    const event = new DragEvent(type, { dataTransfer: data, bubbles: true, cancelable: true });
+                    element.dispatchEvent(event);
+                    return event.defaultPrevented;
+                };
+                fire("dragover");
+                return fire("drop");
+            },
+            [target, list]
+        );
+    }
+
+    // The import's dialog (js/lab/import-dialog.js): its parts, by what they are.
+    get importDialog() {
+        return this.page.locator("#import-dialog");
+    }
+
+    get importTabs() {
+        return this.importDialog.getByRole("tab");
+    }
+
+    // the panel of the tab that is showing
+    get importPanel() {
+        return this.importDialog.locator(".import-panel:not([hidden])");
+    }
+
+    get importSubmit() {
+        return this.importDialog.locator('button[type="submit"]');
+    }
+
+    get importCancel() {
+        return this.importDialog.locator(".app-dialog-actions button[type=button]");
+    }
+
+    // importFiles chooses the files, waits until every one has been looked at, and presses
+    // Import; resolves when the dialog has closed and the report is in the results pane.
+    // into: "new" (the default) or "open". Pass { names: {"file.csv": "table_name"} } to type names.
+    async importFiles(files, { into = "new", database = null, names = {} } = {}) {
+        await this.chooseFiles(files);
+        await expect(this.importDialog).toBeVisible();
+        await expect(this.importDialog.locator(".import-reading")).toHaveCount(0);
+        if (into === "open") {
+            await this.importDialog.locator("#import-into-open").check();
+        } else if (database !== null) {
+            await this.importDialog.locator("#import-database-name").fill(database);
+        }
+        for (const [file, name] of Object.entries(names)) {
+            await this.importTabs.filter({ hasText: file }).click();
+            await this.importPanel.getByLabel("Table name").fill(name);
+        }
+        await expect(this.importSubmit).toBeEnabled();
+        await this.importSubmit.click();
+        await expect(this.importDialog).toBeHidden();
+        await expect(this.pane).toHaveAttribute("data-state", "report");
+    }
+
+    // rows runs SQL on the open database and returns its rows as the engine gives them (numbers,
+    // strings, null), not as the page prints them. Nothing is shown and nothing goes in the run log.
+    async rows(sql) {
+        return this.page.evaluate((text) => window.app.database.db.exec({ sql: text, rowMode: "array", returnValue: "resultRows" }), sql);
     }
 
     // rename renames the open database the way the page offers it since the UI plan's Phase 2:
@@ -1046,6 +1139,141 @@ async function openFresh(browser, baseURL, link, { setup } = {}) {
 // quoteIdent quotes a name as an SQL identifier (for building test SQL).
 const quoteIdent = (name) => `"${name.replaceAll('"', '""')}"`;
 
+// ---- the owner's test files of the assessment plan (tests/fixtures/, never edited by a test) ----
+
+// fixturePath("csv/title_rows.csv") -> the file's path; expectedFor(name) -> its expected result
+// (tests/fixtures/expected/, one file per fixture; tests/fixtures/README.md says what they hold)
+const FIXTURES_DIR = path.join(__dirname, "fixtures");
+const fixturePath = (name) => path.join(FIXTURES_DIR, ...name.split("/"));
+const expectedFor = (name) => JSON.parse(fs.readFileSync(path.join(FIXTURES_DIR, "expected", `${name.replaceAll("/", "__")}.json`), "utf8"));
+// every entry of expected/index.json: {fixture, covers, expected, open_questions}
+const fixtureIndex = () => JSON.parse(fs.readFileSync(path.join(FIXTURES_DIR, "expected", "index.json"), "utf8"));
+
+const sha256 = (text) => crypto.createHash("sha256").update(text, "utf8").digest("hex");
+
+// largeCsv() -> the path of large.csv, the 200,000-row file that is not stored: it is written to
+// the system's temporary folder the first time (as tests/fixtures/tools/gen_csv.py writes it) and
+// checked against the checksum in expected/large.csv.json.
+function largeCsv() {
+    const expected = expectedFor("large.csv");
+    // (in a folder of its own, so that the file is called large.csv: its table is named after it)
+    const folder = path.join(os.tmpdir(), `lab-fixtures-${expected.file_sha256.slice(0, 16)}`);
+    const file = path.join(folder, "large.csv");
+    if (!fs.existsSync(file) || fs.statSync(file).size !== expected.file_bytes) {
+        fs.mkdirSync(folder, { recursive: true });
+        const regions = ["North", "South", "East", "West", "Scotland", "Wales"];
+        const two = (n) => String(n).padStart(2, "0");
+        const lines = ["order_id,order_date,region,customer_ref,quantity,unit_price,note"];
+        for (let i = 1; i <= 200000; i++) {
+            const date = `2024-${two(1 + ((i * 3) % 12))}-${two(1 + ((i * 7) % 28))}`;
+            const customer = `C${String((i * 37) % 4000).padStart(5, "0")}`;
+            lines.push(`${i},${date},${regions[i % 6]},${customer},${1 + (i % 12)},${3 + (i % 250)}.${two((i * 17) % 100)},${i % 50 === 0 ? "gift" : ""}`);
+        }
+        const bytes = Buffer.from(`${lines.join("\r\n")}\r\n`, "utf8");
+        if (crypto.createHash("sha256").update(bytes).digest("hex") !== expected.file_sha256) {
+            throw new Error("large.csv as written here is not the file the expected result was made from");
+        }
+        // Several test workers can get here at once. The first to finish puts the file in place
+        // and the others leave it alone: a browser refuses to read a file that was replaced after
+        // it was chosen.
+        const draft = `${file}.${process.pid}`;
+        fs.writeFileSync(draft, bytes);
+        try {
+            fs.linkSync(draft, file);
+        } catch {
+            // (another worker was first)
+        }
+        fs.unlinkSync(draft);
+    }
+    return file;
+}
+
+// readTable(app, name) -> what the open database holds under that name, for compareTable:
+//   {name, existsExact, kinds, columns: [{name, declared}], rows, storage}
+// kinds: the types of everything called that (in any letter case); declared: the column's type as
+// CREATE TABLE gave it; rows: every row in rowid order, as the engine returns values; storage: for
+// each column, how many of its values are stored as integer, real, text and null.
+async function readTable(app, name) {
+    const literal = `'${name.replaceAll("'", "''")}'`;
+    const ident = quoteIdent(name);
+    const kinds = (await app.rows(`SELECT type FROM sqlite_schema WHERE name = ${literal} COLLATE NOCASE`)).map((row) => row[0]);
+    const exact = await app.rows(`SELECT name FROM sqlite_schema WHERE type = 'table' AND name = ${literal}`);
+    const info = await app.rows(`PRAGMA table_info(${ident})`);
+    const columns = info.map((row) => ({ name: row[1], declared: String(row[2]).toUpperCase() }));
+    const table = { name, existsExact: exact.length === 1, kinds, columns, rows: null, storage: [] };
+    if (!columns.length) {
+        return table;
+    }
+    table.rows = await app.rows(`SELECT * FROM ${ident} ORDER BY _rowid_`);
+    for (const column of columns) {
+        table.storage.push(Object.fromEntries(await app.rows(`SELECT typeof(${quoteIdent(column.name)}), count(*) FROM ${ident} GROUP BY 1`)));
+    }
+    return table;
+}
+
+// compareTable(actual, expected) -> the differences, as text; none when the table is what the
+// expected result says (one entry of an expected file's "tables"): its name in that letter case
+// and nothing else of that name, its columns in order with their names and declared types, the
+// NULLs of each column and how its other values are stored (a REAL column holds real values, a
+// whole one included), the number of rows, and every cell (for a table of more than 200 rows: its
+// first and last rows and the checksum of all of them).
+function compareTable(actual, expected) {
+    const found = [];
+    const say = (text) => found.length < 40 && found.push(text);
+    if (!actual.existsExact) {
+        return [`no table called ${expected.name} (in that letter case)`];
+    }
+    if (actual.kinds.length !== 1) {
+        say(`${actual.kinds.length} things are called ${expected.name}`);
+    }
+    if (actual.columns.length !== expected.columns.length) {
+        return [...found, `${actual.columns.length} columns, expected ${expected.columns.length}`];
+    }
+    const stored = { INTEGER: "integer", REAL: "real", TEXT: "text" };
+    expected.columns.forEach((want, i) => {
+        const column = actual.columns[i];
+        if (column.name !== want.name) {
+            say(`column ${i + 1} is called ${JSON.stringify(column.name)}, expected ${JSON.stringify(want.name)}`);
+        }
+        if (column.declared !== want.type) {
+            say(`column ${want.name} is declared ${column.declared}, expected ${want.type}`);
+        }
+        const storage = actual.storage[i];
+        if ((storage.null ?? 0) !== want.nulls) {
+            say(`column ${want.name} has ${storage.null ?? 0} NULLs, expected ${want.nulls}`);
+        }
+        const others = Object.keys(storage).filter((kind) => kind !== "null" && kind !== stored[want.type]);
+        if (others.length) {
+            say(`column ${want.name} holds ${others.join(" and ")} values, expected ${stored[want.type]} only`);
+        }
+    });
+    if (actual.rows.length !== expected.rows) {
+        say(`${actual.rows.length} rows, expected ${expected.rows}`);
+    }
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    if (expected.data) {
+        expected.data.forEach((row, r) =>
+            row.forEach((value, c) => {
+                const got = (actual.rows[r] ?? [])[c];
+                if (got !== value) {
+                    say(`row ${r + 1}, column ${expected.columns[c].name}: ${JSON.stringify(got)}, expected ${JSON.stringify(value)}`);
+                }
+            })
+        );
+    } else {
+        if (!same(actual.rows.slice(0, expected.data_first_rows.length), expected.data_first_rows)) {
+            say("the first rows differ");
+        }
+        if (!same(actual.rows.slice(-expected.data_last_rows.length), expected.data_last_rows)) {
+            say("the last rows differ");
+        }
+        if (sha256(JSON.stringify(actual.rows)) !== expected.data_sha256) {
+            say("the checksum of the rows differs");
+        }
+    }
+    return found;
+}
+
 // tabTo presses Tab (or Shift+Tab with back) until the focused element matches the selector, at most
 // max times; keys only. Returns whether it got there.
 async function tabTo(page, selector, { back = false, max = 80 } = {}) {
@@ -1234,6 +1462,13 @@ module.exports = {
     PAYLOAD,
     ATTR_PAYLOAD,
     quoteIdent,
+    fixturePath,
+    expectedFor,
+    fixtureIndex,
+    largeCsv,
+    readTable,
+    compareTable,
+    sha256,
     tabTo,
     expectSchemaIconsOnly,
     SAMPLE_FILE,

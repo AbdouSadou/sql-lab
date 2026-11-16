@@ -50,6 +50,10 @@ test("a test that imports bundle/app.js reaches the modules the page runs, with 
         "events",
         "exercises",
         "flags",
+        // the assessment plan's Phase 2: the import as the page mounts it, and its report (a test
+        // mounts a second import beside the page's, with stand-ins for the page)
+        "import",
+        "importReport",
         "manager",
         "progress",
         "results",
@@ -109,6 +113,7 @@ const CASCADE = [
     "css/editor.css",
     "css/result.css",
     "css/evidence.css",
+    "css/import.css",
     "css/toast.css",
 ];
 

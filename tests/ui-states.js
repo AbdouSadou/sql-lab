@@ -9,6 +9,9 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
+// a file of the owner's test files (tests/fixtures/), for the states that import one
+const fixtureFile = (name) => path.join(__dirname, "fixtures", ...name.split("/"));
+
 // The mockup's main screen (docs/design/mockup/main-light.html); its result is real.
 const RESULT_SQL = `-- Revenue share by category
 WITH category_revenue AS (
@@ -151,7 +154,7 @@ legacy.states = {
 // from Phase 4 the results pane has its states (js/lab/results.js), named by #results-pane's
 // data-state, and a run starts one frame after it is asked for, so a recipe waits for it to finish
 // (window.app.whenIdle) rather than for text.
-const READY_PANE = '#results-pane:is([data-state="empty"], [data-state="result"], [data-state="done"], [data-state="error"])';
+const READY_PANE = '#results-pane:is([data-state="empty"], [data-state="result"], [data-state="done"], [data-state="error"], [data-state="report"])';
 
 // a query whose first column holds a value longer than 60 characters (the product names, joined)
 const LONG_CELL_SQL = "SELECT group_concat(product_name, ', ') AS names, COUNT(*) AS products, NULL AS discontinued FROM products;";
@@ -447,6 +450,55 @@ shell.states = {
         }
         await page.locator("#evidence-dialog").waitFor({ state: "visible" });
     },
+    // The assessment plan's Phase 2, behind its flag (?preview=import). The import's dialog: a file
+    // that was read (the tab showing), one whose column names are on a later row, and a workbook,
+    // which it cannot import yet.
+    "import-dialog": async (page) => {
+        await shell.open(page, `${NORTHLIGHT_URL}&preview=import`);
+        await page.locator("#open-file-input").setInputFiles(["messy_sales.csv", "csv/title_rows.csv", "shopping_db.xlsx"].map(fixtureFile));
+        await page.locator("#import-dialog .import-preview-table").first().waitFor({ state: "visible" });
+        // every file has been looked at: the last tab says why it is not imported
+        await page.locator("#import-dialog .import-refusal").waitFor({ state: "attached" });
+    },
+    // and the report of an import, in the results pane, once its toast has gone
+    "import-report": async (page) => {
+        await shell.open(page, `${NORTHLIGHT_URL}&preview=import`);
+        await page.locator("#open-file-input").setInputFiles(fixtureFile("messy_sales.csv"));
+        await page.locator('#import-dialog button[type="submit"]:enabled').click();
+        await page.locator('#results-pane[data-state="report"]').waitFor({ state: "attached" });
+        await page.locator("#toast-region .toast").waitFor({ state: "detached" });
+    },
+    // a file over 50 MB asks before it is read, in its tab: read it, or leave it out (the file is
+    // made in the page, of zeros, and dropped there: no bytes travel)
+    "import-warning": async (page) => {
+        await shell.open(page, `${NORTHLIGHT_URL}&preview=import`);
+        await page.evaluate(() => {
+            const data = new DataTransfer();
+            data.items.add(new File([new Uint8Array(50 * 1024 * 1024 + 1)], "sales_2025_export.csv"));
+            for (const type of ["dragover", "drop"]) {
+                document.body.dispatchEvent(new DragEvent(type, { dataTransfer: data, bubbles: true, cancelable: true }));
+            }
+        });
+        await page.locator("#import-dialog .import-warning").waitFor({ state: "visible" });
+    },
+    // while an import runs the dialog shows its progress, with Cancel alone. The import is held
+    // at its first step: the reader the preview loaded is taken away, and the request for it is
+    // never answered.
+    "import-progress": Object.assign(
+        async (page) => {
+            await shell.open(page, `${NORTHLIGHT_URL}&preview=import`);
+            await page.locator("#open-file-input").setInputFiles(fixtureFile("messy_sales.csv"));
+            const submit = page.locator('#import-dialog button[type="submit"]:enabled');
+            await submit.waitFor();
+            await page.route(/\/vendor\/papaparse\.min\.js(\?.*)?$/, () => {});
+            await page.evaluate(() => {
+                delete window.Papa;
+            });
+            await submit.click();
+            await page.locator("#import-dialog .import-progress").waitFor({ state: "visible" });
+        },
+        { busy: true }
+    ),
     "exercise-prompt": async (page) => {
         await shell.exerciseOpen(page);
     },

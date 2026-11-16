@@ -3320,6 +3320,418 @@ body {
     gap: var(--space-2);
 }
 
+/* ---- css/import.css ---- */
+
+/* Import of CSV files (the assessment plan's Phase 2; js/lab/import-dialog.js and
+   js/lab/import-report.js). The dialog is an .app-dialog (css/evidence.css) made wide enough for a
+   table; the report sits in the results pane. No mockup exists for either: both are built from
+   the UI plan's dialog pattern and tokens. */
+
+/* ---- the dialog ------------------------------------------------------------------------------ */
+
+/* The dialog is a column of two parts: what scrolls (.import-body) and, under it, what stays in
+   reach whatever is scrolled (.import-foot: why Import is off, what went wrong, Import and
+   Cancel). The foot is beside what scrolls and never over it, so no control can lie under the
+   buttons and a message there is always in view. The dialog's own padding is the two parts'.
+   Should the foot alone ever be higher than the room there is (a very low window), the dialog
+   itself scrolls, as every .app-dialog does. */
+.import-dialog {
+    width: min(60rem, calc(100vw - 2rem));
+    padding: 0;
+}
+
+/* nearer the top than a small dialog, to leave the table its room */
+.import-dialog:modal {
+    --dialog-top: clamp(var(--space-4), 6vh, 64px);
+    max-height: calc(100% - var(--dialog-top) - var(--space-4));
+}
+
+.import-dialog[open] {
+    display: flex;
+    flex-direction: column;
+}
+
+.import-form {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* (The padding at its top and bottom edge when it scrolls to a control: room for the focus ring.
+   Its min-height, and the foot's flex, say what today's browsers do anyway for a part that
+   scrolls and a part that does not: they are written out for the ones this was not run in.) */
+.import-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: var(--space-5) var(--space-5) var(--space-4);
+    overflow-y: auto;
+    scroll-padding-block: var(--space-3);
+}
+
+.import-foot {
+    flex: none;
+    padding: var(--space-3) var(--space-5) var(--space-5);
+    border-top: 1px solid var(--rule);
+}
+
+/* a line of the foot stands over the buttons */
+.import-foot .app-dialog-error {
+    margin: 0 0 var(--space-3);
+}
+
+.import-files[hidden],
+.import-destination[hidden],
+.import-progress[hidden] {
+    display: none;
+}
+
+/* one tab for each file: a long name is cut, and many tabs scroll sideways */
+.import-tabs {
+    flex: none;
+    margin-bottom: var(--space-4);
+    padding: 0;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--rule);
+}
+
+/* (never wider than the strip: in a narrow window an end of the tab that has the focus would be
+   cut off, its ring with it) */
+.import-tab {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-1);
+    max-width: min(16rem, 100%);
+}
+
+/* (the strip clips what is outside it: the focus ring is drawn inside the tab) */
+.import-tab:focus-visible {
+    outline-offset: -2px;
+}
+
+.import-tab-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* a file that is not imported: a sign before its name (and words for a screen reader); one the
+   student left out themselves has it in the tab's own colour, since nothing went wrong */
+.import-tab-refused {
+    flex: none;
+    color: var(--danger);
+}
+
+.import-tab-refused--own {
+    color: inherit;
+}
+
+.import-panel[hidden] {
+    display: none;
+}
+
+.import-refusal,
+.import-reading,
+.import-warning-text {
+    margin: 0 0 var(--space-4);
+}
+
+.import-warning {
+    margin-bottom: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-control);
+    background: var(--warning-subtle);
+}
+
+.import-warning-text {
+    margin-bottom: var(--space-3);
+}
+
+/* its two answers, side by side while there is room */
+.import-warning-answers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+/* the settings of one file, side by side while there is room */
+.import-settings {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 0 var(--space-4);
+    align-items: start;
+}
+
+.import-field {
+    min-width: 0;
+    margin-bottom: var(--space-4);
+}
+
+.import-field .app-dialog-hint {
+    margin-bottom: 0;
+}
+
+.import-field .app-dialog-error {
+    margin: var(--space-1) 0 0;
+}
+
+.import-select {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--control-height);
+    padding: 0 var(--space-2);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-control);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: var(--text-sm);
+}
+
+/* a control that is not in use just now (the new database's name, while the open one is chosen) */
+.import-dialog .app-dialog-input:disabled,
+.import-select:disabled {
+    background: var(--sunken);
+    color: var(--graphite);
+}
+
+.import-select[aria-invalid="true"] {
+    border: 2px solid var(--danger);
+}
+
+.import-number {
+    max-width: 8rem;
+}
+
+/* a tick box or a choice with its words: a row as high as any control */
+.import-check {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--control-height);
+}
+
+.import-check input {
+    flex: none;
+    width: var(--icon-size);
+    height: var(--icon-size);
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+.import-names .import-field {
+    margin-top: var(--space-1);
+}
+
+/* ---- the first rows, exactly as read ---------------------------------------------------------- */
+
+.import-preview-title {
+    margin-bottom: var(--space-1);
+}
+
+.import-preview-note {
+    margin: 0 0 var(--space-2);
+}
+
+/* what cannot be made a table as the reading is set, in place of the preview */
+.import-problem {
+    margin: 0 0 var(--space-4);
+}
+
+/* why Import is off, with the name of the file that holds it up (a file's name can be long) */
+.import-hold {
+    margin: 0 0 var(--space-3);
+    overflow-wrap: anywhere;
+}
+
+.import-preview {
+    max-width: 100%;
+    max-height: min(20rem, 38vh);
+    overflow: auto;
+    border-bottom: 1px solid var(--rule);
+}
+
+.import-preview[hidden] {
+    display: none;
+}
+
+.import-preview-table {
+    min-width: 100%;
+}
+
+/* (the box has no padding of its own for the sticky header to keep clear) */
+.import-preview-table th {
+    top: 0;
+}
+
+.import-preview-table th,
+.import-preview-table td {
+    padding-right: var(--space-5);
+}
+
+/* the row's number, and what the row is when it is not data */
+.import-preview-table .import-row-heading {
+    color: var(--graphite);
+    font-weight: 400;
+}
+
+.import-preview-table thead th {
+    color: var(--graphite);
+    font-weight: 400;
+}
+
+.import-preview-table tbody th {
+    position: static;
+    border-top: 0;
+    border-bottom: 1px solid var(--rule);
+    background: transparent;
+}
+
+.import-preview-table tbody tr:last-child th {
+    border-bottom: 2px solid var(--ink);
+}
+
+.import-row-tag {
+    margin-left: var(--space-2);
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+}
+
+/* rows above the column names are not imported */
+.import-row--out td {
+    color: var(--graphite);
+}
+
+.import-row--names td {
+    font-weight: 600;
+}
+
+/* A value with white space at an end, and a value quoted in the report: its ground is tinted and
+   it is underlined with dots from its first character to its last, spaces included, so that the
+   space can be seen (the tint alone is faint, and is not drawn at all in forced colours). */
+.import-cell--spaces .import-cell-text,
+.import-report .import-cell-text {
+    border-radius: 2px;
+    background: var(--sunken);
+    white-space: pre;
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+}
+
+/* ---- where the tables go ---------------------------------------------------------------------- */
+
+.import-destination {
+    min-width: 0;
+    margin: 0 0 var(--space-3);
+    padding: 0;
+    border: 0;
+}
+
+.import-destination legend {
+    padding: 0;
+}
+
+.import-destination-choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--space-6);
+    align-items: flex-start;
+}
+
+.import-destination-choice {
+    flex: 1 1 16rem;
+    min-width: 0;
+}
+
+.import-destination-choice[hidden] {
+    display: none;
+}
+
+.import-destination .import-field {
+    max-width: 24rem;
+    margin: 0 0 var(--space-2) calc(var(--icon-size) + var(--space-2));
+}
+
+.import-destination .app-dialog-hint {
+    margin: 0 0 var(--space-2) calc(var(--icon-size) + var(--space-2));
+}
+
+/* ---- while it runs ---------------------------------------------------------------------------- */
+
+.import-progress {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4) 0;
+}
+
+/* ---- the report, in the results pane ---------------------------------------------------------- */
+
+.results-pane[data-state="report"] > .sqlime-result {
+    padding: var(--space-4) var(--space-5) var(--space-5);
+}
+
+.import-report-table + .import-report-table {
+    margin-top: var(--space-6);
+}
+
+.import-report-name {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.import-report-line {
+    margin: var(--space-1) 0 var(--space-3);
+    color: var(--graphite);
+    overflow-wrap: anywhere;
+}
+
+.import-report-warning {
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
+    max-width: 760px;
+    margin: 0 0 var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--warning-subtle);
+    color: var(--ink);
+}
+
+.import-report-warning-icon {
+    flex: none;
+    margin-top: 2px;
+}
+
+/* the note is prose beside the data: the interface's face, and free to wrap */
+.import-report-columns .import-report-note {
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    white-space: normal;
+}
+
+.import-report-columns tbody th {
+    position: static;
+    border-top: 0;
+    border-bottom: 1px solid var(--rule);
+    background: transparent;
+    font-weight: 400;
+}
+
+.import-report-columns tbody tr:last-child th {
+    border-bottom: 2px solid var(--ink);
+}
+
+/* ---- a phone: the tighter insets of the pane ------------------------------------------------- */
+
+@media (max-width: 699.98px), (max-height: 499.98px) and (pointer: coarse) {
+    .results-pane[data-state="report"] > .sqlime-result {
+        padding: var(--space-3) var(--space-4) var(--space-4);
+    }
+}
+
 /* ---- css/toast.css ---- */
 
 /* Toasts (js/lab/toast.js; UI plan, section 5): bottom centre, over the status bar, one at a time.
