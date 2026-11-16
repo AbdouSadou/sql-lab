@@ -3,7 +3,9 @@
 // are committed, like vendor/editor.js. A whole class opening the site at once from one school
 // network is one burst of requests from one address, and GitHub Pages answered a large burst with
 // "429 Rate limit exceeded" for minutes during the first check of the live site: a first visit
-// asked for 85 files then (87 in Firefox), and asks for 18 now (20). js/ and css/ stay the source
+// asked for 85 files then (87 in Firefox). It asks for 14 now, and for the exercise sets: their
+// listing and one file for each set that ships (18 files with three sets; Firefox asks for two
+// icons more). js/ and css/ stay the source
 // (About and the evidence check page load their few files from them directly, and the app's page
 // its three classic scripts).
 
@@ -122,15 +124,38 @@ test("bundle/app.css joins index.html's stylesheets in the cascade's order", () 
     expect([...css.matchAll(/^\/\* ---- (\S+) ---- \*\/\r?$/gm)].map((match) => match[1])).toEqual(CASCADE);
 });
 
-test("a first visit asks for at most 20 files, each once: no stylesheet of css/, no module of js/", async ({ page, app, net }) => {
+// the exercise sets that ship, as the page asks for them: one file each (js/lab/exercises.js,
+// listSets, reads the listing of exercises/ and loads every set that it names)
+const SHIPPED_SETS = fs
+    .readdirSync(path.join(ROOT, "exercises"))
+    .filter((file) => file.endsWith(".json"))
+    .map((file) => `exercises/${file}`)
+    .sort();
+
+test("a first visit asks for at most 14 files, and for the exercise sets (their listing and one file for each set that ships), each once: no stylesheet of css/, no module of js/", async ({
+    page,
+    app,
+    net,
+}) => {
     await app.open();
     await page.waitForLoadState("networkidle");
     const paths = net.paths;
-    // the page, the theme's script, the two bundles, CodeMirror, the guards, the engine and its
-    // .wasm, lz-string, the typefaces in use, the datasets' manifest and the database, the exercise
-    // listing and its sets (three today, a request each), and (in some browsers) icons: 18 in
-    // Chromium, 20 in Firefox
-    expect(paths.length, paths.join("\n")).toBeLessThanOrEqual(20);
+    // The exercise sets: the listing, and one request for each set that ships, and nothing else of
+    // exercises/. A set that is added costs every first visit one request and does not fail this
+    // test. (It did while the count of all the requests had one limit, 20, which three sets had
+    // reached in Firefox.) A request that the sets do not explain still fails it, below.
+    expect(SHIPPED_SETS.length, "the sets were found on disk").toBeGreaterThan(0);
+    expect(paths.filter((file) => file.startsWith("exercises/")).sort()).toEqual(["exercises/", ...SHIPPED_SETS]);
+    // the icons, in some browsers: Firefox asks for two at once, Chromium for none
+    const icons = paths.filter((file) => file.startsWith("img/"));
+    expect(icons.length, icons.join("\n")).toBeLessThanOrEqual(2);
+    // Everything else is what every first visit needs, whatever ships: the page, the theme's script,
+    // the two bundles, CodeMirror, the guards, the engine and its .wasm, lz-string, the typefaces in
+    // use, the datasets' manifest and the database. 14 files. A fifteenth is to be added on
+    // purpose, or not at all: a class that opens the site at once is one burst of requests (the
+    // top of this file).
+    const rest = paths.filter((file) => !file.startsWith("exercises/") && !file.startsWith("img/"));
+    expect(rest.length, rest.join("\n")).toBeLessThanOrEqual(14);
     expect(new Set(paths).size, "each file once").toBe(paths.length);
     expect(paths.filter((file) => file.startsWith("css/"))).toEqual([]);
     expect(paths.filter((file) => file.startsWith("js/")).sort()).toEqual(CLASSIC.filter((file) => file.startsWith("js/")).sort());
