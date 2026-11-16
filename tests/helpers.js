@@ -755,7 +755,10 @@ class App {
     // window.__toasts (fromStart: from before the page's own scripts run, for the first load; it is
     // an init script, so call it before navigating), toasts() reads the list, and
     // expectToasts(list, {settle}) waits `settle` ms (longer than the 60 ms gap) and then compares
-    // the whole list, once, without retrying.
+    // the whole list, once, without retrying. A toast that has not shown yet is replaced by the
+    // next one and is then never in the list: a test that lists the toasts of several actions
+    // waits for each toast to show before the next action, or its list changes with the speed of
+    // the machine (the "back twice" test of m3-audit-fixes did, once, under load).
     async recordToasts({ fromStart = false } = {}) {
         const install = () => {
             const start = () => {

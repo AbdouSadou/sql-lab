@@ -513,13 +513,22 @@ test("Run works after an upload and after a failed upload", async ({ page, app }
 // ---- stale loads through the popstate paths ------------------------------------------------
 
 test.describe("stale loads", () => {
-    // history: ?db=northlight, ?db=sample, ?db=northlight
-    async function threeEntries(app, page) {
+    // history: ?db=northlight, ?db=sample, ?db=northlight. With shown, the toast of each pick is
+    // waited for: a toast shows 60 ms after its action, and one that has not shown yet is replaced
+    // by the next, so a test that lists the toasts would otherwise get one more or one fewer with
+    // the speed of the machine
+    async function threeEntries(app, page, { shown = false } = {}) {
         await app.open(NORTHLIGHT_URL);
         await app.pickDatabase("Sample Fruit");
         await expect(app.databaseLabel).toHaveText("Sample Fruit");
+        if (shown) {
+            await expect(app.toast).toHaveText("Opened Sample Fruit");
+        }
         await app.pickDatabase("Northlight Retail");
         await expect(app.databaseLabel).toHaveText("Northlight Retail");
+        if (shown) {
+            await expect(app.toast).toHaveText("Opened Northlight Retail");
+        }
     }
 
     test("back twice: the slow first step does not replace the quick second one", async ({ page, app }) => {
@@ -547,7 +556,7 @@ test.describe("stale loads", () => {
         const held = gate();
         await withSampleDataset(page);
         await app.recordToasts({ fromStart: true });
-        await threeEntries(app, page);
+        await threeEntries(app, page, { shown: true });
         await page.route(SAMPLE_URL, async (route) => {
             await held.promise;
             await route.fulfill({ status: 500, body: "boom" });
@@ -566,8 +575,9 @@ test.describe("stale loads", () => {
         await expect(app.result).not.toContainText("could not be loaded");
         await expect(app.errorBand).toHaveCount(0);
         // the late failure said nothing (a toast that wrongly came would have been shown by now):
-        // the two picks that made the history are the only toasts
-        expect(await app.toasts()).toEqual(["Opened Sample Fruit", "Opened Northlight Retail"]);
+        // the toasts are those of the two picks that made the history and of the step back to
+        // Northlight, which opened it again
+        expect(await app.toasts()).toEqual(["Opened Sample Fruit", "Opened Northlight Retail", "Opened Northlight Retail"]);
         expect(await app.read()).toEqual({ columns: ["m"], rows: [["newest"]] });
         expect(await dbName(page)).toBe("northlight_retail.db");
     });
