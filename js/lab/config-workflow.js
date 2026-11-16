@@ -211,6 +211,11 @@ export const IMPORT_REPORT_BLANK_NAME = "blank";
 export const IMPORT_REPORT_BLOCKING_NOTE = "Mostly numbers. The first value that is not:";
 export const IMPORT_REPORT_QUOTES_WARNING =
     "A quote in this file has no partner. Everything after it may have been read as one field: look at the last rows.";
+// The names of a table that a query must write in double quotes (the engine said so).
+export const importReportQuotedText = (names) =>
+    names.length === 1
+        ? `SQL keeps the word ${names[0]} for itself. In a query, write this name in double quotes: "${names[0]}".`
+        : `SQL keeps these names for itself. In a query, write them in double quotes: ${names.map((name) => `"${name}"`).join(", ")}.`;
 // The lines of an import's event in the evidence log (js/lab/events.js): what matters first.
 export const importEventFileLine = (name, bytes) => `file: ${name}, ${bytes} bytes`;
 export const importEventTableLine = (table, rows, columns) => `table: ${table}, ${rows} rows, ${columns} columns`;

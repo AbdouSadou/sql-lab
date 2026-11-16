@@ -76,7 +76,7 @@ import {
 import { recordEvent } from "./events.js";
 import { flagOn } from "./flags.js";
 import { ImportRefused, newTableReader, readPieces } from "./import-csv.js";
-import { beginImport, endImport, isOutOfMemory, newStage, takenNames, undoImport } from "./import-db.js";
+import { beginImport, endImport, isOutOfMemory, namesNeedingQuotes, newStage, takenNames, undoImport } from "./import-db.js";
 import { mountImportDialog } from "./import-dialog.js";
 import { newPace } from "./import-pace.js";
 import { buildImportReport } from "./import-report.js";
@@ -172,6 +172,7 @@ export function mountImport({
                 source: item.file.name,
                 bytes: item.file.size,
                 badQuotes: read.badQuotes,
+                quoted: namesNeedingQuotes(database, item.tableName, made.columns.map((column) => column.name)),
             };
         } finally {
             stage.drop();

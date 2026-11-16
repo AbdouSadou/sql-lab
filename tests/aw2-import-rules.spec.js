@@ -3050,6 +3050,98 @@ test.describe("import pace: when a rest waits for a frame, and how a plain turn 
     });
 });
 
+// js/lab/import-db.js, namesNeedingQuotes: which names of a new table a query must write in double
+// quotes. The answers are the engine's and are held in the page (tests/aw2-import-fixtures.spec.js);
+// here the function is given a stand-in for the database, to hold what no import can reach: the
+// text of the two queries it asks with, the names it must never write bare, and that nothing is
+// thrown.
+test.describe("import db: the names to quote, asked with a stand-in for the engine", () => {
+    test.beforeEach(skipUnlessFirst);
+    // a database that answers 1 to every query, or what `answer` gives for it, and keeps the queries
+    const standIn = (answer = () => 1) => {
+        const asked = [];
+        return {
+            asked,
+            db: {
+                selectValue: (sql, bind) => {
+                    asked.push({ sql, bind });
+                    return answer(sql);
+                },
+            },
+        };
+    };
+
+    test("each name is asked about once, unquoted and inside parentheses, with one text bound: a table after FROM and in front of a column, a column through a subquery", async () => {
+        const { namesNeedingQuotes } = await load("import-db.js");
+        const database = standIn();
+        expect(namesNeedingQuotes(database, "sales", ["id", "Unit_Price"])).toEqual([]);
+        expect(database.asked.map((query) => query.sql)).toEqual([
+            'with "sales"(x) as (select ?1) select (sales.x) is ?1 from sales',
+            'select (id) is ?1 from (select ?1 as "id")',
+            'select (Unit_Price) is ?1 from (select ?1 as "Unit_Price")',
+        ]);
+        // one text, the same for every query, and not one a cell of a file can hold as it is
+        const bound = database.asked.map((query) => query.bind);
+        expect(bound.every((bind) => Array.isArray(bind) && bind.length === 1 && bind[0] === bound[0][0])).toBe(true);
+        expect(typeof bound[0][0]).toBe("string");
+        expect(bound[0][0]).toMatch(/[\u0000-\u001f]/);
+    });
+
+    test("a name is listed when its query answers anything but 1, or is refused; the table's first, then the columns in order", async () => {
+        const { namesNeedingQuotes } = await load("import-db.js");
+        const refused = (sql) => {
+            if (/\((b|t\.x)\)/.test(sql)) {
+                throw new Error("near: syntax error");
+            }
+            return /\(d\)/.test(sql) ? 0 : /\(e\)/.test(sql) ? null : /\(f\)/.test(sql) ? "1" : /\(g\)/.test(sql) ? true : 1;
+        };
+        expect(namesNeedingQuotes(standIn(refused), "t", ["a", "b", "c", "d", "e", "f", "g", "h"])).toEqual(["t", "b", "d", "e", "f", "g"]);
+        expect(namesNeedingQuotes(standIn(() => 0), "t", ["a"])).toEqual(["t", "a"]);
+    });
+
+    test("a name that is not ASCII letters, digits and underscores, or starts with a digit, is listed and never written bare", async () => {
+        const { namesNeedingQuotes } = await load("import-db.js");
+        const odd = ["c d", "é", "9x", "a-b", "x;drop table t", 'q"q', "tab\tname", "line\nbreak", "a\n", "", "naïve", "x)", "(x"];
+        const database = standIn();
+        expect(namesNeedingQuotes(database, "a b", ["ok", ...odd, "ok_2"])).toEqual(["a b", ...odd]);
+        // only the two plain names reached the engine
+        expect(database.asked.map((query) => query.sql)).toEqual(['select (ok) is ?1 from (select ?1 as "ok")', 'select (ok_2) is ?1 from (select ?1 as "ok_2")']);
+        // and a table's odd name is not tried either
+        const second = standIn();
+        expect(namesNeedingQuotes(second, "9lives", [])).toEqual(["9lives"]);
+        expect(second.asked).toEqual([]);
+    });
+
+    test("a word is named once whatever its letter case, in the spelling met first; a column that is fine is asked about every time", async () => {
+        const { namesNeedingQuotes } = await load("import-db.js");
+        const quote = (sql) => (/\((group|Group|GROUP|select)(\.x)?\)/.test(sql) ? 0 : 1);
+        expect(namesNeedingQuotes(standIn(quote), "Group", ["Group", "group", "GROUP", "x", "select", "SELECT"])).toEqual(["Group", "select"]);
+        expect(namesNeedingQuotes(standIn(quote), "plain", ["group", "Group", "x"])).toEqual(["group"]);
+        // letters outside A to Z are not folded (SQLite does not fold them either)
+        expect(namesNeedingQuotes(standIn(), "t", ["É", "é"])).toEqual(["É", "é"]);
+    });
+
+    test("nothing is thrown, and a list comes back: a database that cannot be asked, no columns, names that are not text", async () => {
+        const { namesNeedingQuotes } = await load("import-db.js");
+        const tries = [
+            () => namesNeedingQuotes(null, "t", ["a"]),
+            () => namesNeedingQuotes({}, "t", ["a"]),
+            () => namesNeedingQuotes({ db: null }, "t", ["a"]),
+            () => namesNeedingQuotes(standIn(), "t", null),
+            () => namesNeedingQuotes(standIn(), "t", undefined),
+            () => namesNeedingQuotes(standIn(), null, [null, undefined, 5, {}]),
+            () => namesNeedingQuotes(standIn(() => { throw new Error("out of memory"); }), "t", ["a", "b"]),
+        ];
+        for (const [i, attempt] of tries.entries()) {
+            let result;
+            expect(() => (result = attempt()), `try ${i}`).not.toThrow();
+            expect(Array.isArray(result), `try ${i}`).toBe(true);
+        }
+        // an engine that refuses every query lists every name: a refusal means "needs quotes"
+        expect(tries[6]()).toEqual(["t", "a", "b"]);
+    });
+});
+
 test.describe("the vendored library", () => {
     test.beforeEach(skipUnlessFirst);
 

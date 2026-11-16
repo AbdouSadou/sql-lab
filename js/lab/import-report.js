@@ -3,17 +3,19 @@
 // nothing. Built with createElement and textContent only: names and values come from a file.
 //
 //   buildImportReport(tables) -> element
-//     tables: [{name, rows, source, badQuotes, columns: [{name, original, type, blanks, blocking}]}]
+//     tables: [{name, rows, source, badQuotes, quoted, columns: [{name, original, type, blanks, blocking}]}]
 //
 // For each table: its name, its rows and columns, and the file it came from; a warning when a
 // quote in the file could not be paired (everything after it may have been read as one field);
-// and one line for each column: its name, the name it had in the file where that changed (a
-// blank one is shown as "blank"), the type chosen, the number of blanks (NULLs, the ones that
-// pad a short row included), and, for a text column that is mostly numbers, the first value
-// that stopped it being a number. A name or a value of more than REPORT_VALUE_CHARS characters
-// is cut short here, as the preview cuts a field (the whole of it is in its title, and the table
-// holds it whole): one long value would otherwise push the other columns out of sight. Each
-// table of columns is named after its table, for a reader that lists the tables of a page.
+// a paragraph naming the names (the table's, some columns') that a query must write in double
+// quotes, from `quoted` (js/lab/import-db.js asked the engine); and one line for each column:
+// its name, the name it had in the file where that changed (a blank one is shown as "blank"),
+// the type chosen, the number of blanks (NULLs, the ones that pad a short row included), and,
+// for a text column that is mostly numbers, the first value that stopped it being a number. A
+// name or a value of more than REPORT_VALUE_CHARS characters is cut short here, as the preview
+// cuts a field (the whole of it is in its title, and the table holds it whole): one long value
+// would otherwise push the other columns out of sight. Each table of columns is named after its
+// table, for a reader that lists the tables of a page.
 
 import {
     IMPORT_REPORT_BLANKS_HEADING,
@@ -24,6 +26,7 @@ import {
     IMPORT_REPORT_ORIGINAL_HEADING,
     IMPORT_REPORT_QUOTES_WARNING,
     IMPORT_REPORT_TYPE_HEADING,
+    importReportQuotedText,
     importReportTableLine,
 } from "./config-workflow.js";
 import { icon } from "./icons.js";
@@ -122,6 +125,9 @@ export function buildImportReport(tables) {
         section.append(heading, el("p", "import-report-line", importReportTableLine(table.rows, table.columns.length, table.source)));
         if (table.badQuotes) {
             section.append(warning(IMPORT_REPORT_QUOTES_WARNING));
+        }
+        if (table.quoted?.length) {
+            section.append(el("p", "import-report-quoted", importReportQuotedText(table.quoted)));
         }
         section.append(columnsTable(table, heading.id));
         report.append(section);

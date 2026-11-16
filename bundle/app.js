@@ -3192,6 +3192,7 @@ var IMPORT_REPORT_NOTE_HEADING = "Note";
 var IMPORT_REPORT_BLANK_NAME = "blank";
 var IMPORT_REPORT_BLOCKING_NOTE = "Mostly numbers. The first value that is not:";
 var IMPORT_REPORT_QUOTES_WARNING = "A quote in this file has no partner. Everything after it may have been read as one field: look at the last rows.";
+var importReportQuotedText = (names) => names.length === 1 ? `SQL keeps the word ${names[0]} for itself. In a query, write this name in double quotes: "${names[0]}".` : `SQL keeps these names for itself. In a query, write them in double quotes: ${names.map((name) => `"${name}"`).join(", ")}.`;
 var importEventFileLine = (name, bytes) => `file: ${name}, ${bytes} bytes`;
 var importEventTableLine = (table, rows3, columns) => `table: ${table}, ${rows3} rows, ${columns} columns`;
 
@@ -5502,6 +5503,33 @@ function inTransactionSafely(database2) {
     return false;
   }
 }
+var BARE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+var PROBE_TEXT = "lab probe";
+function answersOne(db, sql) {
+  try {
+    return db.selectValue(sql, [PROBE_TEXT]) === 1;
+  } catch {
+    return false;
+  }
+}
+var tableIsBare = (db, name) => BARE_NAME.test(name) && answersOne(db, `with ${quoteIdent(name)}(x) as (select ?1) select (${name}.x) is ?1 from ${name}`);
+var columnIsBare = (db, name) => BARE_NAME.test(name) && answersOne(db, `select (${name}) is ?1 from (select ?1 as ${quoteIdent(name)})`);
+function namesNeedingQuotes(database2, table, columns) {
+  try {
+    const { db } = database2;
+    const names = tableIsBare(db, table) ? [] : [table];
+    const listed = new Set(names.map(sameNameKey));
+    for (const column of columns) {
+      if (!listed.has(sameNameKey(column)) && !columnIsBare(db, column)) {
+        names.push(column);
+        listed.add(sameNameKey(column));
+      }
+    }
+    return names;
+  } catch {
+    return [];
+  }
+}
 var isOutOfMemory = (error) => error?.resultCode === OUT_OF_MEMORY || error?.name === "WasmAllocError";
 function freeStageName(db) {
   const taken = new Set(db.selectValues("select name from sqlite_temp_schema").map(sameNameKey));
@@ -6801,6 +6829,9 @@ function buildImportReport(tables) {
     if (table.badQuotes) {
       section.append(warning(IMPORT_REPORT_QUOTES_WARNING));
     }
+    if (table.quoted?.length) {
+      section.append(el5("p", "import-report-quoted", importReportQuotedText(table.quoted)));
+    }
     section.append(columnsTable(table, heading.id));
     report.append(section);
   });
@@ -6950,7 +6981,8 @@ function mountImport({
         columns: made.columns,
         source: item2.file.name,
         bytes: item2.file.size,
-        badQuotes: read2.badQuotes
+        badQuotes: read2.badQuotes,
+        quoted: namesNeedingQuotes(database2, item2.tableName, made.columns.map((column) => column.name))
       };
     } finally {
       stage.drop();

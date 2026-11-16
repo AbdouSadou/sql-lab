@@ -43,10 +43,38 @@
 //                                     onStep(done, total) is called after each step.
 //     stage.drop()                    removes the staging table; never throws
 //
-// Every name is written in double quotes ("Order" is a table name the plan keeps), and every
-// table with its schema: a TEMP table hides a main one of the same name in SQL that does not
-// say which. SQLite's own text-to-number conversion is the one used; for a decimal of twenty or
-// more significant digits it can differ in the last place from the nearest number.
+//   namesNeedingQuotes(database, table, columns) -> [name]
+//                                     the names, among a table's name and its column names, that
+//                                     a query must write in double quotes: the table's first
+//                                     when it is one, then the columns in the order given, a
+//                                     word once whatever its letter case (SQL reads Group and
+//                                     group as one name). Found by asking the engine (see
+//                                     below). Reads no table, writes nothing, never throws.
+//
+// Whether a name needs quotes is not read from a list of SQLite's words, which grows with the
+// engine: the engine is asked, with a query of one row that reads no table of the database. A
+// name that is not ASCII letters, digits and underscores (or starts with a digit) needs quotes,
+// and is never put into SQL bare. Any other name is tried unquoted, inside parentheses, since a
+// word can pass without them and fail with them (`with` begins a WITH clause after an opening
+// parenthesis):
+//     a column   select (<name>) is ?1 from (select ?1 as "<name>")
+//     a table    with "<name>"(x) as (select ?1) select (<name>.x) is ?1 from <name>
+// Each answers 1 only when the bare name reads the value that was bound. A word the parser
+// refuses fails. A word that parses and means something else gives another value: null and
+// current_date, and also true and false, which SQLite 3.54 reads as the column straight from a
+// table and as the constant through a subquery, a WITH clause or a view (so a column of that
+// name is listed, although a query on the table alone reads it bare). A table's name is written
+// in the two places a query writes it, after FROM and in front of a column: cast, raise,
+// current_date, current_time and current_timestamp pass after FROM and are refused in front of
+// a dot. A probe that throws means the name needs quotes. The text bound is one no file holds.
+// What the probes do not see: a table called `if` is read by every query that was tried, and
+// refused by DROP TABLE if (the parser expects IF EXISTS); it is not listed.
+//
+// Every name that comes from a file is written in double quotes ("Order" is a table name the
+// plan keeps), and every table with its schema: a TEMP table hides a main one of the same name
+// in SQL that does not say which. Only the probes above write such a name bare, to see what the
+// engine does with it. SQLite's own text-to-number conversion is the one used; for a decimal of
+// twenty or more significant digits it can differ in the last place from the nearest number.
 
 import { COPY_CELLS } from "./config-workflow.js";
 import { sameNameKey } from "./import-rules.js";
@@ -98,6 +126,41 @@ function inTransactionSafely(database) {
         return inTransaction(database);
     } catch {
         return false;
+    }
+}
+
+const BARE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const PROBE_TEXT = "\u0001lab probe\u0001";
+
+// does the query, run with the probe's text bound, answer 1? One the engine refuses does not.
+function answersOne(db, sql) {
+    try {
+        return db.selectValue(sql, [PROBE_TEXT]) === 1;
+    } catch {
+        return false;
+    }
+}
+
+const tableIsBare = (db, name) =>
+    BARE_NAME.test(name) && answersOne(db, `with ${quoteIdent(name)}(x) as (select ?1) select (${name}.x) is ?1 from ${name}`);
+
+const columnIsBare = (db, name) => BARE_NAME.test(name) && answersOne(db, `select (${name}) is ?1 from (select ?1 as ${quoteIdent(name)})`);
+
+export function namesNeedingQuotes(database, table, columns) {
+    try {
+        const { db } = database;
+        const names = tableIsBare(db, table) ? [] : [table];
+        // (a column called as its table, in any letter case, is the same word to SQL)
+        const listed = new Set(names.map(sameNameKey));
+        for (const column of columns) {
+            if (!listed.has(sameNameKey(column)) && !columnIsBare(db, column)) {
+                names.push(column);
+                listed.add(sameNameKey(column));
+            }
+        }
+        return names;
+    } catch {
+        return [];
     }
 }
 

@@ -1145,3 +1145,219 @@ test.describe("the delimiter is Papa's guess among four, and the import uses the
         ]);
     });
 });
+
+// ---- the names a query must write in double quotes (plan section 3, under "Names" and "Import report";
+// section 10, "Reserved words") ---------------------------------------------------------------------------
+// The report names each table name and column name that SQL does not take bare, found by asking the
+// engine (js/lab/import-db.js). These tests ask the same engine, through the open database, and do not
+// hold a list of SQLite's words.
+test.describe("the report names what a query must write in double quotes", () => {
+    const quotedParagraph = (page) => page.locator("#results-pane .import-report-quoted");
+    // the section of the report that has this heading, and the tag and class of each child it has
+    const sectionChildren = (page, name) =>
+        page
+            .locator("#results-pane section.import-report-table")
+            .filter({ has: page.getByRole("heading", { name, exact: true }) })
+            .evaluate((section) => [...section.children].map((child) => `${child.tagName.toLowerCase()}.${child.className}`.replace(/ .*/, "")));
+    // does SQL take this name bare, as the table's name or as a column's? Asked of the open database,
+    // in the places where one name and another are known to differ: a table's name after FROM and in
+    // front of a column, with and without parentheses; a column's name alone, in parentheses, and
+    // read through a subquery. Bare, the name must give what it gives in double quotes on the table.
+    // The names come back as the report lists them: the table's first, and a word once whatever its
+    // letter case (the names an import makes are ASCII, and SQL reads Group and group as one name).
+    async function bareAnswers(app, table, columns) {
+        const attempt = async (sql) => {
+            try {
+                return { rows: await app.rows(sql) };
+            } catch {
+                return { error: true };
+            }
+        };
+        const same = (a, b) => !a.error && !b.error && JSON.stringify(a.rows) === JSON.stringify(b.rows);
+        const needs = [];
+        const quotedTable = await attempt(`SELECT "${table}"."${columns[0]}" FROM "${table}"`);
+        expect(quotedTable.error, "the quoted name always works").toBeUndefined();
+        const tableTries = [`SELECT ${table}."${columns[0]}" FROM "${table}"`, `SELECT (${table}."${columns[0]}") FROM "${table}"`];
+        let tableFine = !(await attempt(`SELECT count(*) FROM ${table}`)).error;
+        for (const sql of tableTries) {
+            tableFine = tableFine && same(await attempt(sql), quotedTable);
+        }
+        if (!tableFine) {
+            needs.push(table);
+        }
+        for (const column of columns) {
+            const quoted = await attempt(`SELECT "${column}" FROM "${table}"`);
+            expect(quoted.error, "the quoted name always works").toBeUndefined();
+            const columnTries = [`SELECT ${column} FROM "${table}"`, `SELECT (${column}) FROM "${table}"`, `SELECT ${column} FROM (SELECT * FROM "${table}")`];
+            let columnFine = true;
+            for (const sql of columnTries) {
+                columnFine = columnFine && same(await attempt(sql), quoted);
+            }
+            if (!columnFine && !needs.some((name) => name.toLowerCase() === column.toLowerCase())) {
+                needs.push(column);
+            }
+        }
+        return needs;
+    }
+    const ORDER_COLUMNS = ["id", "Group", "select", "name", "null", "true", "current_date", "desc", "key"];
+    const orderFile = () => textFile("Order.csv", `${ORDER_COLUMNS.join(",")}\n${ORDER_COLUMNS.map((c, i) => `${c}_a${i}`).join(",")}\n${ORDER_COLUMNS.map((c, i) => `${c}_b${i}`).join(",")}\n`);
+
+    test("a table and its columns: the paragraph lists exactly the names the engine refuses or misreads, the table's first, columns in the table's order", async ({ app, page }) => {
+        await app.open(FLAG);
+        await app.importFiles(orderFile());
+        const inTable = (await app.rows('PRAGMA table_info("Order")')).map((row) => row[1]);
+        expect(inTable).toEqual(ORDER_COLUMNS);
+        const expected = await bareAnswers(app, "Order", inTable);
+        // sure cases, so that an empty list cannot pass
+        for (const name of ["Order", "Group", "select", "null"]) {
+            expect(expected, name).toContain(name);
+        }
+        for (const name of ["id", "name"]) {
+            expect(expected, name).not.toContain(name);
+        }
+        expect(expected[0]).toBe("Order");
+        await expect(quotedParagraph(page)).toHaveCount(1);
+        await expect(quotedParagraph(page)).toHaveText(words.importReportQuotedText(expected));
+        // the names, as the paragraph has them, in double quotes and the table's order
+        const listed = [...(await quotedParagraph(page).innerText()).split("double quotes: ")[1].matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+        expect(listed).toEqual(expected);
+        // and what it says holds: the quoted name works
+        expect(await app.rows('SELECT "Group", "select" FROM "Order" ORDER BY _rowid_ LIMIT 1')).toEqual([["Group_a1", "select_a2"]]);
+    });
+
+    test("the text for one name and for several is the one in the config", async ({ app, page }) => {
+        await app.open(FLAG);
+        await app.importFiles(textFile("Order.csv", "id,name\n1,a\n"));
+        // only the table's name: Order
+        await expect(quotedParagraph(page)).toHaveText(words.importReportQuotedText(["Order"]));
+        await expect(quotedParagraph(page)).toHaveText('SQL keeps the word Order for itself. In a query, write this name in double quotes: "Order".');
+        await app.open(FLAG);
+        await app.importFiles(textFile("Order.csv", "id,Group,select\n1,a,b\n"));
+        await expect(quotedParagraph(page)).toHaveText(words.importReportQuotedText(["Order", "Group", "select"]));
+        await expect(quotedParagraph(page)).toHaveText('SQL keeps these names for itself. In a query, write them in double quotes: "Order", "Group", "select".');
+        // a file whose table is fine and one column is not: a single name, and it is the column's
+        await app.open(FLAG);
+        await app.importFiles(textFile("orders.csv", "id,Group\n1,a\n"));
+        await expect(quotedParagraph(page)).toHaveText(words.importReportQuotedText(["Group"]));
+    });
+
+    test("a file with no such name has no such paragraph, and its section holds a heading, a line and a table", async ({ app, page }) => {
+        await app.open(FLAG);
+        await app.importFiles(textFile("plain.csv", "id,name,qty\n1,a,2\n2,b,3\n"));
+        await expect(quotedParagraph(page)).toHaveCount(0);
+        expect(await sectionChildren(page, "plain")).toEqual(["h2.import-report-name", "p.import-report-line", "table.result-table"]);
+    });
+
+    test("into the open database: the table that needs quotes gets the paragraph, the second table of the import that has no such name gets none, and the database holds only the two tables more", async ({
+        app,
+        page,
+    }) => {
+        await app.open(FLAG);
+        await app.upload(SAMPLE_FILE);
+        const before = (await app.rows("SELECT name FROM sqlite_schema ORDER BY name")).map((row) => row[0]);
+        await app.importFiles([textFile("Order.csv", "id,Group\n1,a\n"), textFile("plain.csv", "id,name\n1,a\n")], { into: "open" });
+        await expect(page.locator("#results-pane section.import-report-table")).toHaveCount(2);
+        await expect(quotedParagraph(page)).toHaveCount(1);
+        await expect(quotedParagraph(page)).toHaveText(words.importReportQuotedText(["Order", "Group"]));
+        expect(await sectionChildren(page, "Order")).toEqual(["h2.import-report-name", "p.import-report-line", "p.import-report-quoted", "table.result-table"]);
+        expect(await sectionChildren(page, "plain")).toEqual(["h2.import-report-name", "p.import-report-line", "table.result-table"]);
+        const after = (await app.rows("SELECT name FROM sqlite_schema ORDER BY name")).map((row) => row[0]);
+        expect(after).toEqual([...before, "Order", "plain"].sort());
+        expect(await app.rows('SELECT "Group" FROM "Order"')).toEqual([["a"]]);
+    });
+
+    test("with the warning of an unpaired quote, the paragraph comes after it and before the table of columns", async ({ app, page }) => {
+        await app.open(FLAG);
+        await app.importFiles(textFile("Order.csv", 'id,Group\n1,"abc\n2,def\n'));
+        await expect(page.locator("#results-pane .import-report-warning")).toHaveCount(1);
+        await expect(quotedParagraph(page)).toHaveText(words.importReportQuotedText(["Order", "Group"]));
+        expect(await sectionChildren(page, "Order")).toEqual([
+            "h2.import-report-name",
+            "p.import-report-line",
+            "p.import-report-warning",
+            "p.import-report-quoted",
+            "table.result-table",
+        ]);
+    });
+
+    test("a table name that SQL takes after FROM and refuses in front of a column is listed too: cast", async ({ app, page }) => {
+        await app.open(FLAG);
+        await app.importFiles(textFile("cast.csv", "id,actor\n1,a\n"));
+        // what this engine does with the bare name (should a later engine take it in both places,
+        // this test needs another name: the rule it holds is that both places are asked about)
+        expect(await app.rows("SELECT count(*) FROM cast")).toEqual([[1]]);
+        await expect(app.rows("SELECT cast.actor FROM cast")).rejects.toThrow();
+        expect(await bareAnswers(app, "cast", ["id", "actor"])).toEqual(["cast"]);
+        await expect(quotedParagraph(page)).toHaveText(words.importReportQuotedText(["cast"]));
+        expect(await app.rows('SELECT "cast".actor FROM "cast"')).toEqual([["a"]]);
+    });
+
+    test("a column that SQL reads in one place of a query and not in another is listed: with is refused in parentheses, true is the constant through a subquery", async ({
+        app,
+        page,
+    }) => {
+        await app.open(FLAG);
+        await app.importFiles(textFile("plain.csv", "id,true,with\n1,yes,a\n2,no,b\n"));
+        // what this engine does with the bare names (should a later engine read them alike in every
+        // place, this test needs other names: the rule it holds is that each place is asked about)
+        expect(await app.rows("SELECT with FROM plain ORDER BY id")).toEqual([["a"], ["b"]]);
+        await expect(app.rows("SELECT id FROM plain WHERE (with = 'a')")).rejects.toThrow();
+        expect(await app.rows("SELECT true FROM plain ORDER BY id")).toEqual([["yes"], ["no"]]);
+        expect(await app.rows("SELECT true FROM (SELECT * FROM plain) ORDER BY id")).toEqual([[1], [1]]);
+        expect(await bareAnswers(app, "plain", ["id", "true", "with"])).toEqual(["true", "with"]);
+        await expect(quotedParagraph(page)).toHaveText(words.importReportQuotedText(["true", "with"]));
+        // quoted, each is read
+        expect(await app.rows(`SELECT "true" FROM plain WHERE ("with" = 'b')`)).toEqual([["no"]]);
+    });
+
+    test("a table called with is listed (refused in parentheses in front of a column), and a column called as its table, in any letter case, is named once", async ({
+        app,
+        page,
+    }) => {
+        await app.open(FLAG);
+        await app.importFiles(textFile("with.csv", "id,With\n1,a\n"));
+        expect(await app.rows("SELECT with.id FROM with")).toEqual([[1]]);
+        await expect(app.rows("SELECT (with.id) FROM with")).rejects.toThrow();
+        // the column With is the same word to SQL: the table's spelling is the one listed
+        expect((await app.rows('PRAGMA table_info("with")')).map((row) => row[1])).toEqual(["id", "With"]);
+        expect(await bareAnswers(app, "with", ["id", "With"])).toEqual(["with"]);
+        await expect(quotedParagraph(page)).toHaveText('SQL keeps the word with for itself. In a query, write this name in double quotes: "with".');
+        // the same letters, the same case
+        await app.open(FLAG);
+        await app.importFiles(textFile("Group.csv", "Group,x\n1,a\n"));
+        expect(await bareAnswers(app, "Group", ["Group", "x"])).toEqual(["Group"]);
+        await expect(quotedParagraph(page)).toHaveText('SQL keeps the word Group for itself. In a query, write this name in double quotes: "Group".');
+    });
+
+    test("a list of thirty names takes several lines at 390 px and nothing scrolls sideways; the paragraph is drawn as the line above it", async ({
+        app,
+        page,
+    }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        const columns = "select from where group order by having limit join on as and or not null is in between case when then else distinct union except intersect values insert update delete".split(" ");
+        expect(columns).toHaveLength(30);
+        await app.open(FLAG);
+        await app.importFiles(textFile("Order.csv", `${columns.join(",")}\n${columns.map((_, i) => i).join(",")}\n`));
+        const inTable = (await app.rows('PRAGMA table_info("Order")')).map((row) => row[1]);
+        expect(inTable).toEqual(columns);
+        const expected = await bareAnswers(app, "Order", inTable);
+        expect(expected.length, "most of these words are refused bare").toBeGreaterThan(20);
+        const paragraph = quotedParagraph(page);
+        await expect(paragraph).toHaveText(words.importReportQuotedText(expected));
+        const box = await paragraph.evaluate((node) => ({
+            scrollWidth: node.scrollWidth,
+            clientWidth: node.clientWidth,
+            height: node.getBoundingClientRect().height,
+            fontSize: parseFloat(getComputedStyle(node).fontSize),
+        }));
+        expect(box.scrollWidth).toBeLessThanOrEqual(box.clientWidth);
+        expect(box.height, "several lines").toBeGreaterThan(3 * box.fontSize);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        const drawn = (locator) =>
+            locator.evaluate((node) => {
+                const style = getComputedStyle(node);
+                return { color: style.color, fontSize: style.fontSize, fontWeight: style.fontWeight, marginTop: style.marginTop, marginBottom: style.marginBottom };
+            });
+        expect(await drawn(paragraph)).toEqual(await drawn(page.locator("#results-pane .import-report-line").first()));
+    });
+});

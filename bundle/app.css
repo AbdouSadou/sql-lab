@@ -3683,7 +3683,8 @@ body {
     overflow-wrap: anywhere;
 }
 
-.import-report-line {
+.import-report-line,
+.import-report-quoted {
     margin: var(--space-1) 0 var(--space-3);
     color: var(--graphite);
     overflow-wrap: anywhere;
