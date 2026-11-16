@@ -206,9 +206,9 @@ test.describe("verify", () => {
     test("blank lines after the checksum line are EDITED but not called extra text", async () => {
         const { verifyEvidence } = await load("evidence.js");
         const text = sample();
-        for (const extra of ["\n", "\n\n\n", "\r\n", "\r\n\r\n"]) {
+        for (const extra of ["\n", "\n\n\n", "\r\n", "\r\n\r\n", "\n".repeat(100_000), "\r\n".repeat(100_000)]) {
             const result = await verifyEvidence(`${text}${extra}`);
-            expect(result.status, JSON.stringify(extra)).toBe("edited");
+            expect(result.status, JSON.stringify(extra.slice(0, 20))).toBe("edited");
             expect(result.reason).toBe("Extra blank lines were added after the checksum line.");
         }
         // anything else after it is still extra text
@@ -230,6 +230,46 @@ test.describe("verify", () => {
         // blank lines in front of a file whose last line is not the checksum are not blamed on it
         const damaged = `${text.replace(/sha256: [0-9a-f]+\n$/, "")}\n\n`;
         expect((await verifyEvidence(damaged)).reason).toBe("There is extra text after the checksum line.");
+    });
+
+    test("a long run of line breaks before the end of the file does not slow the check down", async () => {
+        const { verifyEvidence } = await load("evidence.js");
+        // the run is in the middle, the text ends with two line breaks: the expression that used to
+        // strip the trailing line breaks tried every position of the run and scanned to its end
+        // each time (measured: about three seconds for a run of 100,000, about twenty-five for
+        // 300,000). The run here is long enough for that expression to miss the limit below several
+        // times over, and short enough that it would fail this test and not hold the suite up
+        const RUN = 200_000;
+        const run = "\n".repeat(RUN);
+        const timed = async (input) => {
+            const start = performance.now();
+            const result = await verifyEvidence(input);
+            return { result, ms: performance.now() - start };
+        };
+        // the last line is not the checksum line
+        const junk = await timed(`abc${run}def\n\n`);
+        expect(junk.result).toEqual({ status: "edited", reason: "There is extra text after the checksum line." });
+        expect(junk.ms).toBeLessThan(2000);
+        // the last line is the checksum line, but the file was changed (a run of blank lines inside)
+        const text = sample();
+        const lineEnd = text.indexOf("\n") + 1;
+        const changed = await timed(`${text.slice(0, lineEnd)}${run}${text.slice(lineEnd)}\n`);
+        expect(changed.result.status).toBe("edited");
+        expect(changed.result.reason).toMatch(/checksum does not match/);
+        expect(changed.ms).toBeLessThan(2000);
+    });
+
+    test("a text of line breaks only, and one that ends with exactly two, get the verdict the rest of the text gives", async () => {
+        const { verifyEvidence } = await load("evidence.js");
+        for (const input of ["\n", "\n\n", "\n".repeat(100_000), "\r\n\r\n"]) {
+            expect(await verifyEvidence(input), JSON.stringify(input.slice(0, 20))).toEqual({ status: "edited", reason: "The file is empty." });
+        }
+        // exactly two at the end: the one that ends the file and one blank line
+        expect(await verifyEvidence("abc\n\n")).toEqual({ status: "edited", reason: "There is extra text after the checksum line." });
+        expect(await verifyEvidence(`${sample()}\n`)).toEqual({ status: "edited", reason: "Extra blank lines were added after the checksum line." });
+        // four line breaks in a row in the middle (two more than the file had) and one at the end
+        // are not blank lines after the checksum
+        expect((await verifyEvidence(`${sample().replace("\n\n", "\n\n\n\n")}`)).reason).toMatch(/checksum does not match/);
     });
 
     test("empty input, garbage and values that are not text are EDITED and never throw", async () => {

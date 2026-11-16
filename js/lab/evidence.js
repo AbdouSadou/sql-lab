@@ -240,7 +240,13 @@ async function verify(text) {
     // one that fails otherwise (the body was changed too) gets the reason it fails with.
     let extraBlankLines = false;
     if (body.endsWith("\n\n")) {
-        const kept = body.replace(/\n+$/, "");
+        // walk back over the line breaks: the expression /\n+$/ rescans a long run from every
+        // position in it, so a file with a long run before its end would take minutes
+        let end = body.length;
+        while (end > 0 && body.charCodeAt(end - 1) === 10) {
+            end--;
+        }
+        const kept = body.slice(0, end);
         const lastLine = kept.slice(kept.lastIndexOf("\n") + 1);
         if (!SHA_LINE.test(lastLine)) {
             return edited("There is extra text after the checksum line.");
