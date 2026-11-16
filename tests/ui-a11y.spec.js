@@ -4,7 +4,7 @@
 // completes one exercise.
 
 const AxeBuilder = require("@axe-core/playwright").default;
-const { test, expect, withSampleDataset, modelQuery, tabTo, realManifest, EDITOR_INPUT, DEFAULT_DATASET } = require("./helpers");
+const { test, expect, withSampleDataset, modelQuery, tabTo, realManifest, realSet, shippedSets, EDITOR_INPUT, DEFAULT_DATASET } = require("./helpers");
 const { RECIPES } = require("./ui-states.js");
 
 const STATES = RECIPES.shell.states;
@@ -79,8 +79,9 @@ test("keyboard only: load the page, open a database, run a query, complete one e
     await expect(app.status).toHaveText(/^1 row in \d+ ms$/);
     await expect(app.table).toBeVisible();
 
-    // complete one exercise: the Exercises tab (arrow keys along the tabs), its set picker, the
-    // first set, its first exercise
+    // complete one exercise: the Exercises tab (arrow keys along the tabs), its set picker, a set
+    // (the one whose answer is typed below, reached by as many arrow keys as its place in the
+    // menu, which opens on None), its first exercise
     await page.keyboard.press("Escape");
     expect(await tabTo(page, "#tab-schema", { back: true }), "Tab reaches #tab-schema").toBe(true);
     await page.keyboard.press("ArrowRight");
@@ -89,7 +90,13 @@ test("keyboard only: load the page, open a database, run a query, complete one e
     expect(await tabTo(page, "#exercise-set-picker"), "Tab reaches #exercise-set-picker").toBe(true);
     await page.keyboard.press("Enter");
     await expect(app.setMenu).toBeVisible();
-    await page.keyboard.press("ArrowDown");
+    const set = realSet("retail-basics");
+    const place = shippedSets().findIndex((shipped) => shipped.id === set.id) + 1;
+    expect(place, "the set is shipped").toBeGreaterThan(0);
+    for (let i = 0; i < place; i++) {
+        await page.keyboard.press("ArrowDown");
+    }
+    await expect(app.setMenu.getByRole("menuitemradio", { name: set.title, exact: true })).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(app.exercisePanel).toBeVisible();
     await app.waitReady();

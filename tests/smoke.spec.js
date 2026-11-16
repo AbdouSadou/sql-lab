@@ -1,4 +1,4 @@
-const { test, expect, DEFAULT_DATASET } = require("./helpers");
+const { test, expect, DEFAULT_DATASET, shippedSets } = require("./helpers");
 
 test("smoke: page loads, engine initialises, SELECT 1 shows a result", async ({ page, net, app }) => {
     const logs = [];
@@ -50,7 +50,9 @@ test("smoke: the engine needs no cross-origin isolation and fetches only its was
         new RegExp("^" + DEFAULT_DATASET.file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"),
         // the exercise sets, found through the folder page the Pages workflow writes
         /^exercises\/$/,
-        /^exercises\/retail-basics\.json$/,
+        // and each set the site ships, by name (read from exercises/, so a set added later is allowed
+        // and a file that ships no set is not)
+        ...shippedSets().map((set) => new RegExp(`^exercises/${set.id}\\.json$`)),
     ];
     const unexpected = net.paths.filter((p) => !allowed.some((re) => re.test(p)));
     expect(unexpected).toEqual([]);

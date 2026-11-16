@@ -458,7 +458,7 @@ test("e09's hints leave the CTE name and the window clause to the student", asyn
     expect(text).not.toMatch(/ORDER BY revenue/i);
 });
 
-test("no hint of the shipped set repeats a stretch of its model query", async () => {
+test("no hint of Northlight Retail's set repeats a stretch of its model query", async () => {
     for (const exercise of SET.exercises) {
         const model = exercise.model_query.replace(/\s+/g, " ");
         for (const hint of exercise.hints) {

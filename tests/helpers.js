@@ -267,9 +267,20 @@ async function withSampleDataset(target) {
 const setUrl = (id) => new RegExp(`/exercises/${id}\\.json(\\?.*)?$`);
 const LISTING_URL = /\/exercises\/(index\.html)?(\?.*)?$/;
 
-// the set the site ships
+// a set the site ships, by id (Northlight Retail's by default)
 const realSet = (id = "retail-basics") =>
     JSON.parse(fs.readFileSync(path.join(__dirname, "..", "exercises", `${id}.json`), "utf8"));
+
+// every set the site ships, read from exercises/ and in the order the page lists them (by id,
+// compared by code unit): the order of the exercise menu. A test that needs "the sets" or "the
+// place of one set in the menu" takes it from here, so that it holds when a set is added.
+const shippedSets = () =>
+    fs
+        .readdirSync(path.join(__dirname, "..", "exercises"))
+        .filter((file) => file.endsWith(".json"))
+        .map((file) => file.slice(0, -".json".length))
+        .sort()
+        .map((id) => realSet(id));
 
 // routeSet answers the request for exercises/<id>.json with `body` (an object, or a string
 // for invalid JSON) and the given status, or aborts it with status "abort".
@@ -301,8 +312,8 @@ async function routeListing(target, html, { status = 200 } = {}) {
     });
 }
 
-// the model query of an exercise of the shipped set (tests type it as the "right answer"; the
-// app must never show it)
+// the model query of an exercise of a shipped set, Northlight Retail's by default (tests type it
+// as the "right answer"; the app must never show it)
 const modelQuery = (exerciseId, setId = "retail-basics") =>
     realSet(setId).exercises.find((e) => e.id === exerciseId).model_query;
 
@@ -1480,6 +1491,7 @@ module.exports = {
     routeSampleDataset,
     withSampleDataset,
     realSet,
+    shippedSets,
     modelQuery,
     routeSet,
     routeListing,

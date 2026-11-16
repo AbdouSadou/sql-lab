@@ -12,6 +12,7 @@ const {
     editorValue,
     modelQuery,
     realSet,
+    shippedSets,
     routeSet,
     tabTo,
 } = require("./helpers");
@@ -103,7 +104,12 @@ test.describe("the whole sample set by keyboard alone", () => {
         expect(await tabTo(page, "#exercise-set-picker"), "Tab reaches the set picker").toBe(true);
         await page.keyboard.press("Enter");
         await expect(app.setMenu).toBeVisible();
-        await page.keyboard.press("ArrowDown");
+        // the menu opens on None; the set is that many places down (the sets follow in the page's order)
+        const place = shippedSets().findIndex((set) => set.id === SET.id) + 1;
+        expect(place, "the set is shipped").toBeGreaterThan(0);
+        for (let i = 0; i < place; i++) {
+            await page.keyboard.press("ArrowDown");
+        }
         await expect(app.setMenu.getByRole("menuitemradio", { name: SET.title, exact: true })).toBeFocused();
         await page.keyboard.press("Enter");
         await expect(app.exercisePanel).toBeVisible();

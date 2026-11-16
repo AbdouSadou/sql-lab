@@ -5,6 +5,7 @@ const {
     expect,
     openFresh,
     realSet,
+    shippedSets,
     routeSet,
     routeListing,
     listingHtml,
@@ -194,7 +195,7 @@ test("AC5 the model query appears nowhere in the page, for all ten exercises, wh
     }
 });
 
-test("every model query in the shipped set passes its own check, with the expected row count", async ({ app }) => {
+test("every model query in Northlight Retail's set passes its own check, with the expected row count", async ({ app }) => {
     test.setTimeout(120_000);
     await app.openSet();
     for (const [i, id] of IDS.entries()) {
@@ -211,6 +212,23 @@ test("every model query in the shipped set passes its own check, with the expect
     }
     await expect(app.progress).toHaveText("10 of 10 complete");
 });
+
+// The same for every other set the site ships, read from disk, so that a set added later is held
+// too: a set whose model answer failed its own check could be completed by no one. (The row
+// counts above were counted for Northlight Retail's set only.)
+for (const set of shippedSets().filter((shipped) => shipped.id !== SET.id)) {
+    test(`every model query of the shipped set ${set.id} passes its own check`, async ({ app }) => {
+        test.setTimeout(120_000);
+        await app.openSet(set.id);
+        for (const [i, exercise] of set.exercises.entries()) {
+            await app.exerciseButton(i + 1).click();
+            await app.editor.fill(exercise.model_query);
+            await app.checkButton.click();
+            await expect(app.feedback.locator(".verdict--pass"), exercise.id).toBeVisible();
+        }
+        await expect(app.progress).toHaveText(`${set.exercises.length} of ${set.exercises.length} complete`);
+    });
+}
 
 test("AC6 a session of load, query, check and share makes zero requests off the origin", async ({ app, net }) => {
     await app.openSet();
@@ -475,13 +493,20 @@ test("the panel and the Exercises tab: set title, numbered buttons with full nam
     expect(order[0]).toBeLessThan(order[1]);
     // the Check button follows Run directly, in the editor's toolbar
     expect(await page.locator("#editor-toolbar > #execute + #exercise-check").count()).toBe(1);
-    // the exercise picker: a labelled menu button, whose menu has None, then the sets by title
+    // the exercise picker: a labelled menu button, whose menu has None, then every shipped set by
+    // title in the page's order, with the open set ticked and nothing else
+    const shipped = shippedSets();
     await expect(page.getByRole("button", { name: setLabel(SET.title), exact: true })).toHaveCount(1);
     await expect(app.setPicker).toHaveAttribute("aria-haspopup", "menu");
     await app.openSetMenu();
-    await expect(setItems(app)).toHaveText(["None", SET.title]);
-    await expect(setItems(app)).toHaveCount(2);
-    await expect(app.setMenu.getByRole("menuitemradio", { name: SET.title, exact: true })).toHaveAttribute("aria-checked", "true");
+    await expect(setItems(app)).toHaveText(["None", ...shipped.map((set) => set.title)]);
+    await expect(setItems(app)).toHaveCount(1 + shipped.length);
+    for (const set of shipped) {
+        await expect(app.setMenu.getByRole("menuitemradio", { name: set.title, exact: true })).toHaveAttribute(
+            "aria-checked",
+            String(set.id === SET.id)
+        );
+    }
     await expect(app.setMenu.getByRole("menuitemradio", { name: "None", exact: true })).toHaveAttribute("aria-checked", "false");
     await page.keyboard.press("Escape");
     await expect(app.setMenu).toBeHidden();

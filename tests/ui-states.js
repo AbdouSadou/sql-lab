@@ -402,7 +402,16 @@ shell.states = {
         await shell.open(page);
         await shell.menu(page, "#help-button", "#help-popover");
     },
+    // the menu lists the sets of exercises/; this state shows it with one set (the one the recipes
+    // use) whatever else ships, so that its baseline does not change when a set is added
     "menu-exercise-set": async (page) => {
+        await page.route(/\/exercises\/(index\.html)?(\?.*)?$/, (route) =>
+            route.fulfill({
+                status: 200,
+                contentType: "text/html",
+                body: `<!DOCTYPE HTML><html><body><ul><li><a href="${EXERCISE.set}.json">${EXERCISE.set}.json</a></li></ul></body></html>`,
+            })
+        );
         await shell.exerciseOpen(page);
         await shell.menu(page, "#exercise-set-picker", "#exercise-set-menu");
     },

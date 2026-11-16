@@ -5,6 +5,7 @@ const {
     test,
     expect,
     realSet,
+    shippedSets,
     routeSet,
     routeListing,
     listingHtml,
@@ -332,12 +333,13 @@ test.describe("listSets", () => {
         await routeListing(page, listingHtml([]));
     });
 
-    test("the test server answers exercises/ like the Pages workflow does: the shipped set is listed", async ({ page, app, pageErrors }) => {
+    test("the test server answers exercises/ like the Pages workflow does: the shipped sets are listed", async ({ page, app, pageErrors }) => {
         await app.open();
         await page.unroute(/\/exercises\/(index\.html)?(\?.*)?$/);
-        expect(await list(page)).toEqual([
-            { id: "retail-basics", ok: true, title: "Northlight Retail — SQL basics", count: 10 },
-        ]);
+        // the sets on disk, each once, in the page's order
+        expect(await list(page)).toEqual(
+            shippedSets().map((set) => ({ id: set.id, ok: true, title: set.title, count: set.exercises.length }))
+        );
         expect(pageErrors).toEqual([]);
     });
 
@@ -1001,7 +1003,11 @@ test.describe("resolveRoute and exercise sets", () => {
         expect(pageErrors).toEqual([]);
     });
 
-    test("the dataset manifest in the repo has the dataset the shipped set names", async () => {
-        expect(realManifest().datasets.map((d) => d.id)).toContain(realSet().dataset);
+    test("the dataset manifest in the repo has the dataset each shipped set names", async () => {
+        const ids = realManifest().datasets.map((d) => d.id);
+        expect(ids).toContain(realSet().dataset);
+        for (const set of shippedSets()) {
+            expect(ids, set.id).toContain(set.dataset);
+        }
     });
 });
