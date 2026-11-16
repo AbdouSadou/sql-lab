@@ -10,12 +10,15 @@ import decimal
 import io
 import re
 
-INT_RE = re.compile(r'-?(0|[1-9]\d*)\Z')
-REAL_RE = re.compile(r'-?(0|[1-9]\d*)\.\d+\Z')
+# Plan section 3, rule 2: a plain number is written with the digits 0 to 9 (not the digits of
+# another script, which \d would also take), and -0 is not one: stored as a number it would
+# lose its sign.
+INT_RE = re.compile(r'-?(0|[1-9][0-9]*)\Z')
+REAL_RE = re.compile(r'-?(0|[1-9][0-9]*)\.[0-9]+\Z')
 
 
 def is_int(s):
-    return bool(INT_RE.match(s)) and len(s.lstrip('-')) <= 15
+    return bool(INT_RE.match(s)) and s != '-0' and len(s.lstrip('-')) <= 15
 
 
 def is_real(s):
