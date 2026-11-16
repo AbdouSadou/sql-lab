@@ -1332,6 +1332,15 @@ async function expectSchemaIconsOnly(page) {
 }
 
 const test = base.test.extend({
+    // A file chooser reaches a test only once the browser has been told to hold it back, which
+    // Playwright does when the first listener for one is added. A test that began to listen just
+    // before the key or the click that opens the chooser lost it now and then on a busy machine (14
+    // times in 300 with ten workers, the page having pressed its file input every time; never with
+    // a listener from the start). So every page listens from the start.
+    page: async ({ page }, use) => {
+        page.on("filechooser", () => {});
+        await use(page);
+    },
     net: async ({ context, baseURL }, use) => {
         await use(new NetworkLog(context, baseURL));
     },
