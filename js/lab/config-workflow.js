@@ -39,9 +39,15 @@ export const EVENT_MAX_LINES = 200;
 export const EVENT_MAX_LINE_CHARS = 500;
 
 // One line of notice while events could not be stored (js/lab/storage-notice.js shows it, with
-// the run log's and the progress's).
-export const STORAGE_NOTICE_EVENTS =
-    "Your browser could not save the record of the files you brought in. It is kept until this tab is closed: export your evidence before you close it.";
+// the run log's and the progress's). It names what this visit can note down: the files brought
+// in (flag "import"), the tables exported (flag "export"), or both.
+export const storageNoticeEventsText = ({ imports, exports }) => {
+    let what = "the files you brought in";
+    if (exports) {
+        what = imports ? "the files you brought in and the tables you exported" : "the tables you exported";
+    }
+    return `Your browser could not save the record of ${what}. It is kept until this tab is closed: export your evidence before you close it.`;
+};
 
 export const evidenceSavedWithEventsMessage = (filename, queries, events) =>
     `Exported ${filename} with ${queries} ${queries === 1 ? "query" : "queries"} and ${events} ${events === 1 ? "event" : "events"}`;
@@ -66,9 +72,9 @@ export const PREVIEW_BYTES = 1024 * 1024;
 export const PREVIEW_ROWS = 20;
 // The copy from the staging table into the typed one moves about this many cells in one step.
 export const COPY_CELLS = 150_000;
-// During an import the page draws a frame this often (the progress bar), and takes its other
-// turns without waiting for one; a tab that draws no frame (a hidden one) is not waited for
-// longer than FRAME_MAX_MS.
+// During a long job (an import, an export of tables and the counts of its dialog) the page draws
+// a frame this often (the progress bar), and takes its other turns without waiting for one; a tab
+// that draws no frame (a hidden one) is not waited for longer than FRAME_MAX_MS.
 export const PAINT_EVERY_MS = 150;
 export const FRAME_MAX_MS = 250;
 // Sizes, in bytes, by the kind a file's first bytes show (the plan's section 7): a warning
@@ -219,3 +225,116 @@ export const importReportQuotedText = (names) =>
 // The lines of an import's event in the evidence log (js/lab/events.js): what matters first.
 export const importEventFileLine = (name, bytes) => `file: ${name}, ${bytes} bytes`;
 export const importEventTableLine = (table, rows, columns) => `table: ${table}, ${rows} rows, ${columns} columns`;
+
+// ---- Export of tables as CSV (the plan's Phase 3, flag "export": js/lab/export-*.js) ----
+
+// The rows of a table are read, written and handed to the page in pieces. A piece is the rows read
+// until the first of these is used up (always at least one row): this many characters of values
+// (a text counts its length, a BLOB twice its bytes, a number 20), or this many milliseconds. After
+// every piece the page gets a turn and Cancel is looked at.
+export const EXPORT_PIECE_CHARS = 65_536;
+export const EXPORT_PIECE_MS = 25;
+
+// What is saved. One table is a CSV file; two or more are a zip of CSV files, named after the
+// database (js/lab/export-csv.js).
+export const EXPORT_CSV_SUFFIX = ".csv";
+export const EXPORT_CSV_TYPE = "text/csv;charset=utf-8";
+export const EXPORT_ZIP_SUFFIX = "-tables.zip";
+export const EXPORT_ZIP_TYPE = "application/zip";
+// The name of a table's file, before .csv, is cut to this many characters (before a _2, _3 is
+// added to a name that is taken): a name of more than 255 bytes cannot be kept by a computer, or
+// taken out of a zip.
+export const EXPORT_NAME_MAX_CHARS = 100;
+// The zip tool is a vendored library, asked for (js/lab/vendor-loader.js) only when two or more
+// tables are exported.
+export const EXPORT_ZIP_LIBRARY = { file: "fflate.min.js", global: "fflate" };
+// Zip entries are deflated at this level (1 to 9; 6 is the usual middle).
+export const EXPORT_ZIP_LEVEL = 6;
+// What a zip without Zip64 can hold: its end record counts entries in 16 bits, and its sizes and
+// offsets are 32 bits. The library writes no Zip64 and, past these, writes wrong numbers without an
+// error, so a zip that would pass them is not made.
+export const EXPORT_ZIP_MAX_ENTRIES = 0xffff;
+export const EXPORT_ZIP_MAX_BYTES = 0xffff_ffff;
+
+// The entry of the Export menu and of the More menu (js/lab/export-menu.js, js/lab/more-menu.js).
+export const EXPORT_TABLES_MENU_TEXT = "Tables as CSV…";
+export const EXPORT_TABLES_MENU_DESCRIPTION = "Tables and views, one file each";
+
+// What is refused while an export runs, and why (a toast): the same sentence as the import's, for
+// an export.
+export const EXPORT_TABLES_BUSY_MESSAGE = "An export is running, so nothing else was done. Wait for it to end, or cancel it.";
+// The dialog is not offered (a toast).
+export const EXPORT_TABLES_NONE_MESSAGE = "This database has no tables or views to export.";
+export const EXPORT_TABLES_LOADING_MESSAGE =
+    "A database is still loading, so no tables were offered. Choose Tables as CSV again once it has opened.";
+export const EXPORT_TABLES_LIST_FAILED_MESSAGE = "The list of tables could not be read, so nothing was offered.";
+// Export pressed while another database is on its way (Back or Forward, under the dialog). When
+// that database has opened the dialog closes (it was made for the one before); when it could not
+// be opened, the dialog stays as it is.
+export const EXPORT_TABLES_LOADING_DIALOG_MESSAGE =
+    "A database is still loading, so nothing was exported. Once it has opened, choose Tables as CSV again. If it does not open, press Export again.";
+// The open database is not the one the dialog was made for.
+export const EXPORT_TABLES_GONE_MESSAGE =
+    "Nothing was exported. Another database is open now, so this list is out of date. Close this box and choose Tables as CSV again.";
+
+// The dialog (js/lab/export-tables-dialog.js).
+export const EXPORT_TABLES_TITLE = "Tables as CSV";
+export const EXPORT_TABLES_TEXT_LINE =
+    "Each table or view you tick becomes a CSV file. If you tick one, that file is saved. If you tick several, they are saved together in one zip file.";
+export const EXPORT_TABLES_LIST_LABEL = "Tables and views";
+export const EXPORT_TABLES_ALL_LABEL = "All tables and views";
+export const EXPORT_TABLES_VIEW_WORD = "view";
+export const EXPORT_TABLES_SUBMIT_TEXT = "Export";
+export const EXPORT_TABLES_CANCEL_TEXT = "Cancel";
+export const EXPORT_TABLES_CLOSE_TEXT = "Close";
+
+// A number of rows or of tables as the page writes it, with its word: 1 row, 1,234 rows.
+const counted = (n, one, many) => `${n.toLocaleString("en")} ${n === 1 ? one : many}`;
+const rowsCounted = (n) => counted(n, "row", "rows");
+
+// What a row says under its name. Where the engine gave a reason its words follow, set apart
+// from the page's own sentence (they are not a sentence, and can hold colons of their own).
+export const EXPORT_TABLES_COUNTING = "Counting rows…";
+export const exportTablesRowsText = (rows) => rowsCounted(rows);
+export const exportTablesUncountedText = (reason) => `Its rows could not be counted, so it cannot be exported. The database said: ${reason}`;
+export const exportTablesUnreadText = (reason) => `It could not be read to its end, so it was not exported. The database said: ${reason}`;
+export const exportTablesSavedAsText = (fileName) => `Saved as ${fileName}`;
+
+// The line beside Export: why it is off, or what it will save.
+export const EXPORT_TABLES_HOLD_COUNTING = "You can press Export once the rows of every table and view have been counted.";
+export const EXPORT_TABLES_HOLD_NONE = "Tick at least one table or view to export.";
+export const EXPORT_TABLES_HOLD_NOTHING = "Nothing in this list can be exported. Each row says why.";
+export const exportTablesWillSaveText = (plan) =>
+    plan.kind === "zip"
+        ? `Saves ${plan.fileName}, with ${plan.entries.length} CSV files.`
+        : `Saves ${plan.fileName}.`;
+
+// While the export runs.
+export const exportTablesProgressTitle = (at, of, name) => (of === 1 ? `Exporting ${name}` : `Exporting table ${at} of ${of}: ${name}`);
+export const EXPORT_TABLES_PROGRESS_LIBRARY = "Loading the zip tool…";
+export const exportTablesProgressRows = (rows, count) => (rows > count ? rowsCounted(rows) : `${rows.toLocaleString("en")} of ${rowsCounted(count)}`);
+
+// How it ends. A file saved is told in a toast, and, when there is more to say (a BLOB), in the
+// dialog, which then stays.
+export const exportedTablesMessage = (fileName, { rows, tables }) =>
+    `Exported ${fileName} with ${tables === undefined ? rowsCounted(rows) : counted(tables, "table", "tables")}`;
+export const EXPORT_TABLES_CANCELLED_MESSAGE = "The export was cancelled, and nothing was saved.";
+export const exportTablesBlobNote = (fileName, tables) =>
+    `Exported ${fileName}. ${tables.length === 1 ? "This table holds" : "These tables hold"} binary values (BLOBs): ${tables.join(", ")}. A CSV file holds text only, so each binary value is written as x'…', with its bytes as hexadecimal digits between the quotes, the way the results pane shows it.`;
+
+// Why an export did not happen (the dialog's alert line; nothing was saved).
+export const exportTablesFailedText = (table, reason) => `Nothing was exported, because ${table} could not be read. The database said: ${reason}`;
+export const EXPORT_TABLES_FAILED_MESSAGE = "The export failed, and nothing was exported.";
+export const EXPORT_TABLES_OUT_OF_MEMORY_MESSAGE = "The browser ran out of memory, and nothing was exported.";
+export const EXPORT_TABLES_LIBRARY_FAILED_MESSAGE =
+    "The zip tool could not be loaded, so nothing was exported. Check the connection and try again.";
+export const EXPORT_TABLES_FILE_FAILED_MESSAGE = "The file could not be made, so nothing was exported.";
+export const EXPORT_TABLES_ZIP_FAILED_MESSAGE = "The zip file could not be made, so nothing was exported.";
+export const EXPORT_TABLES_ZIP_TOO_BIG_MESSAGE =
+    "These tables hold more than one zip file can, so nothing was exported. Export fewer tables at a time.";
+export const EXPORT_TABLES_SAVE_FAILED_MESSAGE = "The browser could not save the file, so nothing was exported.";
+
+// The lines of an export's event in the evidence log (js/lab/events.js): the file, then each table.
+export const exportEventFileLine = (name, bytes) => `file: ${name}, ${bytes} bytes`;
+export const exportEventTableLine = (table, rows, entryName) =>
+    entryName === undefined ? `table: ${table}, ${rows} rows` : `table: ${table}, ${rows} rows, ${entryName}`;

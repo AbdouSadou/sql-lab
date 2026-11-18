@@ -12,12 +12,12 @@
 //       Called once from js/index.js. Puts <p id="storage-notice" role="status"> after the
 //       status line and keeps it in step with the events: it shows the sentence for every
 //       subject that is failing, and hides again when each has been saved properly once
-//       more. Text is set with textContent.
+//       more. Text is set with textContent. The sentence about events names what this visit
+//       can note down (the preview flags, js/lab/flags.js): files brought in, tables exported.
 
 import { STORAGE_NOTICE_LOG, STORAGE_NOTICE_PROGRESS, STORAGE_STATE_EVENT } from "./config.js";
-import { STORAGE_NOTICE_EVENTS } from "./config-workflow.js";
-
-const TEXTS = { log: STORAGE_NOTICE_LOG, events: STORAGE_NOTICE_EVENTS, progress: STORAGE_NOTICE_PROGRESS };
+import { storageNoticeEventsText } from "./config-workflow.js";
+import { flagOn } from "./flags.js";
 
 export function reportStorage(what, ok) {
     try {
@@ -37,6 +37,11 @@ export function mountStorageNotice({ ui, before }) {
     note.hidden = true;
     before.before(note);
 
+    const TEXTS = {
+        log: STORAGE_NOTICE_LOG,
+        events: storageNoticeEventsText({ imports: flagOn("import"), exports: flagOn("export") }),
+        progress: STORAGE_NOTICE_PROGRESS,
+    };
     const failing = new Set();
     document.addEventListener(STORAGE_STATE_EVENT, (event) => {
         const { what, ok } = event.detail ?? {};

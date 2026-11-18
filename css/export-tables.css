@@ -1,0 +1,245 @@
+/* Export of tables as CSV (the assessment plan's Phase 3; js/lab/export-tables-dialog.js). The
+   dialog is an .app-dialog (css/evidence.css) with the import's two-part shape (css/import.css): a
+   body that scrolls and a foot that stays in reach. It uses the shared .app-dialog-* classes and the
+   .results-loading-* and .results-progress classes of css/result.css for the progress, and none of
+   the .import-* ones. */
+
+/* ---- the dialog ------------------------------------------------------------------------------ */
+
+/* The list of tables scrolls (.tables-body) and, under it, what stays in reach whatever is
+   scrolled (.tables-foot: what Export saves, what went wrong, Export and Cancel). The foot is
+   beside what scrolls and never over it, so no control can lie under the buttons. */
+.tables-dialog {
+    width: min(40rem, calc(100vw - 2rem));
+    padding: 0;
+}
+
+.tables-dialog:modal {
+    --dialog-top: clamp(var(--space-4), 6vh, 64px);
+    max-height: calc(100% - var(--dialog-top) - var(--space-4));
+}
+
+.tables-dialog[open] {
+    display: flex;
+    flex-direction: column;
+}
+
+.tables-form {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* (positioned: the line that only a screen reader reads is taken out of the flow, and must be
+   placed by what scrolls. Placed by the dialog, it lay as far down as the list is long and made the
+   dialog itself scroll, title and buttons with it.) */
+.tables-body {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: var(--space-5) var(--space-5) var(--space-4);
+    overflow-y: auto;
+    scroll-padding-block: var(--space-3);
+}
+
+.tables-foot {
+    flex: none;
+    padding: var(--space-3) var(--space-5) var(--space-5);
+    border-top: 1px solid var(--rule);
+}
+
+/* (it says the name of the file, which can be one long word: it wraps wherever it must) */
+.tables-foot .app-dialog-hint {
+    margin: 0 0 var(--space-3);
+    overflow-wrap: anywhere;
+}
+
+.tables-foot .app-dialog-error {
+    margin: 0 0 var(--space-3);
+    overflow-wrap: anywhere;
+}
+
+.tables-all[hidden],
+.tables-list[hidden],
+.tables-progress[hidden],
+.tables-note[hidden],
+.tables-hold[hidden] {
+    display: none;
+}
+
+/* Export while it cannot be pressed: aria-disabled and not disabled, so that it keeps its place in
+   the Tab order and its reason is read (css/buttons.css draws a disabled primary button as a plain
+   one; this is the same look for the attribute that keeps the button in reach). The second
+   selector keeps that look under the pointer: here whatever the order of the style sheets is, and
+   in forced colours, below, it is what keeps the grey there. */
+.tables-foot .button--primary[aria-disabled="true"],
+.tables-foot .button--primary[aria-disabled="true"]:hover {
+    border-color: var(--rule-strong);
+    background: var(--sunken);
+    color: var(--graphite);
+}
+
+/* forced colours drop the colours that mark Export as off: the system's own grey says it there */
+@media (forced-colors: active) {
+    .tables-foot .button--primary[aria-disabled="true"],
+    .tables-foot .button--primary[aria-disabled="true"]:hover {
+        border-color: GrayText;
+        color: GrayText;
+    }
+}
+
+/* ---- the list ---------------------------------------------------------------------------------- */
+
+/* a tick box with its words: a row as high as any control */
+.tables-check {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--control-height);
+    font-weight: 600;
+}
+
+.tables-check input,
+.tables-row-box {
+    flex: none;
+    width: var(--icon-size);
+    height: var(--icon-size);
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+.tables-all {
+    margin: 0 0 var(--space-2);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--rule);
+}
+
+.tables-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* A row: the tick box, the name, and under or beside it what is known of the table. What is
+   beside the name never takes more than half of the row, however long it is (the name of a file,
+   which can be a hundred characters): the name keeps the other half, and both wrap. */
+.tables-row {
+    display: grid;
+    grid-template-columns: var(--icon-size) minmax(0, 1fr) fit-content(50%);
+    column-gap: var(--space-2);
+    align-items: baseline;
+    /* (a row of one line is as tall as a control, and its line is in the middle of that height) */
+    align-content: center;
+    min-height: var(--control-height);
+    padding: var(--space-1) 0;
+    border-bottom: 1px solid var(--rule);
+}
+
+.tables-row:last-child {
+    border-bottom: 0;
+}
+
+/* The tick box is level with the first line of the name, however many lines the row has (a name
+   that wraps, a second line beside it): it starts where the name starts, and is let down by half
+   of what a line of the name is taller than the box. (The box is given the name's text size and
+   the row's line height for that: 1lh is then one line of the name, also when the browser draws
+   text larger than the page asks.) */
+.tables-row-box {
+    align-self: start;
+    font-size: var(--text-sm);
+    line-height: inherit;
+    margin-top: calc((1lh - var(--icon-size)) / 2);
+}
+
+/* A tick box that cannot be ticked (a table that could not be counted or read; the box for all
+   when no row can be ticked) is aria-disabled, so the browser draws it as any other: the box is
+   dimmed here, and the name beside it is drawn in the muted colour. The reason in the row keeps
+   its full colour. */
+.tables-row-box[aria-disabled="true"],
+.tables-check input[aria-disabled="true"] {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.tables-row-box[aria-disabled="true"] + .tables-row-label,
+.tables-check input[aria-disabled="true"] + span {
+    color: var(--graphite);
+}
+
+@media (forced-colors: active) {
+    .tables-row-box[aria-disabled="true"] + .tables-row-label,
+    .tables-check input[aria-disabled="true"] + span {
+        color: GrayText;
+    }
+}
+
+/* a row that cannot be ticked says why in a sentence: it goes under the name, at any width, where
+   it has the row's whole width from the name on to be read in */
+.tables-row-box[aria-disabled="true"] ~ .tables-row-line {
+    grid-column: 2 / -1;
+    text-align: left;
+}
+
+/* the whole name shows, and wraps wherever it must; it is never cut */
+.tables-row-label {
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    overflow-wrap: anywhere;
+}
+
+.tables-row-kind {
+    padding: 0 var(--space-1);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-control);
+    color: var(--graphite);
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+}
+
+.tables-row-line {
+    margin: 0;
+    color: var(--graphite);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.tables-row-saved {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+}
+
+/* ---- while it runs, and the end ----------------------------------------------------------------- */
+
+.tables-progress {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4) 0;
+}
+
+.tables-note {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+/* ---- narrow: the row's line goes under its name ------------------------------------------------- */
+
+@media (max-width: 36rem) {
+    .tables-row-line {
+        grid-column: 2 / -1;
+        text-align: left;
+    }
+
+    .tables-body {
+        padding: var(--space-4) var(--space-4) var(--space-3);
+    }
+
+    .tables-foot {
+        padding: var(--space-3) var(--space-4) var(--space-4);
+    }
+}

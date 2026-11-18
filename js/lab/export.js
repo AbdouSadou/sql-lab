@@ -17,7 +17,8 @@ const DB_EXTENSION = /\.(db|sqlite|sqlite3)$/i;
 
 // safeBaseName derives a file name's base from the database name: no path characters, no
 // script suffix (an uploaded .sql script is saved as a database), never empty. The database
-// export and the CSV download (js/lab/results.js) both name their files from it.
+// export, the CSV download (js/lab/results.js) and the zip of exported tables
+// (js/lab/export-csv.js) all name their files from it.
 export function safeBaseName(name) {
     const base = String(name ?? "")
         .replace(/\.sql$/i, "")

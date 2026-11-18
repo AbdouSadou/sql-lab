@@ -32,6 +32,9 @@
 //     runLog, results        js/lab/run-log.js and js/lab/results.js as mounted
 //     showResult()           brings the results pane into view (on a phone it is a view of its own)
 //     onBusy(busy)           called when an import starts (true) and when it has ended (false)
+//     otherJobMessage()      optional: the busy message of another long job that is running (a
+//                            table export, js/lab/export-tables.js), or null. While it gives one,
+//                            files are not taken and Import is refused with it.
 //
 // An import either finishes or leaves nothing. A new database is built apart from the open one,
 // which stays open and untouched until the import has finished; a refusal, a failure or Cancel
@@ -76,7 +79,7 @@ import {
 import { recordEvent } from "./events.js";
 import { flagOn } from "./flags.js";
 import { ImportRefused, newTableReader, readPieces } from "./import-csv.js";
-import { beginImport, endImport, isOutOfMemory, namesNeedingQuotes, newStage, takenNames, undoImport } from "./import-db.js";
+import { beginImport, endImport, isEngineError, isOutOfMemory, namesNeedingQuotes, newStage, takenNames, undoImport } from "./import-db.js";
 import { mountImportDialog } from "./import-dialog.js";
 import { newPace } from "./import-pace.js";
 import { buildImportReport } from "./import-report.js";
@@ -99,8 +102,6 @@ const REFUSAL_TEXT = {
 // thrown between two pieces of work when the student has cancelled
 class ImportCancelled extends Error {}
 
-const isEngineError = (error) => error?.name === "SQLite3Error" || error?.name === "WasmAllocError";
-
 export function mountImport({
     fileInput,
     returnFocus,
@@ -114,6 +115,7 @@ export function mountImport({
     results,
     showResult,
     onBusy = () => {},
+    otherJobMessage = () => null,
 }) {
     const enabled = flagOn("import");
     let running = false;
@@ -184,6 +186,11 @@ export function mountImport({
         if (isLoading()) {
             // another database is on its way: when it opens it closes the one that is open now
             return { ok: false, message: IMPORT_LOADING_DIALOG_MESSAGE };
+        }
+        const otherJob = otherJobMessage();
+        if (otherJob) {
+            // (an export reads the database an import would write to)
+            return { ok: false, message: otherJob };
         }
         if (!own && (!getDatabase() || isCourseDatabase())) {
             // (the dialog does not offer this: the open database is looked at again all the same)
@@ -289,6 +296,11 @@ export function mountImport({
         }
         if (running) {
             toast(IMPORT_BUSY_MESSAGE, { tone: "note" });
+            return true;
+        }
+        const otherJob = otherJobMessage();
+        if (otherJob) {
+            toast(otherJob, { tone: "note" });
             return true;
         }
         if (ours.length && isLoading()) {

@@ -29,9 +29,43 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const zlib = require("node:zlib");
 const { pathToFileURL } = require("node:url");
 const base = require("@playwright/test");
 const { expect } = base;
+
+// The page's own words for the export dialog (js/lab/config-workflow.js), read once. A text that a
+// helper waits for or looks for comes from here, never typed again.
+let exportWordsLoaded;
+function exportWords() {
+    exportWordsLoaded ??= import(pathToFileURL(path.join(__dirname, "..", "js", "lab", "config-workflow.js")).href).then((words) => {
+        for (const name of ["EXPORT_TABLES_COUNTING", "EXPORT_TABLES_HOLD_COUNTING", "EXPORT_TABLES_HOLD_NONE", "EXPORT_TABLES_HOLD_NOTHING"]) {
+            if (typeof words[name] !== "string" || words[name] === "") {
+                throw new Error(`tests/helpers.js: js/lab/config-workflow.js has no text ${name} any more`);
+            }
+        }
+        if (typeof words.exportTablesWillSaveText !== "function") {
+            throw new Error("tests/helpers.js: js/lab/config-workflow.js has no exportTablesWillSaveText any more");
+        }
+        return words;
+    });
+    return exportWordsLoaded;
+}
+
+// what the line beside Export says when counting has ended, as a pattern: tick something, nothing
+// can be ticked, or what will be saved (the words of exportTablesWillSaveText, with its file name
+// and its count left open)
+function afterCounting(words) {
+    const quoted = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const open = (plan) => quoted(words.exportTablesWillSaveText(plan)).replace(/\u0001|\u0002/g, ".+");
+    const forms = [
+        quoted(words.EXPORT_TABLES_HOLD_NONE),
+        quoted(words.EXPORT_TABLES_HOLD_NOTHING),
+        open({ kind: "zip", fileName: "\u0001", entries: { length: "\u0002" } }),
+        open({ kind: "csv", fileName: "\u0001", entries: [] }),
+    ];
+    return new RegExp(`^(?:${forms.join("|")})$`);
+}
 
 // Request schemes that never touch the network.
 const LOCAL_SCHEMES = new Set(["data:", "blob:", "about:"]);
@@ -281,6 +315,15 @@ const shippedSets = () =>
         .map((file) => file.slice(0, -".json".length))
         .sort()
         .map((id) => realSet(id));
+
+// the sets of shippedSets() that the page can open: those whose course database the site ships too.
+// (The exercise menu lists a set whatever it names, and says so when its course database is not in
+// datasets/manifest.json.) A test that needs "a set to work in" takes it from here, and skips when
+// there is none.
+const openableSets = () => {
+    const shipped = new Set(realManifest().datasets.map((entry) => entry.id));
+    return shippedSets().filter((set) => shipped.has(set.dataset));
+};
 
 // routeSet answers the request for exercises/<id>.json with `body` (an object, or a string
 // for invalid JSON) and the given status, or aborts it with status "abort".
@@ -625,6 +668,137 @@ class App {
             await this.exportMenuButton.click();
         }
         await expect(this.exportMenu).toBeVisible();
+    }
+
+    // ---- the export of tables as CSV (js/lab/export-tables-dialog.js; behind ?preview=export)
+    // its entries in the two menus, and its dialog: its parts, by what they are
+    get tablesItem() {
+        return this.page.locator("#export-tables");
+    }
+
+    get moreTablesItem() {
+        return this.page.locator("#more-export-tables");
+    }
+
+    get tablesDialog() {
+        return this.page.locator("#export-tables-dialog");
+    }
+
+    get tablesAll() {
+        return this.tablesDialog.locator("#export-tables-all");
+    }
+
+    get tablesHold() {
+        return this.tablesDialog.locator("#export-tables-hold");
+    }
+
+    get tablesError() {
+        return this.tablesDialog.locator("#export-tables-error");
+    }
+
+    get tablesSubmit() {
+        return this.tablesDialog.locator("#export-tables-submit");
+    }
+
+    get tablesCancel() {
+        return this.tablesDialog.locator("#export-tables-cancel");
+    }
+
+    get tablesNote() {
+        return this.tablesDialog.locator("#export-tables-note");
+    }
+
+    get tablesProgress() {
+        return this.tablesDialog.locator(".tables-progress");
+    }
+
+    // the row of a table or view, by its exact name
+    tablesRow(name) {
+        const exact = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
+        return this.tablesDialog.locator(".tables-row").filter({ has: this.page.locator(".tables-row-name").filter({ hasText: exact }) });
+    }
+
+    tablesBox(name) {
+        return this.tablesRow(name).locator("input.tables-row-box");
+    }
+
+    // openTables chooses "Tables as CSV…" in the Export menu, or in the More menu on a phone, and
+    // waits for the dialog
+    async openTables() {
+        if (await this.isPhone()) {
+            await this.openMore();
+            await this.moreTablesItem.click();
+        } else {
+            await this.openExportMenu();
+            await this.tablesItem.click();
+        }
+        await expect(this.tablesDialog).toBeVisible();
+    }
+
+    // waitCounted: every row has its count (Export can be pressed once something is ticked). The
+    // words are the page's own (js/lab/config-workflow.js), and what it waits for is something that
+    // cannot be true while a count is on its way or before the list is there: the line beside
+    // Export (#export-tables-hold) says what it says once counting has ended (tick something,
+    // nothing can be ticked, or what will be saved), which is neither empty nor the counting line;
+    // and no row says the counting words and every row says something. A reworded text that the page
+    // no longer takes from the config, or a constant that is gone, fails here, loudly.
+    async waitCounted() {
+        const words = await exportWords();
+        const line = this.tablesDialog.locator(".tables-row-line");
+        await expect(this.tablesHold).toBeVisible();
+        await expect(this.tablesHold).toHaveText(afterCounting(words));
+        await expect(line.filter({ hasText: words.EXPORT_TABLES_COUNTING })).toHaveCount(0);
+        await expect(line.filter({ hasText: /^\s*$/ })).toHaveCount(0);
+    }
+
+    // tickTables ticks the rows of these tables, by name (the tick box stays as it is where it is
+    // ticked already)
+    async tickTables(names) {
+        for (const name of names) {
+            await this.tablesBox(name).check();
+        }
+    }
+
+    // tablesRows reads the dialog's list: [{name, kind, line, ticked, tickable}]
+    tablesRows() {
+        return this.tablesDialog.locator(".tables-row").evaluateAll((rows) =>
+            rows.map((row) => {
+                const box = row.querySelector("input.tables-row-box");
+                return {
+                    name: row.querySelector(".tables-row-name").textContent,
+                    kind: row.querySelector(".tables-row-kind") ? "view" : "table",
+                    line: row.querySelector(".tables-row-line").textContent,
+                    ticked: box.checked,
+                    tickable: box.getAttribute("aria-disabled") !== "true",
+                };
+            })
+        );
+    }
+
+    // download runs `trigger` (a click, a key) and returns the file the page saves as {name,
+    // buffer, text}: the name it was offered under and its bytes (text is the UTF-8 reading, a byte
+    // order mark kept as U+FEFF)
+    async download(trigger) {
+        const [download] = await Promise.all([this.page.waitForEvent("download"), trigger()]);
+        const stream = await download.createReadStream();
+        const chunks = [];
+        for await (const chunk of stream) chunks.push(chunk);
+        const buffer = Buffer.concat(chunks);
+        return { name: download.suggestedFilename(), buffer, text: buffer.toString("utf8") };
+    }
+
+    // exportTables opens the dialog, ticks these tables (all of them with "all"), presses Export and
+    // returns the file that is saved, as download() does; the dialog is left as it ends
+    async exportTables(names) {
+        await this.openTables();
+        await this.waitCounted();
+        if (names === "all") {
+            await this.tablesAll.check();
+        } else {
+            await this.tickTables(names);
+        }
+        await expect(this.tablesSubmit).toHaveAttribute("aria-disabled", "false");
+        return this.download(() => this.tablesSubmit.click());
     }
 
     // ---- the layouts of the UI plan's Phase 6: under 1100 px the sidebar is a drawer (opened by
@@ -1202,6 +1376,605 @@ function largeCsv() {
     return file;
 }
 
+// ---- holding a long job still, and what it must leave behind ------------------------------------
+// (no hook exists in the product: a job is held by what it waits for)
+
+// holdVendor routes a vendored library's file through a gate: the first `pass` requests go
+// through, later ones wait until open() is called. Returns {open, requests}. (The import's preview
+// asks for its library once before the import does; an export asks for its zip tool only when it
+// runs, so it holds from the first request.)
+async function holdVendor(page, file, { pass = 0 } = {}) {
+    let open;
+    const gate = new Promise((resolve) => (open = resolve));
+    let requests = 0;
+    await page.route(`**/vendor/${file}`, async (route) => {
+        requests++;
+        if (requests > pass) {
+            await gate;
+        }
+        await route.continue().catch(() => {});
+    });
+    return { open, requests: () => requests };
+}
+
+// csvFile(name, text) is a CSV file made in the test: {name, mimeType, buffer}, as chooseFiles and
+// dropFiles take it
+const csvFile = (name = "people.csv", text = "id,name\n1,Ann\n2,Bob\n") => ({ name, mimeType: "text/csv", buffer: Buffer.from(text) });
+
+// holdImport opens the import's dialog for `files`, lets the preview read them, takes the CSV
+// reader off the page so that the import has to ask for it again, holds that second request (the
+// preview's own, the first, goes through) and presses Import. The import is then running and waits
+// on the gate. Returns {open, requests}, as holdVendor does. Needs the page opened with
+// ?preview=import.
+async function holdImport(page, app, { files = [csvFile()], into = "new", database = null } = {}) {
+    const held = await holdVendor(page, "papaparse.min.js", { pass: 1 });
+    await app.chooseFiles(files);
+    await expect(app.importDialog).toBeVisible();
+    await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
+    if (into === "open") {
+        await app.importDialog.locator("#import-into-open").check();
+    } else if (database !== null) {
+        await app.importDialog.locator("#import-database-name").fill(database);
+    }
+    await expect(app.importSubmit).toBeEnabled();
+    await page.evaluate(() => {
+        delete window.Papa;
+    });
+    await app.importSubmit.click();
+    await expect(app.importDialog.locator(".import-progress")).toBeVisible();
+    return held;
+}
+
+// the reader is let through and the held import ends, with its report
+async function finishHeld(app, held) {
+    held.open();
+    await expect(app.importDialog).toBeHidden();
+    await expect(app.pane).toHaveAttribute("data-state", "report");
+}
+
+// holdDataset routes the fetch of a course database's file through a gate: the request waits
+// until release() (the file is then served as ever) or fail() (the request is aborted).
+// `requested` settles when the page has asked for the file, which is when a load is on its way;
+// `served` when the file has been given to the page (and, a little later, the page has used it).
+async function holdDataset(page, dataset = DEFAULT_DATASET) {
+    let settle;
+    const gate = new Promise((resolve) => (settle = resolve));
+    let asked;
+    const requested = new Promise((resolve) => (asked = resolve));
+    let given;
+    const served = new Promise((resolve) => (given = resolve));
+    const file = dataset.file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    await page.route(new RegExp(`/${file}(\\?.*)?$`), async (route) => {
+        asked();
+        const verdict = await gate;
+        if (verdict === "fail") {
+            await route.abort().catch(() => {});
+            return;
+        }
+        const response = await route.fetch();
+        await route.fulfill({ response }).catch(() => {});
+        given();
+    });
+    return { requested, served, release: () => settle("go"), fail: () => settle("fail") };
+}
+
+// slowDown makes every turn the page gives itself between two pieces of a long job cost 15 ms,
+// so that a long job takes seconds and Cancel can be pressed in the middle of it. The browser's
+// own scheduler.yield is replaced where it exists; where it does not, the page uses a
+// MessageChannel, and the port's postMessage is delayed.
+const slowDown = (page) =>
+    page.evaluate(() => {
+        if (globalThis.scheduler && typeof globalThis.scheduler.yield === "function") {
+            globalThis.scheduler.yield = () => new Promise((resolve) => setTimeout(resolve, 15));
+        } else {
+            const post = MessagePort.prototype.postMessage;
+            MessagePort.prototype.postMessage = function (...args) {
+                setTimeout(() => post.apply(this, args), 15);
+            };
+        }
+    });
+
+// the open database as a handle that can be compared with the open one later
+const databaseHandle = (page) => page.evaluateHandle(() => window.app.database);
+const isOpenDatabase = (page, handle) => page.evaluate((old) => window.app.database === old, handle);
+// the names of everything the open database holds, in SQL's order
+const schemaNames = (app) => app.rows("SELECT name FROM sqlite_schema ORDER BY name").then((rows) => rows.map((row) => row[0]));
+// the keys the evidence log keeps in storage
+const eventKeys = (page) => page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("sqllab.events.")));
+
+// what the evidence log holds, in the page's memory and in storage, for the given log keys
+function eventsOf(page, keys) {
+    return page.evaluate(async (list) => {
+        const { events } = await import("./bundle/app.js");
+        const found = {};
+        for (const key of list) {
+            found[key] = events.readEvents(key);
+        }
+        const stored = Object.keys(localStorage).filter((key) => key.startsWith("sqllab.events."));
+        return { found, stored };
+    }, keys);
+}
+
+// the key of the log (the run log's and the events') of the open database, made by the app's own
+// function (js/lab/run-log.js logKeyFor, through the bundle). Without `dataset` it is the key of a
+// database opened as a file or made empty: "file:<name>". With a course database (a manifest entry,
+// or its id) it is the key that database's log is kept under: the dataset's id.
+const logKey = (page, dataset) =>
+    page.evaluate(async (chosen) => {
+        const { runLog } = await import("./bundle/app.js");
+        return runLog.logKeyFor(chosen ? { id: typeof chosen === "string" ? chosen : chosen.id } : null, window.app.database.name);
+    }, dataset ?? null);
+
+// the key of the log of whatever is open: the dataset's id for a course database (the page keeps
+// the id of the dataset it has opened), "file:<name>" for any other
+const openLogKey = (page) =>
+    page.evaluate(async () => {
+        const { runLog, datasets } = await import("./bundle/app.js");
+        const id = datasets.getPristineId();
+        return runLog.logKeyFor(id === null ? null : { id }, window.app.database.name);
+    });
+
+// databaseFingerprint(page) -> {sha256, size, userVersion}: what the open database holds, read from
+// inside the page: the SHA-256 of the bytes the engine serialises for the main database
+// (sqlite3_js_db_export) and PRAGMA user_version. Reading it writes nothing.
+const databaseFingerprint = (page) =>
+    page.evaluate(async () => {
+        const { database } = window.app;
+        const bytes = database.capi.sqlite3_js_db_export(database.db.pointer, "main");
+        const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+        return {
+            sha256: Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join(""),
+            size: bytes.length,
+            userVersion: database.db.selectValue("pragma user_version"),
+        };
+    });
+
+// connectionState(page) -> {statement, transaction, attached, settings}: what the open connection is
+// in, apart from the content of the database. statement: true when the engine has a statement open
+// on the connection (sqlite3_next_stmt; a job that ended or was stopped has finalized every one it
+// read or wrote with, and the page keeps none between two jobs); transaction: true when a
+// transaction or a savepoint is open
+// (sqlite3_get_autocommit is 0); attached: the names of the databases attached beside "main" and
+// "temp" (PRAGMA database_list; the TEMP objects are looked for by expectNothingLeft itself, and
+// the temp database stays listed once anything TEMP was made, so it is left out); settings: the
+// connection's foreign_keys, recursive_triggers, full_column_names and short_column_names. Reading
+// it changes nothing.
+const connectionState = (page) =>
+    page.evaluate(() => {
+        const { database } = window.app;
+        const db = database.db;
+        // (read first: the look at the settings, below, opens statements of its own and closes them)
+        const statement = database.capi.sqlite3_next_stmt(db.pointer, 0) !== 0;
+        const settings = {};
+        for (const name of ["foreign_keys", "recursive_triggers", "full_column_names", "short_column_names"]) {
+            settings[name] = db.selectValue(`pragma ${name}`);
+        }
+        return {
+            statement,
+            transaction: database.capi.sqlite3_get_autocommit(db.pointer) === 0,
+            attached: db
+                .selectValues("select name from pragma_database_list")
+                .filter((name) => name !== "main" && name !== "temp")
+                .sort(),
+            settings,
+        };
+    });
+
+// what the page was before a long job that is going to be cancelled. With `content` (the default)
+// the open database's fingerprint is kept too, so that expectNothingLeft can say the content is the
+// same; pass { content: false } where the job is allowed to change it. The state of the connection
+// (a statement open, a transaction open, a database attached, four settings) is always kept.
+async function snapshot(page, app, { content = true } = {}) {
+    return {
+        handle: await databaseHandle(page),
+        name: await page.evaluate(() => window.app.database.name),
+        href: await page.evaluate(() => location.href),
+        title: await page.title(),
+        label: await app.databaseLabel.textContent(),
+        tables: await schemaNames(app),
+        eventKeys: await eventKeys(page),
+        content: content ? await databaseFingerprint(page) : null,
+        connection: await connectionState(page),
+    };
+}
+
+// waitUntilIdle: the page takes a Run again. (A Run is refused while an import or an export runs,
+// and a cancelled one runs until it has ended, so this is when it has.)
+async function waitUntilIdle(app) {
+    await expect(async () => {
+        await app.run("SELECT 1 AS idle");
+        await expect(app.pane).toHaveAttribute("data-state", "result", { timeout: 1000 });
+    }).toPass({ timeout: 20_000 });
+}
+
+// everything a cancelled job must leave as it was: the same database, name, tables, address and
+// title, no TEMP table, no event kept, and no report on screen; the same state of the connection (no
+// statement left open, no transaction or savepoint opened or closed, no database attached or detached, the same foreign_keys,
+// recursive_triggers, full_column_names and short_column_names); and, when the snapshot took it, the
+// same content (the bytes of the database and its user_version)
+async function expectNothingLeft(page, app, before, { logKeys = [] } = {}) {
+    await waitUntilIdle(app);
+    expect(await isOpenDatabase(page, before.handle)).toBe(true);
+    expect(await page.evaluate(() => window.app.database.name)).toBe(before.name);
+    expect(await schemaNames(app)).toEqual(before.tables);
+    if (before.content) {
+        expect(await databaseFingerprint(page)).toEqual(before.content);
+    }
+    expect(await app.rows("SELECT name FROM sqlite_temp_schema")).toEqual([]);
+    expect(await connectionState(page)).toEqual(before.connection);
+    expect(await page.evaluate(() => location.href)).toBe(before.href);
+    expect(await page.title()).toBe(before.title);
+    await expect(app.databaseLabel).toHaveText(before.label);
+    const { found, stored } = await eventsOf(page, logKeys);
+    expect(stored).toEqual(before.eventKeys);
+    for (const key of logKeys) {
+        expect(found[key]).toEqual([]);
+    }
+    await expect(app.pane).not.toHaveAttribute("data-state", "report");
+}
+
+// ---- what the export's page specs share -------------------------------------------------------------
+
+// the address that opens the page with the export flag on
+const EXPORT_URL = "./?preview=export";
+// the owner's edge-case database, as a path under tests/fixtures/
+const EDGE_DATABASE = "export/export_edge_cases.db";
+
+// opens the owner's edge-case database as a file, with the export flag on (or the address given);
+// the toast that says it was opened is waited for, so that no later wait for a toast reads it
+async function openEdgeCases(app, address = EXPORT_URL) {
+    await app.open(address);
+    await app.upload(fixturePath(EDGE_DATABASE));
+    await expect(app.toast).toContainText("export_edge_cases.db");
+}
+
+// recordDownloads(page) -> names: the names of the files the page saves from now on, in order (the
+// array grows as the page saves)
+function recordDownloads(page) {
+    const names = [];
+    page.on("download", (download) => names.push(download.suggestedFilename()));
+    return names;
+}
+
+// the events of the open database's log, whether it is a course database or a file
+async function eventsOfOpen(page) {
+    const key = await openLogKey(page);
+    return (await eventsOf(page, [key])).found[key];
+}
+
+// the bytes of one of the owner's expected CSV files (tests/fixtures/export/expected_csv/<file>)
+const expectedBytes = (file) => fs.readFileSync(fixturePath(`export/expected_csv/${file}`));
+
+// the file name of the library the page makes a zip with (vendor/<name>): held with holdVendor, or
+// looked for in the requests a page made
+const ZIP_TOOL = "fflate.min.js";
+
+// the statements the engine has open on the page's connection: 0 for none (a job that stopped
+// part-way must have finalized the one it was reading with)
+const openStatements = (page) =>
+    page.evaluate(() => {
+        const { database } = window.app;
+        return database.capi.sqlite3_next_stmt(database.db.pointer, 0);
+    });
+
+// 1 when no transaction is open on the connection, 0 when one is (sqlite3_get_autocommit)
+const autocommit = (page) => page.evaluate(() => window.app.database.capi.sqlite3_get_autocommit(window.app.database.db.pointer));
+
+// ---- a key that is held down when a dialog closes (js/lab/held-enter.js) ----------------------------
+
+// repeatTaken(page): whether the page is taking repeats of Enter away at this moment. A repeat of
+// Enter is handed to the window itself (no element gets it, so nothing is pressed), and the page
+// either takes it away (true) or leaves it alone (false).
+const repeatTaken = (page) => page.evaluate(() => !window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", repeat: true, cancelable: true })));
+
+// watchClosing(page, selector, { freshPress }) hands a key to the page in the moment between a
+// dialog going and the browser's "close" event for it, which comes a little later (1 to 15 ms). A
+// MutationObserver on the dialog's "open" attribute runs in that moment, when the dialog has just
+// closed. With freshPress it hands a press of Enter that is not a repeat to the window (a press
+// like that ends the page's listening for a held key); without, a repeat of Enter to the element
+// that has the focus. Call it while the dialog is open; closingSeen(page) then says what was found:
+//   closeSeen    the "close" event has come by now
+//   at           the observer ran
+//   beforeClose  it ran before the "close" event (a test of that moment checks this: when it is
+//                false the test shows nothing)
+//   focus        the id of the element that had the focus in that moment, or of the nearest
+//                element round it that has one ("" for none)
+//   taken        without freshPress: the repeat was cancelled, by the page or by what had the focus
+async function watchClosing(page, selector, { freshPress = false } = {}) {
+    await page.evaluate(
+        ([dialogSelector, fresh]) => {
+            const dialog = document.querySelector(dialogSelector);
+            const seen = (window.__closing = { closeSeen: false, at: false, beforeClose: null, focus: null, taken: null });
+            dialog.addEventListener("close", () => {
+                seen.closeSeen = true;
+            });
+            new MutationObserver(() => {
+                if (dialog.open || seen.at) {
+                    return;
+                }
+                seen.at = true;
+                seen.beforeClose = !seen.closeSeen;
+                const target = document.activeElement ?? document.body;
+                seen.focus = target.closest("[id]")?.id ?? "";
+                if (fresh) {
+                    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
+                    return;
+                }
+                seen.taken = !target.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", repeat: true, cancelable: true, bubbles: true }));
+            }).observe(dialog, { attributes: true, attributeFilter: ["open"] });
+        },
+        [selector, freshPress]
+    );
+}
+const closingSeen = (page) => page.evaluate(() => window.__closing);
+
+// the key a set's progress is kept under in storage
+const progressKey = (set) => `sqllab.progress.${set.id}`;
+
+// storedEventLines(page, storageKey) -> for each event kept under that storage key (the log's key
+// with the events prefix of config-workflow.js in front), its lines; null when nothing is kept
+const storedEventLines = (page, storageKey) =>
+    page.evaluate((key) => {
+        const text = localStorage.getItem(key);
+        return text === null ? null : JSON.parse(text).events.map((event) => event.lines);
+    }, storageKey);
+
+// skipUnlessFirst: a beforeEach hook for a spec that checks files, not the page, so that running it
+// on every browser project would only repeat it: it skips the test on all but the first project
+const skipUnlessFirst = ({}, testInfo) => {
+    base.test.skip(testInfo.project.name !== "chromium-root", "checks files, not the page: once is enough");
+};
+
+// seeded(seed) -> a function that gives the same numbers in [0, 1) every run (mulberry32): the texts
+// that a property test generates are never different from one run to the next
+function seeded(seed) {
+    let state = seed >>> 0;
+    return () => {
+        state = (state + 0x6d2b79f5) >>> 0;
+        let t = state;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+// ---- a zip, read without the library that wrote it ------------------------------------------------
+
+const CRC_TABLE = Uint32Array.from({ length: 256 }, (unused, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k++) {
+        c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    return c >>> 0;
+});
+
+function crc32(bytes) {
+    let crc = 0xffffffff;
+    for (let i = 0; i < bytes.length; i++) {
+        crc = CRC_TABLE[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+}
+
+// readZip(bytes) -> [{name, bytes, method, flags, versionNeeded, mtime}], the entries of a zip in
+// the order of its central directory: method is the compression method (0 stored, 8 deflated),
+// flags the general purpose bits, versionNeeded the version needed to extract (20 is 2.0), and mtime
+// a Date made from the entry's DOS date and time, read as local time, which is how a zip keeps it
+// (to the two seconds that a DOS time can say; null for a zip that kept no date).
+// Written by hand from the format (PKWARE's APPNOTE, 4.3.12 and 4.3.16), and never with fflate,
+// which is what the page writes the zip with: the end record is found from the end, the central
+// directory is read for each entry's name, method, CRC-32 and SIZES (an entry written in pieces,
+// as a stream, has zeros in its local header and its sizes after its data, in a data descriptor),
+// the entry's data is taken from where its local header says it starts, stored or inflated with
+// node:zlib, and its length and CRC-32 are checked against the directory's. It throws, saying what
+// is wrong, on anything it does not read exactly:
+//   - the format: no Zip64, no encryption, no other method than stored or deflated, a zip in several
+//     parts, a disk number other than 0 in a directory entry, an entry that needs a version above
+//     2.0 (what the page's library writes; unzip and Python refuse a higher one they do not know),
+//     a date and time that do not exist;
+//   - the end record and the directory: a count or a directory that the two give differently;
+//   - a local header that differs from the directory's entry in its flags, method, name, date and
+//     time (unzip and Python read the method from the local header), and, when bit 3 of the flags is
+//     NOT set, in its CRC-32 and its two sizes (with bit 3 set, the page's zips have zeros there, and
+//     the data descriptor after the data says them; a local header with the real values is read too);
+//   - the names: one that comes twice, an empty one, one that starts with "/", one with a backslash,
+//     one with a ".." part, and one that ends with "/" (a directory) but holds data. (Which names the
+//     page may make is the page's rule, and is held by the tests that compare the names.)
+//   - the layout: bytes that belong to nothing, in front of the first entry, between two entries (an
+//     entry is its local header, its data, and its data descriptor when bit 3 is set) or between the
+//     last entry and the central directory, and entries that overlap.
+const ZIP_VERSION_MAX = 20;
+
+// a DOS date and time (the zip format's) as a Date in local time: years from 1980, seconds in twos.
+// A date and a time that are both 0 say that the writer kept no date (a zip written by hand): null.
+// Anything else that is not a date (month 0, day 31 of no month, hour 25) is refused.
+function dosDateTime(date, time, name) {
+    if (date === 0 && time === 0) {
+        return null;
+    }
+    const [year, month, day] = [1980 + (date >> 9), (date >> 5) & 15, date & 31];
+    const [hours, minutes, seconds] = [time >> 11, (time >> 5) & 63, (time & 31) * 2];
+    if (month < 1 || month > 12 || day < 1 || day > 31 || hours > 23 || minutes > 59 || seconds > 58) {
+        throw new Error(`readZip: ${name}: a date and time that do not exist (date ${date}, time ${time})`);
+    }
+    return new Date(year, month - 1, day, hours, minutes, seconds);
+}
+
+function readZip(bytes) {
+    const zip = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const fail = (why) => {
+        throw new Error(`readZip: ${why}`);
+    };
+    // the end record: 22 bytes and a comment of up to 65,535, the last thing in the file
+    let end = -1;
+    for (let at = zip.length - 22; at >= Math.max(0, zip.length - 22 - 0xffff); at--) {
+        if (zip.readUInt32LE(at) === 0x06054b50 && at + 22 + zip.readUInt16LE(at + 20) === zip.length) {
+            end = at;
+            break;
+        }
+    }
+    if (end < 0) {
+        fail("no end of central directory record");
+    }
+    const [disk, directoryDisk, onDisk, total] = [zip.readUInt16LE(end + 4), zip.readUInt16LE(end + 6), zip.readUInt16LE(end + 8), zip.readUInt16LE(end + 10)];
+    const directorySize = zip.readUInt32LE(end + 12);
+    const directoryAt = zip.readUInt32LE(end + 16);
+    if (disk !== 0 || directoryDisk !== 0 || onDisk !== total) {
+        fail("a zip in several parts");
+    }
+    if (total === 0xffff || directorySize === 0xffffffff || directoryAt === 0xffffffff) {
+        fail("a Zip64 marker (the zip is too large for this reader)");
+    }
+    if (directoryAt + directorySize !== end) {
+        fail(`the central directory (${directoryAt} + ${directorySize}) does not end where the end record starts (${end})`);
+    }
+    const entries = [];
+    const names = new Set();
+    // where each entry lies in the file: [from, to), to tile the file in front of the directory
+    const extents = [];
+    let at = directoryAt;
+    for (let n = 0; n < total; n++) {
+        if (at + 46 > end || zip.readUInt32LE(at) !== 0x02014b50) {
+            fail(`entry ${n + 1}: no central directory header at ${at}`);
+        }
+        const versionNeeded = zip.readUInt16LE(at + 6);
+        const flags = zip.readUInt16LE(at + 8);
+        const method = zip.readUInt16LE(at + 10);
+        const [dosTime, dosDate] = [zip.readUInt16LE(at + 12), zip.readUInt16LE(at + 14)];
+        const crc = zip.readUInt32LE(at + 16);
+        const compressed = zip.readUInt32LE(at + 20);
+        const size = zip.readUInt32LE(at + 24);
+        const [nameLength, extraLength, commentLength] = [zip.readUInt16LE(at + 28), zip.readUInt16LE(at + 30), zip.readUInt16LE(at + 32)];
+        const diskStart = zip.readUInt16LE(at + 34);
+        const localAt = zip.readUInt32LE(at + 42);
+        const nameBytes = zip.subarray(at + 46, at + 46 + nameLength);
+        // (bit 11 says UTF-8; without it a name is CP437, and a name that is not ASCII is refused)
+        if (!(flags & 0x800) && nameBytes.some((b) => b > 0x7f)) {
+            fail(`entry ${n + 1}: a name that is not ASCII, without the UTF-8 flag`);
+        }
+        const name = nameBytes.toString(flags & 0x800 ? "utf8" : "latin1");
+        at += 46 + nameLength + extraLength + commentLength;
+        const shown = JSON.stringify(name);
+        if (names.has(name)) {
+            fail(`${shown}: the name comes twice`);
+        }
+        names.add(name);
+        if (name === "") {
+            fail(`entry ${n + 1}: an empty name`);
+        }
+        if (name.startsWith("/")) {
+            fail(`${shown}: a name that starts with "/" (an extracting tool would write outside its folder)`);
+        }
+        if (name.includes("\\")) {
+            fail(`${shown}: a name with a backslash`);
+        }
+        if (name.split("/").includes("..")) {
+            fail(`${shown}: a name with a ".." part (an extracting tool would write outside its folder)`);
+        }
+        if (name.endsWith("/") && (size !== 0 || compressed !== 0)) {
+            fail(`${shown}: a directory (the name ends with "/") that holds data`);
+        }
+        if (diskStart !== 0) {
+            fail(`${shown}: the directory says the entry starts on disk ${diskStart}, not 0`);
+        }
+        if (flags & 1) {
+            fail(`${name}: encrypted`);
+        }
+        if (method !== 0 && method !== 8) {
+            fail(`${name}: compression method ${method} is neither stored nor deflated`);
+        }
+        if (versionNeeded > ZIP_VERSION_MAX) {
+            fail(`${name}: it needs version ${versionNeeded / 10} to extract (the directory says ${versionNeeded}), above 2.0`);
+        }
+        if (localAt + 30 > directoryAt || zip.readUInt32LE(localAt) !== 0x04034b50) {
+            fail(`${name}: no local header at ${localAt}`);
+        }
+        const localVersion = zip.readUInt16LE(localAt + 4);
+        if (localVersion > ZIP_VERSION_MAX) {
+            fail(`${name}: its local header needs version ${localVersion / 10} to extract (${localVersion}), above 2.0`);
+        }
+        if (zip.readUInt16LE(localAt + 6) !== flags) {
+            fail(`${name}: the local header has flags ${zip.readUInt16LE(localAt + 6)}, the directory says ${flags}`);
+        }
+        if (zip.readUInt16LE(localAt + 8) !== method) {
+            fail(`${name}: the local header has compression method ${zip.readUInt16LE(localAt + 8)}, the directory says ${method}`);
+        }
+        if (zip.readUInt16LE(localAt + 10) !== dosTime || zip.readUInt16LE(localAt + 12) !== dosDate) {
+            fail(`${name}: the local header has another date and time than the directory`);
+        }
+        const localNameLength = zip.readUInt16LE(localAt + 26);
+        const localName = zip.subarray(localAt + 30, localAt + 30 + localNameLength);
+        if (!localName.equals(nameBytes)) {
+            fail(`${name}: the local header has another name`);
+        }
+        const dataAt = localAt + 30 + localNameLength + zip.readUInt16LE(localAt + 28);
+        if (dataAt + compressed > directoryAt) {
+            fail(`${name}: its data (${compressed} bytes at ${dataAt}) runs into the central directory`);
+        }
+        let entryEnd = dataAt + compressed;
+        if (flags & 8) {
+            // the data descriptor after the data: an optional signature, then CRC-32 and the two sizes
+            const at8 = dataAt + compressed;
+            const from = zip.readUInt32LE(at8) === 0x08074b50 ? at8 + 4 : at8;
+            // (a descriptor that is not there at all is refused here too: `from` is at8 or after it)
+            if (from + 12 > directoryAt) {
+                fail(`${name}: its data descriptor runs into the central directory`);
+            }
+            if (zip.readUInt32LE(from) !== crc || zip.readUInt32LE(from + 4) !== compressed || zip.readUInt32LE(from + 8) !== size) {
+                fail(`${name}: the data descriptor and the central directory disagree`);
+            }
+            entryEnd = from + 12;
+            // (the local header of such an entry has zeros, or the real values)
+            const local = [zip.readUInt32LE(localAt + 14), zip.readUInt32LE(localAt + 18), zip.readUInt32LE(localAt + 22)];
+            const zeros = local.every((value) => value === 0);
+            if (!zeros && (local[0] !== crc || local[1] !== compressed || local[2] !== size)) {
+                fail(`${name}: the local header says CRC-32 ${local[0].toString(16)}, ${local[1]} bytes packed, ${local[2]} bytes; it should say zeros or what the directory says`);
+            }
+        }
+        extents.push({ name, from: localAt, to: entryEnd });
+        const stored = zip.subarray(dataAt, dataAt + compressed);
+        let data;
+        try {
+            data = method === 0 ? Buffer.from(stored) : zlib.inflateRawSync(stored);
+        } catch (error) {
+            fail(`${name}: its data cannot be inflated (${error.message})`);
+        }
+        if (data.length !== size) {
+            fail(`${name}: ${data.length} bytes, the directory says ${size}`);
+        }
+        if (crc32(data) !== crc) {
+            fail(`${name}: CRC-32 ${crc32(data).toString(16)}, the directory says ${crc.toString(16)}`);
+        }
+        // (after the data was checked against the directory, so that a directory that is wrong about
+        // the data is told as that; here the local header is held to the directory)
+        if (!(flags & 8)) {
+            const local = [zip.readUInt32LE(localAt + 14), zip.readUInt32LE(localAt + 18), zip.readUInt32LE(localAt + 22)];
+            if (local[0] !== crc || local[1] !== compressed || local[2] !== size) {
+                fail(`${name}: the local header says CRC-32 ${local[0].toString(16)}, ${local[1]} bytes packed, ${local[2]} bytes; the directory says ${crc.toString(16)}, ${compressed}, ${size}`);
+            }
+        }
+        entries.push({ name, bytes: data, method, flags, versionNeeded, mtime: dosDateTime(dosDate, dosTime, name) });
+    }
+    if (at !== end) {
+        fail(`the ${total} entries of the directory end at ${at}, the end record is at ${end}`);
+    }
+    // the entries, one after the other, fill the file up to the directory: nothing between them
+    let covered = 0;
+    for (const extent of extents.sort((a, b) => a.from - b.from)) {
+        if (extent.from < covered) {
+            fail(`${extent.name}: it starts at ${extent.from}, inside the entry before it (which ends at ${covered})`);
+        }
+        if (extent.from > covered) {
+            fail(`${extent.from - covered} bytes that belong to no entry, at ${covered}, in front of ${extent.name}`);
+        }
+        covered = extent.to;
+    }
+    if (covered !== directoryAt) {
+        fail(`${directoryAt - covered} bytes that belong to no entry, at ${covered}, in front of the central directory`);
+    }
+    return entries;
+}
+
 // readTable(app, name) -> what the open database holds under that name, for compareTable:
 //   {name, existsExact, kinds, columns: [{name, declared}], rows, storage}
 // kinds: the types of everything called that (in any letter case); declared: the column's type as
@@ -1492,6 +2265,41 @@ module.exports = {
     readTable,
     compareTable,
     sha256,
+    crc32,
+    readZip,
+    csvFile,
+    holdVendor,
+    holdImport,
+    finishHeld,
+    holdDataset,
+    slowDown,
+    databaseHandle,
+    isOpenDatabase,
+    schemaNames,
+    eventKeys,
+    eventsOf,
+    EXPORT_URL,
+    EDGE_DATABASE,
+    openEdgeCases,
+    recordDownloads,
+    eventsOfOpen,
+    expectedBytes,
+    ZIP_TOOL,
+    openStatements,
+    autocommit,
+    repeatTaken,
+    watchClosing,
+    closingSeen,
+    progressKey,
+    storedEventLines,
+    skipUnlessFirst,
+    seeded,
+    logKey,
+    openLogKey,
+    databaseFingerprint,
+    snapshot,
+    waitUntilIdle,
+    expectNothingLeft,
     tabTo,
     expectSchemaIconsOnly,
     SAMPLE_FILE,
@@ -1504,6 +2312,7 @@ module.exports = {
     withSampleDataset,
     realSet,
     shippedSets,
+    openableSets,
     modelQuery,
     routeSet,
     routeListing,

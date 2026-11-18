@@ -2,16 +2,20 @@
 // actions, Copy link, Export, Theme and Help, fold into one menu behind the "More actions" button
 // (the top bar keeps the database switcher). Each entry does what its own control does in the top
 // bar, which is not shown there: Copy link copies (its popover, when the browser keeps the
-// clipboard, opens under the More button), the three exports, the three themes (a radio group, the
-// chosen one ticked), and Help (its popover under the More button). css/shell.css shows the button
-// under 700 px only. A menu button on the popover attribute (js/lab/menu.js).
+// clipboard, opens under the More button), the exports (three, or four with the tables'), the
+// three themes (a radio group, the chosen one ticked), and Help (its popover under the More
+// button). css/shell.css shows the button under 700 px only. A menu button on the popover
+// attribute (js/lab/menu.js).
 //
-// mountMoreMenu({button, menu, copyLink, onDatabase, results, evidence, help})
+// mountMoreMenu({button, menu, copyLink, onDatabase, results, evidence, help, tables})
 //   copyLink     the Copy link action (js/lab/copy-link.js)
 //   onDatabase   "Database (.db)…" (js/lab/export-dialog.js)
 //   results      {canDownload(), download()} of js/lab/results.js
 //   evidence     {open()} of js/lab/evidence-dialog.js
 //   help         {open()} of js/lab/help.js
+//   tables       optional {text, description, onSelect}: one more entry in the Export group,
+//                #more-export-tables, right after the database's, as in the Export menu
+//                (js/lab/export-menu.js). Left out, the menu is what it was.
 
 import {
     EXPORT_BUTTON_TITLE,
@@ -78,11 +82,12 @@ function separator() {
     return node;
 }
 
-export function mountMoreMenu({ button, menu, copyLink, onDatabase, results, evidence, help }) {
+export function mountMoreMenu({ button, menu, copyLink, onDatabase, results, evidence, help, tables }) {
     menu.setAttribute("aria-label", MORE_MENU_LABEL);
 
     const copy = entry("more-copy-link", icon("link"), MORE_COPY_LINK_TEXT);
     const database = entry("more-export-db", icon("database"), EXPORT_DATABASE_TEXT, { description: EXPORT_BUTTON_TITLE });
+    const tablesItem = tables ? entry("more-export-tables", icon("sheet"), tables.text, { description: tables.description }) : null;
     const csv = entry("more-export-csv", icon("sheet"), EXPORT_RESULTS_TEXT, { description: EXPORT_RESULTS_DESCRIPTION });
     const record = entry("more-export-evidence", icon("file-text"), EXPORT_EVIDENCE_TEXT, { description: EXPORT_EVIDENCE_DESCRIPTION });
     const themes = THEME_OPTIONS.map((option) => {
@@ -96,7 +101,7 @@ export function mountMoreMenu({ button, menu, copyLink, onDatabase, results, evi
     menu.replaceChildren(
         copy,
         separator(),
-        group(MORE_EXPORT_LABEL, [database, csv, record]),
+        group(MORE_EXPORT_LABEL, tablesItem ? [database, tablesItem, csv, record] : [database, csv, record]),
         separator(),
         group(MORE_THEME_LABEL, themes),
         separator(),
@@ -122,6 +127,8 @@ export function mountMoreMenu({ button, menu, copyLink, onDatabase, results, evi
                 copyLink();
             } else if (chosen === database) {
                 onDatabase();
+            } else if (tablesItem && chosen === tablesItem) {
+                tables.onSelect();
             } else if (chosen === csv) {
                 results.download();
             } else if (chosen === record) {

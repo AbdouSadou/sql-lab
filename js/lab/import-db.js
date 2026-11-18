@@ -7,7 +7,8 @@
 // beginImport and endImport, in a savepoint. In a database of its own that is a transaction. In
 // the open database the student may have left a transaction of their own open (the page wraps
 // nothing in one), and the savepoint is then inside it: undoing the import undoes the import
-// and nothing else.
+// and nothing else. Where no transaction of theirs was open, an import that is undone leaves the
+// database as it was to the byte.
 //
 //   takenNames(database) -> Map       the names a new table could collide with, as keys
 //                                     (sameNameKey): the tables, views and indexes of the
@@ -42,6 +43,12 @@
 //                                     15 digits exactly. A column no row reached is NULL.
 //                                     onStep(done, total) is called after each step.
 //     stage.drop()                    removes the staging table; never throws
+//
+//   isOutOfMemory(error), isEngineError(error) -> boolean
+//                                     what a failure was: the engine or its allocator had no
+//                                     memory left; the engine or its allocator threw it at all
+//                                     (and not the page's own code). The export of tables asks
+//                                     the same two questions (js/lab/export-tables.js).
 //
 //   namesNeedingQuotes(database, table, columns) -> [name]
 //                                     the names, among a table's name and its column names, that
@@ -80,7 +87,8 @@ import { COPY_CELLS } from "./config-workflow.js";
 import { sameNameKey } from "./import-rules.js";
 import { quoteIdent } from "./sql.js";
 
-const SAVEPOINT = "lab_import";
+// (exported for the tests alone: one of them asks the engine whether this savepoint is still there)
+export const SAVEPOINT = "lab_import";
 const STAGE_NAME = "import_stage";
 const OUT_OF_MEMORY = 7;
 
@@ -113,8 +121,15 @@ export function undoImport(database, ticket) {
             // when the database is full)
             return { undone: true, lostTransaction: ticket.hadTransaction };
         }
-        database.db.exec(`rollback to ${SAVEPOINT}`);
-        database.db.exec(`release ${SAVEPOINT}`);
+        if (ticket.hadTransaction) {
+            database.db.exec(`rollback to ${SAVEPOINT}`);
+            database.db.exec(`release ${SAVEPOINT}`);
+        } else {
+            // The savepoint began the transaction, which is then the import's alone: it is taken
+            // back whole. (A release would end it as a commit of nothing, and the engine counts
+            // one more change in the file's header for it.)
+            database.db.exec("rollback");
+        }
         return { undone: true, lostTransaction: false };
     } catch {
         return { undone: false, lostTransaction: ticket.hadTransaction && !inTransactionSafely(database) };
@@ -165,6 +180,9 @@ export function namesNeedingQuotes(database, table, columns) {
 }
 
 export const isOutOfMemory = (error) => error?.resultCode === OUT_OF_MEMORY || error?.name === "WasmAllocError";
+
+// thrown by the engine or by its allocator, and not by the page's own code
+export const isEngineError = (error) => error?.name === "SQLite3Error" || error?.name === "WasmAllocError";
 
 // a name no TEMP table has yet (a student can have made one of any name)
 function freeStageName(db) {

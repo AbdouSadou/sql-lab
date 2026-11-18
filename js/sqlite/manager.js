@@ -51,7 +51,10 @@ async function init(name, path) {
 // create creates an empty database.
 function create(name, path) {
     const db = new sqlite3.oo1.DB();
-    return new SQLite(name, path, sqlite3.capi, db);
+    const database = new SQLite(name, path, sqlite3.capi, db);
+    // the engine's memory and its bare functions: js/lab/export-read.js takes a text as its bytes
+    database.wasm = sqlite3.wasm;
+    return database;
 }
 
 // fromBytes loads a database from the binary database file content.

@@ -55,6 +55,8 @@
 //       "SQLite3Error: SQLITE_ERROR: sqlite3 result code 1: no such column: pric".
 //       Works for any SQLITE_* code (SQLITE_CONSTRAINT_UNIQUE, ...). Not-SQLite errors
 //       keep their text.
+//   engineLine(exc) -> string
+//       The same on one line: each run of white space is one space, and none at the ends.
 
 import { SQL_NUL_MESSAGE, VACUUM_INTO_MESSAGE } from "./config.js";
 
@@ -139,6 +141,10 @@ export function engineMessage(exc) {
     // never return an empty message: a bare "SQLITE_BUSY" is better than nothing
     return stripped.trim() ? stripped : text;
 }
+
+// The same on one line, for a sentence that carries the engine's words (the export of tables puts
+// them in a row of its dialog and in its alert line): a run of white space is one space.
+export const engineLine = (exc) => engineMessage(exc).replace(/\s+/g, " ").trim();
 
 // The index of the next ";" at or after `from` that is not inside a quoted string or name, a
 // bracketed name or a comment, or -1. The rules are sqlite3_complete's own: a quote runs to the

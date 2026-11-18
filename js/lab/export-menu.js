@@ -1,12 +1,17 @@
 // The Export menu in the top bar (UI plan, section 5): "Database (.db)…", "Results (.csv)"
 // (disabled until a result with rows is on screen) and "Evidence (.txt)…", each with one line on
-// what it is for. The entries keep the ids of the buttons they replace (#export-db,
-// #export-evidence; #export-csv is new beside the result's own Download CSV button).
+// what it is for, and, when the page gives it, a fourth entry for the tables (below). The entries
+// keep the ids of the buttons they replace (#export-db, #export-evidence; #export-csv is new beside
+// the result's own Download CSV button).
 //
-// mountExportMenu({button, menu, onDatabase, results, evidence})
+// mountExportMenu({button, menu, onDatabase, results, evidence, tables})
 //   onDatabase()  "Database (.db)…" (js/lab/export-dialog.js)
 //   results       {canDownload(), download()} of js/lab/results.js
 //   evidence      {open()} of js/lab/evidence-dialog.js
+//   tables        optional {text, description, onSelect}: one more entry, #export-tables, right
+//                 after the database's (the assessment plan's Phase 3, behind its flag: the page
+//                 gives it only then, and its words, so that a later phase can name it again in one
+//                 place). Left out, the menu is what it was.
 
 import {
     EXPORT_BUTTON_TITLE,
@@ -41,12 +46,13 @@ function item(id, glyph, label, description) {
     return node;
 }
 
-export function mountExportMenu({ button, menu, onDatabase, results, evidence }) {
+export function mountExportMenu({ button, menu, onDatabase, results, evidence, tables }) {
     menu.setAttribute("aria-label", EXPORT_MENU_LABEL);
     const database = item("export-db", icon("database"), EXPORT_DATABASE_TEXT, EXPORT_BUTTON_TITLE);
     const csv = item("export-csv", icon("sheet"), EXPORT_RESULTS_TEXT, EXPORT_RESULTS_DESCRIPTION);
     const record = item("export-evidence", icon("file-text"), EXPORT_EVIDENCE_TEXT, EXPORT_EVIDENCE_DESCRIPTION);
-    menu.replaceChildren(database, csv, record);
+    const tablesItem = tables ? item("export-tables", icon("sheet"), tables.text, tables.description) : null;
+    menu.replaceChildren(...(tablesItem ? [database, tablesItem, csv, record] : [database, csv, record]));
 
     function syncCsv() {
         const ready = results.canDownload();
@@ -59,6 +65,8 @@ export function mountExportMenu({ button, menu, onDatabase, results, evidence })
         onSelect(chosen) {
             if (chosen === database) {
                 onDatabase();
+            } else if (tablesItem && chosen === tablesItem) {
+                tables.onSelect();
             } else if (chosen === csv) {
                 results.download();
             } else if (chosen === record) {

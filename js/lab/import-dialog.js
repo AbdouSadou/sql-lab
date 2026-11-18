@@ -124,6 +124,7 @@ import {
     importProgressTitle,
 } from "./config-workflow.js";
 import { NULL_TEXT } from "./config.js";
+import { swallowHeldEnter } from "./held-enter.js";
 import { icon } from "./icons.js";
 import { DELIMITERS, MAX_COLUMNS, readStart } from "./import-csv.js";
 import { newPace } from "./import-pace.js";
@@ -290,6 +291,8 @@ export function mountImportDialog({ returnFocus, getDestination, loadReader, onI
     // Every way out of the dialog, and every new set of files, starts a new session: what an
     // older one was still waiting for (a file being read) is dropped when it arrives.
     let session = 0;
+    // is the dialog showing a session that has not been ended yet (open() to endSession())
+    let live = false;
     let tabs = [];
     let tabList = null;
     // the import that is running: {cancelled}
@@ -968,6 +971,7 @@ export function mountImportDialog({ returnFocus, getDestination, loadReader, onI
 
     function open(chosen) {
         session++;
+        live = true;
         opened++;
         const mine = session;
         clearError();
@@ -1004,13 +1008,22 @@ export function mountImportDialog({ returnFocus, getDestination, loadReader, onI
     }
 
     // endSession: the dialog is closing, whichever way. What it was waiting for is dropped, an
-    // import that is running is told to stop, and the files are let go.
+    // import that is running is told to stop, and the files are let go. A key that is still held
+    // down presses nothing on the page (below, at the listener for "keydown"). Once for each
+    // closing, the first time the page hears of it: the browser tells of a closing again a moment
+    // after the fact (the listener for "close", below), and a key that was let go and pressed
+    // again by then is not a held key any more.
     function endSession() {
+        if (!live) {
+            return;
+        }
+        live = false;
         session++;
         if (running) {
             running.stop = true;
             running = null;
         }
+        swallowHeldEnter();
         clearTimeout(holdTimer);
         // (a dialog that closed while it was importing is not busy any more)
         dialog.removeAttribute("aria-busy");
@@ -1190,14 +1203,38 @@ export function mountImportDialog({ returnFocus, getDestination, loadReader, onI
             close();
         }
     });
-    // Escape, and any other way the browser closes a dialog. The event arrives after the fact: by
-    // then the dialog can be open again, for other files, and those are not this event's to end.
+    // Escape. The browser tells of it here before it closes the dialog; of the closing itself it
+    // tells only later (below). Two things come in between: a step of the import that was already
+    // waiting for its turn, which would see no Cancel, and a key that is held down, which repeats
+    // on the page as soon as the dialog has gone (in the editor, when the focus goes back there).
+    // So the session ends now: the import is told to stop, and a held key presses nothing. Only
+    // the dialog's own event is Escape: one that comes up from inside it (a file chooser that is
+    // dismissed tells of itself with an event of this name) closes nothing.
+    dialog.addEventListener("cancel", (event) => {
+        if (event.target === dialog) {
+            endSession();
+        }
+    });
+    // Any other way the browser closes a dialog, and the focus after every closing. The event
+    // arrives after the fact: by then the dialog can be open again, for other files, and those
+    // are not this event's to end. (A session that close() or Escape has ended already is not
+    // ended twice.)
     dialog.addEventListener("close", () => {
         if (dialog.open) {
             return;
         }
         endSession();
         restoreFocus();
+    });
+    // A key that is held down repeats. Enter held on Import would press Cancel, which has the
+    // focus once the import runs: a repeated Enter does nothing in this dialog. Nor does it once
+    // the dialog has closed under the key: the repeats would type empty lines into the editor, or
+    // press the button that gets the focus back (js/lab/held-enter.js takes them away until the
+    // key is let go, and says what it does not cover).
+    dialog.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && event.repeat) {
+            event.preventDefault();
+        }
     });
 
     return {

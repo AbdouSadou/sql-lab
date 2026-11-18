@@ -18,7 +18,7 @@ const { test, expect, fixturePath, expectedFor, fixtureIndex, SAMPLE_FILE } = re
 // expected files where they hold the text as written. A dialog that is open is closed with
 // Escape or Cancel before the next file is chosen.
 //
-// The sections from 10 on pin the fix rounds that followed the reviews (CODEMAP 9.6, the headers
+// The sections from 10 on pin later fixes of the dialog (CODEMAP 9.6, the headers
 // of js/lab/import-dialog.js and import.js): 10 the dialog is a body that scrolls and, under it
 // and never over it, a foot that does not (the title, the destination, the tabs and the progress
 // scroll; the line that says why Import is off, the line that says what went wrong, Import and
@@ -65,6 +65,8 @@ const { test, expect, fixturePath, expectedFor, fixtureIndex, SAMPLE_FILE } = re
 // draw to the end): the box of the names row and the numbers over the preview's columns, names given
 // again, the first of two names that cannot be, a file called .csv, and what the dialog keeps from
 // one opening to the next (nothing: the typed name of the database, the tabs, the line of a failure).
+// Also in 9: only a repeat of Enter is taken away in the dialog (a held letter, Backspace or arrow key in
+// the table's name still repeats).
 
 const OPEN = "./?preview=import";
 const MB = 1024 * 1024;
@@ -535,8 +537,8 @@ test.describe("the preview", () => {
 // ---- 3. settings are detected and changeable --------------------------------------------------------------
 
 test.describe("the settings", () => {
-    // (The sweep by mutation of the eighth round: the two lists in another order passed every
-    // test, since each test chose its option by its label.)
+    // (Without this test the two lists could come in another order and every other test would
+    // still pass, since each of them chooses its option by its label.)
     test("the two menus list their choices in a set order: comma, semicolon, tab, pipe; UTF-8, UTF-16 little-endian, UTF-16 big-endian, Windows-1252", async ({ app }) => {
         await openDialog(app, [csv("one.csv")]);
         const labels = (select) => select.evaluate((el) => [...el.options].map((option) => option.textContent));
@@ -1539,7 +1541,7 @@ test.describe("accessibility", () => {
         }
     }
 
-    // the states of fix round F11 and F13: a problem line in a tab, and the line that says why
+    // the states of the dialog's two lines: a problem line in a tab, and the line that says why
     // Import is off, on another tab
     for (const viewport of [
         { name: "desktop", width: 1366, height: 768 },
@@ -1725,9 +1727,42 @@ test.describe("accessibility", () => {
         await expect(app.importDialog).toBeHidden();
         await expect(app.editor).toBeFocused();
     });
+
+    // A key held down repeats. The dialog takes the repeats of Enter away (Enter held on Import
+    // would go on to press Cancel), and only those: a student who holds a letter, Backspace or an
+    // arrow in the table's name must still get the repeats.
+    test("only a repeat of Enter is taken away in the dialog: a held letter, Backspace and arrow key still repeat in the table's name", async ({ app, page }) => {
+        await openDialog(app, fixturePath("messy_sales.csv"));
+        const name = tableName(app);
+        await name.focus();
+        // the keydown that the browser sends for a key that repeats, handed to the field
+        const prevented = await name.evaluate((input) => {
+            const answer = {};
+            for (const [key, repeat] of [["a", true], ["Backspace", true], ["ArrowLeft", true], ["Enter", true], ["Enter", false]]) {
+                const event = new KeyboardEvent("keydown", { key, repeat, bubbles: true, cancelable: true });
+                input.dispatchEvent(event);
+                answer[`${key}${repeat ? " (repeat)" : ""}`] = event.defaultPrevented;
+            }
+            return answer;
+        });
+        expect(prevented).toEqual({ "a (repeat)": false, "Backspace (repeat)": false, "ArrowLeft (repeat)": false, "Enter (repeat)": true, Enter: false });
+        // and with real keys held down: the field takes the letter again and again, and Backspace
+        // takes the letters away one after the other
+        await name.fill("");
+        for (let n = 0; n < 3; n++) {
+            await page.keyboard.down("a");
+        }
+        await page.keyboard.up("a");
+        await expect(name, "a letter held down is typed again and again").toHaveValue("aaa");
+        for (let n = 0; n < 2; n++) {
+            await page.keyboard.down("Backspace");
+        }
+        await page.keyboard.up("Backspace");
+        await expect(name, "Backspace held down takes a letter away at each repeat").toHaveValue("a");
+    });
 });
 
-// ---- 10. the body and the foot of the dialog (fix round H1 to H3), and the mark for white space (F14) ------------
+// ---- 10. the body and the foot of the dialog, and the mark for white space ------------------------------------
 
 test.describe("the body and the foot of the dialog", () => {
     // The form holds two parts. The body (.import-body: the title, the destination, the tabs and
@@ -2380,7 +2415,8 @@ test.describe("the body and the foot of the dialog", () => {
     // A file over 50 MB asks first, in its tab. In a low window the two answers lie below what the
     // body shows when the dialog opens: Import is off, and the line beside it is all that is in
     // view to say why. So a file that waits is named whichever tab is on show, its own included
-    // (the fifth review: the line was kept for the other tabs, and here nothing said anything).
+    // (The line was once kept for the other tabs only, and on the tab of
+    // the file itself nothing said anything.)
     test("at 683x384 one file over 50 MB: its two answers are below what the body shows when the dialog opens, and the line beside Import names the file, in view", async ({ app, page }) => {
         test.slow();
         await page.setViewportSize({ width: 683, height: 384 });
@@ -2575,7 +2611,7 @@ test.describe("white space at an end of a field", () => {
     }
 });
 
-// ---- 11. a reading that the student's own settings made impossible (fix round F11, F2) -----------------------------
+// ---- 11. a reading that the student's own settings made impossible -----------------------------------
 
 test.describe("a delimiter or an encoding that cannot make a table", () => {
     test("a delimiter that makes a row too wide is said in the tab, with the preview gone and Import off; the choice can be changed back", async ({ app, page }) => {
@@ -2675,7 +2711,7 @@ test.describe("a delimiter or an encoding that cannot make a table", () => {
     });
 });
 
-// ---- 12. Import waits for the newest reading (fix round F11) ----------------------------------------------------------
+// ---- 12. Import waits for the newest reading ------------------------------------------------
 
 test.describe("Import and the reading of a tab", () => {
     // the text of a file that reads differently with each delimiter
@@ -2814,7 +2850,7 @@ test.describe("Import and the reading of a tab", () => {
     });
 });
 
-// ---- 13. the focus and the names after a refusal (fix round F12) -----------------------------------------------------
+// ---- 13. the focus and the names after a refusal ------------------------------------------------
 
 test.describe("after a refusal that takes a focused control away", () => {
     test("the focus goes to the tab's button, not to the page: the library fails to load when the delimiter is changed", async ({ app, page }) => {
@@ -2862,7 +2898,7 @@ test.describe("after a refusal that takes a focused control away", () => {
     });
 });
 
-// ---- 14. the line that says why Import is off (fix round F13) --------------------------------------------------------
+// ---- 14. the line that says why Import is off ----------------------------------------------
 
 test.describe("the line above the buttons that says why Import is off", () => {
     // while the line shows, the Import button is described by it; otherwise it is described by nothing
@@ -2941,8 +2977,8 @@ test.describe("the line above the buttons that says why Import is off", () => {
         await expect(holdLine(app)).toHaveText(words.importHoldWaitingMessage("big.csv"));
         await expect(app.importSubmit).toBeDisabled();
         await expect(app.importSubmit).toHaveAttribute("aria-describedby", "import-hold");
-        // On its own tab as well, beside the buttons that answer. (Until the fifth review the line
-        // was kept for the other tabs: but in a low window those buttons are below what the body
+        // On its own tab as well, beside the buttons that answer. (The line was once kept for the
+        // other tabs only: but in a low window those buttons are below what the body
         // shows, and Import was off with nothing in view to say why.)
         await selectTab(app, "big.csv");
         await expect(app.importPanel.getByRole("button", { name: words.IMPORT_LARGE_FILE_CONTINUE_TEXT })).toBeVisible();
@@ -2984,7 +3020,7 @@ test.describe("the line above the buttons that says why Import is off", () => {
     });
 
     // The line names the first file it can name, and what the tab on show says of itself never
-    // decides it. (It did, until the sixth review: with a file that waits on another tab, a key
+    // decides it. (It once did: with a file that waits on another tab, a key
     // that made a problem in the tab on show took the line away and the key that mended it
     // brought the line back, so the foot, and the body over it, moved with the keys.)
     test("what is typed in the tab on show does not move the line: a file that waits on another tab is named before, during and after a row for the names that cannot be", async ({ app, page }) => {
@@ -3044,8 +3080,8 @@ test.describe("the line above the buttons that says why Import is off", () => {
 
     // When the line comes the foot is higher by it, and the body loses as much from below. A
     // control of the body that has the focus and was whole is brought back when that has cut it
-    // (the test at 683x384 with one large file, in section 10), and nothing else moves. (It did,
-    // until the seventh review: whenever the line changed the body was scrolled to the focused
+    // (the test at 683x384 with one large file, in section 10), and nothing else moves. (It once
+    // did: whenever the line changed the body was scrolled to the focused
     // control, from wherever the student had put it, and a control that was still whole was
     // nudged; and a control was moved from under a pointer that was still held down on it.)
     // The line is made to come by the page's clock, which is the test's: two files that are
@@ -3169,8 +3205,8 @@ test.describe("the line above the buttons that says why Import is off", () => {
 
     // What is owed to the tab at the release is done only when the tab is still what the student
     // is at: it still has the focus, and the body is where it was. And a press is held to a
-    // release only for the main button; a menu that opens over the press ends it. (The eighth
-    // review: the release threw the body back to a tab that the focus had left, and to a place
+    // release only for the main button; a menu that opens over the press ends it. (The
+    // release once threw the body back to a tab that the focus had left, and to a place
     // the student had scrolled away from.) The helper holds the pointer down on the tab at
     // 683x384 and lets the line come, which cuts the tab; the test of another button presses
     // nothing with the mouse, and knows that the tab was cut by the body having been scrolled.
@@ -3356,7 +3392,7 @@ test.describe("the line above the buttons that says why Import is off", () => {
     });
 });
 
-// ---- 15. a file that was saved again after its preview (fix round F6) -------------------------------------------------
+// ---- 15. a file that was saved again after its preview ----------------------------------------------
 
 test.describe("a file that changed after it was chosen", () => {
     test("is refused when Import is pressed, nothing is imported, and the other file can still be imported", async ({ app, page, browserName }, testInfo) => {
@@ -3414,7 +3450,7 @@ test.describe("a file that changed after it was chosen", () => {
     });
 });
 
-// ---- 16. a second byte-order mark (fix round F3) ------------------------------------------------------------------------
+// ---- 16. a second byte-order mark -------------------------------------------------
 
 test.describe("a file with two byte-order marks", () => {
     test("the preview and the import agree: the first name keeps the second mark, the column is _id, and the report gives the name in the file", async ({ app }) => {
@@ -3435,7 +3471,7 @@ test.describe("a file with two byte-order marks", () => {
     });
 });
 
-// ---- 17. the whole name of a file, in its tab (fix round F15) -----------------------------------------------------------
+// ---- 17. the whole name of a file, in its tab ------------------------------------------------
 
 test.describe("the name in a tab", () => {
     test("a name that is cut short carries the whole of it in its title, in a tab that can be imported and in one that cannot", async ({ app, page }) => {
@@ -3537,7 +3573,7 @@ test.describe("the name in a tab", () => {
     });
 });
 
-// ---- 18. edges that a sweep of the code by mutation found unheld (the eighth round) ------------------------------------
+// ---- 18. edges that a sweep of the code by mutation found unheld -------------------------------------------------------
 
 // The first half of js/lab/import-dialog.js (from its top to the end of buildControls) was changed
 // a line at a time, to see which changes no test noticed. These are the changes that a student, or

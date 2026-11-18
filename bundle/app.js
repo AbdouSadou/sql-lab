@@ -521,7 +521,7 @@ function columnOptionsOf(schema) {
       owners.get(column.name).push(object.name);
     }
   }
-  return [...owners].map(([name, tables]) => nameOption(name, "property", tables.join(", "), -1));
+  return [...owners].map(([name, tables2]) => nameOption(name, "property", tables2.join(", "), -1));
 }
 function nameBefore(state2, dot) {
   const line = state2.doc.lineAt(dot);
@@ -893,11 +893,11 @@ function titleFor(part) {
 function apply() {
   const title = document.querySelector("title");
   document.title = titleFor(title ? title.dataset.pageTitle : "");
-  for (const el9 of document.querySelectorAll("[data-app-name]")) {
-    el9.textContent = APP_NAME;
+  for (const el10 of document.querySelectorAll("[data-app-name]")) {
+    el10.textContent = APP_NAME;
   }
-  for (const el9 of document.querySelectorAll("[data-app-label]")) {
-    el9.setAttribute("aria-label", `${APP_NAME}${el9.dataset.appLabel}`);
+  for (const el10 of document.querySelectorAll("[data-app-label]")) {
+    el10.setAttribute("aria-label", `${APP_NAME}${el10.dataset.appLabel}`);
   }
 }
 if (document.readyState === "loading") {
@@ -1197,9 +1197,9 @@ function printResult(result) {
   html += "<tbody>" + join(rows3, "tr") + "</tbody>";
   return `<table>${html}</table>`;
 }
-function printTables(tables) {
+function printTables(tables2) {
   let html = "<thead><tr><th>table</th></tr></thead>";
-  const rows3 = tables.map(function(table) {
+  const rows3 = tables2.map(function(table) {
     const name = escapeHtml(table);
     return `<tr>
             <td>
@@ -1233,8 +1233,8 @@ var SqlimeResult = class extends HTMLElement {
     this.applyPrinter(result, printer_default.printResult);
   }
   // printTables prints table list as a table
-  printTables(tables) {
-    this.applyPrinter(tables, printer_default.printTables);
+  printTables(tables2) {
+    this.applyPrinter(tables2, printer_default.printTables);
   }
   // applyPrinter prints data structure
   // with specified printer function
@@ -1262,6 +1262,7 @@ init_db();
 // js/lab/runner.js
 var runner_exports = {};
 __export(runner_exports, {
+  engineLine: () => engineLine,
   engineMessage: () => engineMessage,
   isVacuumInto: () => isVacuumInto,
   runSql: () => runSql,
@@ -1311,6 +1312,7 @@ function engineMessage(exc) {
   const stripped = text.replace(PREFIX, "");
   return stripped.trim() ? stripped : text;
 }
+var engineLine = (exc) => engineMessage(exc).replace(/\s+/g, " ").trim();
 function nextSemicolon(sql, from) {
   for (let i = from; i < sql.length; i++) {
     let end;
@@ -1462,7 +1464,9 @@ async function init(name, path) {
 }
 function create(name, path) {
   const db = new sqlite3.oo1.DB();
-  return new SQLite(name, path, sqlite3.capi, db);
+  const database2 = new SQLite(name, path, sqlite3.capi, db);
+  database2.wasm = sqlite3.wasm;
+  return database2;
 }
 function fromBytes(name, path, buf) {
   if (!buf) {
@@ -1556,8 +1560,8 @@ var ActionController = class {
   }
   // listen listens for clicks
   listen(...elems) {
-    for (const el9 of elems) {
-      el9.addEventListener("click", this.onClick.bind(this));
+    for (const el10 of elems) {
+      el10.addEventListener("click", this.onClick.bind(this));
     }
   }
   // onClick executes an action
@@ -1587,8 +1591,8 @@ var ShortcutController = class {
   }
   // listen listens for shortcuts
   listen(...elems) {
-    for (const el9 of elems) {
-      el9.addEventListener("keydown", this.onKeydown.bind(this));
+    for (const el10 of elems) {
+      el10.addEventListener("keydown", this.onKeydown.bind(this));
     }
   }
   // onClick executes an action
@@ -3094,7 +3098,13 @@ var EVENTS_MAX = 1e3;
 var EVENTS_MAX_BYTES = 1e6;
 var EVENT_MAX_LINES = 200;
 var EVENT_MAX_LINE_CHARS = 500;
-var STORAGE_NOTICE_EVENTS = "Your browser could not save the record of the files you brought in. It is kept until this tab is closed: export your evidence before you close it.";
+var storageNoticeEventsText = ({ imports, exports }) => {
+  let what = "the files you brought in";
+  if (exports) {
+    what = imports ? "the files you brought in and the tables you exported" : "the tables you exported";
+  }
+  return `Your browser could not save the record of ${what}. It is kept until this tab is closed: export your evidence before you close it.`;
+};
 var evidenceSavedWithEventsMessage = (filename, queries, events) => `Exported ${filename} with ${queries} ${queries === 1 ? "query" : "queries"} and ${events} ${events === 1 ? "event" : "events"}`;
 var VENDOR_LOAD_TIMEOUT_MS = 3e4;
 var IMPORT_SLICE_BYTES = 64 * 1024;
@@ -3182,7 +3192,7 @@ var IMPORT_LOST_TRANSACTION_MESSAGE = " The transaction you had open was undone 
 var IMPORT_NOT_OPENED_MESSAGE = "The new database could not be opened, and nothing was imported.";
 var IMPORT_LOADING_DIALOG_MESSAGE = "A database is still loading, so nothing was imported. Once it has opened, choose the files again. If it does not open, press Import again.";
 var IMPORT_DESTINATION_GONE_MESSAGE = "Nothing was imported: files cannot go into the database that is open now. Choose a new database, or close this and choose the files again.";
-var importedMessage = (tables, database2) => `Imported ${tables} ${tables === 1 ? "table" : "tables"} into ${database2}`;
+var importedMessage = (tables2, database2) => `Imported ${tables2} ${tables2 === 1 ? "table" : "tables"} into ${database2}`;
 var importReportTableLine = (rows3, columns, source) => `${rows3} ${rows3 === 1 ? "row" : "rows"}, ${columns} ${columns === 1 ? "column" : "columns"}, from ${source}`;
 var IMPORT_REPORT_COLUMN_HEADING = "Column";
 var IMPORT_REPORT_ORIGINAL_HEADING = "Name in the file";
@@ -3195,9 +3205,115 @@ var IMPORT_REPORT_QUOTES_WARNING = "A quote in this file has no partner. Everyth
 var importReportQuotedText = (names) => names.length === 1 ? `SQL keeps the word ${names[0]} for itself. In a query, write this name in double quotes: "${names[0]}".` : `SQL keeps these names for itself. In a query, write them in double quotes: ${names.map((name) => `"${name}"`).join(", ")}.`;
 var importEventFileLine = (name, bytes) => `file: ${name}, ${bytes} bytes`;
 var importEventTableLine = (table, rows3, columns) => `table: ${table}, ${rows3} rows, ${columns} columns`;
+var EXPORT_PIECE_CHARS = 65536;
+var EXPORT_PIECE_MS = 25;
+var EXPORT_CSV_SUFFIX = ".csv";
+var EXPORT_CSV_TYPE = "text/csv;charset=utf-8";
+var EXPORT_ZIP_SUFFIX = "-tables.zip";
+var EXPORT_ZIP_TYPE = "application/zip";
+var EXPORT_NAME_MAX_CHARS = 100;
+var EXPORT_ZIP_LIBRARY = { file: "fflate.min.js", global: "fflate" };
+var EXPORT_ZIP_LEVEL = 6;
+var EXPORT_ZIP_MAX_ENTRIES = 65535;
+var EXPORT_ZIP_MAX_BYTES = 4294967295;
+var EXPORT_TABLES_MENU_TEXT = "Tables as CSV…";
+var EXPORT_TABLES_MENU_DESCRIPTION = "Tables and views, one file each";
+var EXPORT_TABLES_BUSY_MESSAGE = "An export is running, so nothing else was done. Wait for it to end, or cancel it.";
+var EXPORT_TABLES_NONE_MESSAGE = "This database has no tables or views to export.";
+var EXPORT_TABLES_LOADING_MESSAGE = "A database is still loading, so no tables were offered. Choose Tables as CSV again once it has opened.";
+var EXPORT_TABLES_LIST_FAILED_MESSAGE = "The list of tables could not be read, so nothing was offered.";
+var EXPORT_TABLES_LOADING_DIALOG_MESSAGE = "A database is still loading, so nothing was exported. Once it has opened, choose Tables as CSV again. If it does not open, press Export again.";
+var EXPORT_TABLES_GONE_MESSAGE = "Nothing was exported. Another database is open now, so this list is out of date. Close this box and choose Tables as CSV again.";
+var EXPORT_TABLES_TITLE = "Tables as CSV";
+var EXPORT_TABLES_TEXT_LINE = "Each table or view you tick becomes a CSV file. If you tick one, that file is saved. If you tick several, they are saved together in one zip file.";
+var EXPORT_TABLES_LIST_LABEL = "Tables and views";
+var EXPORT_TABLES_ALL_LABEL = "All tables and views";
+var EXPORT_TABLES_VIEW_WORD = "view";
+var EXPORT_TABLES_SUBMIT_TEXT = "Export";
+var EXPORT_TABLES_CANCEL_TEXT = "Cancel";
+var EXPORT_TABLES_CLOSE_TEXT = "Close";
+var counted = (n, one, many) => `${n.toLocaleString("en")} ${n === 1 ? one : many}`;
+var rowsCounted = (n) => counted(n, "row", "rows");
+var EXPORT_TABLES_COUNTING = "Counting rows…";
+var exportTablesRowsText = (rows3) => rowsCounted(rows3);
+var exportTablesUncountedText = (reason) => `Its rows could not be counted, so it cannot be exported. The database said: ${reason}`;
+var exportTablesUnreadText = (reason) => `It could not be read to its end, so it was not exported. The database said: ${reason}`;
+var exportTablesSavedAsText = (fileName) => `Saved as ${fileName}`;
+var EXPORT_TABLES_HOLD_COUNTING = "You can press Export once the rows of every table and view have been counted.";
+var EXPORT_TABLES_HOLD_NONE = "Tick at least one table or view to export.";
+var EXPORT_TABLES_HOLD_NOTHING = "Nothing in this list can be exported. Each row says why.";
+var exportTablesWillSaveText = (plan) => plan.kind === "zip" ? `Saves ${plan.fileName}, with ${plan.entries.length} CSV files.` : `Saves ${plan.fileName}.`;
+var exportTablesProgressTitle = (at, of, name) => of === 1 ? `Exporting ${name}` : `Exporting table ${at} of ${of}: ${name}`;
+var EXPORT_TABLES_PROGRESS_LIBRARY = "Loading the zip tool…";
+var exportTablesProgressRows = (rows3, count) => rows3 > count ? rowsCounted(rows3) : `${rows3.toLocaleString("en")} of ${rowsCounted(count)}`;
+var exportedTablesMessage = (fileName, { rows: rows3, tables: tables2 }) => `Exported ${fileName} with ${tables2 === void 0 ? rowsCounted(rows3) : counted(tables2, "table", "tables")}`;
+var EXPORT_TABLES_CANCELLED_MESSAGE = "The export was cancelled, and nothing was saved.";
+var exportTablesBlobNote = (fileName, tables2) => `Exported ${fileName}. ${tables2.length === 1 ? "This table holds" : "These tables hold"} binary values (BLOBs): ${tables2.join(", ")}. A CSV file holds text only, so each binary value is written as x'…', with its bytes as hexadecimal digits between the quotes, the way the results pane shows it.`;
+var exportTablesFailedText = (table, reason) => `Nothing was exported, because ${table} could not be read. The database said: ${reason}`;
+var EXPORT_TABLES_FAILED_MESSAGE = "The export failed, and nothing was exported.";
+var EXPORT_TABLES_OUT_OF_MEMORY_MESSAGE = "The browser ran out of memory, and nothing was exported.";
+var EXPORT_TABLES_LIBRARY_FAILED_MESSAGE = "The zip tool could not be loaded, so nothing was exported. Check the connection and try again.";
+var EXPORT_TABLES_FILE_FAILED_MESSAGE = "The file could not be made, so nothing was exported.";
+var EXPORT_TABLES_ZIP_FAILED_MESSAGE = "The zip file could not be made, so nothing was exported.";
+var EXPORT_TABLES_ZIP_TOO_BIG_MESSAGE = "These tables hold more than one zip file can, so nothing was exported. Export fewer tables at a time.";
+var EXPORT_TABLES_SAVE_FAILED_MESSAGE = "The browser could not save the file, so nothing was exported.";
+var exportEventFileLine = (name, bytes) => `file: ${name}, ${bytes} bytes`;
+var exportEventTableLine = (table, rows3, entryName) => entryName === void 0 ? `table: ${table}, ${rows3} rows` : `table: ${table}, ${rows3} rows, ${entryName}`;
+
+// js/lab/flags.js
+var flags_exports = {};
+__export(flags_exports, {
+  flagOn: () => flagOn,
+  flags: () => flags,
+  readFlags: () => readFlags
+});
+function readFlags(search, defaults = PREVIEW_FLAGS, needs = PREVIEW_FLAG_NEEDS) {
+  const on = {};
+  for (const name of Object.keys(defaults)) {
+    on[name] = defaults[name] === true;
+  }
+  let asked = [];
+  try {
+    asked = new URLSearchParams(String(search ?? "")).getAll(PREVIEW_PARAM);
+  } catch {
+    asked = [];
+  }
+  for (const value of asked) {
+    for (const part of value.split(",")) {
+      const name = part.trim();
+      if (Object.hasOwn(on, name)) {
+        on[name] = true;
+      }
+    }
+  }
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const [name, needed] of Object.entries(needs)) {
+      if (on[name] === true && on[needed] !== true) {
+        on[name] = false;
+        changed = true;
+      }
+    }
+  }
+  return on;
+}
+function searchAtLoad() {
+  try {
+    return typeof location === "object" && location ? location.search : "";
+  } catch {
+    return "";
+  }
+}
+var state = Object.freeze(readFlags(searchAtLoad()));
+function flagOn(name) {
+  return Object.hasOwn(state, name) && state[name];
+}
+function flags() {
+  return { ...state };
+}
 
 // js/lab/storage-notice.js
-var TEXTS = { log: STORAGE_NOTICE_LOG, events: STORAGE_NOTICE_EVENTS, progress: STORAGE_NOTICE_PROGRESS };
 function reportStorage(what, ok) {
   try {
     if (typeof document !== "undefined" && typeof CustomEvent === "function") {
@@ -3213,6 +3329,11 @@ function mountStorageNotice({ ui: ui2, before }) {
   note.setAttribute("role", "status");
   note.hidden = true;
   before.before(note);
+  const TEXTS = {
+    log: STORAGE_NOTICE_LOG,
+    events: storageNoticeEventsText({ imports: flagOn("import"), exports: flagOn("export") }),
+    progress: STORAGE_NOTICE_PROGRESS
+  };
   const failing = /* @__PURE__ */ new Set();
   document.addEventListener(STORAGE_STATE_EVENT, (event) => {
     const { what, ok } = event.detail ?? {};
@@ -4337,12 +4458,13 @@ function item(id, glyph, label, description) {
   node.append(glyph, text);
   return node;
 }
-function mountExportMenu({ button, menu, onDatabase, results: results2, evidence: evidence2 }) {
+function mountExportMenu({ button, menu, onDatabase, results: results2, evidence: evidence2, tables: tables2 }) {
   menu.setAttribute("aria-label", EXPORT_MENU_LABEL);
   const database2 = item("export-db", icon("database"), EXPORT_DATABASE_TEXT, EXPORT_BUTTON_TITLE);
   const csv = item("export-csv", icon("sheet"), EXPORT_RESULTS_TEXT, EXPORT_RESULTS_DESCRIPTION);
   const record = item("export-evidence", icon("file-text"), EXPORT_EVIDENCE_TEXT, EXPORT_EVIDENCE_DESCRIPTION);
-  menu.replaceChildren(database2, csv, record);
+  const tablesItem = tables2 ? item("export-tables", icon("sheet"), tables2.text, tables2.description) : null;
+  menu.replaceChildren(...tablesItem ? [database2, tablesItem, csv, record] : [database2, csv, record]);
   function syncCsv() {
     const ready = results2.canDownload();
     csv.setAttribute("aria-disabled", String(!ready));
@@ -4353,6 +4475,8 @@ function mountExportMenu({ button, menu, onDatabase, results: results2, evidence
     onSelect(chosen) {
       if (chosen === database2) {
         onDatabase();
+      } else if (tablesItem && chosen === tablesItem) {
+        tables2.onSelect();
       } else if (chosen === csv) {
         results2.download();
       } else if (chosen === record) {
@@ -4363,7 +4487,7 @@ function mountExportMenu({ button, menu, onDatabase, results: results2, evidence
   syncCsv();
 }
 
-// js/lab/evidence-dialog.js
+// js/lab/export-tables.js
 init_config();
 
 // js/lab/events.js
@@ -4607,10 +4731,10 @@ function sqlPreview(sql) {
   return lines.length > 1 ? `${first} ${STATEMENT_ELLIPSIS}` : first;
 }
 function span(className, text) {
-  const el9 = document.createElement("span");
-  el9.className = className;
-  el9.textContent = text;
-  return el9;
+  const el10 = document.createElement("span");
+  el10.className = className;
+  el10.textContent = text;
+  return el10;
 }
 function mountRunLog({ ui: ui2, list, isShown = () => true }) {
   const editor = ui2.editor;
@@ -4904,7 +5028,1398 @@ function timeline(queries, events) {
   return places.flatMap((before, index) => index < queries.length ? [...before, queries[index]] : before);
 }
 
+// js/lab/export-read.js
+init_sql();
+var SQL_NAME_ORDER = "select type, name from main.sqlite_schema where type in ('table', 'view') and name not like 'sqlite\\_%' escape '\\' order by name";
+var VALUE_KINDS = Object.freeze({ INTEGER: 1, FLOAT: 2, TEXT: 3, BLOB: 4, NULL: 5 });
+var NUMBER_CHARS = 20;
+var decoder = new TextDecoder("utf-8", { ignoreBOM: true });
+function noMemory() {
+  const error = new Error("out of memory");
+  error.name = "SQLite3Error";
+  error.resultCode = 7;
+  return error;
+}
+function textReader(database2, pointer) {
+  const { wasm } = database2;
+  if (!wasm) {
+    throw new TypeError("this database gives no way into the engine's memory");
+  }
+  const at = (address, length) => {
+    const from = Number(address);
+    if (!from) {
+      throw noMemory();
+    }
+    const heap = wasm.heap8u();
+    const shared = typeof SharedArrayBuffer !== "undefined" && heap.buffer instanceof SharedArrayBuffer;
+    return decoder.decode(shared ? heap.slice(from, from + length) : heap.subarray(from, from + length));
+  };
+  return {
+    // (the text is asked for first: that is when the engine settles its bytes, and their number)
+    text(i) {
+      const address = wasm.exports.sqlite3_column_text(pointer, i);
+      return at(address, wasm.exports.sqlite3_column_bytes(pointer, i));
+    },
+    name(i) {
+      const address = wasm.exports.sqlite3_column_name(pointer, i);
+      return at(address, address ? wasm.cstrlen(address) : 0);
+    }
+  };
+}
+function listObjects(database2) {
+  const stmt = database2.db.prepare(SQL_NAME_ORDER);
+  try {
+    const texts = textReader(database2, stmt.pointer);
+    const objects = [];
+    while (stmt.step()) {
+      objects.push({ name: texts.text(1), kind: stmt.get(0) === "view" ? "view" : "table" });
+    }
+    return objects;
+  } finally {
+    stmt.finalize();
+  }
+}
+function countRows(database2, name) {
+  return Number(database2.db.selectValue(`select count(*) from main.${quoteIdent(name)}`));
+}
+function openRows(database2, name) {
+  const stmt = database2.db.prepare(`select * from main.${quoteIdent(name)}`);
+  const pointer = stmt.pointer;
+  const { capi } = database2;
+  let open = true;
+  let ended = false;
+  const columns = [];
+  let texts;
+  try {
+    texts = textReader(database2, pointer);
+    for (let i = 0; i < stmt.columnCount; i++) {
+      columns.push(texts.name(i));
+    }
+  } catch (error) {
+    stmt.finalize();
+    throw error;
+  }
+  const close = () => {
+    if (open) {
+      open = false;
+      stmt.finalize();
+    }
+  };
+  function readRow(costs) {
+    const kinds = new Array(columns.length);
+    const values = new Array(columns.length);
+    let chars = 0;
+    for (let i = 0; i < columns.length; i++) {
+      const kind = capi.sqlite3_column_type(pointer, i);
+      kinds[i] = kind;
+      switch (kind) {
+        case VALUE_KINDS.INTEGER:
+          values[i] = stmt.get(i);
+          chars += NUMBER_CHARS;
+          break;
+        case VALUE_KINDS.FLOAT:
+          values[i] = stmt.getFloat(i);
+          chars += NUMBER_CHARS;
+          break;
+        case VALUE_KINDS.TEXT:
+          values[i] = texts.text(i);
+          chars += values[i].length;
+          break;
+        case VALUE_KINDS.BLOB:
+          values[i] = stmt.getBlob(i);
+          chars += 2 * values[i].length;
+          break;
+        default:
+          kinds[i] = VALUE_KINDS.NULL;
+          values[i] = null;
+          chars += 1;
+      }
+    }
+    costs.chars += chars;
+    return { kinds, values };
+  }
+  function next({ chars = Infinity, ms = Infinity } = {}) {
+    const rows3 = [];
+    if (!open || ended) {
+      return { rows: rows3, done: true };
+    }
+    const started = performance.now();
+    const costs = { chars: 0 };
+    while (stmt.step()) {
+      rows3.push(readRow(costs));
+      if (costs.chars >= chars || performance.now() - started >= ms) {
+        return { rows: rows3, done: false };
+      }
+    }
+    ended = true;
+    close();
+    return { rows: rows3, done: true };
+  }
+  return { columns, next, close };
+}
+
+// js/lab/import-rules.js
+var WHOLE = /^-?(?:0|[1-9][0-9]{0,14})$/;
+var DECIMAL = /^-?(?:0|[1-9][0-9]*)\.[0-9]+$/;
+var SURE_DECIMAL_CHARS = 300;
+var LARGEST_SURE = 1e300;
+var SMALLEST_SURE = 1e-300;
+var A_DIGIT_NOT_ZERO = /[1-9]/;
+function fitsANumber(text) {
+  const size = Math.abs(Number(text));
+  return size <= LARGEST_SURE && (size >= SMALLEST_SURE || !A_DIGIT_NOT_ZERO.test(text));
+}
+var isWhole = (text) => typeof text === "string" && text !== "-0" && WHOLE.test(text);
+var isDecimal = (text) => typeof text === "string" && DECIMAL.test(text) && (text.length <= SURE_DECIMAL_CHARS || fitsANumber(text));
+var isPlainNumber = (text) => isWhole(text) || isDecimal(text);
+function newTally() {
+  return { values: 0, empty: 0, whole: 0, decimal: 0, text: 0, firstText: null };
+}
+function tallyValue(tally, value) {
+  tally.values++;
+  if (value === null) {
+    tally.empty++;
+  } else if (isWhole(value)) {
+    tally.whole++;
+  } else if (isDecimal(value)) {
+    tally.decimal++;
+  } else {
+    if (tally.text === 0) {
+      tally.firstText = value;
+    }
+    tally.text++;
+  }
+}
+function columnType(tally) {
+  if (tally.text > 0 || tally.whole + tally.decimal === 0) {
+    return "TEXT";
+  }
+  return tally.decimal > 0 ? "REAL" : "INTEGER";
+}
+function blockingValue(tally) {
+  const numbers = tally.whole + tally.decimal;
+  return tally.text > 0 && numbers * 2 >= numbers + tally.text ? tally.firstText : null;
+}
+var FALLBACK_TABLE_NAME = "table";
+function sanitiseName(text) {
+  const name = String(text).replace(/[^A-Za-z0-9_]+/g, "_");
+  return /^[0-9]/.test(name) ? `c_${name}` : name;
+}
+var isBlankName = (text) => text === null || text === void 0 || String(text).trim() === "";
+var sameNameKey = (name) => String(name).replace(/[A-Z]/g, (letter) => letter.toLowerCase());
+function uniqueName(base, used) {
+  let name = base;
+  for (let n = 2; used.has(sameNameKey(name)); n++) {
+    name = `${base}_${n}`;
+  }
+  used.add(sameNameKey(name));
+  return name;
+}
+function columnNames(header, width) {
+  const used = /* @__PURE__ */ new Set();
+  const names = [];
+  for (let i = 0; i < width; i++) {
+    let original = null;
+    let base;
+    if (header === null) {
+      base = `column_${i + 1}`;
+    } else if (i >= header.length) {
+      base = `extra_${i - header.length + 1}`;
+    } else {
+      original = header[i] ?? "";
+      base = isBlankName(original) ? `column_${i + 1}` : sanitiseName(original);
+    }
+    names.push({ name: uniqueName(base, used), original });
+  }
+  return names;
+}
+function tableNameFor(fileName) {
+  const name = String(fileName);
+  const dot = name.lastIndexOf(".");
+  const base = dot === -1 ? name : name.slice(0, dot);
+  return base === "" ? FALLBACK_TABLE_NAME : sanitiseName(base);
+}
+var firstRowLooksLikeNames = (row) => Array.isArray(row) && !row.some((field3) => isPlainNumber(field3));
+
+// js/lab/export-csv.js
+var CSV_BOM = new Uint8Array([239, 187, 191]);
+var NEEDS_QUOTES = /[",\r\n]|^ | $/;
+function fieldText(text) {
+  const value = String(text);
+  return NEEDS_QUOTES.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
+}
+var EXPONENT_FORM = /^(-?)(\d)(?:\.(\d+))?e([+-])(\d+)$/;
+function realText(number) {
+  if (Number.isNaN(number)) {
+    return "NaN";
+  }
+  if (number === Infinity || number === -Infinity) {
+    return number > 0 ? "Infinity" : "-Infinity";
+  }
+  if (Object.is(number, -0)) {
+    return "-0.0";
+  }
+  const text = String(number);
+  const parts = EXPONENT_FORM.exec(text);
+  if (!parts) {
+    return text.includes(".") ? text : `${text}.0`;
+  }
+  const [, sign, first, rest = "", direction, power] = parts;
+  const digits = first + rest;
+  const places = Number(power);
+  if (direction === "-") {
+    return `${sign}0.${"0".repeat(places - 1)}${digits}`;
+  }
+  return `${sign}${digits.padEnd(places + 1, "0")}.0`;
+}
+var HEX = Array.from({ length: 256 }, (unused, byte) => byte.toString(16).padStart(2, "0"));
+function blobText(bytes) {
+  let hex = "";
+  for (let i = 0; i < bytes.length; i++) {
+    hex += HEX[bytes[i]];
+  }
+  return `x'${hex}'`;
+}
+function valueText(kind, value) {
+  switch (kind) {
+    case VALUE_KINDS.INTEGER:
+      return String(value);
+    case VALUE_KINDS.FLOAT:
+      return realText(value);
+    case VALUE_KINDS.TEXT:
+      return fieldText(value);
+    case VALUE_KINDS.BLOB:
+      return blobText(value);
+    case VALUE_KINDS.NULL:
+      return "";
+    default:
+      throw new TypeError(`unknown kind of value: ${kind}`);
+  }
+}
+function rowText(kinds, values) {
+  let blobs = 0;
+  const fields = new Array(kinds.length);
+  for (let i = 0; i < kinds.length; i++) {
+    if (kinds[i] === VALUE_KINDS.BLOB) {
+      blobs++;
+    }
+    fields[i] = valueText(kinds[i], values[i]);
+  }
+  return { text: `${fields.join(",")}\r
+`, blobs };
+}
+var headerText = (names) => `${names.map(fieldText).join(",")}\r
+`;
+var baseNameOf = (table) => (sanitiseName(table) || FALLBACK_TABLE_NAME).slice(0, EXPORT_NAME_MAX_CHARS);
+function csvFileNames(tableNames) {
+  const used = /* @__PURE__ */ new Set();
+  const next = /* @__PURE__ */ new Map();
+  return tableNames.map((table) => {
+    const base = baseNameOf(table);
+    const key = sameNameKey(base);
+    let name = base;
+    if (used.has(key)) {
+      let n = next.get(key) ?? 2;
+      while (used.has(sameNameKey(`${base}_${n}`))) {
+        n++;
+      }
+      name = `${base}_${n}`;
+      next.set(key, n + 1);
+    }
+    used.add(sameNameKey(name));
+    return `${name}${EXPORT_CSV_SUFFIX}`;
+  });
+}
+function tablesZipName(databaseName) {
+  return `${safeBaseName(databaseName).replace(/\.(db|sqlite|sqlite3)$/i, "")}${EXPORT_ZIP_SUFFIX}`;
+}
+function planOutput({ format, databaseName, tables: tables2 }) {
+  if (format !== "csv") {
+    throw new TypeError(`unknown format of export: ${format}`);
+  }
+  if (tables2.length === 0) {
+    return null;
+  }
+  const names = csvFileNames(tables2);
+  const entries = tables2.map((table, i) => ({ table, name: names[i], renamed: names[i] !== `${table}${EXPORT_CSV_SUFFIX}` }));
+  if (entries.length === 1) {
+    return { format, kind: "file", fileName: names[0], type: EXPORT_CSV_TYPE, library: null, entries };
+  }
+  return {
+    format,
+    kind: "zip",
+    fileName: tablesZipName(databaseName),
+    type: EXPORT_ZIP_TYPE,
+    library: { ...EXPORT_ZIP_LIBRARY },
+    entries
+  };
+}
+var zipProblem = (entryCount, bytes, { maxEntries = EXPORT_ZIP_MAX_ENTRIES, maxBytes = EXPORT_ZIP_MAX_BYTES } = {}) => entryCount > maxEntries || bytes > maxBytes;
+
+// js/lab/held-enter.js
+var listening = false;
+function stop() {
+  listening = false;
+  window.removeEventListener("keydown", onKeyDown, true);
+  window.removeEventListener("keyup", onKeyUp, true);
+}
+function onKeyDown(event) {
+  if (event.key !== "Enter") {
+    return;
+  }
+  if (event.repeat) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    return;
+  }
+  stop();
+}
+function onKeyUp(event) {
+  if (event.key === "Enter") {
+    stop();
+  }
+}
+function swallowHeldEnter() {
+  if (listening) {
+    return;
+  }
+  listening = true;
+  window.addEventListener("keydown", onKeyDown, true);
+  window.addEventListener("keyup", onKeyUp, true);
+}
+
+// js/lab/import-pace.js
+var channel = null;
+var waiting = [];
+function turn() {
+  if (typeof globalThis.scheduler?.yield === "function") {
+    return globalThis.scheduler.yield();
+  }
+  if (!channel) {
+    channel = new MessageChannel();
+    channel.port1.onmessage = () => waiting.shift()?.();
+  }
+  return new Promise((resolve) => {
+    waiting.push(resolve);
+    channel.port2.postMessage(null);
+  });
+}
+function nextFrame() {
+  return new Promise((resolve) => {
+    let done = false;
+    const go = () => {
+      if (!done) {
+        done = true;
+        resolve();
+      }
+    };
+    requestAnimationFrame(() => setTimeout(go, 0));
+    setTimeout(go, FRAME_MAX_MS);
+  });
+}
+function newPace() {
+  let drawn = performance.now();
+  return {
+    async rest() {
+      if (performance.now() - drawn >= PAINT_EVERY_MS) {
+        await nextFrame();
+        drawn = performance.now();
+      } else {
+        await turn();
+      }
+    }
+  };
+}
+
+// js/lab/export-tables-dialog.js
+function el3(tag, props = {}, text = "") {
+  const node = document.createElement(tag);
+  Object.assign(node, props);
+  if (text) {
+    node.textContent = text;
+  }
+  return node;
+}
+function mountTableExportDialog({ returnFocus, getDatabase, list, count, plan, onExport }) {
+  const dialog = el3("dialog", { id: "export-tables-dialog", className: "app-dialog tables-dialog" });
+  dialog.setAttribute("aria-labelledby", "export-tables-title");
+  dialog.setAttribute("aria-describedby", "export-tables-text");
+  const form = el3("form", { id: "export-tables-form", className: "tables-form", noValidate: true });
+  const allBox = el3("input", { type: "checkbox", id: "export-tables-all" });
+  const allLabel = el3("label", { className: "tables-check", htmlFor: allBox.id });
+  allLabel.append(allBox, el3("span", {}, EXPORT_TABLES_ALL_LABEL));
+  const all = el3("div", { className: "tables-all", hidden: true });
+  all.append(allLabel);
+  const rowList = el3("ul", { className: "tables-list" });
+  rowList.setAttribute("role", "list");
+  rowList.setAttribute("aria-label", EXPORT_TABLES_LIST_LABEL);
+  const progress = el3("div", { className: "tables-progress", hidden: true });
+  const progressTitle = el3("h3", { id: "export-tables-progress-title", className: "results-loading-title" });
+  const progressPart = el3("p", { className: "results-loading-size" });
+  const progressBar = el3("progress", { className: "results-progress", max: 1 });
+  progressBar.setAttribute("aria-labelledby", progressTitle.id);
+  progress.append(progressTitle, progressPart, progressBar);
+  const status = el3("p", { id: "export-tables-status", className: "visually-hidden" });
+  status.setAttribute("role", "status");
+  const note = el3("p", { id: "export-tables-note", className: "tables-note", hidden: true });
+  const hold = el3("p", { id: "export-tables-hold", className: "app-dialog-hint tables-hold" });
+  hold.setAttribute("role", "status");
+  const error = el3("p", { id: "export-tables-error", className: "app-dialog-error", hidden: true });
+  error.setAttribute("role", "alert");
+  const submit = el3("button", { type: "submit", id: "export-tables-submit", className: "button button--primary" }, EXPORT_TABLES_SUBMIT_TEXT);
+  submit.setAttribute("aria-describedby", hold.id);
+  const cancel = el3("button", { type: "button", id: "export-tables-cancel", className: "button" }, EXPORT_TABLES_CANCEL_TEXT);
+  const actions2 = el3("div", { className: "app-dialog-actions" });
+  actions2.append(submit, cancel);
+  const intro = el3("p", { id: "export-tables-text", className: "app-dialog-text" }, EXPORT_TABLES_TEXT_LINE);
+  const body = el3("div", { className: "tables-body" });
+  body.append(
+    el3("h2", { id: "export-tables-title", className: "app-dialog-title" }, EXPORT_TABLES_TITLE),
+    intro,
+    all,
+    rowList,
+    progress,
+    status,
+    note
+  );
+  const foot = el3("div", { className: "tables-foot" });
+  foot.append(hold, error, actions2);
+  form.append(body, foot);
+  dialog.append(form);
+  document.body.append(dialog);
+  let session = 0;
+  let live = false;
+  let database2 = null;
+  let rows3 = [];
+  let counting = false;
+  let running = null;
+  let current4 = null;
+  let ended = false;
+  let announced = 0;
+  const tickable = (row) => row.problem === "";
+  const ticked = () => rows3.filter((row) => row.ticked && tickable(row));
+  function gone(mine) {
+    if (mine !== session || getDatabase() !== database2) {
+      return true;
+    }
+    try {
+      return !database2.db.isOpen();
+    } catch {
+      return true;
+    }
+  }
+  function lineText(row) {
+    if (row.problem) {
+      return row.problem;
+    }
+    return row.count === null ? EXPORT_TABLES_COUNTING : exportTablesRowsText(row.count);
+  }
+  function newRow(object, n) {
+    const id = `export-tables-row-${n}`;
+    const box = el3("input", { type: "checkbox", id, className: "tables-row-box" });
+    const label = el3("label", { className: "tables-row-label", htmlFor: id });
+    label.append(el3("span", { className: "tables-row-name" }, object.name));
+    if (object.kind === "view") {
+      label.append(" ", el3("span", { className: "tables-row-kind" }, EXPORT_TABLES_VIEW_WORD));
+    }
+    const line = el3("p", { id: `${id}-line`, className: "tables-row-line" });
+    box.setAttribute("aria-describedby", line.id);
+    const item2 = el3("li", { className: "tables-row" });
+    item2.append(box, label, line);
+    const row = { name: object.name, kind: object.kind, count: null, problem: "", ticked: false, saved: "", box, line, shown: null };
+    box.addEventListener("click", (event) => {
+      if (!tickable(row)) {
+        event.preventDefault();
+      }
+    });
+    box.addEventListener("change", () => {
+      row.ticked = box.checked && tickable(row);
+      refresh();
+    });
+    return { row, item: item2 };
+  }
+  function paintRow(row) {
+    row.box.checked = row.ticked && tickable(row);
+    if (tickable(row)) {
+      row.box.removeAttribute("aria-disabled");
+    } else {
+      row.box.setAttribute("aria-disabled", "true");
+    }
+    const words = lineText(row);
+    const shown2 = `${words}
+${row.saved}`;
+    if (row.shown !== shown2) {
+      row.shown = shown2;
+      row.line.replaceChildren(el3("span", { className: "tables-row-count" }, words));
+      if (row.saved) {
+        row.line.append(" ", el3("span", { className: "tables-row-saved" }, exportTablesSavedAsText(row.saved)));
+      }
+    }
+  }
+  function refresh() {
+    const chosen = ticked();
+    current4 = chosen.length ? plan(database2, chosen.map((row) => row.name)) : null;
+    for (const row of rows3) {
+      row.saved = "";
+    }
+    if (current4) {
+      chosen.forEach((row, i) => {
+        const entry2 = current4.entries[i];
+        row.saved = entry2.renamed ? entry2.name : "";
+      });
+    }
+    rows3.forEach(paintRow);
+    const open2 = rows3.filter(tickable);
+    allBox.checked = open2.length > 0 && chosen.length === open2.length;
+    allBox.indeterminate = chosen.length > 0 && chosen.length < open2.length;
+    if (open2.length) {
+      allBox.removeAttribute("aria-disabled");
+    } else {
+      allBox.setAttribute("aria-disabled", "true");
+    }
+    let why;
+    if (counting) {
+      why = EXPORT_TABLES_HOLD_COUNTING;
+    } else if (!open2.length) {
+      why = EXPORT_TABLES_HOLD_NOTHING;
+    } else if (!current4) {
+      why = EXPORT_TABLES_HOLD_NONE;
+    } else {
+      why = exportTablesWillSaveText(current4);
+    }
+    if (hold.textContent !== why) {
+      hold.textContent = why;
+    }
+    submit.setAttribute("aria-disabled", String(counting || !current4));
+  }
+  allBox.addEventListener("click", (event) => {
+    if (!rows3.some(tickable)) {
+      event.preventDefault();
+    }
+  });
+  allBox.addEventListener("change", () => {
+    const on = allBox.checked;
+    for (const row of rows3) {
+      row.ticked = on && tickable(row);
+    }
+    refresh();
+  });
+  function showError2(message) {
+    error.textContent = message;
+    error.hidden = false;
+  }
+  function clearError() {
+    error.textContent = "";
+    error.hidden = true;
+  }
+  function show(state2) {
+    const listing = state2 === "list";
+    all.hidden = !(listing && rows3.length > 1);
+    rowList.hidden = !listing;
+    hold.hidden = !listing;
+    submit.hidden = !listing;
+    progress.hidden = state2 !== "running";
+    note.hidden = state2 !== "note";
+    intro.hidden = state2 === "note";
+    if (state2 === "running") {
+      progress.setAttribute("aria-busy", "true");
+    } else {
+      progress.removeAttribute("aria-busy");
+    }
+    cancel.textContent = state2 === "note" ? EXPORT_TABLES_CLOSE_TEXT : EXPORT_TABLES_CANCEL_TEXT;
+    if (state2 === "note") {
+      dialog.setAttribute("aria-describedby", note.id);
+      cancel.setAttribute("aria-describedby", note.id);
+    } else {
+      dialog.setAttribute("aria-describedby", "export-tables-text");
+      cancel.removeAttribute("aria-describedby");
+    }
+  }
+  async function countAll(mine) {
+    const pace = newPace();
+    await nextFrame();
+    for (const row of rows3) {
+      if (gone(mine)) {
+        return;
+      }
+      let failed = false;
+      try {
+        row.count = count(database2, row.name);
+      } catch (failure) {
+        if (gone(mine)) {
+          return;
+        }
+        row.problem = exportTablesUncountedText(engineLine(failure));
+        row.ticked = false;
+        failed = true;
+      }
+      if (failed) {
+        refresh();
+      } else {
+        paintRow(row);
+      }
+      await pace.rest();
+    }
+    if (gone(mine)) {
+      return;
+    }
+    counting = false;
+    refresh();
+  }
+  function countingFailed(mine, failure) {
+    console.debug("the tables could not be counted", failure);
+    if (gone(mine)) {
+      return;
+    }
+    for (const row of rows3) {
+      if (row.count === null && !row.problem) {
+        row.problem = exportTablesUncountedText(engineLine(failure));
+        row.ticked = false;
+      }
+    }
+    counting = false;
+    refresh();
+  }
+  function open() {
+    const opening = getDatabase();
+    const objects = list(opening);
+    if (!objects.length) {
+      return false;
+    }
+    session++;
+    live = true;
+    const mine = session;
+    database2 = opening;
+    ended = false;
+    running = null;
+    announced = 0;
+    status.textContent = "";
+    clearError();
+    const made = objects.map(newRow);
+    rows3 = made.map((one) => one.row);
+    rowList.replaceChildren(...made.map((one) => one.item));
+    if (rows3.length === 1) {
+      rows3[0].ticked = true;
+    }
+    counting = true;
+    show("list");
+    refresh();
+    if (!dialog.open) {
+      dialog.showModal();
+    }
+    (rows3.length > 1 ? allBox : rows3[0].box).focus();
+    countAll(mine).catch((failure) => countingFailed(mine, failure));
+    return true;
+  }
+  function endSession() {
+    if (!live) {
+      return;
+    }
+    live = false;
+    session++;
+    if (running) {
+      running.stop = true;
+      running = null;
+    }
+    counting = false;
+    swallowHeldEnter();
+  }
+  function close() {
+    endSession();
+    if (dialog.open) {
+      dialog.close();
+    }
+    restoreFocus();
+  }
+  function restoreFocus() {
+    const focused = document.activeElement;
+    if (!focused || focused === document.body || dialog.contains(focused)) {
+      returnFocus.focus();
+    }
+  }
+  async function exportNow() {
+    if (running || ended || submit.getAttribute("aria-disabled") === "true" || !current4) {
+      return;
+    }
+    clearError();
+    const mine = session;
+    const chosen = ticked();
+    const job = {
+      database: database2,
+      tables: chosen.map((row) => ({ name: row.name, count: row.count })),
+      plan: current4
+    };
+    const state2 = { stop: false };
+    running = state2;
+    announced = 0;
+    status.textContent = "";
+    progressTitle.textContent = current4.library ? EXPORT_TABLES_PROGRESS_LIBRARY : exportTablesProgressTitle(1, chosen.length, chosen[0].name);
+    progressPart.textContent = "";
+    progressBar.value = 0;
+    show("running");
+    cancel.focus();
+    let outcome;
+    try {
+      outcome = await onExport(job, {
+        cancelled: () => state2.stop,
+        progress(info) {
+          if (info.library) {
+            progressTitle.textContent = EXPORT_TABLES_PROGRESS_LIBRARY;
+            progressPart.textContent = "";
+            progressBar.value = 0;
+            status.textContent = EXPORT_TABLES_PROGRESS_LIBRARY;
+            return;
+          }
+          const title = exportTablesProgressTitle(info.at, info.of, info.name);
+          progressTitle.textContent = title;
+          progressPart.textContent = exportTablesProgressRows(info.rows, info.count);
+          progressBar.value = info.allRows > 0 ? Math.min(1, info.doneRows / info.allRows) : 0;
+          if (info.at !== announced) {
+            announced = info.at;
+            status.textContent = title;
+          }
+        }
+      });
+    } catch (failure) {
+      console.debug("the export threw", failure);
+      outcome = { ok: false, message: EXPORT_TABLES_FAILED_MESSAGE };
+    }
+    if (mine !== session) {
+      return;
+    }
+    running = null;
+    announced = 0;
+    status.textContent = "";
+    if (outcome.ok) {
+      const blobs = (outcome.notes ?? []).find((one) => one.kind === "blob");
+      if (!blobs) {
+        endSession();
+        dialog.close();
+        return;
+      }
+      ended = true;
+      note.textContent = exportTablesBlobNote(outcome.fileName, blobs.tables);
+      show("note");
+      cancel.focus();
+      return;
+    }
+    show("list");
+    if (outcome.table !== void 0) {
+      const failed = rows3.find((row) => row.name === outcome.table);
+      if (failed) {
+        failed.problem = exportTablesUnreadText(outcome.reason ?? "");
+        failed.ticked = false;
+      }
+    }
+    refresh();
+    if (outcome.message) {
+      showError2(outcome.message);
+    }
+    cancel.focus();
+  }
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    exportNow();
+  });
+  cancel.addEventListener("click", close);
+  document.addEventListener("lab:database-loaded", () => {
+    if (dialog.open && !running) {
+      close();
+    }
+  });
+  dialog.addEventListener("cancel", (event) => {
+    if (event.target === dialog) {
+      endSession();
+    }
+  });
+  dialog.addEventListener("close", () => {
+    if (dialog.open) {
+      return;
+    }
+    endSession();
+    restoreFocus();
+  });
+  dialog.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && event.repeat) {
+      event.preventDefault();
+    }
+  });
+  return {
+    open,
+    isOpen: () => dialog.open
+  };
+}
+
+// js/lab/import-db.js
+init_sql();
+var SAVEPOINT = "lab_import";
+var STAGE_NAME = "import_stage";
+var OUT_OF_MEMORY = 7;
+function takenNames(database2) {
+  const taken = /* @__PURE__ */ new Map();
+  const note = (temporary, sql) => database2.db.selectValues(sql).forEach((name) => taken.set(sameNameKey(name), temporary));
+  note(true, "select name from temp.sqlite_schema where type in ('table', 'view')");
+  note(false, "select name from main.sqlite_schema where type in ('table', 'view', 'index')");
+  return taken;
+}
+var inTransaction = (database2) => database2.capi.sqlite3_get_autocommit(database2.db.pointer) === 0;
+function beginImport(database2) {
+  const ticket = { hadTransaction: inTransaction(database2) };
+  database2.db.exec(`savepoint ${SAVEPOINT}`);
+  return ticket;
+}
+function endImport(database2) {
+  database2.db.exec(`release ${SAVEPOINT}`);
+}
+function undoImport(database2, ticket) {
+  try {
+    if (!inTransaction(database2)) {
+      return { undone: true, lostTransaction: ticket.hadTransaction };
+    }
+    if (ticket.hadTransaction) {
+      database2.db.exec(`rollback to ${SAVEPOINT}`);
+      database2.db.exec(`release ${SAVEPOINT}`);
+    } else {
+      database2.db.exec("rollback");
+    }
+    return { undone: true, lostTransaction: false };
+  } catch {
+    return { undone: false, lostTransaction: ticket.hadTransaction && !inTransactionSafely(database2) };
+  }
+}
+function inTransactionSafely(database2) {
+  try {
+    return inTransaction(database2);
+  } catch {
+    return false;
+  }
+}
+var BARE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+var PROBE_TEXT = "lab probe";
+function answersOne(db, sql) {
+  try {
+    return db.selectValue(sql, [PROBE_TEXT]) === 1;
+  } catch {
+    return false;
+  }
+}
+var tableIsBare = (db, name) => BARE_NAME.test(name) && answersOne(db, `with ${quoteIdent(name)}(x) as (select ?1) select (${name}.x) is ?1 from ${name}`);
+var columnIsBare = (db, name) => BARE_NAME.test(name) && answersOne(db, `select (${name}) is ?1 from (select ?1 as ${quoteIdent(name)})`);
+function namesNeedingQuotes(database2, table, columns) {
+  try {
+    const { db } = database2;
+    const names = tableIsBare(db, table) ? [] : [table];
+    const listed = new Set(names.map(sameNameKey));
+    for (const column of columns) {
+      if (!listed.has(sameNameKey(column)) && !columnIsBare(db, column)) {
+        names.push(column);
+        listed.add(sameNameKey(column));
+      }
+    }
+    return names;
+  } catch {
+    return [];
+  }
+}
+var isOutOfMemory = (error) => error?.resultCode === OUT_OF_MEMORY || error?.name === "WasmAllocError";
+var isEngineError = (error) => error?.name === "SQLite3Error" || error?.name === "WasmAllocError";
+function freeStageName(db) {
+  const taken = new Set(db.selectValues("select name from sqlite_temp_schema").map(sameNameKey));
+  let name = STAGE_NAME;
+  for (let n = 2; taken.has(sameNameKey(name)); n++) {
+    name = `${STAGE_NAME}_${n}`;
+  }
+  return name;
+}
+var stageColumns = (from, to) => Array.from({ length: to - from }, (unused, i) => `c${from + i + 1}`);
+function newStage(database2) {
+  const db = database2.db;
+  const table = `temp.${quoteIdent(freeStageName(db))}`;
+  let width = 0;
+  let insert = null;
+  let dropped = false;
+  const stage = { rows: 0 };
+  const create2 = (columns) => db.exec(`create table ${table} (${stageColumns(0, columns).map((c) => `${c} text`).join(", ")})`);
+  create2(1);
+  width = 1;
+  function widen(to) {
+    insert?.finalize();
+    insert = null;
+    if (stage.rows === 0) {
+      db.exec(`drop table ${table}`);
+      create2(to);
+    } else {
+      for (const column of stageColumns(width, to)) {
+        db.exec(`alter table ${table} add column ${column} text`);
+      }
+    }
+    width = to;
+  }
+  stage.add = (rows3) => {
+    const widest = rows3.reduce((most, row) => Math.max(most, row.length), 0);
+    if (widest > width) {
+      widen(widest);
+    }
+    insert ??= db.prepare(`insert into ${table} (${stageColumns(0, width).join(", ")}) values (${stageColumns(0, width).map(() => "?").join(", ")})`);
+    for (const row of rows3) {
+      insert.bind(row).step();
+      insert.reset(true);
+      stage.rows++;
+    }
+  };
+  stage.copyInto = async (name, columns, { rest, onStep = () => {
+  } }) => {
+    insert?.finalize();
+    insert = null;
+    const target = `main.${quoteIdent(name)}`;
+    db.exec(`create table ${target} (${columns.map((column) => `${quoteIdent(column.name)} ${column.type}`).join(", ")})`);
+    const values = columns.map((column, i) => i < width ? `c${i + 1}` : "null").join(", ");
+    const copy = db.prepare(`insert into ${target} select ${values} from ${table} where rowid > ?1 and rowid <= ?2`);
+    try {
+      const step = Math.max(1, Math.floor(COPY_CELLS / columns.length));
+      for (let done = 0; done < stage.rows; done += step) {
+        copy.bind([done, done + step]).step();
+        copy.reset(true);
+        onStep(Math.min(done + step, stage.rows), stage.rows);
+        await rest();
+      }
+    } finally {
+      copy.finalize();
+    }
+  };
+  stage.drop = () => {
+    if (dropped) {
+      return;
+    }
+    dropped = true;
+    try {
+      insert?.finalize();
+      insert = null;
+      db.exec(`drop table if exists ${table}`);
+    } catch {
+    }
+  };
+  return stage;
+}
+
+// js/lab/vendor-loader.js
+var vendor_loader_exports = {};
+__export(vendor_loader_exports, {
+  loadVendor: () => loadVendor
+});
+var VENDOR_DIR = "vendor/";
+var PLAIN_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+var loading2 = /* @__PURE__ */ new Map();
+function onPage(globalName) {
+  try {
+    return globalThis[globalName];
+  } catch {
+    return void 0;
+  }
+}
+function loadVendor(file, globalName) {
+  if (typeof file !== "string" || !PLAIN_NAME.test(file) || file.includes("..")) {
+    return Promise.reject(new Error(`not a file of ${VENDOR_DIR}`));
+  }
+  if (typeof globalName !== "string" || !globalName) {
+    return Promise.reject(new Error("not the name of a library"));
+  }
+  const present = onPage(globalName);
+  if (present !== void 0) {
+    return Promise.resolve(present);
+  }
+  const known = loading2.get(file);
+  if (known) {
+    return known;
+  }
+  let waiting2 = true;
+  const promise = new Promise((resolve, reject) => {
+    let script = null;
+    let timer = null;
+    const settle = (library) => {
+      if (!waiting2) {
+        return;
+      }
+      waiting2 = false;
+      clearTimeout(timer);
+      loading2.delete(file);
+      if (library === void 0) {
+        script?.remove();
+        reject(new Error(`could not load ${VENDOR_DIR}${file}`));
+      } else {
+        resolve(library);
+      }
+    };
+    try {
+      script = document.createElement("script");
+      script.addEventListener("load", () => settle(onPage(globalName)));
+      script.addEventListener("error", () => settle(void 0));
+      timer = setTimeout(() => settle(void 0), VENDOR_LOAD_TIMEOUT_MS);
+      script.src = `${VENDOR_DIR}${file}`;
+      document.head.append(script);
+    } catch {
+      settle(void 0);
+    }
+  });
+  if (waiting2) {
+    loading2.set(file, promise);
+  }
+  return promise;
+}
+
+// js/lab/export-tables.js
+var CANCEL_LOOK_MS = 100;
+var ExportCancelled = class extends Error {
+};
+var TableFailed = class extends Error {
+  constructor(table, cause) {
+    super("a table could not be read");
+    this.table = table;
+    this.cause = cause;
+  }
+};
+var OutputFailed = class extends Error {
+  constructor(shown2, options) {
+    super(shown2, options);
+    this.shown = shown2;
+  }
+};
+var pastMemory = (error) => isOutOfMemory(error) || error instanceof RangeError || error?.name === "InternalError";
+var encoder3 = new TextEncoder();
+function zipDate() {
+  const now = /* @__PURE__ */ new Date();
+  const year = now.getFullYear();
+  if (year < 1980) {
+    return new Date(1980, 0, 1);
+  }
+  return year > 2099 ? new Date(2099, 11, 31, 23, 59, 58) : now;
+}
+function fileSink(type) {
+  const parts = [];
+  return {
+    begin() {
+    },
+    write(bytes) {
+      parts.push(bytes);
+    },
+    end() {
+    },
+    problem: () => null,
+    finish: () => new Blob(parts, { type })
+  };
+}
+function zipSink(fflate, type, entries = 0, limits = void 0) {
+  const parts = [];
+  let size = 0;
+  let first = null;
+  let largest = 0;
+  let entryBytes = 0;
+  let entry2 = null;
+  let count = 0;
+  const zip = new fflate.Zip((failure, chunk) => {
+    if (failure) {
+      first ??= failure;
+      return;
+    }
+    parts.push(chunk.slice());
+    size += chunk.length;
+  });
+  return {
+    begin(name) {
+      entry2 = new fflate.ZipDeflate(name, { level: EXPORT_ZIP_LEVEL });
+      entry2.mtime = zipDate();
+      zip.add(entry2);
+      count++;
+      entryBytes = 0;
+    },
+    write(bytes) {
+      entryBytes += bytes.length;
+      entry2.push(bytes, false);
+    },
+    end() {
+      entry2.push(new Uint8Array(0), true);
+      largest = Math.max(largest, entryBytes);
+      entry2 = null;
+    },
+    problem() {
+      if (first) {
+        return new OutputFailed(EXPORT_TABLES_ZIP_FAILED_MESSAGE, { cause: first });
+      }
+      return zipProblem(Math.max(count, entries), Math.max(size, largest, entryBytes), limits) ? new OutputFailed(EXPORT_TABLES_ZIP_TOO_BIG_MESSAGE) : null;
+    },
+    finish() {
+      zip.end();
+      const failed = this.problem();
+      if (failed) {
+        throw failed;
+      }
+      return new Blob(parts, { type });
+    }
+  };
+}
+function sinkFor(plan, zipTool, limits = void 0) {
+  let sink;
+  if (plan.kind === "zip") {
+    sink = zipSink(zipTool, plan.type, plan.entries.length, limits);
+  } else if (plan.kind === "file") {
+    sink = fileSink(plan.type);
+  } else {
+    throw new TypeError(`unknown kind of output: ${plan.kind}`);
+  }
+  const refused = sink.problem();
+  if (refused) {
+    throw refused;
+  }
+  return sink;
+}
+function mountTableExport({ returnFocus, getDatabase, isLoading = () => false, otherJobMessage: otherJobMessage2 = () => null, runLog: runLog2, onBusy = () => {
+} }) {
+  const enabled = flagOn("export");
+  let running = false;
+  if (!enabled) {
+    return { enabled, open() {
+    }, dialogOpen: () => false };
+  }
+  async function loadZipTool(library, cancelled) {
+    let timer = 0;
+    const stopped = new Promise((resolve) => {
+      timer = setInterval(() => {
+        if (cancelled()) {
+          resolve("cancelled");
+        }
+      }, CANCEL_LOOK_MS);
+    });
+    const loading4 = loadVendor(library.file, library.global).then(
+      (tool) => tool,
+      () => null
+    );
+    try {
+      return await Promise.race([loading4, stopped]);
+    } finally {
+      clearInterval(timer);
+    }
+  }
+  async function run(job, { progress, cancelled }) {
+    if (running) {
+      return { ok: false, message: EXPORT_TABLES_BUSY_MESSAGE };
+    }
+    if (isLoading()) {
+      return { ok: false, message: EXPORT_TABLES_LOADING_DIALOG_MESSAGE };
+    }
+    const other = otherJobMessage2();
+    if (other) {
+      return { ok: false, message: other };
+    }
+    if (getDatabase() !== job.database) {
+      return { ok: false, message: EXPORT_TABLES_GONE_MESSAGE };
+    }
+    const { plan } = job;
+    const look = () => {
+      if (cancelled()) {
+        throw new ExportCancelled();
+      }
+    };
+    const outputFailure = (failure) => {
+      if (failure instanceof OutputFailed) {
+        return failure;
+      }
+      if (pastMemory(failure)) {
+        return new OutputFailed(EXPORT_TABLES_OUT_OF_MEMORY_MESSAGE, { cause: failure });
+      }
+      return new OutputFailed(plan.kind === "zip" ? EXPORT_TABLES_ZIP_FAILED_MESSAGE : EXPORT_TABLES_FILE_FAILED_MESSAGE, { cause: failure });
+    };
+    const readFailure = (table, failure) => isEngineError(failure) && !isOutOfMemory(failure) ? new TableFailed(table, failure) : failure;
+    running = true;
+    onBusy(true);
+    let reader = null;
+    try {
+      await nextFrame();
+      look();
+      let zipTool = null;
+      if (plan.library) {
+        progress({ library: true });
+        zipTool = await loadZipTool(plan.library, cancelled);
+        look();
+        if (!zipTool) {
+          return { ok: false, message: EXPORT_TABLES_LIBRARY_FAILED_MESSAGE };
+        }
+      }
+      let sink;
+      try {
+        sink = sinkFor(plan, zipTool);
+      } catch (failure) {
+        throw outputFailure(failure);
+      }
+      const pace = newPace();
+      const allRows = job.tables.reduce((sum, table) => sum + table.count, 0);
+      const written = [];
+      const blobTables = [];
+      let doneRows = 0;
+      for (const [index, table] of job.tables.entries()) {
+        const entry2 = plan.entries[index];
+        look();
+        try {
+          reader = openRows(job.database, table.name);
+        } catch (failure) {
+          throw readFailure(table.name, failure);
+        }
+        look();
+        try {
+          sink.begin(entry2.name);
+          sink.write(CSV_BOM);
+          sink.write(encoder3.encode(headerText(reader.columns)));
+        } catch (failure) {
+          throw outputFailure(failure);
+        }
+        let rows3 = 0;
+        let blobs = 0;
+        const report = () => progress({ at: index + 1, of: job.tables.length, name: table.name, rows: rows3, count: table.count, doneRows, allRows });
+        report();
+        for (; ; ) {
+          let piece;
+          try {
+            piece = reader.next({ chars: EXPORT_PIECE_CHARS, ms: EXPORT_PIECE_MS });
+          } catch (failure) {
+            throw readFailure(table.name, failure);
+          }
+          let text = "";
+          for (const row of piece.rows) {
+            const made = rowText(row.kinds, row.values);
+            text += made.text;
+            blobs += made.blobs;
+          }
+          try {
+            if (text) {
+              sink.write(encoder3.encode(text));
+            }
+            const failed = sink.problem();
+            if (failed) {
+              throw failed;
+            }
+          } catch (failure) {
+            throw outputFailure(failure);
+          }
+          rows3 += piece.rows.length;
+          doneRows += piece.rows.length;
+          report();
+          await pace.rest();
+          look();
+          if (piece.done) {
+            break;
+          }
+        }
+        reader.close();
+        reader = null;
+        try {
+          sink.end();
+        } catch (failure) {
+          throw outputFailure(failure);
+        }
+        written.push({ name: table.name, rows: rows3, entry: entry2.name });
+        if (blobs) {
+          blobTables.push(table.name);
+        }
+      }
+      look();
+      let blob;
+      try {
+        blob = sink.finish();
+      } catch (failure) {
+        throw outputFailure(failure);
+      }
+      try {
+        saveFile(blob, plan.fileName, plan.type);
+      } catch (failure) {
+        console.debug("the browser did not take the file", failure);
+        return { ok: false, message: EXPORT_TABLES_SAVE_FAILED_MESSAGE };
+      }
+      try {
+        const lines = [exportEventFileLine(plan.fileName, blob.size)];
+        for (const one of written) {
+          lines.push(plan.kind === "zip" ? exportEventTableLine(one.name, one.rows, one.entry) : exportEventTableLine(one.name, one.rows));
+        }
+        recordEvent(runLog2.current().key, { kind: "export", lines });
+        toast(
+          exportedTablesMessage(plan.fileName, plan.kind === "zip" ? { tables: written.length } : { rows: written[0].rows })
+        );
+      } catch (failure) {
+        console.debug("the file was saved, and the export could not be noted or told", failure);
+      }
+      return {
+        ok: true,
+        fileName: plan.fileName,
+        written,
+        notes: blobTables.length ? [{ kind: "blob", tables: blobTables }] : []
+      };
+    } catch (failure) {
+      if (failure instanceof ExportCancelled) {
+        toast(EXPORT_TABLES_CANCELLED_MESSAGE, { tone: "note" });
+        return { ok: false, cancelled: true };
+      }
+      if (failure instanceof TableFailed) {
+        const reason = engineLine(failure.cause);
+        return { ok: false, table: failure.table, reason, message: exportTablesFailedText(failure.table, reason) };
+      }
+      if (failure instanceof OutputFailed) {
+        console.debug("the file could not be made", failure.cause ?? failure);
+        return { ok: false, message: failure.shown };
+      }
+      console.debug("the export failed", failure);
+      return { ok: false, message: pastMemory(failure) ? EXPORT_TABLES_OUT_OF_MEMORY_MESSAGE : EXPORT_TABLES_FAILED_MESSAGE };
+    } finally {
+      try {
+        reader?.close();
+      } catch (failure) {
+        console.debug("a reader could not be closed", failure);
+      } finally {
+        running = false;
+        onBusy(false);
+      }
+    }
+  }
+  const dialog = mountTableExportDialog({
+    returnFocus,
+    getDatabase,
+    list: listObjects,
+    count: countRows,
+    plan: (database2, names) => planOutput({ format: "csv", databaseName: database2.name, tables: names }),
+    onExport: run
+  });
+  function open() {
+    if (!getDatabase()) {
+      toast(NO_DATABASE_MESSAGE, { tone: "note" });
+      return;
+    }
+    if (running) {
+      toast(EXPORT_TABLES_BUSY_MESSAGE, { tone: "note" });
+      return;
+    }
+    const other = otherJobMessage2();
+    if (other) {
+      toast(other, { tone: "note" });
+      return;
+    }
+    if (isLoading()) {
+      toast(EXPORT_TABLES_LOADING_MESSAGE, { tone: "note" });
+      return;
+    }
+    let opened;
+    try {
+      opened = dialog.open();
+    } catch (failure) {
+      console.debug("the tables could not be listed", failure);
+      toast(EXPORT_TABLES_LIST_FAILED_MESSAGE, { tone: "problem" });
+      return;
+    }
+    if (!opened) {
+      toast(EXPORT_TABLES_NONE_MESSAGE, { tone: "note" });
+    }
+  }
+  return { enabled, open, dialogOpen: dialog.isOpen };
+}
+
 // js/lab/evidence-dialog.js
+init_config();
 var evidenceFileName = (key) => `evidence-${safeBaseName(key)}.txt`;
 function linkFor(key, entry2, pageUrl = globalThis.location.href) {
   if (entry2.error !== void 0 || !isDatasetKey(key)) {
@@ -4923,7 +6438,7 @@ function linkFor(key, entry2, pageUrl = globalThis.location.href) {
     return null;
   }
 }
-function el3(tag, props = {}, text = "") {
+function el4(tag, props = {}, text = "") {
   const node = document.createElement(tag);
   Object.assign(node, props);
   if (text) {
@@ -4933,30 +6448,30 @@ function el3(tag, props = {}, text = "") {
 }
 function mountEvidence({ runLog: runLog2, returnFocus }) {
   const button = returnFocus;
-  const dialog = el3("dialog", { id: "evidence-dialog", className: "app-dialog evidence-dialog" });
+  const dialog = el4("dialog", { id: "evidence-dialog", className: "app-dialog evidence-dialog" });
   dialog.setAttribute("aria-labelledby", "evidence-title");
   dialog.setAttribute("aria-describedby", "evidence-text");
-  const form = el3("form", { id: "evidence-form", noValidate: true });
-  const label = el3("label", { htmlFor: "evidence-student", className: "app-dialog-label evidence-label" }, EVIDENCE_LABEL);
-  const input = el3("input", { id: "evidence-student", type: "text", autocomplete: "off", spellcheck: false, className: "app-dialog-input" });
+  const form = el4("form", { id: "evidence-form", noValidate: true });
+  const label = el4("label", { htmlFor: "evidence-student", className: "app-dialog-label evidence-label" }, EVIDENCE_LABEL);
+  const input = el4("input", { id: "evidence-student", type: "text", autocomplete: "off", spellcheck: false, className: "app-dialog-input" });
   input.setAttribute("autocapitalize", "off");
   input.setAttribute("autocorrect", "off");
   input.setAttribute("aria-describedby", "evidence-hint");
-  const hint = el3("p", { id: "evidence-hint", className: "app-dialog-hint evidence-hint" }, EVIDENCE_HINT);
-  const error = el3("p", { id: "evidence-error", className: "app-dialog-error evidence-error", hidden: true });
+  const hint = el4("p", { id: "evidence-hint", className: "app-dialog-hint evidence-hint" }, EVIDENCE_HINT);
+  const error = el4("p", { id: "evidence-error", className: "app-dialog-error evidence-error", hidden: true });
   error.setAttribute("role", "alert");
-  const file = el3("p", { id: "evidence-file", className: "app-dialog-file evidence-file" });
-  const submit = el3("button", { type: "submit", className: "button button--primary evidence-submit" }, EVIDENCE_SUBMIT_TEXT);
-  const cancel = el3("button", { type: "button", className: "button evidence-cancel" }, EVIDENCE_CANCEL_TEXT);
+  const file = el4("p", { id: "evidence-file", className: "app-dialog-file evidence-file" });
+  const submit = el4("button", { type: "submit", className: "button button--primary evidence-submit" }, EVIDENCE_SUBMIT_TEXT);
+  const cancel = el4("button", { type: "button", className: "button evidence-cancel" }, EVIDENCE_CANCEL_TEXT);
   form.append(
-    el3("h2", { id: "evidence-title", className: "app-dialog-title evidence-title" }, EVIDENCE_DIALOG_TITLE),
-    el3("p", { id: "evidence-text", className: "app-dialog-text evidence-text" }, EVIDENCE_DIALOG_TEXT),
+    el4("h2", { id: "evidence-title", className: "app-dialog-title evidence-title" }, EVIDENCE_DIALOG_TITLE),
+    el4("p", { id: "evidence-text", className: "app-dialog-text evidence-text" }, EVIDENCE_DIALOG_TEXT),
     label,
     input,
     hint,
     error,
     file,
-    el3("div", { className: "app-dialog-actions evidence-actions" })
+    el4("div", { className: "app-dialog-actions evidence-actions" })
   );
   form.lastElementChild.append(submit, cancel);
   dialog.append(form);
@@ -5082,59 +6597,6 @@ function mountEvidence({ runLog: runLog2, returnFocus }) {
   return { open };
 }
 
-// js/lab/flags.js
-var flags_exports = {};
-__export(flags_exports, {
-  flagOn: () => flagOn,
-  flags: () => flags,
-  readFlags: () => readFlags
-});
-function readFlags(search, defaults = PREVIEW_FLAGS, needs = PREVIEW_FLAG_NEEDS) {
-  const on = {};
-  for (const name of Object.keys(defaults)) {
-    on[name] = defaults[name] === true;
-  }
-  let asked = [];
-  try {
-    asked = new URLSearchParams(String(search ?? "")).getAll(PREVIEW_PARAM);
-  } catch {
-    asked = [];
-  }
-  for (const value of asked) {
-    for (const part of value.split(",")) {
-      const name = part.trim();
-      if (Object.hasOwn(on, name)) {
-        on[name] = true;
-      }
-    }
-  }
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const [name, needed] of Object.entries(needs)) {
-      if (on[name] === true && on[needed] !== true) {
-        on[name] = false;
-        changed = true;
-      }
-    }
-  }
-  return on;
-}
-function searchAtLoad() {
-  try {
-    return typeof location === "object" && location ? location.search : "";
-  } catch {
-    return "";
-  }
-}
-var state = Object.freeze(readFlags(searchAtLoad()));
-function flagOn(name) {
-  return Object.hasOwn(state, name) && state[name];
-}
-function flags() {
-  return { ...state };
-}
-
 // js/lab/help.js
 function mountHelp({ button, popover, altAnchor = null }) {
   if (typeof popover.showPopover !== "function") {
@@ -5186,89 +6648,6 @@ var import_exports = {};
 __export(import_exports, {
   mountImport: () => mountImport
 });
-
-// js/lab/import-rules.js
-var WHOLE = /^-?(?:0|[1-9][0-9]{0,14})$/;
-var DECIMAL = /^-?(?:0|[1-9][0-9]*)\.[0-9]+$/;
-var SURE_DECIMAL_CHARS = 300;
-var LARGEST_SURE = 1e300;
-var SMALLEST_SURE = 1e-300;
-var A_DIGIT_NOT_ZERO = /[1-9]/;
-function fitsANumber(text) {
-  const size = Math.abs(Number(text));
-  return size <= LARGEST_SURE && (size >= SMALLEST_SURE || !A_DIGIT_NOT_ZERO.test(text));
-}
-var isWhole = (text) => typeof text === "string" && text !== "-0" && WHOLE.test(text);
-var isDecimal = (text) => typeof text === "string" && DECIMAL.test(text) && (text.length <= SURE_DECIMAL_CHARS || fitsANumber(text));
-var isPlainNumber = (text) => isWhole(text) || isDecimal(text);
-function newTally() {
-  return { values: 0, empty: 0, whole: 0, decimal: 0, text: 0, firstText: null };
-}
-function tallyValue(tally, value) {
-  tally.values++;
-  if (value === null) {
-    tally.empty++;
-  } else if (isWhole(value)) {
-    tally.whole++;
-  } else if (isDecimal(value)) {
-    tally.decimal++;
-  } else {
-    if (tally.text === 0) {
-      tally.firstText = value;
-    }
-    tally.text++;
-  }
-}
-function columnType(tally) {
-  if (tally.text > 0 || tally.whole + tally.decimal === 0) {
-    return "TEXT";
-  }
-  return tally.decimal > 0 ? "REAL" : "INTEGER";
-}
-function blockingValue(tally) {
-  const numbers = tally.whole + tally.decimal;
-  return tally.text > 0 && numbers * 2 >= numbers + tally.text ? tally.firstText : null;
-}
-var FALLBACK_TABLE_NAME = "table";
-function sanitiseName(text) {
-  const name = String(text).replace(/[^A-Za-z0-9_]+/g, "_");
-  return /^[0-9]/.test(name) ? `c_${name}` : name;
-}
-var isBlankName = (text) => text === null || text === void 0 || String(text).trim() === "";
-var sameNameKey = (name) => String(name).replace(/[A-Z]/g, (letter) => letter.toLowerCase());
-function uniqueName(base, used) {
-  let name = base;
-  for (let n = 2; used.has(sameNameKey(name)); n++) {
-    name = `${base}_${n}`;
-  }
-  used.add(sameNameKey(name));
-  return name;
-}
-function columnNames(header, width) {
-  const used = /* @__PURE__ */ new Set();
-  const names = [];
-  for (let i = 0; i < width; i++) {
-    let original = null;
-    let base;
-    if (header === null) {
-      base = `column_${i + 1}`;
-    } else if (i >= header.length) {
-      base = `extra_${i - header.length + 1}`;
-    } else {
-      original = header[i] ?? "";
-      base = isBlankName(original) ? `column_${i + 1}` : sanitiseName(original);
-    }
-    names.push({ name: uniqueName(base, used), original });
-  }
-  return names;
-}
-function tableNameFor(fileName) {
-  const name = String(fileName);
-  const dot = name.lastIndexOf(".");
-  const base = dot === -1 ? name : name.slice(0, dot);
-  return base === "" ? FALLBACK_TABLE_NAME : sanitiseName(base);
-}
-var firstRowLooksLikeNames = (row) => Array.isArray(row) && !row.some((field3) => isPlainNumber(field3));
 
 // js/lab/import-csv.js
 var DELIMITERS = [
@@ -5351,12 +6730,12 @@ function readStart(Papa, text, { whole = true, delimiter = "" } = {}) {
   const candidates = DELIMITERS.map((d) => d.value);
   const given = text.charCodeAt(0) === BYTE_ORDER_MARK ? `\uFEFF${text}` : text;
   const read2 = (newline2, separator2) => Papa.parse(given, { ...settings(separator2, newline2), delimitersToGuess: candidates });
-  const counted = !whole && text.endsWith("\r") ? text.slice(0, -1) : text;
-  let newline = lineEnding(counted, delimiter === "" ? candidates : [delimiter]);
+  const counted2 = !whole && text.endsWith("\r") ? text.slice(0, -1) : text;
+  let newline = lineEnding(counted2, delimiter === "" ? candidates : [delimiter]);
   let result = read2(newline, delimiter);
   const guessed = delimiter === "" && !result.errors.some((error) => error.code === "UndetectableDelimiter");
   if (delimiter === "") {
-    const settled = lineEnding(counted, [result.meta.delimiter]);
+    const settled = lineEnding(counted2, [result.meta.delimiter]);
     if (settled !== newline) {
       newline = settled;
       result = read2(newline, result.meta.delimiter);
@@ -5463,198 +6842,8 @@ function newTableReader({ hasNames, namesRow = 1 }) {
   };
 }
 
-// js/lab/import-db.js
-init_sql();
-var SAVEPOINT = "lab_import";
-var STAGE_NAME = "import_stage";
-var OUT_OF_MEMORY = 7;
-function takenNames(database2) {
-  const taken = /* @__PURE__ */ new Map();
-  const note = (temporary, sql) => database2.db.selectValues(sql).forEach((name) => taken.set(sameNameKey(name), temporary));
-  note(true, "select name from temp.sqlite_schema where type in ('table', 'view')");
-  note(false, "select name from main.sqlite_schema where type in ('table', 'view', 'index')");
-  return taken;
-}
-var inTransaction = (database2) => database2.capi.sqlite3_get_autocommit(database2.db.pointer) === 0;
-function beginImport(database2) {
-  const ticket = { hadTransaction: inTransaction(database2) };
-  database2.db.exec(`savepoint ${SAVEPOINT}`);
-  return ticket;
-}
-function endImport(database2) {
-  database2.db.exec(`release ${SAVEPOINT}`);
-}
-function undoImport(database2, ticket) {
-  try {
-    if (!inTransaction(database2)) {
-      return { undone: true, lostTransaction: ticket.hadTransaction };
-    }
-    database2.db.exec(`rollback to ${SAVEPOINT}`);
-    database2.db.exec(`release ${SAVEPOINT}`);
-    return { undone: true, lostTransaction: false };
-  } catch {
-    return { undone: false, lostTransaction: ticket.hadTransaction && !inTransactionSafely(database2) };
-  }
-}
-function inTransactionSafely(database2) {
-  try {
-    return inTransaction(database2);
-  } catch {
-    return false;
-  }
-}
-var BARE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
-var PROBE_TEXT = "lab probe";
-function answersOne(db, sql) {
-  try {
-    return db.selectValue(sql, [PROBE_TEXT]) === 1;
-  } catch {
-    return false;
-  }
-}
-var tableIsBare = (db, name) => BARE_NAME.test(name) && answersOne(db, `with ${quoteIdent(name)}(x) as (select ?1) select (${name}.x) is ?1 from ${name}`);
-var columnIsBare = (db, name) => BARE_NAME.test(name) && answersOne(db, `select (${name}) is ?1 from (select ?1 as ${quoteIdent(name)})`);
-function namesNeedingQuotes(database2, table, columns) {
-  try {
-    const { db } = database2;
-    const names = tableIsBare(db, table) ? [] : [table];
-    const listed = new Set(names.map(sameNameKey));
-    for (const column of columns) {
-      if (!listed.has(sameNameKey(column)) && !columnIsBare(db, column)) {
-        names.push(column);
-        listed.add(sameNameKey(column));
-      }
-    }
-    return names;
-  } catch {
-    return [];
-  }
-}
-var isOutOfMemory = (error) => error?.resultCode === OUT_OF_MEMORY || error?.name === "WasmAllocError";
-function freeStageName(db) {
-  const taken = new Set(db.selectValues("select name from sqlite_temp_schema").map(sameNameKey));
-  let name = STAGE_NAME;
-  for (let n = 2; taken.has(sameNameKey(name)); n++) {
-    name = `${STAGE_NAME}_${n}`;
-  }
-  return name;
-}
-var stageColumns = (from, to) => Array.from({ length: to - from }, (unused, i) => `c${from + i + 1}`);
-function newStage(database2) {
-  const db = database2.db;
-  const table = `temp.${quoteIdent(freeStageName(db))}`;
-  let width = 0;
-  let insert = null;
-  let dropped = false;
-  const stage = { rows: 0 };
-  const create2 = (columns) => db.exec(`create table ${table} (${stageColumns(0, columns).map((c) => `${c} text`).join(", ")})`);
-  create2(1);
-  width = 1;
-  function widen(to) {
-    insert?.finalize();
-    insert = null;
-    if (stage.rows === 0) {
-      db.exec(`drop table ${table}`);
-      create2(to);
-    } else {
-      for (const column of stageColumns(width, to)) {
-        db.exec(`alter table ${table} add column ${column} text`);
-      }
-    }
-    width = to;
-  }
-  stage.add = (rows3) => {
-    const widest = rows3.reduce((most, row) => Math.max(most, row.length), 0);
-    if (widest > width) {
-      widen(widest);
-    }
-    insert ??= db.prepare(`insert into ${table} (${stageColumns(0, width).join(", ")}) values (${stageColumns(0, width).map(() => "?").join(", ")})`);
-    for (const row of rows3) {
-      insert.bind(row).step();
-      insert.reset(true);
-      stage.rows++;
-    }
-  };
-  stage.copyInto = async (name, columns, { rest, onStep = () => {
-  } }) => {
-    insert?.finalize();
-    insert = null;
-    const target = `main.${quoteIdent(name)}`;
-    db.exec(`create table ${target} (${columns.map((column) => `${quoteIdent(column.name)} ${column.type}`).join(", ")})`);
-    const values = columns.map((column, i) => i < width ? `c${i + 1}` : "null").join(", ");
-    const copy = db.prepare(`insert into ${target} select ${values} from ${table} where rowid > ?1 and rowid <= ?2`);
-    try {
-      const step = Math.max(1, Math.floor(COPY_CELLS / columns.length));
-      for (let done = 0; done < stage.rows; done += step) {
-        copy.bind([done, done + step]).step();
-        copy.reset(true);
-        onStep(Math.min(done + step, stage.rows), stage.rows);
-        await rest();
-      }
-    } finally {
-      copy.finalize();
-    }
-  };
-  stage.drop = () => {
-    if (dropped) {
-      return;
-    }
-    dropped = true;
-    try {
-      insert?.finalize();
-      insert = null;
-      db.exec(`drop table if exists ${table}`);
-    } catch {
-    }
-  };
-  return stage;
-}
-
 // js/lab/import-dialog.js
 init_config();
-
-// js/lab/import-pace.js
-var channel = null;
-var waiting = [];
-function turn() {
-  if (typeof globalThis.scheduler?.yield === "function") {
-    return globalThis.scheduler.yield();
-  }
-  if (!channel) {
-    channel = new MessageChannel();
-    channel.port1.onmessage = () => waiting.shift()?.();
-  }
-  return new Promise((resolve) => {
-    waiting.push(resolve);
-    channel.port2.postMessage(null);
-  });
-}
-function frame() {
-  return new Promise((resolve) => {
-    let done = false;
-    const go = () => {
-      if (!done) {
-        done = true;
-        resolve();
-      }
-    };
-    requestAnimationFrame(() => setTimeout(go, 0));
-    setTimeout(go, FRAME_MAX_MS);
-  });
-}
-function newPace() {
-  let drawn = performance.now();
-  return {
-    async rest() {
-      if (performance.now() - drawn >= PAINT_EVERY_MS) {
-        await frame();
-        drawn = performance.now();
-      } else {
-        await turn();
-      }
-    }
-  };
-}
 
 // js/lab/import-text.js
 var ENCODINGS = ["utf-8", "utf-16le", "utf-16be", "windows-1252"];
@@ -5698,9 +6887,9 @@ async function* slicesOf(blob, sliceBytes) {
   }
 }
 var strictDecoder = (encoding) => new TextDecoder(encoding, { fatal: true });
-function fits(decoder, bytes, last) {
+function fits(decoder2, bytes, last) {
   try {
-    decoder.decode(bytes, { stream: !last });
+    decoder2.decode(bytes, { stream: !last });
     return true;
   } catch {
     return false;
@@ -5709,12 +6898,12 @@ function fits(decoder, bytes, last) {
 async function inspectText(blob, { sliceBytes = TEXT_SLICE_BYTES, between = null } = {}) {
   const head = new Uint8Array(await blob.slice(0, HEAD_BYTES).arrayBuffer());
   const result = { bom: bomOf(head), hasZero: false, validUtf8: true };
-  const decoder = strictDecoder("utf-8");
+  const decoder2 = strictDecoder("utf-8");
   let read2 = 0;
   for await (const bytes of slicesOf(blob, sliceBytes)) {
     read2 += bytes.length;
     result.hasZero ||= bytes.includes(0);
-    result.validUtf8 &&= fits(decoder, bytes, read2 >= blob.size);
+    result.validUtf8 &&= fits(decoder2, bytes, read2 >= blob.size);
     if (between) {
       await between(read2);
     }
@@ -5723,11 +6912,11 @@ async function inspectText(blob, { sliceBytes = TEXT_SLICE_BYTES, between = null
 }
 var guessEncoding = ({ bom, validUtf8 }) => bom ?? (validUtf8 ? "utf-8" : "windows-1252");
 async function fitsEncoding(blob, encoding, { sliceBytes = TEXT_SLICE_BYTES, between = null } = {}) {
-  const decoder = strictDecoder(encoding);
+  const decoder2 = strictDecoder(encoding);
   let read2 = 0;
   for await (const bytes of slicesOf(blob, sliceBytes)) {
     read2 += bytes.length;
-    if (!fits(decoder, bytes, read2 >= blob.size)) {
+    if (!fits(decoder2, bytes, read2 >= blob.size)) {
       return false;
     }
     if (between) {
@@ -5771,12 +6960,12 @@ async function* sameStart(pieces, mark) {
   }
 }
 async function* textPieces(blob, encoding, { sliceBytes = TEXT_SLICE_BYTES, between = null } = {}) {
-  const decoder = strictDecoder(encoding);
+  const decoder2 = strictDecoder(encoding);
   let held = "";
   let read2 = 0;
   for await (const bytes of slicesOf(blob, sliceBytes)) {
     read2 += bytes.length;
-    let text = held + decoder.decode(bytes, { stream: true });
+    let text = held + decoder2.decode(bytes, { stream: true });
     held = "";
     if (text.endsWith("\r")) {
       held = "\r";
@@ -5789,7 +6978,7 @@ async function* textPieces(blob, encoding, { sliceBytes = TEXT_SLICE_BYTES, betw
       await between(read2);
     }
   }
-  const tail = held + decoder.decode();
+  const tail = held + decoder2.decode();
   if (tail) {
     yield tail;
   }
@@ -5850,7 +7039,7 @@ var PREVIEW_CELL_CHARS = 80;
 var CUT2 = "…";
 var RESERVED_NAME = /^sqlite_/i;
 var SPACE_AT_AN_END = /^\s|\s$/;
-function el4(tag, props = {}, text = "") {
+function el5(tag, props = {}, text = "") {
   const node = document.createElement(tag);
   Object.assign(node, props);
   if (text) {
@@ -5859,15 +7048,15 @@ function el4(tag, props = {}, text = "") {
   return node;
 }
 function field(id, labelText, control, { hint = "" } = {}) {
-  const box = el4("div", { className: "import-field" });
-  const label = el4("label", { className: "app-dialog-label", htmlFor: id }, labelText);
+  const box = el5("div", { className: "import-field" });
+  const label = el5("label", { className: "app-dialog-label", htmlFor: id }, labelText);
   control.id = id;
-  const error = el4("p", { id: `${id}-error`, className: "app-dialog-error", hidden: true });
+  const error = el5("p", { id: `${id}-error`, className: "app-dialog-error", hidden: true });
   error.setAttribute("role", "alert");
   box.append(label, control);
   let hintLine = null;
   if (hint) {
-    hintLine = el4("p", { id: `${id}-hint`, className: "app-dialog-hint" }, hint);
+    hintLine = el5("p", { id: `${id}-hint`, className: "app-dialog-hint" }, hint);
     control.setAttribute("aria-describedby", hintLine.id);
     box.append(hintLine);
   }
@@ -5894,21 +7083,21 @@ function field(id, labelText, control, { hint = "" } = {}) {
   };
 }
 function select(options, value) {
-  const control = el4("select", { className: "import-select" });
+  const control = el5("select", { className: "import-select" });
   for (const [optionValue, optionText] of options) {
-    control.append(el4("option", { value: optionValue }, optionText));
+    control.append(el5("option", { value: optionValue }, optionText));
   }
   control.value = value;
   return control;
 }
 function previewCell(text, { names = false } = {}) {
-  const cell2 = el4("td");
+  const cell2 = el5("td");
   if (text === void 0 || text === "") {
-    cell2.append(el4("span", { className: "cell-null" }, names ? IMPORT_PREVIEW_BLANK : NULL_TEXT));
+    cell2.append(el5("span", { className: "cell-null" }, names ? IMPORT_PREVIEW_BLANK : NULL_TEXT));
     return cell2;
   }
   const cut2 = text.length > PREVIEW_CELL_CHARS;
-  const shown2 = el4("span", { className: "import-cell-text" }, cut2 ? `${text.slice(0, PREVIEW_CELL_CHARS)}${CUT2}` : text);
+  const shown2 = el5("span", { className: "import-cell-text" }, cut2 ? `${text.slice(0, PREVIEW_CELL_CHARS)}${CUT2}` : text);
   if (cut2) {
     shown2.title = text;
   }
@@ -5919,62 +7108,63 @@ function previewCell(text, { names = false } = {}) {
   return cell2;
 }
 function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }) {
-  const dialog = el4("dialog", { id: "import-dialog", className: "app-dialog import-dialog" });
+  const dialog = el5("dialog", { id: "import-dialog", className: "app-dialog import-dialog" });
   dialog.setAttribute("aria-labelledby", "import-title");
   dialog.setAttribute("aria-describedby", "import-text");
-  const form = el4("form", { id: "import-form", className: "import-form", noValidate: true });
-  const files = el4("div", { className: "import-files" });
-  const destination = el4("fieldset", { className: "import-destination" });
-  destination.append(el4("legend", { className: "app-dialog-label" }, IMPORT_DESTINATION_LABEL));
-  const newChoice = el4("input", { type: "radio", name: "import-destination", id: "import-into-new", value: "new" });
-  const openChoice = el4("input", { type: "radio", name: "import-destination", id: "import-into-open", value: "open" });
-  const newLabel = el4("label", { className: "import-check", htmlFor: newChoice.id });
-  newLabel.append(newChoice, el4("span", {}, IMPORT_NEW_DATABASE_LABEL));
-  const openText = el4("span");
-  const openLabel = el4("label", { className: "import-check", htmlFor: openChoice.id });
+  const form = el5("form", { id: "import-form", className: "import-form", noValidate: true });
+  const files = el5("div", { className: "import-files" });
+  const destination = el5("fieldset", { className: "import-destination" });
+  destination.append(el5("legend", { className: "app-dialog-label" }, IMPORT_DESTINATION_LABEL));
+  const newChoice = el5("input", { type: "radio", name: "import-destination", id: "import-into-new", value: "new" });
+  const openChoice = el5("input", { type: "radio", name: "import-destination", id: "import-into-open", value: "open" });
+  const newLabel = el5("label", { className: "import-check", htmlFor: newChoice.id });
+  newLabel.append(newChoice, el5("span", {}, IMPORT_NEW_DATABASE_LABEL));
+  const openText = el5("span");
+  const openLabel = el5("label", { className: "import-check", htmlFor: openChoice.id });
   openLabel.append(openChoice, openText);
-  const openNote = el4("p", { id: "import-into-open-note", className: "app-dialog-hint", hidden: true });
+  const openNote = el5("p", { id: "import-into-open-note", className: "app-dialog-hint", hidden: true });
   const databaseName = field(
     "import-database-name",
     IMPORT_NEW_DATABASE_NAME_LABEL,
-    el4("input", { type: "text", className: "app-dialog-input", autocomplete: "off", spellcheck: false })
+    el5("input", { type: "text", className: "app-dialog-input", autocomplete: "off", spellcheck: false })
   );
   databaseName.control.setAttribute("autocapitalize", "off");
   databaseName.control.setAttribute("autocorrect", "off");
-  const intoNew = el4("div", { className: "import-destination-choice" });
+  const intoNew = el5("div", { className: "import-destination-choice" });
   intoNew.append(newLabel, databaseName.box);
-  const intoOpen = el4("div", { className: "import-destination-choice" });
+  const intoOpen = el5("div", { className: "import-destination-choice" });
   intoOpen.append(openLabel, openNote);
-  const choices = el4("div", { className: "import-destination-choices" });
+  const choices = el5("div", { className: "import-destination-choices" });
   choices.append(intoNew, intoOpen);
   destination.append(choices);
-  const hold = el4("p", { id: "import-hold", className: "app-dialog-hint import-hold", hidden: true });
-  const error = el4("p", { id: "import-error", className: "app-dialog-error", hidden: true });
+  const hold = el5("p", { id: "import-hold", className: "app-dialog-hint import-hold", hidden: true });
+  const error = el5("p", { id: "import-error", className: "app-dialog-error", hidden: true });
   error.setAttribute("role", "alert");
-  const progress = el4("div", { className: "import-progress", hidden: true });
-  const progressTitle = el4("h3", { id: "import-progress-title", className: "results-loading-title" });
-  const progressPart = el4("p", { className: "results-loading-size" });
-  const progressBar = el4("progress", { className: "results-progress", max: 1 });
+  const progress = el5("div", { className: "import-progress", hidden: true });
+  const progressTitle = el5("h3", { id: "import-progress-title", className: "results-loading-title" });
+  const progressPart = el5("p", { className: "results-loading-size" });
+  const progressBar = el5("progress", { className: "results-progress", max: 1 });
   progressBar.setAttribute("aria-labelledby", progressTitle.id);
   progress.append(progressTitle, progressPart, progressBar);
-  const submit = el4("button", { type: "submit", className: "button button--primary" }, IMPORT_SUBMIT_TEXT);
-  const cancel = el4("button", { type: "button", className: "button" }, IMPORT_CANCEL_TEXT);
-  const actions2 = el4("div", { className: "app-dialog-actions" });
+  const submit = el5("button", { type: "submit", className: "button button--primary" }, IMPORT_SUBMIT_TEXT);
+  const cancel = el5("button", { type: "button", className: "button" }, IMPORT_CANCEL_TEXT);
+  const actions2 = el5("div", { className: "app-dialog-actions" });
   actions2.append(submit, cancel);
-  const body = el4("div", { className: "import-body" });
+  const body = el5("div", { className: "import-body" });
   body.append(
-    el4("h2", { id: "import-title", className: "app-dialog-title" }, IMPORT_DIALOG_TITLE),
-    el4("p", { id: "import-text", className: "app-dialog-text" }, IMPORT_DIALOG_TEXT),
+    el5("h2", { id: "import-title", className: "app-dialog-title" }, IMPORT_DIALOG_TITLE),
+    el5("p", { id: "import-text", className: "app-dialog-text" }, IMPORT_DIALOG_TEXT),
     destination,
     files,
     progress
   );
-  const foot = el4("div", { className: "import-foot" });
+  const foot = el5("div", { className: "import-foot" });
   foot.append(hold, error, actions2);
   form.append(body, foot);
   dialog.append(form);
   document.body.append(dialog);
   let session = 0;
+  let live = false;
   let tabs2 = [];
   let tabList = null;
   let running = null;
@@ -5986,12 +7176,12 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
   const usesOpenDatabase = () => openChoice.checked;
   function newTab(file, n) {
     const id = `import-file-${opened}-${n}`;
-    const button = el4("button", { id: `${id}-tab`, className: "tab import-tab", type: "button" });
+    const button = el5("button", { id: `${id}-tab`, className: "tab import-tab", type: "button" });
     button.setAttribute("role", "tab");
     button.setAttribute("aria-controls", `${id}-panel`);
     button.setAttribute("aria-selected", String(n === 0));
-    button.append(el4("span", { className: "import-tab-name", title: file.name }, file.name));
-    const panel = el4("div", { id: `${id}-panel`, className: "import-panel" });
+    button.append(el5("span", { className: "import-tab-name", title: file.name }, file.name));
+    const panel = el5("div", { id: `${id}-panel`, className: "import-panel" });
     panel.setAttribute("role", "tabpanel");
     panel.setAttribute("aria-labelledby", button.id);
     return {
@@ -6039,9 +7229,9 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
       mark.classList.add("import-tab-refused");
       mark.classList.toggle("import-tab-refused--own", own);
       tab.button.prepend(mark);
-      tab.button.append(el4("span", { className: "visually-hidden" }, `(${own ? IMPORT_LEFT_OUT_TAB_TEXT : IMPORT_REFUSED_TAB_TEXT})`));
+      tab.button.append(el5("span", { className: "visually-hidden" }, `(${own ? IMPORT_LEFT_OUT_TAB_TEXT : IMPORT_REFUSED_TAB_TEXT})`));
     }
-    tab.panel.replaceChildren(el4("p", { className: "import-refusal" }, reason));
+    tab.panel.replaceChildren(el5("p", { className: "import-refusal" }, reason));
     tab.panel.tabIndex = 0;
     if (hadFocus) {
       tab.button.focus();
@@ -6054,7 +7244,7 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
     tab.state = "reading";
     tab.readingSince = performance.now();
     tab.controls = null;
-    const line = el4("p", { className: "import-reading" }, IMPORT_READING_TEXT);
+    const line = el5("p", { className: "import-reading" }, IMPORT_READING_TEXT);
     line.setAttribute("role", "status");
     tab.panel.replaceChildren(line);
     tab.panel.tabIndex = 0;
@@ -6063,21 +7253,21 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
   function showWarning(tab, mine) {
     tab.state = "warning";
     const megabytes = Math.round(tab.file.size / (1024 * 1024));
-    const go = el4("button", { type: "button", className: "button" }, IMPORT_LARGE_FILE_CONTINUE_TEXT);
+    const go = el5("button", { type: "button", className: "button" }, IMPORT_LARGE_FILE_CONTINUE_TEXT);
     go.addEventListener("click", () => {
       showReading(tab);
       tab.button.focus();
       read2(tab, mine);
     });
-    const leave = el4("button", { type: "button", className: "button" }, IMPORT_LARGE_FILE_LEAVE_TEXT);
+    const leave = el5("button", { type: "button", className: "button" }, IMPORT_LARGE_FILE_LEAVE_TEXT);
     leave.addEventListener("click", () => {
       refuse(tab, IMPORT_LEFT_OUT_REASON, { own: true });
       tab.button.focus();
     });
-    const answers = el4("div", { className: "import-warning-answers" });
+    const answers = el5("div", { className: "import-warning-answers" });
     answers.append(go, leave);
-    const box = el4("div", { className: "import-warning" });
-    box.append(el4("p", { className: "import-warning-text" }, importLargeFileMessage(megabytes)), answers);
+    const box = el5("div", { className: "import-warning" });
+    box.append(el5("p", { className: "import-warning-text" }, importLargeFileMessage(megabytes)), answers);
     tab.panel.replaceChildren(box);
     tab.panel.removeAttribute("tabindex");
     refresh();
@@ -6206,7 +7396,7 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
     const name = field(
       `${tab.id}-name`,
       IMPORT_TABLE_NAME_LABEL,
-      el4("input", { type: "text", className: "app-dialog-input", autocomplete: "off", spellcheck: false }),
+      el5("input", { type: "text", className: "app-dialog-input", autocomplete: "off", spellcheck: false }),
       { hint: IMPORT_TABLE_NAME_HINT }
     );
     name.control.setAttribute("autocapitalize", "off");
@@ -6257,13 +7447,13 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
       tab.encodingFits = fits2;
       await readPreview(tab, mine, { delimiter: tab.delimiterChosen ? tab.delimiter : "" });
     });
-    const hasNames = el4("input", { type: "checkbox", id: `${tab.id}-has-names` });
-    const hasNamesLabel = el4("label", { className: "import-check", htmlFor: hasNames.id });
-    hasNamesLabel.append(hasNames, el4("span", {}, IMPORT_HAS_NAMES_LABEL));
+    const hasNames = el5("input", { type: "checkbox", id: `${tab.id}-has-names` });
+    const hasNamesLabel = el5("label", { className: "import-check", htmlFor: hasNames.id });
+    hasNamesLabel.append(hasNames, el5("span", {}, IMPORT_HAS_NAMES_LABEL));
     const namesRow = field(
       `${tab.id}-names-row`,
       IMPORT_NAMES_ROW_LABEL,
-      el4("input", { type: "number", className: "app-dialog-input import-number", min: "1", step: "1", inputMode: "numeric" })
+      el5("input", { type: "number", className: "app-dialog-input import-number", min: "1", step: "1", inputMode: "numeric" })
     );
     hasNames.addEventListener("change", () => {
       tab.namesChosen = true;
@@ -6278,20 +7468,20 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
       draw(tab);
       refresh();
     });
-    const names = el4("div", { className: "import-names" });
+    const names = el5("div", { className: "import-names" });
     names.append(hasNamesLabel, namesRow.box);
-    const settings2 = el4("div", { className: "import-settings" });
+    const settings2 = el5("div", { className: "import-settings" });
     settings2.append(name.box, delimiter.box, encoding.box, names);
-    const preview = el4("div", { className: "import-preview" });
+    const preview = el5("div", { className: "import-preview" });
     preview.setAttribute("role", "region");
     preview.setAttribute("aria-label", IMPORT_PREVIEW_LABEL);
     preview.tabIndex = 0;
-    const note = el4("p", { className: "app-dialog-hint import-preview-note", hidden: true });
-    const problem = el4("p", { className: "app-dialog-error import-problem", hidden: true });
+    const note = el5("p", { className: "app-dialog-hint import-preview-note", hidden: true });
+    const problem = el5("p", { className: "app-dialog-error import-problem", hidden: true });
     problem.setAttribute("role", "alert");
     tab.controls = { name, delimiter, encoding, hasNames, namesRow, preview, note, problem };
     tab.panel.removeAttribute("tabindex");
-    tab.panel.replaceChildren(settings2, el4("p", { className: "app-dialog-label import-preview-title" }, IMPORT_PREVIEW_LABEL), problem, note, preview);
+    tab.panel.replaceChildren(settings2, el5("p", { className: "app-dialog-label import-preview-title" }, IMPORT_PREVIEW_LABEL), problem, note, preview);
   }
   function namesRowProblem(tab) {
     if (!tab.hasNames || !tab.encodingFits || tab.problem) {
@@ -6342,26 +7532,26 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
     const first = Math.max(1, namesAt - ROWS_ABOVE);
     const shown2 = tab.rows.slice(first - 1, namesAt + PREVIEW_ROWS);
     const width = shown2.reduce((most, row) => Math.max(most, row.length), 0);
-    const table = el4("table", { className: "result-table import-preview-table" });
-    const head = el4("tr");
-    head.append(el4("th", { scope: "col", className: "import-row-heading" }, IMPORT_PREVIEW_ROW_HEADING));
+    const table = el5("table", { className: "result-table import-preview-table" });
+    const head = el5("tr");
+    head.append(el5("th", { scope: "col", className: "import-row-heading" }, IMPORT_PREVIEW_ROW_HEADING));
     for (let column = 1; column <= width; column++) {
-      head.append(el4("th", { scope: "col" }, String(column)));
+      head.append(el5("th", { scope: "col" }, String(column)));
     }
     table.createTHead().append(head);
     const body2 = table.createTBody();
     shown2.forEach((row, i) => {
       const number = first + i;
-      const line = el4("tr");
-      const heading = el4("th", { scope: "row", className: "import-row-heading" });
-      heading.append(el4("span", { className: "import-row-number" }, String(number)));
+      const line = el5("tr");
+      const heading = el5("th", { scope: "row", className: "import-row-heading" });
+      heading.append(el5("span", { className: "import-row-number" }, String(number)));
       const isNames = number === namesAt;
       if (number < namesAt) {
         line.className = "import-row--out";
-        heading.append(el4("span", { className: "import-row-tag" }, IMPORT_PREVIEW_LEFT_OUT));
+        heading.append(el5("span", { className: "import-row-tag" }, IMPORT_PREVIEW_LEFT_OUT));
       } else if (isNames) {
         line.className = "import-row--names";
-        heading.append(el4("span", { className: "import-row-tag" }, IMPORT_PREVIEW_NAMES));
+        heading.append(el5("span", { className: "import-row-tag" }, IMPORT_PREVIEW_NAMES));
       }
       line.append(heading);
       for (let column = 0; column < width; column++) {
@@ -6547,16 +7737,17 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
   }
   function open(chosen) {
     session++;
+    live = true;
     opened++;
     const mine = session;
     clearError();
     setRunning(null);
     tabs2 = chosen.map((file, n) => newTab(file, n));
-    const list = el4("div", { className: "tabs import-tabs" });
+    const list = el5("div", { className: "tabs import-tabs" });
     list.setAttribute("role", "tablist");
     list.setAttribute("aria-label", IMPORT_TABS_LABEL);
     list.append(...tabs2.map((tab) => tab.button));
-    const panels = el4("div", { className: "import-panels" });
+    const panels = el5("div", { className: "import-panels" });
     panels.append(...tabs2.map((tab) => tab.panel));
     files.replaceChildren(list, panels);
     tabList = null;
@@ -6580,11 +7771,16 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
     })();
   }
   function endSession() {
+    if (!live) {
+      return;
+    }
+    live = false;
     session++;
     if (running) {
       running.stop = true;
       running = null;
     }
+    swallowHeldEnter();
     clearTimeout(holdTimer);
     dialog.removeAttribute("aria-busy");
     files.replaceChildren();
@@ -6729,12 +7925,22 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
       close();
     }
   });
+  dialog.addEventListener("cancel", (event) => {
+    if (event.target === dialog) {
+      endSession();
+    }
+  });
   dialog.addEventListener("close", () => {
     if (dialog.open) {
       return;
     }
     endSession();
     restoreFocus();
+  });
+  dialog.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && event.repeat) {
+      event.preventDefault();
+    }
   });
   return {
     open,
@@ -6747,7 +7953,7 @@ var import_report_exports = {};
 __export(import_report_exports, {
   buildImportReport: () => buildImportReport
 });
-function el5(tag, className, text) {
+function el6(tag, className, text) {
   const node = document.createElement(tag);
   if (className) {
     node.className = className;
@@ -6769,26 +7975,26 @@ function shown(node, text) {
   }
   return node;
 }
-var asRead = (text) => shown(el5("span", "import-cell-text"), text);
+var asRead = (text) => shown(el6("span", "import-cell-text"), text);
 function originalCell(column) {
-  const cell2 = el5("td");
+  const cell2 = el6("td");
   if (column.original === null || column.original === column.name) {
     return cell2;
   }
-  cell2.append(isBlankName(column.original) ? el5("span", "cell-null", IMPORT_REPORT_BLANK_NAME) : asRead(column.original));
+  cell2.append(isBlankName(column.original) ? el6("span", "cell-null", IMPORT_REPORT_BLANK_NAME) : asRead(column.original));
   return cell2;
 }
 function noteCell(column) {
-  const cell2 = el5("td", "import-report-note");
+  const cell2 = el6("td", "import-report-note");
   if (column.blocking !== null) {
-    cell2.append(el5("span", null, `${IMPORT_REPORT_BLOCKING_NOTE} `), asRead(column.blocking));
+    cell2.append(el6("span", null, `${IMPORT_REPORT_BLOCKING_NOTE} `), asRead(column.blocking));
   }
   return cell2;
 }
 function columnsTable(table, headingId) {
-  const node = el5("table", "result-table import-report-columns");
+  const node = el6("table", "result-table import-report-columns");
   node.setAttribute("aria-labelledby", headingId);
-  const head = el5("tr");
+  const head = el6("tr");
   for (const [text, className] of [
     [IMPORT_REPORT_COLUMN_HEADING, null],
     [IMPORT_REPORT_ORIGINAL_HEADING, null],
@@ -6796,111 +8002,46 @@ function columnsTable(table, headingId) {
     [IMPORT_REPORT_BLANKS_HEADING, "num"],
     [IMPORT_REPORT_NOTE_HEADING, null]
   ]) {
-    const heading = el5("th", className, text);
+    const heading = el6("th", className, text);
     heading.scope = "col";
     head.append(heading);
   }
   node.createTHead().append(head);
   const body = node.createTBody();
   for (const column of table.columns) {
-    const row = el5("tr");
-    const name = shown(el5("th", "import-report-column"), column.name);
+    const row = el6("tr");
+    const name = shown(el6("th", "import-report-column"), column.name);
     name.scope = "row";
-    row.append(name, originalCell(column), el5("td", null, column.type), el5("td", "num", String(column.blanks)), noteCell(column));
+    row.append(name, originalCell(column), el6("td", null, column.type), el6("td", "num", String(column.blanks)), noteCell(column));
     body.append(row);
   }
   return node;
 }
 function warning(text) {
-  const node = el5("p", "import-report-warning");
+  const node = el6("p", "import-report-warning");
   const glyph = icon("circle-alert");
   glyph.classList.add("import-report-warning-icon");
-  node.append(glyph, el5("span", null, text));
+  node.append(glyph, el6("span", null, text));
   return node;
 }
-function buildImportReport(tables) {
-  const report = el5("div", "import-report");
+function buildImportReport(tables2) {
+  const report = el6("div", "import-report");
   reports++;
-  tables.forEach((table, n) => {
-    const section = el5("section", "import-report-table");
-    const heading = el5("h2", "import-report-name", table.name);
+  tables2.forEach((table, n) => {
+    const section = el6("section", "import-report-table");
+    const heading = el6("h2", "import-report-name", table.name);
     heading.id = `import-report-${reports}-${n + 1}`;
-    section.append(heading, el5("p", "import-report-line", importReportTableLine(table.rows, table.columns.length, table.source)));
+    section.append(heading, el6("p", "import-report-line", importReportTableLine(table.rows, table.columns.length, table.source)));
     if (table.badQuotes) {
       section.append(warning(IMPORT_REPORT_QUOTES_WARNING));
     }
     if (table.quoted?.length) {
-      section.append(el5("p", "import-report-quoted", importReportQuotedText(table.quoted)));
+      section.append(el6("p", "import-report-quoted", importReportQuotedText(table.quoted)));
     }
     section.append(columnsTable(table, heading.id));
     report.append(section);
   });
   return report;
-}
-
-// js/lab/vendor-loader.js
-var vendor_loader_exports = {};
-__export(vendor_loader_exports, {
-  loadVendor: () => loadVendor
-});
-var VENDOR_DIR = "vendor/";
-var PLAIN_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-var loading2 = /* @__PURE__ */ new Map();
-function onPage(globalName) {
-  try {
-    return globalThis[globalName];
-  } catch {
-    return void 0;
-  }
-}
-function loadVendor(file, globalName) {
-  if (typeof file !== "string" || !PLAIN_NAME.test(file) || file.includes("..")) {
-    return Promise.reject(new Error(`not a file of ${VENDOR_DIR}`));
-  }
-  if (typeof globalName !== "string" || !globalName) {
-    return Promise.reject(new Error("not the name of a library"));
-  }
-  const present = onPage(globalName);
-  if (present !== void 0) {
-    return Promise.resolve(present);
-  }
-  const known = loading2.get(file);
-  if (known) {
-    return known;
-  }
-  let waiting2 = true;
-  const promise = new Promise((resolve, reject) => {
-    let script = null;
-    let timer = null;
-    const settle = (library) => {
-      if (!waiting2) {
-        return;
-      }
-      waiting2 = false;
-      clearTimeout(timer);
-      loading2.delete(file);
-      if (library === void 0) {
-        script?.remove();
-        reject(new Error(`could not load ${VENDOR_DIR}${file}`));
-      } else {
-        resolve(library);
-      }
-    };
-    try {
-      script = document.createElement("script");
-      script.addEventListener("load", () => settle(onPage(globalName)));
-      script.addEventListener("error", () => settle(void 0));
-      timer = setTimeout(() => settle(void 0), VENDOR_LOAD_TIMEOUT_MS);
-      script.src = `${VENDOR_DIR}${file}`;
-      document.head.append(script);
-    } catch {
-      settle(void 0);
-    }
-  });
-  if (waiting2) {
-    loading2.set(file, promise);
-  }
-  return promise;
 }
 
 // js/lab/import.js
@@ -6916,7 +8057,6 @@ var REFUSAL_TEXT = {
 };
 var ImportCancelled = class extends Error {
 };
-var isEngineError = (error) => error?.name === "SQLite3Error" || error?.name === "WasmAllocError";
 function mountImport({
   fileInput,
   returnFocus,
@@ -6930,7 +8070,8 @@ function mountImport({
   results: results2,
   showResult: showResult2,
   onBusy = () => {
-  }
+  },
+  otherJobMessage: otherJobMessage2 = () => null
 }) {
   const enabled = flagOn("import");
   let running = false;
@@ -6993,6 +8134,10 @@ function mountImport({
     if (isLoading()) {
       return { ok: false, message: IMPORT_LOADING_DIALOG_MESSAGE };
     }
+    const otherJob = otherJobMessage2();
+    if (otherJob) {
+      return { ok: false, message: otherJob };
+    }
     if (!own && (!getDatabase() || isCourseDatabase())) {
       return { ok: false, message: IMPORT_DESTINATION_GONE_MESSAGE };
     }
@@ -7009,12 +8154,12 @@ function mountImport({
       database2 = own ? await manager_default.init(job.destination.name, new DatabasePath("")) : getDatabase();
       ticket = beginImport(database2);
       const pace = newPace();
-      const tables = [];
+      const tables2 = [];
       for (const [index, item2] of job.files.entries()) {
         current4 = item2;
         const report = (part, done, total) => progress({ at: index + 1, of: job.files.length, name: item2.file.name, part, done, total });
         report("read", 0, item2.file.size);
-        tables.push(await importFile(database2, item2, { reader, pace, cancelled, report }));
+        tables2.push(await importFile(database2, item2, { reader, pace, cancelled, report }));
       }
       endImport(database2);
       ticket = null;
@@ -7029,14 +8174,14 @@ function mountImport({
       }
       const name = getDatabase().name;
       const key = runLog2.current().key;
-      for (const table of tables) {
+      for (const table of tables2) {
         recordEvent(key, {
           kind: "import",
           lines: [importEventFileLine(table.source, table.bytes), importEventTableLine(table.name, table.rows, table.columns.length)]
         });
       }
-      const said = importedMessage(tables.length, name);
-      results2.showReport(buildImportReport(tables), { summary: said });
+      const said = importedMessage(tables2.length, name);
+      results2.showReport(buildImportReport(tables2), { summary: said });
       showResult2();
       toast(said);
       return { ok: true };
@@ -7088,6 +8233,11 @@ function mountImport({
     }
     if (running) {
       toast(IMPORT_BUSY_MESSAGE, { tone: "note" });
+      return true;
+    }
+    const otherJob = otherJobMessage2();
+    if (otherJob) {
+      toast(otherJob, { tone: "note" });
       return true;
     }
     if (ours.length && isLoading()) {
@@ -7215,7 +8365,7 @@ function mountThemeMenu(container, { before = null, buttonClass = "button button
 }
 
 // js/lab/more-menu.js
-function el6(tag, className, text) {
+function el7(tag, className, text) {
   const node = document.createElement(tag);
   if (className) {
     node.className = className;
@@ -7226,23 +8376,23 @@ function el6(tag, className, text) {
   return node;
 }
 function entry(id, glyph, label, { role = "menuitem", description = null } = {}) {
-  const node = el6("button", description ? "menu-item menu-item--two-line" : "menu-item");
+  const node = el7("button", description ? "menu-item menu-item--two-line" : "menu-item");
   node.type = "button";
   node.id = id;
   node.tabIndex = -1;
   node.setAttribute("role", role);
-  const text = el6("span", "menu-item-text");
-  text.append(el6("span", description ? "menu-item-label" : null, label));
+  const text = el7("span", "menu-item-text");
+  text.append(el7("span", description ? "menu-item-label" : null, label));
   if (description) {
-    text.append(el6("span", "menu-item-description", description));
+    text.append(el7("span", "menu-item-description", description));
   }
   node.append(glyph, text);
   return node;
 }
 function group(label, entries) {
-  const node = el6("div", "menu-group");
+  const node = el7("div", "menu-group");
   node.setAttribute("role", "group");
-  const heading = el6("p", "menu-heading", label);
+  const heading = el7("p", "menu-heading", label);
   heading.id = `more-${label.toLowerCase()}-heading`;
   heading.setAttribute("aria-hidden", "true");
   node.setAttribute("aria-labelledby", heading.id);
@@ -7250,14 +8400,15 @@ function group(label, entries) {
   return node;
 }
 function separator() {
-  const node = el6("div", "menu-separator");
+  const node = el7("div", "menu-separator");
   node.setAttribute("role", "separator");
   return node;
 }
-function mountMoreMenu({ button, menu, copyLink, onDatabase, results: results2, evidence: evidence2, help: help2 }) {
+function mountMoreMenu({ button, menu, copyLink, onDatabase, results: results2, evidence: evidence2, help: help2, tables: tables2 }) {
   menu.setAttribute("aria-label", MORE_MENU_LABEL);
   const copy = entry("more-copy-link", icon("link"), MORE_COPY_LINK_TEXT);
   const database2 = entry("more-export-db", icon("database"), EXPORT_DATABASE_TEXT, { description: EXPORT_BUTTON_TITLE });
+  const tablesItem = tables2 ? entry("more-export-tables", icon("sheet"), tables2.text, { description: tables2.description }) : null;
   const csv = entry("more-export-csv", icon("sheet"), EXPORT_RESULTS_TEXT, { description: EXPORT_RESULTS_DESCRIPTION });
   const record = entry("more-export-evidence", icon("file-text"), EXPORT_EVIDENCE_TEXT, { description: EXPORT_EVIDENCE_DESCRIPTION });
   const themes = THEME_OPTIONS.map((option) => {
@@ -7271,7 +8422,7 @@ function mountMoreMenu({ button, menu, copyLink, onDatabase, results: results2, 
   menu.replaceChildren(
     copy,
     separator(),
-    group(MORE_EXPORT_LABEL, [database2, csv, record]),
+    group(MORE_EXPORT_LABEL, tablesItem ? [database2, tablesItem, csv, record] : [database2, csv, record]),
     separator(),
     group(MORE_THEME_LABEL, themes),
     separator(),
@@ -7294,6 +8445,8 @@ function mountMoreMenu({ button, menu, copyLink, onDatabase, results: results2, 
         copyLink();
       } else if (chosen === database2) {
         onDatabase();
+      } else if (tablesItem && chosen === tablesItem) {
+        tables2.onSelect();
       } else if (chosen === csv) {
         results2.download();
       } else if (chosen === record) {
@@ -7595,7 +8748,7 @@ function mountLayout({
 
 // js/lab/open-url-dialog.js
 init_config();
-function el7(tag, props = {}, text = "") {
+function el8(tag, props = {}, text = "") {
   const node = document.createElement(tag);
   Object.assign(node, props);
   if (text) {
@@ -7604,10 +8757,10 @@ function el7(tag, props = {}, text = "") {
   return node;
 }
 function mountOpenUrlDialog({ onOpen }) {
-  const dialog = el7("dialog", { id: "open-url-dialog", className: "app-dialog" });
+  const dialog = el8("dialog", { id: "open-url-dialog", className: "app-dialog" });
   dialog.setAttribute("aria-labelledby", "open-url-title");
-  const form = el7("form", { method: "dialog", noValidate: true });
-  const input = el7("input", {
+  const form = el8("form", { method: "dialog", noValidate: true });
+  const input = el8("input", {
     id: "open-url-input",
     type: "text",
     inputMode: "url",
@@ -7618,18 +8771,18 @@ function mountOpenUrlDialog({ onOpen }) {
   input.setAttribute("autocapitalize", "off");
   input.setAttribute("autocorrect", "off");
   input.setAttribute("aria-describedby", "open-url-hint");
-  const error = el7("p", { id: "open-url-error", className: "app-dialog-error", hidden: true });
+  const error = el8("p", { id: "open-url-error", className: "app-dialog-error", hidden: true });
   error.setAttribute("role", "alert");
-  const submit = el7("button", { type: "submit", className: "button button--primary" }, OPEN_URL_SUBMIT_TEXT);
-  const cancel = el7("button", { type: "button", className: "button" }, OPEN_URL_CANCEL_TEXT);
-  const actions2 = el7("div", { className: "app-dialog-actions" });
+  const submit = el8("button", { type: "submit", className: "button button--primary" }, OPEN_URL_SUBMIT_TEXT);
+  const cancel = el8("button", { type: "button", className: "button" }, OPEN_URL_CANCEL_TEXT);
+  const actions2 = el8("div", { className: "app-dialog-actions" });
   actions2.append(submit, cancel);
   form.append(
-    el7("h2", { id: "open-url-title", className: "app-dialog-title" }, OPEN_URL_TITLE),
-    el7("p", { className: "app-dialog-text" }, OPEN_URL_INTRO),
-    el7("label", { htmlFor: "open-url-input", className: "app-dialog-label" }, OPEN_URL_LABEL),
+    el8("h2", { id: "open-url-title", className: "app-dialog-title" }, OPEN_URL_TITLE),
+    el8("p", { className: "app-dialog-text" }, OPEN_URL_INTRO),
+    el8("label", { htmlFor: "open-url-input", className: "app-dialog-label" }, OPEN_URL_LABEL),
     input,
-    el7("p", { id: "open-url-hint", className: "app-dialog-hint" }, OPEN_URL_HINT),
+    el8("p", { id: "open-url-hint", className: "app-dialog-hint" }, OPEN_URL_HINT),
     error,
     actions2
   );
@@ -7897,13 +9050,13 @@ function mountCellPopover(popover) {
       value.textContent = "";
     }
   });
-  let frame2 = 0;
+  let frame = 0;
   function follow() {
-    if (frame2) {
+    if (frame) {
       return;
     }
-    frame2 = requestAnimationFrame(() => {
-      frame2 = 0;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
       if (popover.matches(":popover-open") && source?.isConnected) {
         placePopover(popover, source);
       }
@@ -7968,11 +9121,11 @@ function failedStatement(exc) {
   }
   return null;
 }
-var NEEDS_QUOTES = /[",\r\n]/;
+var NEEDS_QUOTES2 = /[",\r\n]/;
 var NON_ASCII = /[^\u0000-\u007f]/;
 function field2(value) {
   const text = cellText(value);
-  return NEEDS_QUOTES.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+  return NEEDS_QUOTES2.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 function toCsv({ columns, values }) {
   const lines = [columns.map(field2).join(",")];
@@ -7988,7 +9141,7 @@ function csvBytes(result) {
 function csvFileName(databaseName) {
   return `${safeBaseName(databaseName).replace(/\.(db|sqlite|sqlite3)$/i, "")}${CSV_FILE_SUFFIX}`;
 }
-function el8(tag, className, text) {
+function el9(tag, className, text) {
   const node = document.createElement(tag);
   if (className) {
     node.className = className;
@@ -7999,33 +9152,33 @@ function el8(tag, className, text) {
   return node;
 }
 function withTime(text, ms) {
-  return [text, el8("span", "status-time", resultTimeText(ms))];
+  return [text, el9("span", "status-time", resultTimeText(ms))];
 }
 function band(...body) {
-  const node = el8("div", "results-band");
+  const node = el9("div", "results-band");
   const glyph = icon("circle-alert");
   glyph.classList.add("results-band-icon");
-  const content = el8("div", "results-band-body");
+  const content = el9("div", "results-band-body");
   content.append(...body);
   node.append(glyph, content);
   return node;
 }
 function errorBand(exc) {
   const message = engineMessage(exc) || String(exc);
-  const parts = [el8("h2", "results-band-title", ERROR_HEADING), el8("p", "results-band-message", message)];
+  const parts = [el9("h2", "results-band-title", ERROR_HEADING), el9("p", "results-band-message", message)];
   const failed = failedStatement(exc);
   if (failed) {
-    const where = el8("div", "results-band-statement");
+    const where = el9("div", "results-band-statement");
     where.append(
-      el8("p", "results-band-where", errorStatementText(failed.position, failed.count)),
-      el8("pre", "results-band-quote", statementQuote(failed.text))
+      el9("p", "results-band-where", errorStatementText(failed.position, failed.count)),
+      el9("pre", "results-band-quote", statementQuote(failed.text))
     );
     parts.push(where);
   }
   return band(...parts);
 }
 function problemBand(message) {
-  const node = band(el8("p", "results-band-text", message));
+  const node = band(el9("p", "results-band-text", message));
   node.classList.add("results-band--problem");
   return node;
 }
@@ -8035,10 +9188,10 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
   button.type = "button";
   button.className = "button button--quiet results-download";
   button.title = CSV_BUTTON_TITLE;
-  button.append(icon("download"), el8("span", null, CSV_BUTTON_TEXT));
+  button.append(icon("download"), el9("span", null, CSV_BUTTON_TEXT));
   button.hidden = true;
   summary.append(button);
-  const announcer = el8("p", "visually-hidden");
+  const announcer = el9("p", "visually-hidden");
   announcer.id = "results-announce";
   announcer.setAttribute("role", "status");
   announcer.setAttribute("aria-live", "polite");
@@ -8052,7 +9205,7 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
       announcer.textContent = text;
     }, 60);
   }
-  const problemSlot = el8("div", "results-problem");
+  const problemSlot = el9("div", "results-problem");
   problemSlot.hidden = true;
   summary.before(problemSlot);
   const popoverElement = document.getElementById("cell-popover");
@@ -8120,17 +9273,17 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
   }
   button.addEventListener("click", download);
   function emptyBlock({ variant = "fresh", notice = null }) {
-    const block = el8("div", "results-empty");
-    const intro = el8("div", "results-empty-intro");
-    intro.append(el8("h2", "results-empty-title", EMPTY_TITLE));
+    const block = el9("div", "results-empty");
+    const intro = el9("div", "results-empty-intro");
+    intro.append(el9("h2", "results-empty-title", EMPTY_TITLE));
     if (notice) {
-      intro.append(el8("p", "results-empty-text results-empty-notice", notice));
+      intro.append(el9("p", "results-empty-text results-empty-notice", notice));
     }
     const exercise = isExercise();
     if (variant === "restored" || variant === "shared") {
-      intro.append(el8("p", "results-empty-text", variant === "shared" ? SHARED_MESSAGE : RESTORED_MESSAGE));
+      intro.append(el9("p", "results-empty-text", variant === "shared" ? SHARED_MESSAGE : RESTORED_MESSAGE));
     } else if (exercise) {
-      intro.append(el8("p", "results-empty-text", EMPTY_EXERCISE_TEXT));
+      intro.append(el9("p", "results-empty-text", EMPTY_EXERCISE_TEXT));
     }
     block.append(intro);
     if (exercise) {
@@ -8138,14 +9291,14 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
     }
     const samples = getSamples();
     if (samples.length) {
-      intro.append(el8("p", "results-empty-text", EMPTY_SAMPLES_TEXT));
-      const list = el8("ul", "results-samples");
+      intro.append(el9("p", "results-empty-text", EMPTY_SAMPLES_TEXT));
+      const list = el9("ul", "results-samples");
       list.setAttribute("aria-label", EMPTY_SAMPLES_LABEL);
       for (const sample of samples) {
-        const item2 = el8("li");
-        const choose = el8("button", "results-sample");
+        const item2 = el9("li");
+        const choose = el9("button", "results-sample");
         choose.type = "button";
-        choose.append(el8("span", "results-sample-label", cut(sample.label, SAMPLE_LABEL_CHARS)), el8("span", "results-sample-sql", sampleText(sample.sql)));
+        choose.append(el9("span", "results-sample-label", cut(sample.label, SAMPLE_LABEL_CHARS)), el9("span", "results-sample-sql", sampleText(sample.sql)));
         choose.addEventListener("click", () => {
           ui2.editor.fill(sample.sql);
         });
@@ -8154,15 +9307,15 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
       }
       block.append(list);
     } else if (getDatabase()) {
-      intro.append(el8("p", "results-empty-text", EMPTY_DATABASE_TEXT));
-      const links = el8("p", "results-empty-links");
-      const about = el8("a", null, emptyAboutText(APP_NAME));
+      intro.append(el9("p", "results-empty-text", EMPTY_DATABASE_TEXT));
+      const links = el9("p", "results-empty-links");
+      const about = el9("a", null, emptyAboutText(APP_NAME));
       about.href = "about.html";
-      const functions = el8("a", null, EMPTY_FUNCTIONS_TEXT);
+      const functions = el9("a", null, EMPTY_FUNCTIONS_TEXT);
       functions.href = "https://sqlite.org/lang_corefunc.html";
       functions.target = "_blank";
       functions.rel = "noopener noreferrer";
-      const dot = el8("span", null, "·");
+      const dot = el9("span", null, "·");
       dot.setAttribute("aria-hidden", "true");
       links.append(about, " ", dot, " ", functions);
       block.append(links);
@@ -8323,11 +9476,11 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
       offered = null;
       table = null;
       button.hidden = true;
-      const block = el8("div", "results-loading");
-      const title = el8("h2", "results-loading-title", loadingTitle(name));
+      const block = el9("div", "results-loading");
+      const title = el9("h2", "results-loading-title", loadingTitle(name));
       title.id = "results-loading-title";
-      const sizeLine = el8("p", "results-loading-size", loadingSizeText(0, size));
-      const bar = el8("progress", "results-progress");
+      const sizeLine = el9("p", "results-loading-size", loadingSizeText(0, size));
+      const bar = el9("progress", "results-progress");
       bar.max = 1;
       if (size) {
         bar.value = 0;
@@ -8360,7 +9513,7 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
       };
     },
     startRun() {
-      const overlay = el8("div", "results-running", RUNNING_TEXT);
+      const overlay = el9("div", "results-running", RUNNING_TEXT);
       overlay.setAttribute("aria-hidden", "true");
       (summary.hidden ? ui2.result : summary).append(overlay);
       return () => overlay.remove();
@@ -8638,14 +9791,14 @@ function insertByHand(range, text) {
 // js/lab/schema.js
 init_sql();
 function element2(tag, className, text) {
-  const el9 = document.createElement(tag);
+  const el10 = document.createElement(tag);
   if (className) {
-    el9.className = className;
+    el10.className = className;
   }
   if (text !== void 0) {
-    el9.textContent = text;
+    el10.textContent = text;
   }
-  return el9;
+  return el10;
 }
 function hiddenText(text) {
   return element2("span", "visually-hidden", text);
@@ -8701,19 +9854,19 @@ function mountSchema({ container, editor }) {
   const scroll = element2("div", "schema-scroll");
   scroll.id = "schema-lists";
   const message = element2("p", "schema-message");
-  const tables = element2("section", "schema-group");
+  const tables2 = element2("section", "schema-group");
   const tablesHeading = element2("h2", "schema-group-title", SCHEMA_TABLES_HEADING);
   tablesHeading.id = "schema-tables-title";
   const tableList = element2("ul", "schema-list");
   tableList.setAttribute("aria-labelledby", "schema-tables-title");
-  tables.append(tablesHeading, tableList);
+  tables2.append(tablesHeading, tableList);
   const views = element2("section", "schema-group");
   const viewsHeading = element2("h2", "schema-group-title", SCHEMA_VIEWS_HEADING);
   viewsHeading.id = "schema-views-title";
   const viewList = element2("ul", "schema-list");
   viewList.setAttribute("aria-labelledby", "schema-views-title");
   views.append(viewsHeading, viewList);
-  scroll.append(message, tables, views);
+  scroll.append(message, tables2, views);
   panel.append(dataset, filter, scroll);
   container.replaceChildren(panel);
   function setClamped(clamped) {
@@ -8914,7 +10067,7 @@ function mountSchema({ container, editor }) {
     const viewItems = build("view");
     tableList.replaceChildren(...tableItems);
     viewList.replaceChildren(...viewItems);
-    tables.hidden = !tableItems.length;
+    tables2.hidden = !tableItems.length;
     views.hidden = !viewItems.length;
     scroller().scrollTop = scrollTop;
     if (focused) {
@@ -8954,7 +10107,7 @@ function mountSchema({ container, editor }) {
   document.addEventListener("lab:database-changed", catchUp);
   renderDataset();
   showMessage("");
-  tables.hidden = true;
+  tables2.hidden = true;
   views.hidden = true;
 }
 
@@ -9220,7 +10373,7 @@ var actions = {
 };
 var shortcuts = {
   o: () => {
-    if (importInTheWay()) {
+    if (jobInTheWay()) {
       return;
     }
     if (typeof HTMLElement.prototype.hidePopover === "function") {
@@ -9268,14 +10421,14 @@ var picker = mountDatabaseSwitcher({
   label: document.querySelector("#database-button-name"),
   menu: document.querySelector("#database-menu"),
   onSelect: (dataset) => {
-    if (refusedWhileImporting()) {
+    if (refusedWhileBusy()) {
       picker.sync();
       return;
     }
     startFromDataset(dataset);
   },
   onOpenFile: () => {
-    if (!importInTheWay()) {
+    if (!jobInTheWay()) {
       ui.fileInput.click();
     }
   },
@@ -9299,17 +10452,18 @@ var lab = mountExercises({
   ui,
   // a Check's visible run: shown in the results pane, but the verdict is what is said
   execute: (sql) => execute(sql, { quiet: true }),
-  // (an import counts: a Check would otherwise go on to mark the answer after its run was refused)
-  isLoading: () => loading3 || importer.busy(),
+  // (an import or an export counts: a Check would otherwise go on to mark the answer after its run
+  // was refused)
+  isLoading: () => loading3 || jobRunning(),
   openSet: (set2) => {
-    if (refusedWhileImporting()) {
+    if (refusedWhileBusy()) {
       lab.syncPicker();
       return void 0;
     }
     return setActions.openSet(set2);
   },
   closeSet: () => {
-    if (refusedWhileImporting()) {
+    if (refusedWhileBusy()) {
       lab.syncPicker();
       return;
     }
@@ -9359,6 +10513,17 @@ var exportReturn = {
     (exportButton.getClientRects().length ? exportButton : moreButton).focus(options);
   }
 };
+var runningJob = null;
+var jobMessage = null;
+var addressAtJob = null;
+var onJobBusy = (kind, message) => (busy) => {
+  runningJob = busy ? kind : null;
+  jobMessage = busy ? message : null;
+  addressAtJob = busy ? { href: location.href, state: history.state } : null;
+};
+var jobRunning = () => runningJob !== null;
+var otherJobMessage = (kind) => runningJob !== null && runningJob !== kind ? jobMessage : null;
+var longJob = (kind, message) => ({ onBusy: onJobBusy(kind, message), otherJobMessage: () => otherJobMessage(kind) });
 var runLog = mountRunLog({
   ui,
   list: document.querySelector("#run-history-list"),
@@ -9370,9 +10535,9 @@ var exportDialog = mountExportDialog({
   returnFocus: exportReturn,
   getName: () => database ? database.name : null,
   // (a database exported part-way through an import would hold half of it)
-  getProblem: () => importer.busy() ? IMPORT_BUSY_MESSAGE : exportProblem(database),
+  getProblem: () => jobRunning() ? jobMessage : exportProblem(database),
   onExport: (name) => {
-    if (importer.busy()) {
+    if (refusedWhileBusy()) {
       return;
     }
     if (name !== database.name) {
@@ -9383,7 +10548,22 @@ var exportDialog = mountExportDialog({
   // the menu entry's answer: a toast that says why nothing was done, the result left as it is
   onNoDatabase: (message) => toast(message, { tone: "note" })
 });
-mountExportMenu({ button: exportButton, menu: document.querySelector("#export-menu"), onDatabase: exportDialog.open, results, evidence });
+var tables = mountTableExport({
+  returnFocus: exportReturn,
+  getDatabase: () => database,
+  isLoading: () => loading3,
+  runLog,
+  ...longJob("export", EXPORT_TABLES_BUSY_MESSAGE)
+});
+var tablesEntry = tables.enabled ? { text: EXPORT_TABLES_MENU_TEXT, description: EXPORT_TABLES_MENU_DESCRIPTION, onSelect: tables.open } : void 0;
+mountExportMenu({
+  button: exportButton,
+  menu: document.querySelector("#export-menu"),
+  onDatabase: exportDialog.open,
+  results,
+  evidence,
+  tables: tablesEntry
+});
 mountMoreMenu({
   button: moreButton,
   menu: document.querySelector("#more-menu"),
@@ -9391,9 +10571,9 @@ mountMoreMenu({
   onDatabase: exportDialog.open,
   results,
   evidence,
-  help
+  help,
+  tables: tablesEntry
 });
-var addressAtImport = null;
 var importer = mountImport({
   fileInput: ui.fileInput,
   returnFocus: document.querySelector("#database-button"),
@@ -9407,19 +10587,17 @@ var importer = mountImport({
   runLog,
   results,
   showResult: () => layout.showView("result"),
-  onBusy: (busy) => {
-    addressAtImport = busy ? { href: location.href, state: history.state } : null;
-  }
+  ...longJob("import", IMPORT_BUSY_MESSAGE)
 });
-function refusedWhileImporting() {
-  if (!importer.busy()) {
+function refusedWhileBusy() {
+  if (!jobRunning()) {
     return false;
   }
-  toast(IMPORT_BUSY_MESSAGE, { tone: "note" });
+  toast(jobMessage, { tone: "note" });
   return true;
 }
-function importInTheWay() {
-  return refusedWhileImporting() || importer.dialogOpen();
+function jobInTheWay() {
+  return refusedWhileBusy() || importer.dialogOpen() || tables.dialogOpen();
 }
 mountTextSize({
   smaller: document.querySelector("#text-smaller"),
@@ -9537,7 +10715,7 @@ function datasetSource(dataset, buffer) {
   return { path, name };
 }
 async function startFromDataset(dataset, exercise = null) {
-  if (importer.busy()) {
+  if (jobRunning()) {
     return;
   }
   const ticket = beginLoad();
@@ -9571,7 +10749,7 @@ async function startFromDataset(dataset, exercise = null) {
   showStarted({ focus: false, exercise });
 }
 async function startFromUrl(url) {
-  if (refusedWhileImporting()) {
+  if (refusedWhileBusy()) {
     return;
   }
   const ticket = beginLoad();
@@ -9591,7 +10769,7 @@ async function startFromUrl(url) {
   showStarted();
 }
 async function startFromFile(file, contents, fileType) {
-  if (refusedWhileImporting()) {
+  if (refusedWhileBusy()) {
     return;
   }
   const ticket = beginLoad();
@@ -9712,7 +10890,7 @@ function changedRows(run, before, sql) {
 }
 var RUN_DROPPED = Object.freeze({ dropped: true });
 function execute(sql, { quiet = false } = {}) {
-  if (refusedWhileImporting()) {
+  if (refusedWhileBusy()) {
     return Promise.reject();
   }
   if (loading3) {
@@ -9735,7 +10913,7 @@ function execute(sql, { quiet = false } = {}) {
   const endRun = results.startRun();
   pendingRuns++;
   return afterPaint().then(() => {
-    if (run !== database || loading3 || importer.busy()) {
+    if (run !== database || loading3 || jobRunning()) {
       return Promise.reject(RUN_DROPPED);
     }
     let outcome;
@@ -9766,7 +10944,7 @@ function execute(sql, { quiet = false } = {}) {
   });
 }
 function openUrl(returnFocus) {
-  if (importInTheWay()) {
+  if (jobInTheWay()) {
     return;
   }
   if (typeof HTMLElement.prototype.hidePopover === "function") {
@@ -9843,7 +11021,7 @@ if (importer.enabled) {
       return;
     }
     event.preventDefault();
-    if (document.querySelector("dialog[open]") || importer.busy()) {
+    if (document.querySelector("dialog[open]") || jobRunning()) {
       return;
     }
     if (!importer.take(files)) {
@@ -9852,9 +11030,9 @@ if (importer.enabled) {
   });
 }
 window.addEventListener("popstate", () => {
-  if (importer.busy()) {
-    history.pushState(addressAtImport?.state ?? null, "", addressAtImport?.href ?? location.href);
-    toast(IMPORT_BUSY_MESSAGE, { tone: "note" });
+  if (jobRunning()) {
+    history.pushState(addressAtJob?.state ?? null, "", addressAtJob?.href ?? location.href);
+    toast(jobMessage, { tone: "note" });
     return;
   }
   startFromCurrentUrl();

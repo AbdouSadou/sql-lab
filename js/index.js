@@ -34,11 +34,18 @@ import { mountExercises } from "./lab/exercise-panel.js";
 import { createExportAction, exportProblem } from "./lab/export.js";
 import { mountExportDialog } from "./lab/export-dialog.js";
 import { mountExportMenu } from "./lab/export-menu.js";
+import { mountTableExport } from "./lab/export-tables.js";
 import { mountEvidence } from "./lab/evidence-dialog.js";
 // The preview flags of the assessment plan are read from the address when this import runs,
 // before anything below can rewrite it.
 import { flagOn } from "./lab/flags.js";
-import { IMPORT_BUSY_MESSAGE, OPEN_FILE_WITH_IMPORT_DESCRIPTION } from "./lab/config-workflow.js";
+import {
+    EXPORT_TABLES_BUSY_MESSAGE,
+    EXPORT_TABLES_MENU_DESCRIPTION,
+    EXPORT_TABLES_MENU_TEXT,
+    IMPORT_BUSY_MESSAGE,
+    OPEN_FILE_WITH_IMPORT_DESCRIPTION,
+} from "./lab/config-workflow.js";
 import { mountHelp } from "./lab/help.js";
 import { mountImport } from "./lab/import.js";
 import { mountMoreMenu } from "./lab/more-menu.js";
@@ -92,7 +99,7 @@ const actions = {
 
 const shortcuts = {
     o: () => {
-        if (importInTheWay()) {
+        if (jobInTheWay()) {
             return;
         }
         // a menu left open would still be there when the file chooser closes (":popover-open"
@@ -172,7 +179,7 @@ const picker = mountDatabaseSwitcher({
     label: document.querySelector("#database-button-name"),
     menu: document.querySelector("#database-menu"),
     onSelect: (dataset) => {
-        if (refusedWhileImporting()) {
+        if (refusedWhileBusy()) {
             // the switcher has already ticked the choice: it shows what is open again
             picker.sync();
             return;
@@ -180,7 +187,7 @@ const picker = mountDatabaseSwitcher({
         startFromDataset(dataset);
     },
     onOpenFile: () => {
-        if (!importInTheWay()) {
+        if (!jobInTheWay()) {
             ui.fileInput.click();
         }
     },
@@ -213,17 +220,18 @@ const lab = mountExercises({
     ui: ui,
     // a Check's visible run: shown in the results pane, but the verdict is what is said
     execute: (sql) => execute(sql, { quiet: true }),
-    // (an import counts: a Check would otherwise go on to mark the answer after its run was refused)
-    isLoading: () => loading || importer.busy(),
+    // (an import or an export counts: a Check would otherwise go on to mark the answer after its run
+    // was refused)
+    isLoading: () => loading || jobRunning(),
     openSet: (set) => {
-        if (refusedWhileImporting()) {
+        if (refusedWhileBusy()) {
             lab.syncPicker();
             return undefined;
         }
         return setActions.openSet(set);
     },
     closeSet: () => {
-        if (refusedWhileImporting()) {
+        if (refusedWhileBusy()) {
             lab.syncPicker();
             return;
         }
@@ -290,6 +298,25 @@ const exportReturn = {
         (exportButton.getClientRects().length ? exportButton : moreButton).focus(options);
     },
 };
+// The long jobs of the assessment plan, an import of CSV files and an export of tables, never run
+// together, and while one runs the database must stay as it is (the plan's section 7): which one
+// runs ("import", "export" or null), the words that refuse what it cannot allow, and the address
+// when it began, which Back and Forward put back. Both jobs' onBusy write them; they are declared
+// before both mounts, and no mount asks either job anything before the student acts.
+let runningJob = null;
+let jobMessage = null;
+let addressAtJob = null;
+const onJobBusy = (kind, message) => (busy) => {
+    runningJob = busy ? kind : null;
+    jobMessage = busy ? message : null;
+    addressAtJob = busy ? { href: location.href, state: history.state } : null;
+};
+const jobRunning = () => runningJob !== null;
+// the message of a job that runs and is not `kind`
+const otherJobMessage = (kind) => (runningJob !== null && runningJob !== kind ? jobMessage : null);
+// what a long job's mount is handed: how it says that it runs, and how it asks about the others
+const longJob = (kind, message) => ({ onBusy: onJobBusy(kind, message), otherJobMessage: () => otherJobMessage(kind) });
+
 const runLog = mountRunLog({
     ui,
     list: document.querySelector("#run-history-list"),
@@ -305,9 +332,10 @@ const exportDialog = mountExportDialog({
     returnFocus: exportReturn,
     getName: () => (database ? database.name : null),
     // (a database exported part-way through an import would hold half of it)
-    getProblem: () => (importer.busy() ? IMPORT_BUSY_MESSAGE : exportProblem(database)),
+    getProblem: () => (jobRunning() ? jobMessage : exportProblem(database)),
     onExport: (name) => {
-        if (importer.busy()) {
+        // (this dialog was open before the job began: its Save is refused, and says why, like the menu entry)
+        if (refusedWhileBusy()) {
             return;
         }
         if (name !== database.name) {
@@ -318,7 +346,26 @@ const exportDialog = mountExportDialog({
     // the menu entry's answer: a toast that says why nothing was done, the result left as it is
     onNoDatabase: (message) => toast(message, { tone: "note" }),
 });
-mountExportMenu({ button: exportButton, menu: document.querySelector("#export-menu"), onDatabase: exportDialog.open, results, evidence });
+// Export of tables as CSV (js/lab/export-tables.js; the assessment plan's Phase 3). Behind the
+// "export" flag: with it off nothing is mounted, and the two menus below are what they were.
+const tables = mountTableExport({
+    returnFocus: exportReturn,
+    getDatabase: () => database,
+    isLoading: () => loading,
+    runLog,
+    ...longJob("export", EXPORT_TABLES_BUSY_MESSAGE),
+});
+const tablesEntry = tables.enabled
+    ? { text: EXPORT_TABLES_MENU_TEXT, description: EXPORT_TABLES_MENU_DESCRIPTION, onSelect: tables.open }
+    : undefined;
+mountExportMenu({
+    button: exportButton,
+    menu: document.querySelector("#export-menu"),
+    onDatabase: exportDialog.open,
+    results,
+    evidence,
+    tables: tablesEntry,
+});
 // Under 700 px Copy link, Export, Theme and Help fold into the More menu (js/lab/more-menu.js)
 mountMoreMenu({
     button: moreButton,
@@ -328,11 +375,10 @@ mountMoreMenu({
     results,
     evidence,
     help,
+    tables: tablesEntry,
 });
 // Import of CSV files (js/lab/import.js; the assessment plan's Phase 2). Behind the "import"
 // flag: with it off, nothing below changes what a choice or a drop of files does.
-// The address when an import began: Back and Forward put it back (see popstate, below).
-let addressAtImport = null;
 const importer = mountImport({
     fileInput: ui.fileInput,
     returnFocus: document.querySelector("#database-button"),
@@ -346,27 +392,27 @@ const importer = mountImport({
     runLog,
     results,
     showResult: () => layout.showView("result"),
-    onBusy: (busy) => {
-        addressAtImport = busy ? { href: location.href, state: history.state } : null;
-    },
+    ...longJob("import", IMPORT_BUSY_MESSAGE),
 });
 
-// While an import runs, the database it writes to must stay as it is: nothing else is run on it,
-// nothing exports it, and no other database is opened over it (the plan's section 7). The page's
-// own loading state will not do for this: closing an exercise set clears it.
-// refusedWhileImporting says so in a toast, and answers whether the caller must stop.
-function refusedWhileImporting() {
-    if (!importer.busy()) {
+// While an import or an export runs, the database it uses must stay as it is: nothing else is run
+// on it, nothing exports it, and no other database is opened over it (the plan's section 7). The
+// page's own loading state will not do for this: closing an exercise set clears it.
+// refusedWhileBusy says so in a toast, with the words of the job that runs, and answers whether the
+// caller must stop.
+function refusedWhileBusy() {
+    if (!jobRunning()) {
         return false;
     }
-    toast(IMPORT_BUSY_MESSAGE, { tone: "note" });
+    toast(jobMessage, { tone: "note" });
     return true;
 }
 
-// importInTheWay: the same, and also while the import's dialog is open (Ctrl+O and Ctrl+U reach
-// the page under a dialog: a second set of files, or another database, would start there)
-function importInTheWay() {
-    return refusedWhileImporting() || importer.dialogOpen();
+// jobInTheWay: the same, and also while the dialog of the import or of the export is open (Ctrl+O
+// and Ctrl+U reach the page under a dialog: a second set of files, or another database, would
+// start there)
+function jobInTheWay() {
+    return refusedWhileBusy() || importer.dialogOpen() || tables.dialogOpen();
 }
 
 // A− and A+ in the editor toolbar: the size of the SQL and of the results (js/lab/text-size.js)
@@ -540,7 +586,7 @@ function datasetSource(dataset, buffer) {
 // If anything fails the previous database stays open and the picker goes back to it.
 // exercise ({set, exerciseId}) opens an exercise set with the dataset: ?set=<id> instead.
 async function startFromDataset(dataset, exercise = null) {
-    if (importer.busy()) {
+    if (jobRunning()) {
         return;
     }
     const ticket = beginLoad();
@@ -579,7 +625,7 @@ async function startFromDataset(dataset, exercise = null) {
 // startFromUrl loads existing database
 // from specified url
 async function startFromUrl(url) {
-    if (refusedWhileImporting()) {
+    if (refusedWhileBusy()) {
         return;
     }
     const ticket = beginLoad();
@@ -603,7 +649,7 @@ async function startFromUrl(url) {
 // startFromFile loads existing database
 // from binary or sql file
 async function startFromFile(file, contents, fileType) {
-    if (refusedWhileImporting()) {
+    if (refusedWhileBusy()) {
         return;
     }
     const ticket = beginLoad();
@@ -789,8 +835,9 @@ const RUN_DROPPED = Object.freeze({ dropped: true });
 // that was replaced in that frame is not run on: the request is dropped, as a stale load is.
 // quiet: the outcome is shown but not said (a Check's run: the exercise's verdict is said).
 function execute(sql, { quiet = false } = {}) {
-    if (refusedWhileImporting()) {
-        // nothing is run: it would run inside the import, on tables that are half made
+    if (refusedWhileBusy()) {
+        // nothing is run: it would run inside the import, on tables that are half made, or while
+        // an export reads them
         return Promise.reject();
     }
     if (loading) {
@@ -820,7 +867,7 @@ function execute(sql, { quiet = false } = {}) {
             // replaced in that frame, or about to be (a load began): the run would land on a database
             // that is going away, so it is dropped, as Run is refused while a database loads; the
             // rejection says so (a Check whose run was dropped checks nothing)
-            if (run !== database || loading || importer.busy()) {
+            if (run !== database || loading || jobRunning()) {
                 return Promise.reject(RUN_DROPPED);
             }
             let outcome;
@@ -857,7 +904,7 @@ function execute(sql, { quiet = false } = {}) {
 // openUrl asks for a database's address in a dialog (js/lab/open-url-dialog.js); the focus goes
 // back to returnFocus if the student cancels
 function openUrl(returnFocus) {
-    if (importInTheWay()) {
+    if (jobInTheWay()) {
         return;
     }
     // a menu left open would sit above the dialog's backdrop
@@ -965,7 +1012,7 @@ ui.fileInput.addEventListener("change", () => {
 // With the import on, files dropped anywhere on the page are taken exactly as if they had been
 // chosen (the assessment plan, section 3). The drop itself is refused as ever (js/lab/plain-text.js:
 // it puts no text in the editor, and the browser does not open the file); a drop is ignored while
-// a dialog is open or an import is running.
+// a dialog is open or a long job (an import or an export) is running.
 if (importer.enabled) {
     document.addEventListener("drop", (event) => {
         // (taken now: the list is gone once the event is over)
@@ -974,7 +1021,7 @@ if (importer.enabled) {
             return;
         }
         event.preventDefault();
-        if (document.querySelector("dialog[open]") || importer.busy()) {
+        if (document.querySelector("dialog[open]") || jobRunning()) {
             return;
         }
         if (!importer.take(files)) {
@@ -985,11 +1032,12 @@ if (importer.enabled) {
 
 // Navigate back to previous database
 window.addEventListener("popstate", () => {
-    if (importer.busy()) {
+    if (jobRunning()) {
         // Back or Forward cannot be refused: the address has changed already. Nothing is opened
-        // (it would close the database the import is writing to), and the address is put back.
-        history.pushState(addressAtImport?.state ?? null, "", addressAtImport?.href ?? location.href);
-        toast(IMPORT_BUSY_MESSAGE, { tone: "note" });
+        // (it would close the database the import is writing to, or the export is reading), and the
+        // address is put back.
+        history.pushState(addressAtJob?.state ?? null, "", addressAtJob?.href ?? location.href);
+        toast(jobMessage, { tone: "note" });
         return;
     }
     startFromCurrentUrl();

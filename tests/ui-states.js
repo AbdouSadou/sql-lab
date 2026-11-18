@@ -508,6 +508,39 @@ shell.states = {
         },
         { busy: true }
     ),
+    // The assessment plan's Phase 3, behind its flag (?preview=export). The dialog that saves tables
+    // and views as CSV, with the owner's database of edge cases (tests/fixtures/export/): the list,
+    // counted, with some rows ticked (the pair whose file names collide among them: the second says
+    // where it is saved); then the dialog while an export runs, held at the request for the zip tool,
+    // which is never answered; then the note that an export that held a BLOB ends with (the line that
+    // says what the dialog is for is not on show beside the note; in the other two it is).
+    "export-dialog": async (page) => {
+        await exportDialog(page);
+        await tickRows(page, ["basic", "sales/2024", "sales_2024", "v_basic_summary"]);
+        // every count has ended (Export is on) and the line says what it will save
+        await page.locator('#export-tables-submit[aria-disabled="false"]').waitFor();
+    },
+    "export-progress": Object.assign(
+        async (page) => {
+            await exportDialog(page);
+            await tickRows(page, ["basic", "dates_iso", "sales_2024"]);
+            await page.locator('#export-tables-submit[aria-disabled="false"]').waitFor();
+            await page.route(/\/vendor\/fflate\.min\.js(\?.*)?$/, () => {});
+            await page.locator("#export-tables-submit").click();
+            await page.locator("#export-tables-dialog .tables-progress").waitFor({ state: "visible" });
+        },
+        { busy: true }
+    ),
+    "export-note": async (page) => {
+        await exportDialog(page);
+        await tickRows(page, ["mixed_types"]);
+        await page.locator('#export-tables-submit[aria-disabled="false"]').waitFor();
+        await page.locator("#export-tables-submit").click();
+        await page.locator("#export-tables-note").waitFor({ state: "visible" });
+        // (the toast that says the same has come and gone, so that it is not in the picture)
+        await page.locator("#toast-region .toast").waitFor({ state: "visible" });
+        await page.locator("#toast-region .toast").waitFor({ state: "detached" });
+    },
     "exercise-prompt": async (page) => {
         await shell.exerciseOpen(page);
     },
@@ -585,6 +618,37 @@ shell.states = {
         await page.locator("#exercise-feedback").filter({ hasText: "exercises complete" }).waitFor();
     },
 };
+
+// The dialog of the export of tables (flag "export"): the owner's database of edge cases is
+// opened as a file, and the Export menu's entry (the More menu's on a phone) is chosen.
+async function exportDialog(page) {
+    await shell.open(page, `${NORTHLIGHT_URL}&preview=export`);
+    await page.locator("#open-file-input").setInputFiles(fixtureFile("export/export_edge_cases.db"));
+    await page.waitForFunction(() => window.app.database.name === "export_edge_cases.db");
+    // (the toast that says the database opened is not in the picture: it comes a moment after the
+    // database, and goes after a few seconds)
+    await page.locator("#toast-region .toast").waitFor({ state: "visible" });
+    await page.locator("#toast-region .toast").waitFor({ state: "detached" });
+    if (await shell.more(page)) {
+        await page.locator("#more-export-tables").click();
+    } else {
+        await page.locator("#export-button").click();
+        await page.locator("#export-tables").click();
+    }
+    await page.locator("#export-tables-dialog").waitFor({ state: "visible" });
+}
+
+// tickRows ticks the rows of these tables in the dialog of the export, by their exact names
+async function tickRows(page, names) {
+    for (const name of names) {
+        const row = page.locator("#export-tables-dialog .tables-row").filter({ has: page.locator(".tables-row-name").filter({ hasText: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}$`) }) });
+        await row.locator("input.tables-row-box").check();
+    }
+    // (ticking scrolls the list to the box that was ticked: the picture is of the dialog from its top)
+    await page.locator("#export-tables-dialog .tables-body").evaluate((body) => {
+        body.scrollTop = 0;
+    });
+}
 
 // The theme menu (menu-theme) exists only from Phase 1; the before shots were taken without it.
 const RECIPES = { legacy, shell };

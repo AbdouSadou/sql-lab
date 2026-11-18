@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const Papa = require("../vendor/papaparse.min.js");
-const { test, expect, fixtureIndex, fixturePath, largeCsv, sha256 } = require("./helpers");
+const { test, expect, fixtureIndex, fixturePath, largeCsv, sha256, skipUnlessFirst, seeded } = require("./helpers");
 
 // Assessment plan, Phase 2 (import CSV): the pure modules of the import, with no page. They are
 // js/lab/import-rules.js (what type a column gets, what a table and its columns are called),
@@ -21,26 +21,28 @@ const { test, expect, fixtureIndex, fixturePath, largeCsv, sha256 } = require(".
 // across slices in every way. The fixtures are only read, never changed. large.csv is not stored:
 // largeCsv() writes it to the temporary folder, and it is read with the default slice only.
 //
-// The review of the first version (the fix round) is pinned in groups named for it: the line ending
+// The edges of the line ending, the preview, the quote warning, numbers and the mark of a text's
+// start are pinned in groups of their own: the line ending
 // that the module finds and not Papa (lineEnding: a lone quote in a heading, quoted line breaks,
 // a field never closed, the other candidate delimiters, Papa's threshold, and a generated property
 // against Papa's own answer), the preview of a text with no complete row and of a second
 // byte-order mark, the quote warning at every size of piece and at the real slice size, a decimal
 // that no number can hold, and the mark of a text's start (markOf, sameStart).
 //
-// The second fix round is pinned in the same groups: white space of any kind (not the space and the
+// The same groups hold: white space of any kind (not the space and the
 // tab alone) between a closing quote and the end of its field (the line ending and the whole read,
 // and the generated property with such white space added), quoted line breaks that come before the
 // first real one and outnumber the real ones, a text whose last character is a quote that opens a
 // field (the warning at every size of piece, and a hostile property against one reading of the whole
 // text), and a text that is not whole and ends with a carriage return (which is not counted).
 //
-// The third reading's gaps: readStart never guesses U+001F or U+001E (Papa's own list holds them, the
+// Two more edges: readStart never guesses U+001F or U+001E (Papa's own list holds them, the
 // four delimiters do not), and the line ending at exactly half of the carriage returns is the carriage
 // return, at one more than half the pair (the boundary, in a test of its own).
 //
-// The closing sweep (the code changed a line at a time, to see which changes no test noticed) left
-// a group of its own at the end, before the vendored library: a workbook's name ends in .xls or
+// A group of its own at the end, before the vendored library, holds edges that the other groups did
+// not reach (found by changing the code a line at a time and seeing which changes no test noticed): a
+// workbook's name ends in .xls or
 // .xlsx, a file of a whole number of slices, what `between` throws in the pass over a file, a quote
 // that starts no field with quoted fields after it, two carriage returns before a line feed, the
 // carriage return taken off a text that is not whole, and a field of one space; and
@@ -61,10 +63,6 @@ const modules = () =>
         text,
         csv,
     })));
-
-const skipUnlessFirst = ({}, testInfo) => {
-    test.skip(testInfo.project.name !== "chromium-root", "checks files, not the page: once is enough");
-};
 
 // ---- helpers -------------------------------------------------------------------------------------
 
@@ -123,19 +121,6 @@ async function rowsFromPieces(pieces, { delimiter = ",", newline = "\n" } = {}) 
 // the file's own configuration of the import (js/lab/config-workflow.js has no imports: it runs here)
 let configLoaded = null;
 const config = () => (configLoaded ??= load("config-workflow.js"));
-
-// a number generator that gives the same numbers every run (mulberry32): the generated texts of a
-// property are never different from one run to the next
-function seeded(seed) {
-    let state = seed >>> 0;
-    return () => {
-        state = (state + 0x6d2b79f5) >>> 0;
-        let t = state;
-        t = Math.imul(t ^ (t >>> 15), t | 1);
-        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-}
 
 // the pieces a file of `bytes` comes in when it is read `sliceBytes` at a time, through the rows
 async function rowsFromBytes(bytes, sliceBytes, { delimiter = ",", newline = "\n" } = {}) {
@@ -472,7 +457,7 @@ test.describe("import rules: plain numbers (rules 2 and 3)", () => {
     });
 });
 
-// ---- rules: a decimal that no number can hold (review fix F5) ---------------------------------------------------------
+// ---- rules: a decimal that no number can hold ---------------------------------------------------------
 
 test.describe("import rules: a long decimal is a plain number only when a REAL can hold it (rule 3)", () => {
     test.beforeEach(skipUnlessFirst);
@@ -486,7 +471,7 @@ test.describe("import rules: a long decimal is a plain number only when a REAL c
         expect(rules.isDecimal(`-${nines(300)}.5`)).toBe(true);
         expect(rules.isDecimal(`${nines(301)}.5`)).toBe(false);
         expect(rules.isDecimal(`-${nines(301)}.5`)).toBe(false);
-        // the 322-digit decimal of the review: Number() of it is infinity
+        // a 322-digit decimal: Number() of it is infinity
         expect(Number(`${nines(322)}.5`)).toBe(Infinity);
         expect(rules.isDecimal(`${nines(322)}.5`)).toBe(false);
         expect(rules.isPlainNumber(`${nines(322)}.5`)).toBe(false);
@@ -500,7 +485,7 @@ test.describe("import rules: a long decimal is a plain number only when a REAL c
         expect(rules.isDecimal(`-0.${zeros(299)}1`)).toBe(true);
         expect(rules.isDecimal(`0.${zeros(300)}1`)).toBe(false);
         expect(rules.isDecimal(`-0.${zeros(300)}1`)).toBe(false);
-        // 0.000...(400 zeros)1 of the review: Number() of it is a number, 1e-401, that is 0
+        // 0.000...(400 zeros)1: Number() of it is a number, 1e-401, that is 0
         expect(Number(`0.${zeros(400)}1`)).toBe(0);
         expect(rules.isDecimal(`0.${zeros(400)}1`)).toBe(false);
         expect(rules.isDecimal(`0.${zeros(400)}9`)).toBe(false);
@@ -818,8 +803,8 @@ test.describe("import rules: names (plan section 3, 'Names')", () => {
         expect(rules.tableNameFor("")).toBe("table");
     });
 
-    // (The sweep by mutation of the eighth round: the name trimmed first, and an underscore taken
-    // for no name at all, each passed every test.)
+    // (Two ways to get this wrong that the other tests of names did not tell apart: the name trimmed
+    // first, and an underscore taken for no name at all.)
     test("nothing is trimmed off a file's name, and a name that comes out as an underscore is a name: only an empty one is called table", async () => {
         const { rules } = await modules();
         const cases = {
@@ -1264,7 +1249,7 @@ test.describe("import text: startOfText and textPieces", () => {
     });
 });
 
-// ---- text: a mark of the start of a text, to know it again (review fix F6) -----------------------------------------------
+// ---- text: a mark of the start of a text, to know it again -----------------------------------------------
 
 test.describe("import text: markOf and sameStart", () => {
     test.beforeEach(skipUnlessFirst);
@@ -1542,7 +1527,7 @@ test.describe("import csv: readStart, the preview's reading of the start of a fi
     });
 });
 
-// ---- csv: the line ending, found by the module and not by Papa (review fix F1) ----------------------------------
+// ---- csv: the line ending, found by the module and not by Papa ----------------------------------
 
 test.describe("import csv: lineEnding, the line ending of a text outside its quoted fields", () => {
     test.beforeEach(skipUnlessFirst);
@@ -1688,7 +1673,7 @@ test.describe("import csv: lineEnding, the line ending of a text outside its quo
         expect(csv.lineEnding('"say ""hi"" \n"\r\nb\r\n', [","])).toBe("\r\n");
     });
 
-    // Everything that String.trim takes off, one character each (the second round of the review, G1).
+    // Everything that String.trim takes off, one character each.
     // Papa closes a quoted field when what stands between the quote and the next delimiter or line
     // break trims to nothing, so any of these may follow a closing quote, not the space and the tab alone.
     const SPACES = [
@@ -1888,8 +1873,8 @@ test.describe("import csv: lineEnding, the line ending of a text outside its quo
 
     // for a few thousand generated texts that are well formed (every field that holds a delimiter, a
     // quote or a line break is quoted, quotes doubled), the answer is Papa's own. `gaps`, when it is
-    // given, is what may stand between the closing quote of a field and the end of it (the second
-    // round of the review: any white space, not the space and the tab alone); a gap that is a tab is
+    // given, is what may stand between the closing quote of a field and the end of it (any white
+    // space, not the space and the tab alone); a gap that is a tab is
     // the delimiter itself when the delimiter is a tab, and is a space then.
     async function generatedAgainstPapa({ seed, gaps = null }) {
         const { csv } = await modules();
@@ -1964,7 +1949,7 @@ test.describe("import csv: lineEnding, the line ending of a text outside its quo
     });
 });
 
-// ---- csv: what the preview's reading gives for a text that is cut, and a second mark (review fixes F2, F3) -----------
+// ---- csv: what the preview's reading gives for a text that is cut, and a second mark -----------
 
 test.describe("import csv: readStart on a text that is not whole, and on one that starts with U+FEFF", () => {
     test.beforeEach(skipUnlessFirst);
@@ -1984,7 +1969,7 @@ test.describe("import csv: readStart on a text that is not whole, and on one tha
         expect(csv.readStart(Papa, "id,name\r\n1,An", { whole: false }).rows).toEqual([["id", "name"]]);
     });
 
-    // The second round (G3). A text that is not the whole file may end between the two halves of a
+    // A text that is not the whole file may end between the two halves of a
     // CRLF, so its last carriage return is not counted for the line ending: with one or two line
     // breaks in the first megabyte, a Windows file was read as a file of carriage returns alone.
     test("a text that is not whole and ends with a carriage return: that one is not counted, so a Windows file stays CRLF and a file of carriage returns alone stays CR", async () => {
@@ -2045,8 +2030,7 @@ test.describe("import csv: readStart on a text that is not whole, and on one tha
         expect(read.rows).toEqual([["a", "b"], ["1", "2"], ["3", "4"], ["5", "6"]]);
     });
 
-    // Not a change of the second round: the contract in the module's header, which the fix above
-    // leans on (the last row of a text that is not whole is left out also when it ends where the text was cut)
+    // A guard on the contract in the module's header, which the test above leans on (the last row of a text that is not whole is left out also when it ends where the text was cut)
     test("guard: a row that ends exactly where a text that is not whole was cut is left out as well, with every line ending", async () => {
         const { csv } = await modules();
         expect(csv.readStart(Papa, "a,b\n", { whole: false }).rows).toEqual([]);
@@ -2212,7 +2196,7 @@ test.describe("import csv: readPieces, the reading of a whole file a piece at a 
     });
 });
 
-// ---- csv: the quote warning, which a piece's end must not change (review fix F4) -----------------------------------------
+// ---- csv: the quote warning, which a piece's end must not change -----------------------------------------
 
 test.describe("import csv: badQuotes does not depend on where the pieces are cut", () => {
     test.beforeEach(skipUnlessFirst);
@@ -2289,10 +2273,10 @@ test.describe("import csv: badQuotes does not depend on where the pieces are cut
         }
     }
 
-    // The second round (G2). Papa gives a quote error the place AFTER the quote that opens the field:
-    // past the cursor when a piece cut the row short, never past it when the row has ended, and exactly
-    // at it when that quote is the last character of the file. A file that ends with a quote that opens
-    // a field was imported with no warning, as the first round compared the place with "<".
+    // Papa gives a quote error the place AFTER the quote that opens the field: past the cursor when a
+    // piece cut the row short, never past it when the row has ended, and exactly at it when that quote
+    // is the last character of the file. Comparing the place with "<" would import a file that ends
+    // with a quote that opens a field with no warning.
     const ENDS_WITH_QUOTE = [
         ['id,name\n1,Ann\n2,"', true, [["id", "name"], ["1", "Ann"], ["2", ""]], "a quote that opens the last field of the last row, and the file ends"],
         ['id,name\n1,Ann\n"', true, [["id", "name"], ["1", "Ann"]], "a quote that opens the last row, and the file ends"],
@@ -2836,7 +2820,7 @@ test.describe("what the plan leaves as the library reads it (plan section 9)", (
 
 // ---- the library -------------------------------------------------------------------------------------------------------------
 
-// ---- what a sweep of the code by mutation found that no test held (the eighth round) -------------------------
+// ---- edges that no other group holds -------------------------
 
 // Each of these is a line of js/lab/import-text.js or js/lab/import-csv.js that could be changed,
 // with every test passing, although a student could then see the difference. The comment over each
@@ -2946,21 +2930,22 @@ test.describe("edges that a sweep of the code by mutation found unheld", () => {
 // newPace() with the clock and the frames in the test's hands. The module is read as text and run
 // with stand-ins for what it takes from the page (performance, requestAnimationFrame, and
 // globalThis for scheduler), so Node's own are left alone and each test has a module of its own;
-// its one import (the two numbers) and its one export are taken off for that. (The sweep by
-// mutation of the eighth round: no test ran this module on its own, and a rest that waited for
-// the 250 ms timer where a frame would do, or for a frame at every piece, only made the import
-// slower, which nothing measured.)
+// its one import (the two numbers) and its two exports (newPace, and nextFrame, which the export
+// of tables also waits on by itself) are taken off for that. (No other test runs this module on
+// its own, and a rest that waited for the 250 ms timer where a frame would do, or for a frame at
+// every piece, only made the import slower, which no other test measures.)
 test.describe("import pace: when a rest waits for a frame, and how a plain turn is taken", () => {
     test.beforeEach(skipUnlessFirst);
 
     async function paceWith({ scheduler } = {}) {
         const { FRAME_MAX_MS, PAINT_EVERY_MS } = await config();
         const source = fs.readFileSync(path.join(__dirname, "..", "js", "lab", "import-pace.js"), "utf8");
-        const body = source.replace(/^import \{[^}]*\} from "\.\/config-workflow\.js";$/m, "").replace(/^export function newPace/m, "function newPace");
-        expect(body, "the module's one import and one export are taken off").not.toMatch(/^\s*(?:import|export)\b/m);
+        const body = source.replace(/^import \{[^}]*\} from "\.\/config-workflow\.js";$/m, "").replace(/^export function (newPace|nextFrame)\b/gm, "function $1");
+        expect(body, "the module's one import and two exports are taken off").not.toMatch(/^\s*(?:import|export)\b/m);
+        expect(source.match(/^export\b.*$/gm), "and it exports those two, nothing else").toEqual(["export function nextFrame() {", "export function newPace() {"]);
         const state = { now: 1000, asked: 0, frames: [] };
-        const make = new Function("performance", "requestAnimationFrame", "globalThis", "FRAME_MAX_MS", "PAINT_EVERY_MS", `${body}\nreturn newPace;`);
-        const newPace = make(
+        const make = new Function("performance", "requestAnimationFrame", "globalThis", "FRAME_MAX_MS", "PAINT_EVERY_MS", `${body}\nreturn { newPace, nextFrame };`);
+        const { newPace, nextFrame } = make(
             { now: () => state.now },
             (callback) => {
                 state.asked++;
@@ -2973,7 +2958,7 @@ test.describe("import pace: when a rest waits for a frame, and how a plain turn 
         );
         // the browser draws: every frame that was asked for is given
         const draw = () => state.frames.splice(0).forEach((callback) => callback(state.now));
-        return { pace: newPace(), state, draw, PAINT_EVERY_MS };
+        return { pace: newPace(), nextFrame, state, draw, PAINT_EVERY_MS };
     }
     // a few turns of Node's own loop: what could go on by itself has gone on
     const turns = async () => {
@@ -3033,6 +3018,76 @@ test.describe("import pace: when a rest waits for a frame, and how a plain turn 
         expect(order).toEqual([1, 2, 3, 4]);
         // and again, when the channel is there already
         expect(await outcome(pace.rest())).toBe("rested");
+    });
+
+    // (the export of tables waits for a frame by itself: before its dialog's first count and before
+    // its first piece, so that what it has just shown is on screen)
+    test("nextFrame by itself asks for one frame and ends when it has been drawn, not before, however little time has passed", async () => {
+        const { nextFrame, state, draw } = await paceWith();
+        let ended = false;
+        const wait = nextFrame().then(() => {
+            ended = true;
+        });
+        await turns();
+        expect(state.asked, "one frame is asked for").toBe(1);
+        expect(ended, "it has not ended before the frame").toBe(false);
+        draw();
+        expect(await outcome(wait)).toBe("rested");
+    });
+
+    test("nextFrame lets its caller go on in a task of its own after the frame's callbacks, not inside them: the promise ends when the timer of 0 ms it asked for in the frame has run", async () => {
+        const { nextFrame, state, draw } = await paceWith();
+        const { FRAME_MAX_MS } = await config();
+        // the timers are collected, not run: no real time passes in this test (the real one is put back in any case)
+        const realSetTimeout = globalThis.setTimeout;
+        const timers = [];
+        globalThis.setTimeout = (callback, ms) => timers.push({ callback, ms });
+        // (microtasks only: a few turns of the promises, with no timer in them)
+        const microtasks = async () => {
+            for (let i = 0; i < 20; i++) {
+                await Promise.resolve();
+            }
+        };
+        try {
+            let ended = false;
+            const wait = nextFrame().then(() => {
+                ended = true;
+            });
+            await microtasks();
+            expect(state.asked, "one frame is asked for").toBe(1);
+            expect(
+                timers.map((timer) => timer.ms),
+                "before the frame: only the timer for a tab that draws no frame"
+            ).toEqual([FRAME_MAX_MS]);
+            draw();
+            await microtasks();
+            expect(ended, "it has not ended inside the frame's callback, nor in the microtasks after it").toBe(false);
+            expect(
+                timers.map((timer) => timer.ms),
+                "the frame's callback asked for a timer of 0 ms"
+            ).toEqual([FRAME_MAX_MS, 0]);
+            // the timer of 0 ms runs: now it ends
+            timers[1].callback();
+            await microtasks();
+            expect(ended, "it ends when the timer of 0 ms has run").toBe(true);
+            await wait;
+            // (the timer for a tab that draws no frame, running late, is called once more: the call does not throw.
+            // A promise ends once, so nothing more can be seen)
+            timers[0].callback();
+            await microtasks();
+        } finally {
+            globalThis.setTimeout = realSetTimeout;
+        }
+    });
+
+    test("nextFrame in a tab that draws no frame ends by itself after FRAME_MAX_MS", async () => {
+        const { nextFrame, state } = await paceWith();
+        const started = Date.now();
+        expect(await outcome(nextFrame())).toBe("rested");
+        expect(state.asked).toBe(1);
+        // (not at once: it gave the frame its time. The bound is loose, a timer can be a little early.)
+        const { FRAME_MAX_MS } = await config();
+        expect(Date.now() - started).toBeGreaterThanOrEqual(FRAME_MAX_MS - 20);
     });
 
     test("where scheduler.yield is there, a plain turn is that", async () => {

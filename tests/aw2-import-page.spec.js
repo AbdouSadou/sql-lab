@@ -5,7 +5,7 @@ const AxeBuilder = require("@axe-core/playwright").default;
 const {
     test,
     expect,
-    realSet,
+    openableSets,
     failStorage,
     setStorageFailing,
     editorValue,
@@ -15,6 +15,26 @@ const {
     SAMPLE_FILE,
     NORTHLIGHT_URL,
     DEFAULT_DATASET,
+    realManifest,
+    csvFile: csv,
+    holdDataset,
+    holdImport,
+    holdVendor,
+    finishHeld,
+    slowDown,
+    snapshot,
+    expectNothingLeft,
+    eventsOf,
+    eventKeys,
+    databaseHandle,
+    isOpenDatabase,
+    schemaNames: names,
+    autocommit,
+    repeatTaken,
+    watchClosing,
+    closingSeen,
+    progressKey,
+    storedEventLines,
 } = require("./helpers");
 
 // Assessment plan, Phase 2 (import CSV): the page around the import. It pins what happens to a
@@ -25,41 +45,45 @@ const {
 // read in Node is config-workflow.js, for the texts the student sees. With the flag off
 // (the first group) nothing is different from the page as it was.
 //
-// The review of the fix round (its items F7 to F10 and F15) added: Back and Forward under an idle
-// dialog (the dialog closes, nothing is imported, and with a database still on its way Import says
-// so), files chosen or dropped while a database loads (a toast and no dialog), the student's
-// transaction that the engine undoes when a page limit is reached (said after the failure), a TEMP
-// table or view that takes a name, and the report with a very long name and value (cut, with the
-// whole text in title; a name for each table).
+// It also pins: Back and Forward under an idle dialog (the dialog closes, nothing is imported, and
+// with a database still on its way Import says so), files chosen or dropped while a database loads
+// (a toast and no dialog), the student's transaction that the engine undoes when a page limit is
+// reached (said after the failure), a TEMP table or view that takes a name, and the report with a
+// very long name and value (cut, with the whole text in title; a name for each table).
 //
-// The second review's fixes (G4 and G6) added: a name that a TEMP table or view alone has is refused
-// as temporary, one that the database has (with a TEMP table of the same name or without) as taken
-// by the database; what follows the loading-dialog message (choose the files again once the
-// database has opened); run()'s second lock (the open database turned into a course database, or
-// gone), reached by mounting js/lab/import.js by hand in a page whose own import is off; and the
-// ids of the reports, from two reports built into one container.
+// And: a name that a TEMP table or view alone has is refused as temporary, one that the database
+// has (with a TEMP table of the same name or without) as taken by the database; what follows the
+// loading-dialog message (choose the files again once the database has opened); run()'s second lock
+// (the open database turned into a course database, or gone), reached by mounting js/lab/import.js
+// by hand in a page whose own import is off; and the ids of the reports, from two reports built
+// into one container.
 //
-// The completeness check of the fourth round added: the report's warning for a quote that is never
-// closed (and none for quotes that pair); the staging table being a TEMP table (in sqlite_temp_schema
-// while a file is read, and no page left on the free list afterwards); a refusal found during the
-// import (a row too wide after the preview's megabyte, a file deleted after it was chosen) that leaves
-// nothing, into a new database and into the open one; the open database offered as the destination
-// for a script, a database from a URL, the fallback's empty database and an earlier import's
-// database; axe on the notice for events that cannot be stored; and about.html's words about the
-// files an import keeps a note of and the credit for Papa Parse.
+// And: the report's warning for a quote that is never closed (and none for quotes that pair); the
+// staging table being a TEMP table (in sqlite_temp_schema while a file is read, and no page left on
+// the free list afterwards); a refusal found during the import (a row too wide after the preview's
+// megabyte, a file deleted after it was chosen) that leaves nothing, into a new database and into
+// the open one; the open database offered as the destination for a script, a database from a URL,
+// the fallback's empty database and an earlier import's database; axe on the notice for events that
+// cannot be stored; and about.html's words about the files an import keeps a note of and the credit
+// for Papa Parse.
 //
 // The copy into the typed table (the last bullet of the plan's "Libraries"): a file that needs six
 // copy steps shows the line "Making the table" and a bar that moves from step to step, and Cancel
 // and Escape in the middle of the copy leave nothing, into a new database and into the open one
 // with the student's transaction still open.
 //
-// The sixth round added what the third reading found unpinned: an import that runs the browser out
-// of memory (a hard heap limit; into the open database with and without the student's transaction,
-// and into a new one); the switcher's "Open a file..." and "Open from URL..." entries clicked from
-// script while an import runs; the notice for events that cannot be stored going away (after an
-// import with storage that works, once the held-back events are stored with the next one, and for
-// stored events of a later version or that are not JSON); the editor's names, the Schema tab and the
-// status bar after an import into the open database and into a new one.
+// And: an import that runs the browser out of memory (a hard heap limit; into the open database
+// with and without the student's transaction, and into a new one); the switcher's "Open a file..."
+// and "Open from URL..." entries clicked from script while an import runs; the notice for events
+// that cannot be stored going away (after an import with storage that works, once the held-back
+// events are stored with the next one, and for stored events of a later version or that are not
+// JSON); the editor's names, the Schema tab and the status bar after an import into the open
+// database and into a new one.
+//
+// And: the import's savepoint is gone from the student's transaction after a Cancel; the engine's
+// allocator failing while rows are staged is said as a lack of memory; and in the group on keys in
+// the dialog, the second Escape of a visit, the end of an import by itself and a dialog closed from
+// script each leave no held Enter to repeat into the editor and no tabs behind.
 //
 // The import is behind the preview flag "import": a page opened with ?preview=import has it.
 // A held import is made by routing the library's request through a gate (vendor/papaparse.min.js:
@@ -72,16 +96,30 @@ const IMPORT_URL = "./?preview=import";
 const READER = "vendor/papaparse.min.js";
 const READER_URL = `**/${READER}`;
 const NORTHLIGHT_IMPORT_URL = `${NORTHLIGHT_URL}&preview=import`;
+// A course database that is not the default one (none when only one ships). The tests that pick the
+// default from the switcher while something is held start on it: the pick is then a change of
+// database whichever course database is the default (picking the open one changes nothing, and
+// nothing would load). A test that needs it is skipped when there is none.
+const OTHER_DATASET = realManifest().datasets.find((entry) => entry.id !== DEFAULT_DATASET.id);
+const OTHER_IMPORT_URL = `./?db=${OTHER_DATASET?.id}&preview=import`;
+const NO_OTHER_DATASET = "only one course database ships";
 
 let words;
 test.beforeAll(async () => {
     words = { ...(await load("config.js")), ...(await load("config-workflow.js")) };
 });
 
+// the notice for events that could not be stored, as a visit with the import alone reads it
+const importNotice = () => words.storageNoticeEventsText({ imports: true, exports: false });
+
 // ---- small helpers ------------------------------------------------------------------------------
 
-// a CSV file made in the test: {name, mimeType, buffer}
-const csv = (name = "people.csv", text = "id,name\n1,Ann\n2,Bob\n") => ({ name, mimeType: "text/csv", buffer: Buffer.from(text) });
+// What the Phase 3 specs share with this one is in tests/helpers.js, and used from there: csv (it
+// is csvFile there), holdImport and finishHeld (the held import, made with holdVendor), slowDown,
+// holdDataset, snapshot, expectNothingLeft (with waitUntilIdle), eventsOf, eventKeys, databaseHandle,
+// isOpenDatabase and names (schemaNames there). What stays here differs from what is there: slowCopy
+// (below) delays only the turns of the copy, not every turn, as slowDown does.
+
 // the sample database again under another name
 const copyOfSample = (name) => ({ name, mimeType: "application/octet-stream", buffer: fs.readFileSync(SAMPLE_FILE) });
 
@@ -96,103 +134,11 @@ function countReader(page) {
     return () => seen.length;
 }
 
-// holdLibrary routes the reader through a gate: the first request goes through (the preview
-// needs the library), later ones wait until open() is called.
-async function holdLibrary(page) {
-    let open;
-    const gate = new Promise((resolve) => (open = resolve));
-    let requests = 0;
-    await page.route(READER_URL, async (route) => {
-        requests++;
-        if (requests > 1) {
-            await gate;
-        }
-        await route.continue().catch(() => {});
-    });
-    return { open, requests: () => requests };
-}
-
-// holdImport opens the dialog for `files`, lets the preview read them, takes the library off the
-// page so that the import has to ask for it again, and presses Import. The import is then
-// running and waits on the gate. Returns {open, requests}.
-async function holdImport(page, app, { files = [csv()], into = "new", database = null } = {}) {
-    const held = await holdLibrary(page);
-    await app.chooseFiles(files);
-    await expect(app.importDialog).toBeVisible();
-    await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
-    if (into === "open") {
-        await app.importDialog.locator("#import-into-open").check();
-    } else if (database !== null) {
-        await app.importDialog.locator("#import-database-name").fill(database);
-    }
-    await expect(app.importSubmit).toBeEnabled();
-    await page.evaluate(() => {
-        delete window.Papa;
-    });
-    await app.importSubmit.click();
-    await expect(app.importDialog.locator(".import-progress")).toBeVisible();
-    return held;
-}
-
-// the library is let through and the held import ends, with its report
-async function finishHeld(app, held) {
-    held.open();
-    await expect(app.importDialog).toBeHidden();
-    await expect(app.pane).toHaveAttribute("data-state", "report");
-}
-
-// the open database, as a handle that can be compared with the open one later
-const databaseHandle = (page) => page.evaluateHandle(() => window.app.database);
-const isOpenDatabase = (page, handle) => page.evaluate((old) => window.app.database === old, handle);
-const names = (app) => app.rows("SELECT name FROM sqlite_schema ORDER BY name").then((rows) => rows.map((row) => row[0]));
-
 // waits until the open database is another one than `before`, and the page is ready
 async function expectOpened(page, app, before) {
     await page.waitForFunction((old) => window.app.database !== old, before);
     await app.waitReady();
 }
-
-// what the evidence log holds, in the page's memory and in storage, for the given log keys
-function eventsOf(page, keys) {
-    return page.evaluate(async (list) => {
-        const { events } = await import("./bundle/app.js");
-        const found = {};
-        for (const key of list) {
-            found[key] = events.readEvents(key);
-        }
-        const stored = Object.keys(localStorage).filter((key) => key.startsWith("sqllab.events."));
-        return { found, stored };
-    }, keys);
-}
-
-// holdDataset routes the fetch of a course database's file through a gate: the request waits
-// until release() (the file is then served as ever) or fail() (the request is aborted).
-// `requested` settles when the page has asked for the file, which is when a load is on its way;
-// `served` when the file has been given to the page (and, a little later, the page has used it).
-async function holdDataset(page, dataset = DEFAULT_DATASET) {
-    let settle;
-    const gate = new Promise((resolve) => (settle = resolve));
-    let asked;
-    const requested = new Promise((resolve) => (asked = resolve));
-    let given;
-    const served = new Promise((resolve) => (given = resolve));
-    const file = dataset.file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    await page.route(new RegExp(`/${file}(\\?.*)?$`), async (route) => {
-        asked();
-        const verdict = await gate;
-        if (verdict === "fail") {
-            await route.abort().catch(() => {});
-            return;
-        }
-        const response = await route.fetch();
-        await route.fulfill({ response }).catch(() => {});
-        given();
-    });
-    return { requested, served, release: () => settle("go"), fail: () => settle("fail") };
-}
-
-// the keys the evidence log keeps in storage
-const eventKeys = (page) => page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("sqllab.events.")));
 
 // whether the keyboard focus is on nothing in particular (the body, or no element)
 const focusIsOnBody = (page) => page.evaluate(() => document.activeElement === null || document.activeElement === document.body);
@@ -919,7 +865,8 @@ test.describe("files that come while a database loads are refused, in a toast, a
 
     for (const how of ["chosen", "dropped"]) {
         test(`${how} while a course database is picked and on its way; after it opens the same files open the dialog`, async ({ page, app }) => {
-            await app.open(NORTHLIGHT_IMPORT_URL);
+            test.skip(!OTHER_DATASET, NO_OTHER_DATASET);
+            await app.open(OTHER_IMPORT_URL);
             await app.recordToasts();
             const handle = await databaseHandle(page);
             const held = await holdDataset(page);
@@ -961,7 +908,8 @@ test.describe("files that come while a database loads are refused, in a toast, a
     }
 
     test("a workbook that is chosen is refused in the same way", async ({ page, app }) => {
-        await app.open(NORTHLIGHT_IMPORT_URL);
+        test.skip(!OTHER_DATASET, NO_OTHER_DATASET);
+        await app.open(OTHER_IMPORT_URL);
         await app.recordToasts();
         const held = await holdDataset(page);
         await app.pickDatabaseById(DEFAULT_DATASET.id);
@@ -974,7 +922,8 @@ test.describe("files that come while a database loads are refused, in a toast, a
     });
 
     test("one database that is chosen while a load is held is opened as ever, and the older load is dropped when it ends", async ({ page, app }) => {
-        await app.open(NORTHLIGHT_IMPORT_URL);
+        test.skip(!OTHER_DATASET, NO_OTHER_DATASET);
+        await app.open(OTHER_IMPORT_URL);
         await app.recordToasts();
         const held = await holdDataset(page);
         await app.pickDatabaseById(DEFAULT_DATASET.id);
@@ -1001,7 +950,8 @@ test.describe("files that come while a database loads are refused, in a toast, a
     });
 
     test("one script that is chosen while a load is held is opened as ever", async ({ page, app }) => {
-        await app.open(NORTHLIGHT_IMPORT_URL);
+        test.skip(!OTHER_DATASET, NO_OTHER_DATASET);
+        await app.open(OTHER_IMPORT_URL);
         const held = await holdDataset(page);
         await app.pickDatabaseById(DEFAULT_DATASET.id);
         await held.requested;
@@ -1015,7 +965,8 @@ test.describe("files that come while a database loads are refused, in a toast, a
     });
 
     test("with the flag off nothing of this exists: a CSV file chosen or dropped while a load is held is tried as a database", async ({ page, app }) => {
-        await app.open(NORTHLIGHT_URL);
+        test.skip(!OTHER_DATASET, NO_OTHER_DATASET);
+        await app.open(`./?db=${OTHER_DATASET.id}`);
         await app.recordToasts();
         const handle = await databaseHandle(page);
         const held = await holdDataset(page);
@@ -1037,14 +988,12 @@ test.describe("files that come while a database loads are refused, in a toast, a
 
 // ---- 5. the busy state ---------------------------------------------------------------------------------
 
-// the exercise set that goes with the default course database, and another one
-const SETS = fs
-    .readdirSync(path.join(__dirname, "..", "exercises"))
-    .filter((file) => file.endsWith(".json"))
-    .map((file) => realSet(file.replace(/\.json$/, "")));
-const SET = SETS.find((set) => set.dataset === DEFAULT_DATASET.id);
-const OTHER_SET = SETS.find((set) => set.id !== SET.id);
-const progressKey = (set) => `sqllab.progress.${set.id}`;
+// an exercise set that the site can open (one whose course database ships too), and another one.
+// The tests that need them are skipped, or lose only the part that needs the other one, when the
+// site ships fewer.
+const SETS = openableSets();
+const SET = SETS[0];
+const OTHER_SET = SETS.find((set) => set.id !== SET?.id);
 
 // what a student would try while an import runs: all done from inside the page, because the
 // dialog is modal and the rest of the page does not take the mouse
@@ -1088,7 +1037,8 @@ test.describe("while an import runs, what could change the open database is refu
     });
 
     test("picking another course database is refused, and the switcher shows what is open again", async ({ page, app }) => {
-        await app.open(NORTHLIGHT_IMPORT_URL);
+        test.skip(!OTHER_DATASET, NO_OTHER_DATASET);
+        await app.open(OTHER_IMPORT_URL);
         await app.recordToasts();
         const labelBefore = await app.databaseLabel.textContent();
         const handle = await databaseHandle(page);
@@ -1100,9 +1050,9 @@ test.describe("while an import runs, what could change the open database is refu
         await app.expectToasts([words.IMPORT_BUSY_MESSAGE]);
         expect(await isOpenDatabase(page, handle)).toBe(true);
         await expect(app.databaseLabel).toHaveText(labelBefore);
-        await expect(app.databaseItem("northlight")).toHaveAttribute("aria-checked", "true");
+        await expect(app.databaseItem(OTHER_DATASET.id)).toHaveAttribute("aria-checked", "true");
         await expect(app.databaseItem(DEFAULT_DATASET.id)).toHaveAttribute("aria-checked", "false");
-        await expect(page).toHaveURL(/db=northlight/);
+        await expect(page).toHaveURL(new RegExp(`db=${OTHER_DATASET.id}`));
         await finishHeld(app, held);
         await expect(app.databaseLabel).toHaveText("people");
     });
@@ -1235,17 +1185,18 @@ test.describe("while an import runs, what could change the open database is refu
     });
 
     test("Back and Forward open nothing, and the address is put back", async ({ page, app }) => {
-        await app.open(NORTHLIGHT_IMPORT_URL);
-        // a history of the page's own: Northlight, the default database, and back to Northlight,
-        // with a Forward to give
+        test.skip(!OTHER_DATASET, NO_OTHER_DATASET);
+        await app.open(OTHER_IMPORT_URL);
+        // a history of the page's own: a course database that is not the default, the default
+        // database, and back to the first, with a Forward to give
         await app.pickDatabaseById(DEFAULT_DATASET.id);
         await expect(page).toHaveURL(new RegExp(`db=${DEFAULT_DATASET.id}`));
         await page.evaluate(() => history.back());
-        await expect(page).toHaveURL(/db=northlight/);
-        await expect(app.databaseLabel).toHaveText(/Northlight/);
+        await expect(page).toHaveURL(new RegExp(`db=${OTHER_DATASET.id}`));
+        await expect(app.databaseLabel).toHaveText(OTHER_DATASET.name);
         await app.waitReady();
         // (the toast of that load is on screen before the recording starts)
-        await expect(app.toast).toContainText("Opened Northlight");
+        await expect(app.toast).toContainText(`Opened ${OTHER_DATASET.name}`);
         await app.recordToasts();
         const handle = await databaseHandle(page);
         const held = await holdImport(page, app);
@@ -1258,7 +1209,7 @@ test.describe("while an import runs, what could change the open database is refu
         await page.waitForTimeout(300);
         expect(await page.evaluate(() => location.href)).toBe(href);
         expect(await isOpenDatabase(page, handle)).toBe(true);
-        await expect(app.databaseLabel).toHaveText(/Northlight/);
+        await expect(app.databaseLabel).toHaveText(OTHER_DATASET.name);
         expect(new Set(await app.toasts())).toEqual(new Set([words.IMPORT_BUSY_MESSAGE]));
         await finishHeld(app, held);
         await expect(app.databaseLabel).toHaveText("people");
@@ -1285,6 +1236,7 @@ test.describe("while an import runs, a drop is ignored", () => {
 
 test.describe("while an import runs, an exercise set stays as it is", () => {
     test("Check checks nothing and marks nothing, and the set picker keeps the open set", async ({ page, app }) => {
+        test.skip(!SET, "no exercise set that the site can open ships");
         await page.goto(`./?set=${SET.id}&preview=import`);
         await expect(app.exercisePanel).toBeVisible();
         await app.waitReady();
@@ -1301,8 +1253,8 @@ test.describe("while an import runs, an exercise set stays as it is", () => {
         const stored = await page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? "null"), progressKey(SET));
         expect(stored?.passed ?? {}).toEqual({});
         await expect(app.pane).not.toHaveAttribute("data-state", "result");
-        // another set, and None
-        for (const label of [OTHER_SET.title, "None"]) {
+        // another set (when the site has one), and None
+        for (const label of [...(OTHER_SET ? [OTHER_SET.title] : []), "None"]) {
             await page.evaluate((text) => {
                 document.querySelector("#exercise-set-picker").click();
                 const item = [...document.querySelectorAll('#exercise-set-menu [role="menuitemradio"]')].find((el) => el.textContent.trim() === text);
@@ -1321,64 +1273,6 @@ test.describe("while an import runs, an exercise set stays as it is", () => {
 
 // ---- 6. Cancel leaves nothing ----------------------------------------------------------------------------
 
-// slowDown makes every turn the import gives the page last about 15 ms, so that a file of 200,000
-// rows takes a few seconds and Cancel can be pressed in the middle of it. The browser's own
-// scheduler.yield is replaced where it exists; where it does not, the page uses a MessageChannel,
-// and the port's postMessage is delayed.
-const slowDown = (page) =>
-    page.evaluate(() => {
-        if (globalThis.scheduler && typeof globalThis.scheduler.yield === "function") {
-            globalThis.scheduler.yield = () => new Promise((resolve) => setTimeout(resolve, 15));
-        } else {
-            const post = MessagePort.prototype.postMessage;
-            MessagePort.prototype.postMessage = function (...args) {
-                setTimeout(() => post.apply(this, args), 15);
-            };
-        }
-    });
-
-// what the page was before an import that is going to be cancelled
-async function snapshot(page, app) {
-    return {
-        handle: await databaseHandle(page),
-        name: await page.evaluate(() => window.app.database.name),
-        href: await page.evaluate(() => location.href),
-        title: await page.title(),
-        label: await app.databaseLabel.textContent(),
-        tables: await names(app),
-        eventKeys: await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("sqllab.events."))),
-    };
-}
-
-// waitUntilIdle: the page takes a Run again. (A Run is refused while an import is running, and a
-// cancelled one is running until it has undone itself, so this is when it has ended.)
-async function waitUntilIdle(app) {
-    await expect(async () => {
-        await app.run("SELECT 1 AS idle");
-        await expect(app.pane).toHaveAttribute("data-state", "result", { timeout: 1000 });
-    }).toPass({ timeout: 20_000 });
-}
-
-// everything a cancelled import must leave as it was
-async function expectNothingLeft(page, app, before, { logKeys = [] } = {}) {
-    await waitUntilIdle(app);
-    expect(await isOpenDatabase(page, before.handle)).toBe(true);
-    expect(await page.evaluate(() => window.app.database.name)).toBe(before.name);
-    expect(await names(app)).toEqual(before.tables);
-    expect(await app.rows("SELECT name FROM sqlite_temp_schema")).toEqual([]);
-    expect(await page.evaluate(() => location.href)).toBe(before.href);
-    expect(await page.title()).toBe(before.title);
-    await expect(app.databaseLabel).toHaveText(before.label);
-    // no event was recorded, in storage or in the page's memory
-    const { found, stored } = await eventsOf(page, logKeys);
-    expect(stored).toEqual(before.eventKeys);
-    for (const key of logKeys) {
-        expect(found[key]).toEqual([]);
-    }
-    // no report on screen
-    await expect(app.pane).not.toHaveAttribute("data-state", "report");
-}
-
 // startAndWaitForProgress starts the import of the files already in the dialog, and waits until the bar has moved
 async function startAndWaitForProgress(page, app) {
     await expect(app.importSubmit).toBeEnabled();
@@ -1387,7 +1281,7 @@ async function startAndWaitForProgress(page, app) {
     await expect(bar).toBeVisible();
     await expect.poll(() => bar.evaluate((el) => el.value), { timeout: 20_000 }).toBeGreaterThan(0);
     // (part of the way, not full at the first slice: what is done of what there is, not the
-    // other way round, which the sweep by mutation of the eighth round found no test told apart)
+    // other way round, which no other test told apart)
     expect(await bar.evaluate((el) => el.value), "the bar is part of the way").toBeLessThan(1);
 }
 
@@ -1462,6 +1356,19 @@ test.describe("Cancel leaves nothing", () => {
         expect(await page.evaluate(() => window.app.database.capi.sqlite3_get_autocommit(window.app.database.db.pointer))).toBe(0);
         expect(await app.rows("SELECT name FROM fruit WHERE id = 900")).toEqual([["kiwi"]]);
         expect(await app.connections()).toEqual([]);
+        // the import's savepoint is gone from inside the student's transaction: it was undone and
+        // ended, and nothing of it waits to be ended by their COMMIT or ROLLBACK
+        // (the name is the code's own, so that it follows the code if it is ever changed)
+        const { SAVEPOINT } = await load("import-db.js");
+        const release = await page.evaluate((name) => {
+            try {
+                window.app.database.db.exec(`release ${name}`);
+                return "released";
+            } catch (error) {
+                return String(error.message);
+            }
+        }, SAVEPOINT);
+        expect(release, "the import's savepoint is still on the connection's stack").toMatch(/no such savepoint/i);
         await app.run("ROLLBACK;");
         expect(await app.rows("SELECT count(*) FROM fruit WHERE id = 900")).toEqual([[0]]);
     });
@@ -1479,6 +1386,360 @@ test.describe("Cancel leaves nothing", () => {
         expect(await app.rows("SELECT name FROM fruit WHERE id = 900")).toEqual([["kiwi"]]);
         await app.run("ROLLBACK;");
         expect(await app.rows("SELECT count(*) FROM fruit WHERE id = 900")).toEqual([[0]]);
+    });
+});
+
+// ---- 6a. the dialog's keys while an import runs ---------------------------------------------------------
+
+// Once the import runs, the focus is on Cancel. A key that is held down repeats, so Enter held on
+// Import would go on to press Cancel; and the browser tells the dialog of Escape (the "cancel"
+// event) before it closes it and tells of the closing (the "close" event) in a task of its own, so
+// a step of the import that was waiting for its turn can run in between.
+
+// holdLastTurn: the import's last turn (the one it takes after the copy into the typed table, the
+// table `table` of the open database) is held until the page lets it go with __hold.release().
+// The page's clock is stood still from `arm()` until then, so that the pace always takes a turn
+// and never waits for a frame (which it does when 150 ms have passed since it last drew). Where
+// the browser has scheduler.yield the turn is that; where not it is the message the page sends
+// itself.
+async function holdLastTurn(page, table) {
+    await page.evaluate((name) => {
+        const hold = { armed: false, held: false, frozen: null, release: null };
+        window.__hold = hold;
+        const clock = performance.now.bind(performance);
+        performance.now = () => hold.frozen ?? clock();
+        const copied = () => window.app.database.db.selectValue("SELECT count(*) FROM sqlite_schema WHERE name = ?", [name]) === 1;
+        const wait = (go) => {
+            hold.held = true;
+            hold.release = () => {
+                hold.release = null;
+                hold.armed = false;
+                hold.frozen = null;
+                go();
+            };
+        };
+        hold.arm = () => {
+            hold.frozen = clock();
+            hold.armed = true;
+        };
+        if (typeof globalThis.scheduler?.yield === "function") {
+            globalThis.scheduler.yield = () =>
+                new Promise((resolve) => {
+                    if (hold.armed && copied()) {
+                        wait(resolve);
+                    } else {
+                        setTimeout(resolve, 0);
+                    }
+                });
+        } else {
+            const post = MessagePort.prototype.postMessage;
+            MessagePort.prototype.postMessage = function (...args) {
+                if (hold.armed && copied()) {
+                    wait(() => post.apply(this, args));
+                } else {
+                    post.apply(this, args);
+                }
+            };
+        }
+    }, table);
+}
+
+test.describe("keys in the dialog while an import runs", () => {
+    // the import is held where it waits for the reader, with the key's own press on Import
+    async function pressImportWithEnter(page, app) {
+        const held = await holdVendor(page, "papaparse.min.js", { pass: 1 });
+        await app.chooseFiles(csv());
+        await expect(app.importDialog).toBeVisible();
+        await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
+        await expect(app.importSubmit).toBeEnabled();
+        await page.evaluate(() => {
+            delete window.Papa;
+        });
+        await app.importSubmit.focus();
+        await page.keyboard.down("Enter");
+        await expect(app.importDialog.locator(".import-progress")).toBeVisible();
+        await expect(app.importCancel).toBeFocused();
+        return held;
+    }
+
+    test("Enter held on Import starts the import and does not press Cancel: the import ends with its table, and no toast but its own", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        await app.recordToasts();
+        const held = await pressImportWithEnter(page, app);
+        // the key goes on repeating (the second press while the key is down is an auto-repeat)
+        await page.keyboard.down("Enter");
+        await page.keyboard.down("Enter");
+        await page.keyboard.up("Enter");
+        await expect(app.importDialog.locator(".import-progress")).toBeVisible();
+        await expect(app.importCancel).toBeFocused();
+        await finishHeld(app, held);
+        await expect(app.databaseLabel).toHaveText("people");
+        expect(await app.rows("SELECT count(*) FROM people")).toEqual([[2]]);
+        await app.expectToasts([words.importedMessage(1, "people")]);
+    });
+
+    // The key is still down when the dialog has gone, and it goes on repeating: each repeat goes to
+    // whatever has the keyboard focus then, and must do nothing (js/lab/held-enter.js). Where the
+    // focus is does not matter to the test: the editor's text, the open database, the menus and
+    // the toasts are read.
+    const repeatEnter = async (page, times = 3) => {
+        for (let n = 0; n < times; n++) {
+            await page.keyboard.down("Enter");
+        }
+        // (the page is given its frames: what a repeated key would do is done by then)
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    };
+
+    test("Enter held on Import: once the import has ended and the dialog has closed, the repeats type nothing into the editor and press nothing, and when the key is let go Enter makes a line again", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        await app.recordToasts();
+        const held = await pressImportWithEnter(page, app);
+        await finishHeld(app, held);
+        await expect(app.databaseLabel).toHaveText("people");
+        await app.expectToasts([words.importedMessage(1, "people")]);
+        // the key is down still: what it would do wherever the focus is (the editor takes a line,
+        // a button is pressed)
+        const text = await editorValue(page);
+        const handle = await databaseHandle(page);
+        await repeatEnter(page);
+        expect(await editorValue(page)).toBe(text);
+        await expect(page.locator(":popover-open")).toHaveCount(0);
+        await expect(page.locator("dialog[open]")).toHaveCount(0);
+        expect(await isOpenDatabase(page, handle)).toBe(true);
+        expect(await app.toasts()).toEqual([words.importedMessage(1, "people")]);
+        // the key is let go, and Enter in the editor is a line as ever
+        await page.keyboard.up("Enter");
+        await app.editor.click();
+        await page.keyboard.press("Control+End");
+        await page.keyboard.press("Enter");
+        expect(await editorValue(page)).toBe(`${text}\n`);
+    });
+
+    test("Enter held on Cancel: the dialog closes, and what gets the focus back (a button that opens a menu) is not pressed by the repeats", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        await app.recordToasts();
+        const handle = await databaseHandle(page);
+        // the focus goes back to where it was before the dialog opened: a button that opens a menu
+        await app.databaseButton.focus();
+        await app.chooseFiles(csv());
+        await expect(app.importDialog).toBeVisible();
+        await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
+        await app.importCancel.focus();
+        await page.keyboard.down("Enter");
+        await expect(app.importDialog).toBeHidden();
+        await expect(app.databaseButton).toBeFocused();
+        const text = await editorValue(page);
+        await repeatEnter(page);
+        await expect(page.locator(":popover-open")).toHaveCount(0);
+        await expect(page.locator("dialog[open]")).toHaveCount(0);
+        expect(await editorValue(page)).toBe(text);
+        expect(await isOpenDatabase(page, handle)).toBe(true);
+        expect(await app.toasts()).toEqual([]);
+        expect(await eventKeys(page)).toEqual([]);
+        await page.keyboard.up("Enter");
+    });
+
+    test("a single press of Enter on Cancel still cancels the import", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        const before = await snapshot(page, app);
+        const held = await pressImportWithEnter(page, app);
+        await page.keyboard.up("Enter");
+        await page.keyboard.press("Enter");
+        await expect(app.importDialog).toBeHidden();
+        held.open();
+        await expectNothingLeft(page, app, before, { logKeys: ["northlight", "file:people"] });
+    });
+
+    test("Escape stops the import at once: a step that was waiting for its turn finds it cancelled, and the import is undone", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        await app.upload(SAMPLE_FILE);
+        await expect(app.toast).toContainText("sample.db");
+        await app.recordToasts();
+        // (the snapshot holds the bytes of the database too: no transaction of the student's is
+        // open, so the import's savepoint is a transaction of its own, and undoing it must leave
+        // the file as it was to the byte, the change counter of its header included)
+        const countsBefore = await app.rows("SELECT (SELECT count(*) FROM fruit), (SELECT count(*) FROM tags)");
+        const before = await snapshot(page, app);
+        await holdLastTurn(page, "people");
+        await app.chooseFiles(csv());
+        await expect(app.importDialog).toBeVisible();
+        await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
+        await app.importDialog.locator("#import-into-open").check();
+        // A listener of the test's own, added after the dialog's, so that it runs after it: when the
+        // dialog is told of Escape it lets the waiting step go. That step then runs before the
+        // browser's "close" event, which is the moment this test is about.
+        await page.evaluate(() => {
+            document.getElementById("import-dialog").addEventListener("cancel", () => window.__hold.release?.());
+            window.__hold.arm();
+        });
+        await expect(app.importSubmit).toBeEnabled();
+        await app.importSubmit.click();
+        await page.waitForFunction(() => window.__hold.held);
+        // (the table is made and the import waits for its last turn)
+        expect(await app.rows("SELECT count(*) FROM people")).toEqual([[2]]);
+        await page.keyboard.press("Escape");
+        await expect(app.importDialog).toBeHidden();
+        // the import was cancelled and undone: no table, no event, no toast, no report, and not a
+        // byte of the open database changed (with the step let through, it would have ended: the
+        // table made, the event kept, "Imported 1 table" said)
+        await expectNothingLeft(page, app, before, { logKeys: ["file:sample.db"] });
+        await app.expectToasts([]);
+        expect(await app.rows("SELECT count(*) FROM sqlite_schema WHERE name = 'people'")).toEqual([[0]]);
+        expect(await app.rows("SELECT (SELECT count(*) FROM fruit), (SELECT count(*) FROM tags)")).toEqual(countsBefore);
+    });
+
+    // The moment between the dialog going and the browser's "close" event, which comes a little
+    // later (1 to 15 ms): the kit's watchClosing hands a key to the page in it (a press of Enter
+    // that is not a repeat, to the window; or a repeat of Enter, to the element that has the focus)
+    // and closingSeen says what it found there. repeatTaken, of the kit too, says whether the page
+    // is taking repeats of Enter away.
+    const IMPORT_DIALOG = "#import-dialog";
+
+    async function chooseWithEditorFocused(page, app) {
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        await app.recordToasts();
+        await app.editor.click();
+        await app.chooseFiles(csv());
+        await expect(app.importDialog).toBeVisible();
+        await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
+    }
+
+    test("Escape: a repeat of Enter that comes after the dialog has gone and before its close event types nothing into the editor", async ({ page, app }) => {
+        await chooseWithEditorFocused(page, app);
+        const text = await editorValue(page);
+        await watchClosing(page, IMPORT_DIALOG);
+        await page.keyboard.press("Escape");
+        await expect(app.importDialog).toBeHidden();
+        await expect.poll(async () => (await closingSeen(page)).closeSeen).toBe(true);
+        const seen = await closingSeen(page);
+        // (the moment was the one meant: before the event, and with the focus back in the editor)
+        expect(seen.at).toBe(true);
+        expect(seen.beforeClose).toBe(true);
+        expect(seen.focus).toBe("editor");
+        // ("taken" only shows that someone took the key, the page or the editor: the editor takes a
+        // repeat of Enter for its own key, so it is true with or without the page's guard. What
+        // tells the two apart is the editor's text, unchanged)
+        expect(seen.taken).toBe(true);
+        expect(await editorValue(page)).toBe(text);
+    });
+
+    for (const way of ["Escape", "Cancel"]) {
+        test(`${way}: a press of Enter that is not a repeat, in that same moment, is not followed by a new guard once the close event has come`, async ({ page, app }) => {
+            await chooseWithEditorFocused(page, app);
+            await watchClosing(page, IMPORT_DIALOG, { freshPress: true });
+            if (way === "Escape") {
+                await page.keyboard.press("Escape");
+            } else {
+                await app.importCancel.click();
+            }
+            await expect(app.importDialog).toBeHidden();
+            await expect.poll(async () => (await closingSeen(page)).closeSeen).toBe(true);
+            const seen = await closingSeen(page);
+            expect(seen.at).toBe(true);
+            expect(seen.beforeClose).toBe(true);
+            // the key that was pressed in the gap is down still, and its repeats are not taken away
+            expect(await repeatTaken(page)).toBe(false);
+        });
+    }
+
+    test("Escape a second time in one visit: a repeat of Enter between the dialog going and its close event types nothing into the editor", async ({ page, app }) => {
+        await chooseWithEditorFocused(page, app);
+        const text = await editorValue(page);
+        await page.keyboard.press("Escape");
+        await expect(app.importDialog).toBeHidden();
+        // a press of Enter that is not a repeat: the first closing's guard of held keys is over
+        await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true })));
+        // the same files chosen again, in the same visit
+        await app.chooseFiles(csv());
+        await expect(app.importDialog).toBeVisible();
+        await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
+        await watchClosing(page, IMPORT_DIALOG);
+        await page.keyboard.press("Escape");
+        await expect(app.importDialog).toBeHidden();
+        await expect.poll(async () => (await closingSeen(page)).closeSeen).toBe(true);
+        const seen = await closingSeen(page);
+        expect(seen.at).toBe(true);
+        expect(seen.beforeClose).toBe(true);
+        expect(seen.focus).toBe("editor");
+        // (the editor takes a repeat of Enter for its own key, so "taken" is true either way: what
+        // shows that the page took it away first is the text, unchanged)
+        expect(await editorValue(page), "the repeat typed an empty line into the editor").toBe(text);
+    });
+
+    test("an import that ends by itself: a repeat of Enter between the dialog going and its close event types nothing into the editor", async ({ page, app }) => {
+        await chooseWithEditorFocused(page, app);
+        const text = await editorValue(page);
+        await expect(app.importSubmit).toBeEnabled();
+        await watchClosing(page, IMPORT_DIALOG);
+        await app.importSubmit.click();
+        await expect(app.importDialog).toBeHidden();
+        await expect.poll(async () => (await closingSeen(page)).closeSeen).toBe(true);
+        const seen = await closingSeen(page);
+        expect(seen.at).toBe(true);
+        expect(seen.beforeClose).toBe(true);
+        expect(seen.focus).toBe("editor");
+        expect(await editorValue(page), "the repeat typed an empty line into the editor").toBe(text);
+    });
+
+    test("a dialog that is closed from script, with no Escape and no button, is still cleared: repeats are taken away, and files chosen again show only their own tabs", async ({ page, app }) => {
+        await chooseWithEditorFocused(page, app);
+        expect(await app.importTabs.count()).toBe(1);
+        expect(await repeatTaken(page)).toBe(false);
+        await page.evaluate(() => document.querySelector("#import-dialog").close());
+        await expect(app.importDialog).toBeHidden();
+        await expect.poll(() => repeatTaken(page), { message: "repeats of Enter are taken away once the dialog has closed" }).toBe(true);
+        await expect(app.importTabs, "the tabs of the closed dialog are gone").toHaveCount(0);
+        // the same dialog, opened again for two other files, shows those and no others
+        await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true })));
+        await app.chooseFiles([csv("one.csv"), csv("two.csv")]);
+        await expect(app.importDialog).toBeVisible();
+        await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
+        await expect(app.importTabs).toHaveCount(2);
+        await expect(app.importTabs.nth(0)).toContainText("one.csv");
+        await expect(app.importTabs.nth(1)).toContainText("two.csv");
+    });
+
+    test("a cancel event that comes up from inside the dialog is not Escape: nothing ends, and Import still imports", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        await app.chooseFiles(csv());
+        await expect(app.importDialog).toBeVisible();
+        await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
+        const tabs = await app.importTabs.count();
+        expect(tabs).toBeGreaterThan(0);
+        await app.importTabs.first().evaluate((tab) => tab.dispatchEvent(new Event("cancel", { bubbles: true })));
+        // (the session has not ended: no guard of a held Enter, the tabs and the preview are there)
+        expect(await repeatTaken(page)).toBe(false);
+        await expect(app.importDialog).toBeVisible();
+        await expect(app.importTabs).toHaveCount(tabs);
+        await expect(app.importPanel.locator(".import-preview-table")).toBeVisible();
+        await app.importSubmit.click();
+        await expect(app.importDialog).toBeHidden();
+        await expect(app.databaseLabel).toHaveText("people");
+        expect(await app.rows("SELECT count(*) FROM people")).toEqual([[2]]);
+    });
+
+    test("Enter held on a tab of the idle dialog, then Escape: the repeats type nothing into the editor and open nothing, and when the key is let go Enter makes a line again", async ({ page, app }) => {
+        await chooseWithEditorFocused(page, app);
+        const text = await editorValue(page);
+        const handle = await databaseHandle(page);
+        await app.importTabs.first().focus();
+        await page.keyboard.down("Enter");
+        // the dialog takes the repeats of the key itself, and stays open under them
+        await page.keyboard.down("Enter");
+        await expect(app.importDialog).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(app.importDialog).toBeHidden();
+        await repeatEnter(page);
+        expect(await editorValue(page)).toBe(text);
+        await expect(page.locator(":popover-open")).toHaveCount(0);
+        await expect(page.locator("dialog[open]")).toHaveCount(0);
+        expect(await isOpenDatabase(page, handle)).toBe(true);
+        expect(await app.toasts()).toEqual([]);
+        await page.keyboard.up("Enter");
+        await app.editor.click();
+        await page.keyboard.press("Control+End");
+        await page.keyboard.press("Enter");
+        expect(await editorValue(page)).toBe(`${text}\n`);
     });
 });
 
@@ -1676,8 +1937,7 @@ test.describe("the copy into the typed table runs in steps, and shows its progre
 // js/lab/import-pace.js gives the page its turn with scheduler.yield and, where a browser has
 // none (Safari, which was never run here), with a message on a channel of its own. Chromium and
 // Firefox both have scheduler.yield, so no other test goes that second way: these take it away
-// before the page loads. (The sweep by mutation of the eighth round: five changes that break
-// the second way passed every test.)
+// before the page loads. (Five changes that break the second way passed every other test.)
 test.describe("in a browser without scheduler.yield the import takes its turns another way", () => {
     test.beforeEach(async ({ page }) => {
         await page.addInitScript(() => {
@@ -1896,8 +2156,6 @@ async function limitPages(app, spare = 3) {
     await app.rows(`PRAGMA max_page_count = ${count + spare}`);
 }
 
-// 1 when no transaction is open on the connection, 0 when one is
-const autocommit = (page) => page.evaluate(() => window.app.database.capi.sqlite3_get_autocommit(window.app.database.db.pointer));
 
 test.describe("an import that fills a database with a page limit fails, and says what became of the student's transaction", () => {
     async function openFullSample(page, app) {
@@ -2038,6 +2296,47 @@ test.describe("an import that runs the browser out of memory fails, and says wha
         expect(await app.query("SELECT 2 + 2 AS four")).toEqual({ columns: ["four"], rows: [["4"]] });
     });
 
+    // The engine's allocator can fail where no statement does: the page's own call that makes room
+    // for a statement throws a WasmAllocError instead of an engine error. While the rows of the file
+    // are staged that is the same lack of memory, and is said as one (not as a file that cannot be
+    // read).
+    test("into the open database, the engine's allocator failing while the rows are staged is told as a lack of memory, and nothing is left", async ({ page, app }) => {
+        await app.open(IMPORT_URL);
+        await app.upload(SAMPLE_FILE);
+        const before = await names(app);
+        const handle = await databaseHandle(page);
+        await app.chooseFiles(csv());
+        await expect(app.importDialog).toBeVisible();
+        await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
+        await app.importDialog.locator("#import-into-open").check();
+        await expect(app.importSubmit).toBeEnabled();
+        await page.evaluate(() => {
+            const { db } = window.app.database;
+            const prepare = db.prepare.bind(db);
+            db.prepare = (sql, ...more) => {
+                if (/insert into temp\..*import_stage/i.test(sql)) {
+                    const error = new Error("allocation failed");
+                    error.name = "WasmAllocError";
+                    throw error;
+                }
+                return prepare(sql, ...more);
+            };
+        });
+        await app.importSubmit.click();
+        const error = app.importDialog.locator("#import-error");
+        await expect(error).toHaveText(words.IMPORT_OUT_OF_MEMORY_MESSAGE);
+        await expect(error).toHaveAttribute("role", "alert");
+        await expect(app.importDialog).toBeVisible();
+        await expect(app.importDialog.locator(".import-progress")).toBeHidden();
+        expect(await isOpenDatabase(page, handle)).toBe(true);
+        expect(await names(app)).toEqual(before);
+        expect(await app.rows("SELECT name FROM sqlite_temp_schema")).toEqual([]);
+        expect(await autocommit(page)).toBe(1);
+        expect(await eventKeys(page)).toEqual([]);
+        await app.importCancel.click();
+        await expect(app.importDialog).toBeHidden();
+    });
+
     test("into a new database the transaction is not mentioned: it is in the open database, which the failure did not touch", async ({ page, app }) => {
         await app.open(IMPORT_URL);
         await app.upload(SAMPLE_FILE);
@@ -2062,10 +2361,10 @@ test.describe("an import that runs the browser out of memory fails, and says wha
 });
 
 test.describe("a TEMP table or view takes its name from the open database's files", () => {
-    // (The sweep by mutation of the eighth round. The names that the destination holds were kept
-    // as written, where SQLite takes A to Z for a to z: a table Sales did not stand in the way of
-    // sales.csv, which was then suggested as sales, and the import failed in the engine. Every
-    // test of a taken name had a table written as the file was.)
+    // (The names that the destination holds must be compared as SQLite does, which takes A to Z for
+    // a to z: a table Sales stands in the way of sales.csv, which must not be suggested as sales,
+    // or the import fails in the engine. Every other test of a taken name had a table written as
+    // the file was.)
     test("a name is taken in whatever letter case the database has it: with a table Sales, sales.csv is suggested sales_2 and sales is refused as taken", async ({ app }) => {
         await app.open(IMPORT_URL);
         await app.upload(SAMPLE_FILE);
@@ -2079,9 +2378,9 @@ test.describe("a TEMP table or view takes its name from the open database's file
         expect(await app.rows("SELECT name FROM sqlite_schema WHERE name LIKE 'sales%' ORDER BY name")).toEqual([["Sales"]]);
     });
 
-    // (The same sweep. The name for the staging table was looked for among the database's own
-    // tables, where the staging table is a TEMP one: a TEMP table the student had made under
-    // that name then made every import fail.)
+    // (The name for the staging table must be looked for among the TEMP tables, where the staging
+    // table is made: looked for among the database's own tables, a TEMP table the student had
+    // made under that name made every import fail.)
     for (const mine of ["import_stage", "IMPORT_STAGE"]) {
         test(`a TEMP table of the student's called ${mine} is not in the way of an import, and is as it was afterwards`, async ({ app }) => {
             await app.open(IMPORT_URL);
@@ -2329,7 +2628,7 @@ test.describe("when the browser cannot keep the events", () => {
         await expect(app.summary).toContainText(words.importedMessage(1, "people"));
         expect(await app.rows("SELECT count(*) FROM people")).toEqual([[2]]);
         await expect(page.locator("#storage-notice")).toBeVisible();
-        await expect(page.locator("#storage-notice")).toHaveText(words.STORAGE_NOTICE_EVENTS);
+        await expect(page.locator("#storage-notice")).toHaveText(importNotice());
         // nothing was stored, and the evidence exported from this page has the event all the same
         expect(await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("sqllab.events.")))).toEqual([]);
         await app.run("SELECT * FROM people");
@@ -2344,11 +2643,7 @@ test.describe("when the browser cannot keep the events", () => {
     // they are stored. The log key of an import into a new database is the new database's own
     // ("file:people"), so the second import of these tests goes into the open one: the same key.
     const eventsKey = (key) => `${words.EVENTS_PREFIX}${key}`;
-    const storedEvents = (page, key) =>
-        page.evaluate((storageKey) => {
-            const text = localStorage.getItem(storageKey);
-            return text === null ? null : JSON.parse(text).events.map((event) => event.lines);
-        }, eventsKey(key));
+    const storedEvents = (page, key) => storedEventLines(page, eventsKey(key));
     const fileLine = (file) => words.importEventFileLine(file.name, file.buffer.length);
 
     test("with storage that works the notice is not shown after an import", async ({ page, app }) => {
@@ -2366,6 +2661,19 @@ test.describe("when the browser cannot keep the events", () => {
         expect(await storedEvents(page, "file:people")).toHaveLength(2);
     });
 
+    test("the notice says, word for word, what it said when the import was the only thing that could be noted down", async ({ page, app }) => {
+        // (typed again on purpose: the import's own words must not change unseen)
+        const sentence =
+            "Your browser could not save the record of the files you brought in. It is kept until this tab is closed: export your evidence before you close it.";
+        expect(importNotice()).toBe(sentence);
+        await failStorage(page, { prefix: words.EVENTS_PREFIX, on: false });
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        await setStorageFailing(page, true);
+        await app.importFiles(csv("people.csv"));
+        await expect(page.locator("#storage-notice")).toBeVisible();
+        await expect(page.locator("#storage-notice")).toHaveText(sentence);
+    });
+
     test("an import while the browser cannot keep events shows the notice, and the next one that can be stored hides it and stores both", async ({ page, app }) => {
         await failStorage(page, { prefix: words.EVENTS_PREFIX, on: false });
         await app.open(NORTHLIGHT_IMPORT_URL);
@@ -2374,7 +2682,7 @@ test.describe("when the browser cannot keep the events", () => {
         const first = csv("people.csv");
         await app.importFiles(first);
         await expect(notice).toBeVisible();
-        await expect(notice).toHaveText(words.STORAGE_NOTICE_EVENTS);
+        await expect(notice).toHaveText(importNotice());
         expect(await storedEvents(page, "file:people")).toBeNull();
         // storage works again: the next import is stored, with what the page held back before it
         await setStorageFailing(page, false);
@@ -2401,7 +2709,7 @@ test.describe("when the browser cannot keep the events", () => {
         // what is stored is as it was, byte for byte; the notice says that events are in memory alone
         expect(await page.evaluate((key) => localStorage.getItem(key), eventsKey("file:people"))).toBe(later);
         await expect(notice).toBeVisible();
-        await expect(notice).toHaveText(words.STORAGE_NOTICE_EVENTS);
+        await expect(notice).toHaveText(importNotice());
         const { found } = await eventsOf(page, ["file:people"]);
         expect(found["file:people"].map((event) => event.lines[0])).toEqual([fileLine(first)]);
         // the evidence exported from this page has the import
@@ -2881,7 +3189,7 @@ test.describe("the open database is offered as the destination when it is not a 
 // ---- 14. the notice for events that cannot be stored, under axe -------------------------------------------------
 
 // UI plan, section 8, and the assessment plan, section 9: every new banner passes axe, in light and
-// dark. The notice is #storage-notice with STORAGE_NOTICE_EVENTS (section 8 above gets the page there).
+// dark. The notice is #storage-notice with the sentence for the import alone (section 8 above gets the page there).
 test.describe("axe finds no serious or critical violation with the notice for events that cannot be stored on show", () => {
     for (const viewport of [
         { name: "desktop", width: 1366, height: 768 },
@@ -2897,7 +3205,7 @@ test.describe("axe finds no serious or critical violation with the notice for ev
                 await app.importFiles(csv("people.csv"));
                 const notice = page.locator("#storage-notice");
                 await expect(notice).toBeVisible();
-                await expect(notice).toHaveText(words.STORAGE_NOTICE_EVENTS);
+                await expect(notice).toHaveText(importNotice());
                 await page.evaluate(() => document.fonts.ready);
                 const results = await new AxeBuilder({ page }).analyze();
                 const serious = results.violations

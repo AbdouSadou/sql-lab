@@ -63,6 +63,7 @@ const STYLES = [
     "css/result.css",
     "css/evidence.css",
     "css/import.css",
+    "css/export-tables.css",
     "css/toast.css",
 ];
 

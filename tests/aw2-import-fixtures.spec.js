@@ -419,7 +419,7 @@ test.describe("several files at once", () => {
         // one new database was made, and it is the open one
         expect(await app.connections()).toEqual([{ name: "messy_sales", open: true }]);
         // the report has a section for each table, and the line over it counts the three (with
-        // one table said for three, every test passed: the sweep by mutation of the eighth round)
+        // one table said for three, every test passed: a sweep of the code by mutation found it)
         await expect(page.locator("#results-pane .import-report section")).toHaveCount(3);
         await expect(app.summary).toContainText(words.importedMessage(3, "messy_sales"));
     });
@@ -901,7 +901,7 @@ test.describe("what the plan decides and no fixture holds (plan section 9), thro
     }
 });
 
-// ---- two edges that a sweep of the code by mutation found unheld (the eighth round) --------------------
+// ---- two edges that a sweep of the code by mutation found unheld ---------------------------------------
 
 test.describe("edges that a sweep of the code by mutation found unheld, through the page", () => {
     // What a file is, is read from its first HEAD_BYTES (js/lab/import-text.js), white space
