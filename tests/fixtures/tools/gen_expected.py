@@ -19,7 +19,7 @@ QUESTIONS = {
            'Literal: the first row is the header. Each affected fixture also gives the result if the preview let the student pick the header row.'),
     'Q2': ('Reserved words as names',
            'A column or table called Order, Group or Select must be quoted in every query, which the naming rule set out to avoid.',
-           'Literal: the name is kept as it is.'),
+           'Literal: the name is kept as it is, and the import report lists each name that must be written in double quotes (plan section 10).'),
     'Q3': ('Accented letters in names',
            'Is é one of the "other characters" that become an underscore?',
            'Yes: only A to Z, a to z, 0 to 9 and underscore are kept, so Café becomes Caf_.'),
@@ -79,7 +79,7 @@ QUESTIONS = {
             'Accepted. export.json lists the exact differences for each table, so the round-trip check can allow for them.'),
     'Q22': ('Exporting a BLOB',
             'The plan does not say.',
-            'Undecided: there is no expected CSV for mixed_types.'),
+            'Written as the results pane shows one, x\'deadbeef\' (lower-case hex), in a CSV (plan section 10). mixed_types has an expected CSV.'),
     'Q23': ('Line ending on export',
             'The plan does not say.',
             'CRLF after every record, including the last. Line breaks inside a field are left as stored.'),
@@ -298,7 +298,7 @@ def build(root):
     import gen_export
     con = sqlite3.connect('file:%s?mode=ro' % os.path.join(root, 'export', 'export_edge_cases.db'), uri=True)
     goldens = {'basic': 'basic', 'text_edge': 'text_edge', 'number_edge': 'number_edge', 'dates_iso': 'dates_iso',
-               'Order Details': 'Order_Details', 'order': 'order', 'empty_table': 'empty_table', 'big_2000': 'big_2000',
+               'mixed_types': 'mixed_types', 'Order Details': 'Order_Details', 'order': 'order', 'empty_table': 'empty_table', 'big_2000': 'big_2000',
                'sales/2024': 'sales_2024', 'sales_2024': 'sales_2024_2', 'con': 'con',
                'v_basic_summary': 'v_basic_summary', gen_export.LONG_NAME: gen_export.LONG_NAME}
     tables = []
@@ -333,7 +333,7 @@ def build(root):
             entry['after_reimport'] = 'identical' if not diffs else diffs
         tables.append(entry)
     notes = {
-        'mixed_types': 'No expected CSV: row 5 holds a BLOB (Q22). The other rows show that one column can hold an integer, a real, text, NULL and an empty string.',
+        'mixed_types': 'Row 5 holds a BLOB, written as x\'deadbeef\' (Q22). One column holds an integer, a real, text, NULL, an empty string and a BLOB: each value is written by its own storage class.',
         'big_2000': 'Exactly 2,000 rows, more than the results pane shows. The export must hold 2,000 data lines.',
         'text_edge': 'Row 18 is 40,000 characters, longer than one Excel cell can hold (32,767). Rows 12 to 15 start with = + - @ and must stay text in the Excel export.',
         'number_edge': 'Rows 3 to 5 hold integers above 2^53. Read as ordinary JavaScript numbers they are silently rounded.',
@@ -347,7 +347,7 @@ def build(root):
         if t['name'] in notes:
             t['note'] = notes[t['name']]
     exp = {'fixture': 'export/export_edge_cases.db', 'covers': 'A database of tables chosen to stress the CSV and Excel export.',
-           'csv_rules': 'UTF-8 with a byte-order mark; comma; header row; a field is quoted when it holds a comma, a quote, a line break, or a leading or trailing space; NULL is an empty field; CRLF after every record (Q23); numbers as in Q20.',
+           'csv_rules': 'UTF-8 with a byte-order mark; comma; header row; a field is quoted when it holds a comma, a quote, a line break, or a leading or trailing space; NULL is an empty field; CRLF after every record (Q23); numbers as in Q20; a BLOB as x\'<hex>\' (Q22).',
            'zip': 'Exporting every table and view gives 14 entries. Entry names follow Q24.',
            'excel_export': {
                'one_sheet_per_table': True,

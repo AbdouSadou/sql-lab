@@ -7,7 +7,7 @@
  "Q2": {
   "title": "Reserved words as names",
   "question": "A column or table called Order, Group or Select must be quoted in every query, which the naming rule set out to avoid.",
-  "reading_used_here": "Literal: the name is kept as it is."
+  "reading_used_here": "Literal: the name is kept as it is, and the import report lists each name that must be written in double quotes (plan section 10)."
  },
  "Q3": {
   "title": "Accented letters in names",
@@ -107,7 +107,7 @@
  "Q22": {
   "title": "Exporting a BLOB",
   "question": "The plan does not say.",
-  "reading_used_here": "Undecided: there is no expected CSV for mixed_types."
+  "reading_used_here": "Written as the results pane shows one, x'deadbeef' (lower-case hex), in a CSV (plan section 10). mixed_types has an expected CSV."
  },
  "Q23": {
   "title": "Line ending on export",

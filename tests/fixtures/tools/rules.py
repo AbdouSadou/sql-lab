@@ -238,6 +238,9 @@ def xls_states(path):
 def export_number(v):
     if isinstance(v, int):
         return str(v)
+    if v in (float('inf'), float('-inf')):
+        # no digits can write it: the word the results pane shows (plan section 9, decided in Phase 3)
+        return 'Infinity' if v > 0 else '-Infinity'
     s = format(decimal.Decimal(repr(v)), 'f')
     return s if '.' in s else s + '.0'
 
@@ -247,6 +250,8 @@ def export_field(v):
         return ''
     if isinstance(v, (int, float)):
         return export_number(v)
+    if isinstance(v, (bytes, bytearray)):
+        return "x'%s'" % bytes(v).hex()   # as js/lab/cell-text.js writes a BLOB (plan section 10, Q22)
     if v != v.strip(' ') or any(ch in v for ch in ',"\r\n'):
         return '"' + v.replace('"', '""') + '"'
     return v

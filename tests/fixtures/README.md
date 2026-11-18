@@ -44,7 +44,7 @@ the reading in the last column. If the owner decides otherwise, change the readi
 | | Point | The question | Reading used here |
 | --- | --- | --- | --- |
 | Q1 | Header row not on the first row | Course files often have title lines above the column names. The plan only offers "the first row holds column names: yes or no". | Literal: the first row is the header. Each affected fixture also gives the result if the preview let the student pick the header row. |
-| Q2 | Reserved words as names | A column or table called Order, Group or Select must be quoted in every query, which the naming rule set out to avoid. | Literal: the name is kept as it is. |
+| Q2 | Reserved words as names | A column or table called Order, Group or Select must be quoted in every query, which the naming rule set out to avoid. | Literal: the name is kept as it is, and the import report lists each name that must be written in double quotes (plan section 10). |
 | Q3 | Accented letters in names | Is é one of the "other characters" that become an underscore? | Yes: only A to Z, a to z, 0 to 9 and underscore are kept, so Café becomes Caf_. |
 | Q4 | Underscores at the ends of names | "Amount (£)" becomes Amount_ and "% Change" becomes _Change. | Literal: nothing is trimmed. |
 | Q5 | Numbering of blank headers | Is a blank header in the fifth column called column_5 or column_1? | By position: column_5. A file with no header row gets column_1 to column_n. |
@@ -64,7 +64,7 @@ the reading in the last column. If the owner decides otherwise, change the readi
 | Q19 | Dates in January and February 1900 | Excel counts a 29 February 1900 that never existed (serial 60). | Follow Excel: serial 60 is 1900-02-29, serial 59 is 1900-02-28, serial 61 is 1900-03-01. |
 | Q20 | How numbers are written on export | The plan says plainly, with a decimal point and no rounding. JavaScript prints 1.0 as 1 and 0.0000001 as 1e-7. | A REAL always has a decimal point (1.0) and never an exponent (0.0000001). An INTEGER is written in full, including values above 2^53. |
 | Q21 | What cannot survive export then re-import | An empty string and NULL both export as an empty field. A text column holding only digits re-imports as INTEGER. | Accepted. export.json lists the exact differences for each table, so the round-trip check can allow for them. |
-| Q22 | Exporting a BLOB | The plan does not say. | Undecided: there is no expected CSV for mixed_types. |
+| Q22 | Exporting a BLOB | The plan does not say. | Written as the results pane shows one, x'deadbeef' (lower-case hex), in a CSV (plan section 10). mixed_types has an expected CSV. |
 | Q23 | Line ending on export | The plan does not say. | CRLF after every record, including the last. Line breaks inside a field are left as stored. |
 | Q24 | Names of exported files | Table names can hold characters a file name cannot (sales/2024), can collide once cleaned, and can be reserved on Windows (con). | The import naming rule is applied to the table name, and duplicates gain _2. con.csv is left as it is. |
 | Q25 | The Excel export | Added to the plan's decisions table after the fixtures were designed. Sheet names are limited to 31 characters, a cell to 32,767 characters. | export.json states what each sheet must hold. There is no binary file to compare against. |

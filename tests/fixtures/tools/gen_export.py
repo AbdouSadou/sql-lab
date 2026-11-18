@@ -78,7 +78,7 @@ def build(root):
     con.execute('VACUUM')
 
     goldens = {'basic': 'basic', 'text_edge': 'text_edge', 'number_edge': 'number_edge', 'dates_iso': 'dates_iso',
-               'Order Details': 'Order_Details', 'order': 'order', 'empty_table': 'empty_table', 'big_2000': 'big_2000',
+               'mixed_types': 'mixed_types', 'Order Details': 'Order_Details', 'order': 'order', 'empty_table': 'empty_table', 'big_2000': 'big_2000',
                'sales/2024': 'sales_2024', 'sales_2024': 'sales_2024_2', 'con': 'con',
                'v_basic_summary': 'v_basic_summary', LONG_NAME: LONG_NAME}
     for table, stem in goldens.items():

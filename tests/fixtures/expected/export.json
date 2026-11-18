@@ -1,7 +1,7 @@
 {
  "fixture": "export/export_edge_cases.db",
  "covers": "A database of tables chosen to stress the CSV and Excel export.",
- "csv_rules": "UTF-8 with a byte-order mark; comma; header row; a field is quoted when it holds a comma, a quote, a line break, or a leading or trailing space; NULL is an empty field; CRLF after every record (Q23); numbers as in Q20.",
+ "csv_rules": "UTF-8 with a byte-order mark; comma; header row; a field is quoted when it holds a comma, a quote, a line break, or a leading or trailing space; NULL is an empty field; CRLF after every record (Q23); numbers as in Q20; a BLOB as x'<hex>' (Q22).",
  "zip": "Exporting every table and view gives 14 entries. Entry names follow Q24.",
  "excel_export": {
   "one_sheet_per_table": true,
@@ -124,7 +124,32 @@
     "v",
     "note"
    ],
-   "note": "No expected CSV: row 5 holds a BLOB (Q22). The other rows show that one column can hold an integer, a real, text, NULL and an empty string."
+   "expected_csv": "export/expected_csv/mixed_types.csv",
+   "expected_csv_bytes": 132,
+   "expected_csv_sha256": "b530346edde7f926c8f4befa0e2a1ba7cc4d713c379959d339f82e39db1d289d",
+   "after_reimport": [
+    {
+     "column": "v",
+     "row": 1,
+     "change": "42 becomes '42'"
+    },
+    {
+     "column": "v",
+     "row": 2,
+     "change": "3.14 becomes '3.14'"
+    },
+    {
+     "column": "v",
+     "row": 5,
+     "change": "b'\\xde\\xad\\xbe\\xef' becomes \"x'deadbeef'\""
+    },
+    {
+     "column": "v",
+     "row": 6,
+     "change": "'' becomes None"
+    }
+   ],
+   "note": "Row 5 holds a BLOB, written as x'deadbeef' (Q22). One column holds an integer, a real, text, NULL, an empty string and a BLOB: each value is written by its own storage class."
   },
   {
    "name": "monthly_revenue_by_region_and_channel_2024",

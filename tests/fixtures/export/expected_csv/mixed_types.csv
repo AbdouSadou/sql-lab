@@ -1,0 +1,8 @@
+﻿id,v,note
+1,42,integer
+2,3.14,real
+3,text,text
+4,,null
+5,x'deadbeef',blob of four bytes
+6,,empty string
+7,42,the text 42
