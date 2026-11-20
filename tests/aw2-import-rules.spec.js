@@ -309,7 +309,7 @@ const TEXT_FIXTURES = INDEX.filter(({ want }) => want.outcome === "import" && wa
 const BY_CONTENT_TEXT = INDEX.filter(({ want }) => want.outcome === "import_by_content_or_refuse" && want.real_content === "text");
 
 // Every fixture that must not become a table here, and what its first bytes make it. A workbook
-// is refused as such until the plan's Phase 5 reads it.
+// is refused as such with the import alone (with the flag excel-import it is read: tests/aw5-excel-*.spec.js).
 const NOT_TEXT_KIND = {
     "csv/empty.csv": "empty",
     "impostors/zero_bytes.xlsx": "empty",

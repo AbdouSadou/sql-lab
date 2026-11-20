@@ -55,7 +55,13 @@ test("a test that imports bundle/app.js reaches the modules the page runs, with 
         // the assessment plan's Phase 2: the import as the page mounts it, and its report (a test
         // mounts a second import beside the page's, with stand-ins for the page)
         "import",
+        // the assessment plan's Phase 5: the cells and the reading of a workbook, and the typed table a
+        // sheet is put into, tried in the page against the library and the engine
+        "importCells",
+        "importDb",
         "importReport",
+        "importWorkbook",
+        "importZip",
         "manager",
         "progress",
         "results",

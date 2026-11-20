@@ -11,6 +11,7 @@ const {
     openableSets,
     fakeStorage,
     inNode,
+    READY_PANE,
 } = require("./helpers");
 
 // Assessment plan, Phase 0 (groundwork): the preview flags (js/lab/flags.js, settings in
@@ -953,11 +954,12 @@ function expectSameDeep(flagged, plain, { ids = [], listeners = [], properties =
 
 // A flag that nothing reads changes nothing: the page with it on is the page with it off. That
 // held for all four while only the groundwork was built. Since the plan's Phase 2 the import
-// flag is read, and since Phase 3 the export flag: the first test of this group turns on every
-// flag but those two (the two Excel flags do nothing without their parents), and the tests after
-// it say what the import flag alone, and the export flag alone, add to a page on which nothing has
-// been done yet. A phase that reads another flag does the same again: takes its flag out of
-// UNREAD_FLAGS and adds a test for what it adds. This group is not the pattern for a feature's
+// flag is read, since Phase 3 the export flag, and since Phase 5 the flag excel-import (which does
+// nothing without the import flag): the first test of this group turns on every flag but those
+// (excel-export does nothing without its parent), and the tests after it say what the import flag
+// alone, the export flag alone, and the import flag with excel-import, add to a page on which
+// nothing has been done yet. A phase that reads another flag does the same again: takes its flag
+// out of UNREAD_FLAGS and adds a test for what it adds. This group is not the pattern for a feature's
 // own tests (those are tests/aw2-* and tests/aw3-*).
 //
 // What this group can see. It compares two pages: the page with every flag off, and the same page
@@ -972,7 +974,7 @@ function expectSameDeep(flagged, plain, { ids = [], listeners = [], properties =
 // same on both sides. The tests of the feature that the change touches hold it.
 test.describe("nothing a student can see", () => {
     const ALL_FLAGS = "preview=import,export,excel-import,excel-export";
-    const UNREAD_FLAGS = "preview=excel-import,excel-export";
+    const UNREAD_FLAGS = "preview=excel-export";
     // the listeners the import adds on the whole page: a drop of files (js/lab/import.js), and the
     // dialog's (js/lab/import-dialog.js): the end of a press, wherever the pointer is let go, the
     // window losing the focus, and a database that has loaded
@@ -1033,6 +1035,43 @@ test.describe("nothing a student can see", () => {
         expect(plain.exportArrows.every(Boolean)).toBe(true);
         expect(plain.moreArrows.every(Boolean)).toBe(true);
     });
+
+    // The flag excel-import is read since Phase 5, and so is no longer one of UNREAD_FLAGS; but it does nothing
+    // without the import flag, and a visit that names it alone (or with the flag of the other Excel side, which
+    // needs the export flag) must still be the page with no flag at all, as deeply as the test above looks:
+    // menus, file chooser, markup, storage, listeners on the whole page, window properties, timers and files asked
+    // for, up to three seconds after the load, after a query and after the export dialog was opened and closed.
+    for (const flags of ["excel-import", "excel-import,excel-export"]) {
+        test(`the flags ${flags} on and the flags they need off, the page shows what it shows with none: menus, file chooser, markup, storage, listeners, requests`, async ({ browser, baseURL }) => {
+            const plain = await visit(browser, baseURL, "./", { deep: true });
+            const flagged = await visit(browser, baseURL, `./?preview=${flags}`, { deep: true });
+            // (the plain page is a real one, and the flagged one is not the plain one asked for twice)
+            expect(plain.databaseItems.length).toBeGreaterThan(0);
+            expect(plain.fileInput.multiple).toBe(false);
+            expect(flagged.url).toBe(`?preview=${flags}`);
+            expect(flagged.fileInput).toEqual(plain.fileInput);
+            expect(flagged.fileInput.multiple).toBe(false);
+            expect(flagged.databaseItems).toEqual(plain.databaseItems);
+            expect(flagged.exportItems).toEqual(plain.exportItems);
+            expect(flagged.moreItems).toEqual(plain.moreItems);
+            expect(flagged.dialogs).toEqual(plain.dialogs);
+            expect(flagged.openDialogs).toEqual(plain.openDialogs);
+            expect(flagged.toasts).toEqual(plain.toasts);
+            expect(flagged.errors).toEqual([]);
+            expect(flagged.pane).toBe(plain.pane);
+            expect(flagged.database).toBe(plain.database);
+            expect(flagged.title).toBe(plain.title);
+            expect(flagged.toolbar).toBe(plain.toolbar);
+            // no library and no module of the import is asked for, and the same files are
+            expect(flagged.requests).toEqual(plain.requests);
+            expect(flagged.requests.filter((file) => /xlsx|papaparse|fflate/i.test(file))).toEqual([]);
+            expect(flagged.storageKeys).toEqual(plain.storageKeys);
+            expect(flagged.storageText).toBe(plain.storageText);
+            expect(flagged.historyLength).toBe(plain.historyLength);
+            expect(flagged.historyCalls).toEqual(plain.historyCalls);
+            expectSameDeep(flagged, plain);
+        });
+    }
 
     test("all four flags on, localStorage gets no new key and no value that names a flag", async ({ browser, baseURL }) => {
         const plain = await visit(browser, baseURL, "./");
@@ -1119,6 +1158,130 @@ test.describe("nothing a student can see", () => {
         // flag off takes it, the page with the import on does not, and a page with only the export
         // on takes it as well and so cannot show it.
         expectSameDeep(flagged, plain, { listeners: IMPORT_LISTENERS, markup: [[OPEN_FILE_WITH_IMPORT_DESCRIPTION, OPEN_FILE_DESCRIPTION]] });
+    });
+
+    // Since the plan's Phase 5 the flag excel-import is read, once the import flag is on too. A visit that
+    // chooses only text files must not differ from the same visit with the import alone: the same
+    // elements, requests and stored keys, the same tables and report; three sentences differ, and only
+    // they: the dialog's one sentence, the description under "Open a file…", and the toast for a choice that
+    // mixes files (below, in the test of what a choice does).
+    test("both flags on, and nothing chosen yet: the page of the import alone, but for two sentences (the menu entry's description and the dialog's)", async ({
+        browser,
+        baseURL,
+    }) => {
+        const { IMPORT_DIALOG_TEXT, IMPORT_DIALOG_TEXT_WITH_SHEETS, OPEN_FILE_WITH_EXCEL_DESCRIPTION, OPEN_FILE_WITH_IMPORT_DESCRIPTION } = await load("config-workflow.js");
+        // (the three sentences are not the old ones: a swap of two would otherwise pass)
+        expect(IMPORT_DIALOG_TEXT_WITH_SHEETS).not.toBe(IMPORT_DIALOG_TEXT);
+        expect(OPEN_FILE_WITH_EXCEL_DESCRIPTION).not.toBe(OPEN_FILE_WITH_IMPORT_DESCRIPTION);
+        const alone = await visit(browser, baseURL, "./?preview=import", { deep: true });
+        const both = await visit(browser, baseURL, "./?preview=import,excel-import", { deep: true });
+        // the description of the entry, and nothing else of the menus
+        const openFile = alone.databaseItems.find((item) => item.startsWith("open-file|"));
+        expect(openFile).toContain(OPEN_FILE_WITH_IMPORT_DESCRIPTION);
+        expect(both.databaseItems).toEqual(alone.databaseItems.map((item) => (item === openFile ? item.replace(OPEN_FILE_WITH_IMPORT_DESCRIPTION, OPEN_FILE_WITH_EXCEL_DESCRIPTION) : item)));
+        expect(both.fileInput).toEqual(alone.fileInput);
+        expect(both.exportItems).toEqual(alone.exportItems);
+        expect(both.moreItems).toEqual(alone.moreItems);
+        expect(both.dialogs).toEqual(alone.dialogs);
+        expect(both.openDialogs).toEqual(alone.openDialogs);
+        expect(both.toasts).toEqual(alone.toasts);
+        expect(both.errors).toEqual([]);
+        expect(both.requests).toEqual(alone.requests);
+        expect(both.requests.filter((file) => /xlsx|papaparse/i.test(file))).toEqual([]);
+        expect(both.storageKeys).toEqual(alone.storageKeys);
+        expect(both.storageText).toBe(alone.storageText);
+        expect(both.historyLength).toBe(alone.historyLength);
+        expect(both.historyCalls).toEqual(alone.historyCalls);
+        // the page as a whole, at four moments (listeners and window properties included), with the two sentences put back
+        expectSameDeep(both, alone, { markup: [[OPEN_FILE_WITH_EXCEL_DESCRIPTION, OPEN_FILE_WITH_IMPORT_DESCRIPTION], [IMPORT_DIALOG_TEXT_WITH_SHEETS, IMPORT_DIALOG_TEXT]] });
+    });
+
+    // What a visit does when it chooses text files, with the import alone and with both flags: a CSV file and
+    // a second one, through the dialog to the report. Everything is read at each step (the dialog's markup, the
+    // files the page asked for, the keys it stored, what the import made), and compared.
+    async function chooseTextFiles(browser, baseURL, address) {
+        const context = await browser.newContext();
+        const page = await context.newPage();
+        const requests = [];
+        page.on("request", (request) => {
+            const url = new URL(request.url());
+            if (url.origin === new URL(baseURL).origin) {
+                requests.push(url.pathname.replace(new URL(baseURL).pathname, "/"));
+            }
+        });
+        const errors = [];
+        page.on("pageerror", (error) => errors.push(error.message));
+        await page.goto(new URL(address, baseURL).href);
+        await page.locator("#open-file-input").waitFor({ state: "attached" });
+        await page.waitForLoadState("networkidle");
+        const files = [
+            { name: "people.csv", mimeType: "text/csv", buffer: Buffer.from("id,name\n1,Ann\n2,Bob\n") },
+            { name: "pets.tsv", mimeType: "text/tab-separated-values", buffer: Buffer.from("owner\tpet\nAnn\tcat\n") },
+        ];
+        await page.setInputFiles("#open-file-input", files);
+        await page.locator("#import-dialog[open]").waitFor();
+        await page.waitForFunction(() => document.querySelectorAll("#import-dialog .import-reading").length === 0);
+        const dialog = await page.locator("#import-dialog").evaluate((node) => node.outerHTML);
+        await page.locator("#import-dialog button[type=submit]").click();
+        await page.waitForFunction(() => !document.querySelector("#import-dialog").open && document.querySelector("#results-pane").dataset.state === "report");
+        const report = await page.locator("#results-pane .import-report").evaluate((node) => node.innerHTML);
+        const made = await page.evaluate(() => window.app.database.db.exec({ sql: "select name from sqlite_schema where type = 'table' order by name", rowMode: "array", returnValue: "resultRows" }).flat());
+        const stored = await page.evaluate(() => Object.keys(localStorage).sort());
+        const events = await page.evaluate(async () => {
+            const { events } = await import("./bundle/app.js");
+            return events.readEvents("file:people").map((event) => event.lines);
+        });
+        await context.close();
+        return { dialog, requests: requests.toSorted(), errors, report, made, stored, events };
+    }
+
+    test("both flags on, and only text files chosen: the same dialog, requests, report, tables, events and stored keys as with the import alone, but for the dialog's sentence", async ({
+        browser,
+        baseURL,
+    }) => {
+        const { IMPORT_DIALOG_TEXT, IMPORT_DIALOG_TEXT_WITH_SHEETS } = await load("config-workflow.js");
+        const alone = await chooseTextFiles(browser, baseURL, "./?preview=import");
+        const both = await chooseTextFiles(browser, baseURL, "./?preview=import,excel-import");
+        expect(alone.errors).toEqual([]);
+        expect(both.errors).toEqual([]);
+        // (the import ran: the page made tables, and it is not two empty results that agree)
+        expect(alone.made).toEqual(["people", "pets"]);
+        expect(alone.events).toEqual([["file: people.csv, 20 bytes", "table: people, 2 rows, 2 columns"], ["file: pets.tsv, 18 bytes", "table: pets, 1 rows, 2 columns"]]);
+        expect(alone.dialog).toContain(IMPORT_DIALOG_TEXT);
+        expect(both.dialog).toContain(IMPORT_DIALOG_TEXT_WITH_SHEETS);
+        expect(both.dialog.replace(IMPORT_DIALOG_TEXT_WITH_SHEETS, IMPORT_DIALOG_TEXT)).toBe(alone.dialog);
+        // no element, no text and no request of the Excel side: the library is not asked for, and there is no strip of sheets
+        expect(both.dialog).not.toMatch(/import-sheet|import-sheets|Sheets of/);
+        expect(both.requests).toEqual(alone.requests);
+        expect(both.requests.filter((file) => /xlsx/i.test(file))).toEqual([]);
+        expect(both.requests.filter((file) => /papaparse/i.test(file)).length).toBeGreaterThan(0);
+        expect(both.report).toBe(alone.report);
+        expect(both.made).toEqual(alone.made);
+        expect(both.events).toEqual(alone.events);
+        expect(both.stored).toEqual(alone.stored);
+    });
+
+    test("a choice that mixes files is refused with its own toast: with both flags it names Excel files as well, with the import alone it does not", async ({ browser, baseURL }) => {
+        const { IMPORT_MIXED_MESSAGE, IMPORT_MIXED_WITH_EXCEL_MESSAGE } = await load("config-workflow.js");
+        const toastOf = async (address) => {
+            const context = await browser.newContext();
+            const page = await context.newPage();
+            await page.goto(new URL(address, baseURL).href);
+            await page.locator("#open-file-input").waitFor({ state: "attached" });
+            // (a choice made while a database is still loading is refused with another toast: the page is waited for)
+            await page.locator(READY_PANE).waitFor({ state: "attached" });
+            await page.setInputFiles("#open-file-input", [
+                { name: "a.csv", mimeType: "text/csv", buffer: Buffer.from("id\n1\n") },
+                { name: "b.sql", mimeType: "text/plain", buffer: Buffer.from("SELECT 1;") },
+            ]);
+            const text = await page.locator("#toast-region .toast").first().textContent();
+            const open = await page.evaluate(() => document.querySelector("#import-dialog").open);
+            await context.close();
+            return { text, open };
+        };
+        expect(await toastOf("./?preview=import")).toEqual({ text: IMPORT_MIXED_MESSAGE, open: false });
+        expect(await toastOf("./?preview=import,excel-import")).toEqual({ text: IMPORT_MIXED_WITH_EXCEL_MESSAGE, open: false });
+        expect(IMPORT_MIXED_WITH_EXCEL_MESSAGE).not.toBe(IMPORT_MIXED_MESSAGE);
     });
 
     test("the export flag on, and nothing done yet: one entry more in the Export menu and in the More menu, the dialog is built, and nothing else differs", async ({

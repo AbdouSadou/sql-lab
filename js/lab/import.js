@@ -15,6 +15,8 @@
 //     busy()         an import is running: js/index.js refuses Run, Check, the database export
 //                    and every way of opening another database meanwhile
 //     dialogOpen()   the dialog is open (a drop is ignored then, and Ctrl+O)
+//     run(job, {progress, cancelled})  what the dialog calls when Import is pressed; exported for the
+//                    tests, which call it with a job made by hand (see below)
 //
 //   page, what the import needs from js/index.js:
 //     fileInput              the hidden file input: with the flag on it takes several files
@@ -48,9 +50,25 @@
 // typed table, and between two slices the page gets a turn (js/lab/import-pace.js): the dialog
 // shows the progress, and Cancel is honoured.
 //
-// When it has finished: one event for each file goes into the evidence log (js/lab/events.js),
-// under the log key of the database that now holds the tables, and the report is shown in the
-// results pane (js/lab/import-report.js).
+// With the flag "excel-import" on too (read once, here, and handed to the dialog), a job may hold
+// sheets of workbooks as well. job.files is a list of entries in the order of the dialog's tabs:
+//   a text file     {id, file, encoding, delimiter, newline, hasNames, namesRow, tableName, mark}
+//   a sheet         {id, file, sheet, hasNames, namesRow, tableName, listed}
+// sheet is the sheet as js/lab/import-cells.js made it (the workbook's own object travels inside it,
+// and is reached only through tableOf and storedRow), file the File of the workbook, and listed how
+// many sheets the workbook lists (the number of its entries when it is left out: a web page with one
+// table is a table with no sheet to name, one with several names each by its label). A sheet is never
+// refused here: what can stop one (no values, too wide, a row of names beyond it) is decided in the
+// dialog before Import can be pressed. Its table is worked out in a first pass, then made at once, typed,
+// and filled in steps of IMPORT_SHEET_CELLS cells with the page's turn between two steps (js/lab/import-db.js
+// newTypedTable); there is no staging table. The reader of text files is loaded only when the job holds a
+// text file. progress is called with {at, of, name, part, done, total}: at of the tables, name the file's, and
+// table the name of the table made from a sheet (null for a text file); part is "read" or "copy".
+//
+// When it has finished: one event for each file goes into the evidence log (js/lab/events.js; a
+// workbook's tables are the lines of one event: js/lab/import-events.js), under the log key of
+// the database that now holds the tables, and the report is shown in the results pane
+// (js/lab/import-report.js).
 
 import manager from "../sqlite/manager.js";
 import { DatabasePath } from "../db-path.js";
@@ -65,31 +83,38 @@ import {
     IMPORT_LOADING_MESSAGE,
     IMPORT_LOST_TRANSACTION_MESSAGE,
     IMPORT_MIXED_MESSAGE,
+    IMPORT_MIXED_WITH_EXCEL_MESSAGE,
     IMPORT_NO_NAMES_ROW_REASON,
     IMPORT_NOT_OPENED_MESSAGE,
     IMPORT_OUT_OF_MEMORY_MESSAGE,
     IMPORT_SEVERAL_DATABASES_MESSAGE,
+    IMPORT_SHEET_CELLS,
     IMPORT_SLICE_BYTES,
     IMPORT_TOO_WIDE_REASON,
     IMPORT_UNREADABLE_REASON,
-    importEventFileLine,
-    importEventTableLine,
+    importPageSource,
+    importSheetSource,
     importedMessage,
 } from "./config-workflow.js";
 import { recordEvent } from "./events.js";
 import { flagOn } from "./flags.js";
 import { ImportRefused, newTableReader, readPieces } from "./import-csv.js";
-import { beginImport, endImport, isEngineError, isOutOfMemory, namesNeedingQuotes, newStage, takenNames, undoImport } from "./import-db.js";
+import { storedRow, tableOf } from "./import-cells.js";
+import { beginImport, endImport, isEngineError, isOutOfMemory, namesNeedingQuotes, newStage, newTypedTable, takenNames, undoImport } from "./import-db.js";
 import { mountImportDialog } from "./import-dialog.js";
+import { importEvents } from "./import-events.js";
 import { newPace } from "./import-pace.js";
 import { buildImportReport } from "./import-report.js";
 import { TextChanged, sameStart, textPieces } from "./import-text.js";
+import { inspectWorkbook, readWorkbook } from "./import-workbook.js";
 import { toast } from "./toast.js";
 import { loadVendor } from "./vendor-loader.js";
 
 const IMPORT_NAME = /\.(?:csv|tsv|txt|xlsx|xls)$/i;
 const READER_FILE = "papaparse.min.js";
 const READER_GLOBAL = "Papa";
+const EXCEL_FILE = "xlsx.full.min.js";
+const EXCEL_GLOBAL = "XLSX";
 
 const REFUSAL_TEXT = {
     "too-wide": IMPORT_TOO_WIDE_REASON,
@@ -124,6 +149,9 @@ export function mountImport({
     }
     // several files can be chosen together
     fileInput.multiple = true;
+    // Workbooks as well (flag "excel-import", which is off without "import"): read here once, as the
+    // other is, and handed to the dialog with what it needs to read a workbook.
+    const excel = flagOn("excel-import");
 
     const loadReader = () => loadVendor(READER_FILE, READER_GLOBAL);
 
@@ -173,12 +201,76 @@ export function mountImport({
                 columns: made.columns,
                 source: item.file.name,
                 bytes: item.file.size,
+                origin: item.file,
+                file: item.file.name,
+                sheet: null,
                 badQuotes: read.badQuotes,
                 quoted: namesNeedingQuotes(database, item.tableName, made.columns.map((column) => column.name)),
             };
         } finally {
             stage.drop();
         }
+    }
+
+    // one sheet: its table is worked out, made at once with its types, and filled in steps
+    async function importSheet(database, item, { cancelled, report, pace, listed }) {
+        const rest = async () => {
+            await pace.rest();
+            if (cancelled()) {
+                throw new ImportCancelled();
+            }
+        };
+        const { sheet } = item;
+        const cells = sheet.rows * sheet.columns;
+        let looked = 0;
+        report("read", 0, cells);
+        const table = await tableOf(sheet, {
+            hasNames: item.hasNames,
+            namesRow: item.namesRow,
+            // (the first pass, a step of cells at a time: what is counted is cells, of the rectangle)
+            rest: async () => {
+                looked = Math.min(looked + IMPORT_SHEET_CELLS, cells);
+                report("read", looked, cells);
+                await rest();
+            },
+        });
+        const typed = newTypedTable(database, item.tableName, table.columns);
+        let finished = false;
+        try {
+            report("copy", 0, table.rows);
+            const step = Math.max(1, Math.floor(IMPORT_SHEET_CELLS / Math.max(1, table.width)));
+            for (let done = 0; done < table.rows; done += step) {
+                const end = Math.min(done + step, table.rows);
+                for (let i = done; i < end; i++) {
+                    typed.add(storedRow(table, i));
+                }
+                report("copy", end, table.rows);
+                await rest();
+            }
+            typed.finish();
+            finished = true;
+        } finally {
+            if (!finished) {
+                typed.abandon();
+            }
+        }
+        // (a web page of one table is no sheet: the file's name says where it came from)
+        const alone = sheet.page && listed === 1;
+        const label = item.label ?? sheet.label;
+        return {
+            name: item.tableName,
+            rows: table.rows,
+            columns: table.columns,
+            source: alone ? item.file.name : sheet.page ? importPageSource(item.file.name, label) : importSheetSource(item.file.name, label),
+            bytes: item.file.size,
+            origin: item.file,
+            file: item.file.name,
+            sheet: alone ? null : label,
+            badQuotes: false,
+            quoted: namesNeedingQuotes(database, item.tableName, table.columns.map((column) => column.name)),
+            emptyFormulas: table.emptyFormulas,
+            padded: table.padded,
+        };
     }
 
     async function run(job, { progress, cancelled }) {
@@ -202,8 +294,10 @@ export function mountImport({
         let ticket = null;
         let current = null;
         try {
-            const reader = await loadReader().catch(() => null);
-            if (!reader) {
+            // (the reader of text files, and only when there is a text file to read: a job of sheets has
+            // no use for it, and does not fail when it cannot be loaded)
+            const reader = job.files.some((item) => !item.sheet) ? await loadReader().catch(() => null) : null;
+            if (!reader && job.files.some((item) => !item.sheet)) {
                 return { ok: false, message: IMPORT_LIBRARY_FAILED_MESSAGE };
             }
             database = own ? await manager.init(job.destination.name, new DatabasePath("")) : getDatabase();
@@ -212,9 +306,15 @@ export function mountImport({
             const tables = [];
             for (const [index, item] of job.files.entries()) {
                 current = item;
-                const report = (part, done, total) => progress({ at: index + 1, of: job.files.length, name: item.file.name, part, done, total });
-                report("read", 0, item.file.size);
-                tables.push(await importFile(database, item, { reader, pace, cancelled, report }));
+                const table = item.sheet ? item.tableName : null;
+                const report = (part, done, total) => progress({ at: index + 1, of: job.files.length, name: item.file.name, table, part, done, total });
+                if (item.sheet) {
+                    const listed = item.listed ?? job.files.filter((other) => other.file === item.file).length;
+                    tables.push(await importSheet(database, item, { cancelled, report, pace, listed }));
+                } else {
+                    report("read", 0, item.file.size);
+                    tables.push(await importFile(database, item, { reader, pace, cancelled, report }));
+                }
             }
             endImport(database);
             ticket = null;
@@ -230,11 +330,8 @@ export function mountImport({
             }
             const name = getDatabase().name;
             const key = runLog.current().key;
-            for (const table of tables) {
-                recordEvent(key, {
-                    kind: "import",
-                    lines: [importEventFileLine(table.source, table.bytes), importEventTableLine(table.name, table.rows, table.columns.length)],
-                });
+            for (const event of importEvents(tables)) {
+                recordEvent(key, { kind: "import", lines: event.lines });
             }
             const said = importedMessage(tables.length, name);
             results.showReport(buildImportReport(tables), { summary: said });
@@ -278,6 +375,8 @@ export function mountImport({
     const dialog = mountImportDialog({
         returnFocus,
         loadReader,
+        // what the dialog reads a workbook with (null: the dialog is the one of the import alone)
+        excel: excel ? { loadLibrary: () => loadVendor(EXCEL_FILE, EXCEL_GLOBAL), inspectWorkbook, readWorkbook } : null,
         getDestination() {
             const database = getDatabase();
             return {
@@ -312,12 +411,12 @@ export function mountImport({
             return true;
         }
         if (ours.length !== files.length) {
-            toast(IMPORT_MIXED_MESSAGE, { tone: "note" });
+            toast(excel ? IMPORT_MIXED_WITH_EXCEL_MESSAGE : IMPORT_MIXED_MESSAGE, { tone: "note" });
             return true;
         }
         dialog.open(files);
         return true;
     }
 
-    return { enabled, take, busy: () => running, dialogOpen: dialog.isOpen };
+    return { enabled, take, busy: () => running, dialogOpen: dialog.isOpen, run };
 }

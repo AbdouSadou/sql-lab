@@ -3116,14 +3116,27 @@ var PAINT_EVERY_MS = 150;
 var FRAME_MAX_MS = 250;
 var IMPORT_TEXT_WARN_BYTES = 50 * 1024 * 1024;
 var IMPORT_TEXT_MAX_BYTES = 250 * 1024 * 1024;
+var EXCEL_WARN_BYTES = 20 * 1024 * 1024;
+var EXCEL_HEAVY_BYTES = 50 * 1024 * 1024;
+var EXCEL_MAX_BYTES = 100 * 1024 * 1024;
+var EXCEL_WARN_DATA_BYTES = 100 * 1024 * 1024;
+var EXCEL_HEAVY_DATA_BYTES = 300 * 1024 * 1024;
+var EXCEL_MAX_DATA_BYTES = 500 * 1024 * 1024;
+var EXCEL_MAX_UNPACKED_BYTES = 1024 * 1024 * 1024;
+var MAX_COLUMNS = 2e3;
+var IMPORT_SHEET_CELLS = 3e4;
+var WORKBOOK_WATCH_MS = 250;
 var OPEN_FILE_WITH_IMPORT_DESCRIPTION = "A SQLite database, a .sql script, or CSV files to bring in as tables";
+var OPEN_FILE_WITH_EXCEL_DESCRIPTION = "A SQLite database, a .sql script, or CSV and Excel files to bring in as tables";
 var IMPORT_MIXED_MESSAGE = "Nothing was opened. Choose CSV files to bring in together, or one database or script on its own.";
+var IMPORT_MIXED_WITH_EXCEL_MESSAGE = "Nothing was opened. Choose CSV and Excel files to bring in together, or one database or script on its own.";
 var IMPORT_SEVERAL_DATABASES_MESSAGE = "Nothing was opened. Only one database or script can be opened at a time.";
 var IMPORT_BUSY_MESSAGE = "An import is running, so nothing else was done. Wait for it to end, or cancel it.";
 var IMPORT_LOADING_MESSAGE = "A database is still loading, so the files were not taken. Choose them again once it has opened.";
 var IMPORT_LIBRARY_FAILED_MESSAGE = "The CSV reader could not be loaded, so nothing was imported. Check the connection and try again.";
 var IMPORT_DIALOG_TITLE = "Import files";
 var IMPORT_DIALOG_TEXT = "Each file becomes a table, read as it is: nothing in it is cleaned or changed.";
+var IMPORT_DIALOG_TEXT_WITH_SHEETS = "Each file, or each sheet of a workbook, becomes a table, read as it is: nothing in it is cleaned or changed.";
 var IMPORT_TABS_LABEL = "Files";
 var IMPORT_SUBMIT_TEXT = "Import";
 var IMPORT_CANCEL_TEXT = "Cancel";
@@ -3135,6 +3148,7 @@ var IMPORT_TABLE_NAME_HINT = "Letters, digits and underscores. Anything else bec
 var IMPORT_NAME_EMPTY_MESSAGE = "Give the table a name.";
 var IMPORT_NAME_RESERVED_MESSAGE = "A name cannot start with sqlite_: SQLite keeps those for itself.";
 var IMPORT_NAME_TWICE_MESSAGE = "Another file here has this table name. Change one of them.";
+var IMPORT_NAME_TWICE_SHEET_MESSAGE = "Another file or sheet here has this table name. Change one of them.";
 var importNameTakenMessage = (database2) => `${database2} already has a table, view or index with this name.`;
 var IMPORT_NAME_TEMPORARY_MESSAGE = "A temporary table or view already has this name.";
 var IMPORT_DELIMITER_LABEL = "Delimiter";
@@ -3151,6 +3165,8 @@ var IMPORT_HAS_NAMES_LABEL = "The file has a row of column names";
 var IMPORT_NAMES_ROW_LABEL = "Column names are on row";
 var importNamesRowMessage = (rows3) => rows3 === 1 ? "The part of the file shown here has only 1 row." : `The part of the file shown here has only ${rows3} rows.`;
 var IMPORT_NAMES_ROW_NOT_A_ROW_MESSAGE = "Give the row as a whole number, 1 or more.";
+var IMPORT_HAS_NAMES_SHEET_LABEL = "The sheet has a row of column names";
+var importNamesRowSheetMessage = (rows3) => rows3 === 1 ? "The sheet has only 1 row." : `The sheet has only ${rows3} rows.`;
 var IMPORT_PREVIEW_LABEL = "The first rows, as read";
 var IMPORT_PREVIEW_ROW_HEADING = "Row";
 var IMPORT_PREVIEW_LEFT_OUT = "left out";
@@ -3170,6 +3186,54 @@ var IMPORT_NOT_TEXT_REASON = "This file is not text, so it cannot be read as CSV
 var IMPORT_TOO_LARGE_REASON = "This file is over 250 MB, which is more than the browser can import.";
 var IMPORT_TOO_WIDE_REASON = "A row of this file has more than 2,000 columns, which is more than a table can have. Nothing of it was imported.";
 var IMPORT_UNREADABLE_REASON = "The browser could not read this file.";
+var IMPORT_WORKBOOK_CUT_REASON = "This workbook is not whole: the end of the file is missing. Download or copy it again, and choose the new copy.";
+var IMPORT_WORKBOOK_DAMAGED_REASON = "This workbook is damaged: part of it is not what the file itself says it should be. Copy it again from where it came from, or open it in Excel and save it, and choose the new copy.";
+var IMPORT_NOT_A_WORKBOOK_REASON = "This file is not an Excel workbook, whatever its name says, so it cannot be imported.";
+var IMPORT_WORKBOOK_LOCKED_REASON = "This workbook is locked with a password, so it cannot be read. In Excel, remove the password, save the workbook, and choose it again.";
+var IMPORT_WORKBOOK_UNREADABLE_REASON = "This workbook could not be read. It may be damaged, or not an Excel workbook at all. Open it in Excel, save it again, and choose the new copy.";
+var IMPORT_PAGE_UNREADABLE_REASON = "No table could be read from this file. It is a web page saved under an Excel name: it may be an error page or a sign-in page, not the data. Download the file again.";
+var IMPORT_WORKBOOK_NO_MEMORY_REASON = "The browser ran out of memory while reading this workbook, so it was not read. An Excel file is read whole into memory and needs many times its size there. In Excel, save the sheets you need as CSV files, and import those.";
+var IMPORT_WORKBOOK_SHEET_LOST_REASON = "One of this workbook's sheets could not be read, so the workbook was not read. The likely cause is its size: an Excel file is read whole into memory and needs many times its size there. The file may also be damaged. In Excel, save the sheets you need as CSV files, and import those.";
+var IMPORT_WORKBOOK_NO_SHEETS_REASON = "This workbook has no sheet to import. Chart sheets are not imported.";
+var IMPORT_WORKBOOK_TOO_LARGE_REASON = "This workbook is over 100 MB. An Excel file is read whole into memory and needs many times its size there, which is more than the browser has. In Excel, save the sheets you need as CSV files, and import those.";
+var importWorkbookTooMuchReason = (megabytes2) => `The sheets of this workbook unpack to ${megabytes2.toLocaleString("en")} MB. They are read whole into memory and need many times that there, which is more than the browser has. In Excel, save the sheets you need as CSV files, and import those.`;
+var IMPORT_WORKBOOK_LIBRARY_FAILED_REASON = "The Excel reader could not be loaded, so this workbook was not read. Check the connection, then choose the files again.";
+var importPageTableLabel = (n) => `Table ${n}`;
+var importLargeWorkbookMessage = ({ megabytes: megabytes2, unpackedMegabytes = null, heavy = false }) => {
+  const size = unpackedMegabytes === null ? `This workbook is ${megabytes2.toLocaleString("en")} MB.` : `This workbook is ${megabytes2.toLocaleString("en")} MB, and its sheets unpack to ${unpackedMegabytes.toLocaleString("en")} MB.`;
+  const wait = "The page will not respond while it is read, which can take a minute. If the browser says the page is not responding, choose to wait.";
+  const memory4 = "A workbook this large can need more memory than the browser has: if the page stops, reload it, and work that was not exported is lost.";
+  return heavy ? `${size} ${wait} ${memory4}` : `${size} ${wait}`;
+};
+var importSheetsLabel = (file) => `Sheets of ${file}`;
+var importSheetLineText = (name) => `Sheet ${name}`;
+var importSheetUnnamedLabel = (n) => `(no name, number ${n})`;
+var IMPORT_SHEET_HIDDEN_WORD = "hidden";
+var IMPORT_SHEET_TICK_LABEL = "Import this sheet as a table";
+var IMPORT_SHEET_HIDDEN_NOTE = "This sheet is hidden in the workbook. It is imported only if you tick it.";
+var IMPORT_SHEET_EMPTY_REASON = "This sheet has no values, so there is nothing to import. Cells that are only formatted do not count.";
+var IMPORT_SHEET_WIDE_REASON = "This sheet has more than 2,000 columns, which is more than a table can have, so it cannot be imported.";
+var IMPORT_SHEET_DAMAGED_REASON = "This sheet has a cell where no Excel sheet has one, beyond its last row or its last column, so it cannot be imported. Open the workbook in Excel, save it again, and choose the new copy.";
+var importSheetSizeText = ({ rows: rows3, columns }) => `Its values span ${counted(rows3, "row", "rows")} and ${counted(columns, "column", "columns")}.`;
+var importSheetStartNote = (address) => `This table starts at ${address} of the sheet. Rows are counted from there.`;
+var IMPORT_SHEET_TICKED_TEXT = "ticked";
+var IMPORT_SHEET_NOT_TICKED_TEXT = "not ticked";
+var IMPORT_SHEET_HIDDEN_NOT_TICKED_TEXT = "hidden, not ticked";
+var IMPORT_SHEET_HIDDEN_TICKED_TEXT = "hidden, ticked";
+var IMPORT_SHEET_NO_VALUES_TEXT = "no values";
+var IMPORT_TAB_NOTHING_TICKED_TEXT = "nothing ticked";
+var importSheetsCountText = ({ ticked, tickable, unable = 0, charts = 0 }) => {
+  let text = tickable === 0 ? "No sheet of this workbook can be imported." : `${ticked} of ${tickable} ${tickable === 1 ? "sheet" : "sheets"} will be imported.`;
+  if (unable > 0 && tickable > 0) {
+    text += ` ${unable} more cannot be imported.`;
+  }
+  if (charts > 0) {
+    text += " Chart sheets are not listed.";
+  }
+  return text;
+};
+var IMPORT_TICK_ALL_SHEETS_TEXT = "Tick every sheet";
+var IMPORT_UNTICK_ALL_SHEETS_TEXT = "Untick every sheet";
 var IMPORT_NO_NAMES_ROW_REASON = "The file ends before the row that was said to hold the column names.";
 var IMPORT_NO_ROW_REASON = "The first megabyte of this file does not hold one complete row, so its rows cannot be shown before they are imported. A quote mark near the start of the file may never be closed.";
 var IMPORT_CHANGED_REASON = "This file was changed after it was chosen, so it is no longer the file that was shown here. Choose it again.";
@@ -3178,12 +3242,16 @@ var IMPORT_SETTINGS_NO_ROW_MESSAGE = "Read this way, the start of the file does 
 var importHoldReadingMessage = (name) => `Still reading ${name}. Import can be pressed once every file has been read.`;
 var importHoldWaitingMessage = (name) => `${name} is waiting for an answer in its tab. Import can be pressed after that.`;
 var importHoldProblemMessage = (name) => `${name} cannot be imported as it is set. Its tab says why.`;
-var importLargeFileMessage = (megabytes) => `This file is ${megabytes} MB. Reading it takes a while, and the page may be slow meanwhile.`;
+var IMPORT_HOLD_NO_SHEET_MESSAGE = "No sheet is ticked. Tick at least one sheet to import.";
+var importHoldSheetProblemMessage = (sheet, file) => `The sheet ${sheet} of ${file} cannot be imported as it is set. Its tab says why.`;
+var importLargeFileMessage = (megabytes2) => `This file is ${megabytes2} MB. Reading it takes a while, and the page may be slow meanwhile.`;
 var IMPORT_LARGE_FILE_CONTINUE_TEXT = "Read this file";
 var IMPORT_LARGE_FILE_LEAVE_TEXT = "Leave this file out";
 var IMPORT_LEFT_OUT_REASON = "You left this file out, so it will not be imported. To import it after all, choose the files again.";
 var IMPORT_LEFT_OUT_TAB_TEXT = "left out";
 var importProgressTitle = (at, of, name) => of === 1 ? `Importing ${name}` : `Importing file ${at} of ${of}: ${name}`;
+var importProgressTableTitle = (at, of, table, file) => of === 1 ? `Importing ${table} (${file})` : `Importing table ${at} of ${of}: ${table} (${file})`;
+var importProgressTextTitle = (at, of, file) => of === 1 ? `Importing ${file}` : `Importing table ${at} of ${of}: ${file}`;
 var IMPORT_PROGRESS_READING = "Reading rows";
 var IMPORT_PROGRESS_COPYING = "Making the table";
 var IMPORT_FAILED_MESSAGE = "The import failed, and nothing was imported.";
@@ -3201,10 +3269,15 @@ var IMPORT_REPORT_BLANKS_HEADING = "Blanks";
 var IMPORT_REPORT_NOTE_HEADING = "Note";
 var IMPORT_REPORT_BLANK_NAME = "blank";
 var IMPORT_REPORT_BLOCKING_NOTE = "Mostly numbers. The first value that is not:";
+var importReportEmptyFormulasText = (count) => count === 1 ? "1 formula cell of this sheet came out empty: the workbook stores no result for it, or it gives empty text. In the table it is a blank." : `${count.toLocaleString("en")} formula cells of this sheet came out empty: the workbook stores no result for them, or they give empty text. In the table they are blanks.`;
+var importReportPaddedNote = (example, number) => example === null ? "This column's format pads numbers with zeros, which are not in the table." : `Excel showed ${example} for the number ${number}: the zeros are not in the table.`;
 var IMPORT_REPORT_QUOTES_WARNING = "A quote in this file has no partner. Everything after it may have been read as one field: look at the last rows.";
 var importReportQuotedText = (names) => names.length === 1 ? `SQL keeps the word ${names[0]} for itself. In a query, write this name in double quotes: "${names[0]}".` : `SQL keeps these names for itself. In a query, write them in double quotes: ${names.map((name) => `"${name}"`).join(", ")}.`;
 var importEventFileLine = (name, bytes) => `file: ${name}, ${bytes} bytes`;
 var importEventTableLine = (table, rows3, columns) => `table: ${table}, ${rows3} rows, ${columns} columns`;
+var importEventSheetTableLine = (table, rows3, columns, sheet) => `table: ${table}, ${rows3} rows, ${columns} columns, ${sheet}`;
+var importSheetSource = (file, sheet) => `${file}, sheet ${sheet}`;
+var importPageSource = (file, label) => `${file}, ${label}`;
 var EXPORT_PIECE_CHARS = 65536;
 var EXPORT_PIECE_MS = 25;
 var EXPORT_CSV_SUFFIX = ".csv";
@@ -5190,6 +5263,14 @@ function tallyValue(tally, value) {
     tally.text++;
   }
 }
+function tallyNumber(tally, value) {
+  tally.values++;
+  if (Number.isInteger(value) && Math.abs(value) < 1e15) {
+    tally.whole++;
+  } else {
+    tally.decimal++;
+  }
+}
 function columnType(tally) {
   if (tally.text > 0 || tally.whole + tally.decimal === 0) {
     return "TEXT";
@@ -5851,6 +5932,19 @@ ${row.saved}`;
 }
 
 // js/lab/import-db.js
+var import_db_exports = {};
+__export(import_db_exports, {
+  SAVEPOINT: () => SAVEPOINT,
+  beginImport: () => beginImport,
+  endImport: () => endImport,
+  isEngineError: () => isEngineError,
+  isOutOfMemory: () => isOutOfMemory,
+  namesNeedingQuotes: () => namesNeedingQuotes,
+  newStage: () => newStage,
+  newTypedTable: () => newTypedTable,
+  takenNames: () => takenNames,
+  undoImport: () => undoImport
+});
 init_sql();
 var SAVEPOINT = "lab_import";
 var STAGE_NAME = "import_stage";
@@ -5931,6 +6025,11 @@ function freeStageName(db) {
   }
   return name;
 }
+function createTypedTable(db, name, columns) {
+  const target = `main.${quoteIdent(name)}`;
+  db.exec(`create table ${target} (${columns.map((column) => `${quoteIdent(column.name)} ${column.type}`).join(", ")})`);
+  return target;
+}
 var stageColumns = (from, to) => Array.from({ length: to - from }, (unused, i) => `c${from + i + 1}`);
 function newStage(database2) {
   const db = database2.db;
@@ -5971,8 +6070,7 @@ function newStage(database2) {
   } }) => {
     insert?.finalize();
     insert = null;
-    const target = `main.${quoteIdent(name)}`;
-    db.exec(`create table ${target} (${columns.map((column) => `${quoteIdent(column.name)} ${column.type}`).join(", ")})`);
+    const target = createTypedTable(db, name, columns);
     const values = columns.map((column, i) => i < width ? `c${i + 1}` : "null").join(", ");
     const copy = db.prepare(`insert into ${target} select ${values} from ${table} where rowid > ?1 and rowid <= ?2`);
     try {
@@ -6000,6 +6098,75 @@ function newStage(database2) {
     }
   };
   return stage;
+}
+function newTypedTable(database2, name, columns) {
+  const { db, capi } = database2;
+  const target = createTypedTable(db, name, columns);
+  let insert = null;
+  let over = false;
+  const typed = { rows: 0 };
+  try {
+    insert = db.prepare(`insert into ${target} (${columns.map((column) => quoteIdent(column.name)).join(", ")}) values (${columns.map(() => "?").join(", ")})`);
+  } catch (error) {
+    dropQuietly(db, target);
+    throw error;
+  }
+  const bindDouble = (index, value) => db.checkRc(capi.sqlite3_bind_double(insert.pointer, index, value));
+  typed.add = (row) => {
+    if (over) {
+      throw new Error("the table is finished");
+    }
+    if (row.length > columns.length) {
+      throw new RangeError(`a row of ${row.length} values for a table of ${columns.length} columns`);
+    }
+    for (let i = 0; i < row.length; i++) {
+      const value = row[i];
+      if (value === null || value === void 0) {
+        continue;
+      }
+      if (typeof value === "number") {
+        if (columns[i].type === "REAL" || !Number.isSafeInteger(value)) {
+          bindDouble(i + 1, value);
+        } else {
+          insert.bind(i + 1, value);
+        }
+      } else {
+        insert.bind(i + 1, value);
+      }
+    }
+    insert.step();
+    insert.reset(true);
+    typed.rows++;
+  };
+  const end = () => {
+    const done = insert;
+    insert = null;
+    over = true;
+    try {
+      done?.finalize();
+    } catch {
+    }
+  };
+  typed.finish = () => {
+    if (!over) {
+      end();
+    }
+    return typed.rows;
+  };
+  typed.abandon = () => {
+    if (over) {
+      return;
+    }
+    end();
+    dropQuietly(db, target);
+  };
+  return typed;
+}
+function dropQuietly(db, target) {
+  try {
+    db.exec(`drop table if exists ${target}`);
+  } catch {
+  }
 }
 
 // js/lab/vendor-loader.js
@@ -6656,7 +6823,6 @@ var DELIMITERS = [
   { value: "	", name: "tab" },
   { value: "|", name: "pipe" }
 ];
-var MAX_COLUMNS = 2e3;
 var ImportRefused = class extends Error {
   constructor(reason) {
     super(`import refused: ${reason}`);
@@ -6842,8 +7008,685 @@ function newTableReader({ hasNames, namesRow = 1 }) {
   };
 }
 
+// js/lab/import-cells.js
+var import_cells_exports = {};
+__export(import_cells_exports, {
+  cellValue: () => cellValue,
+  formatLetters: () => formatLetters,
+  isDateFormat: () => isDateFormat,
+  isDurationFormat: () => isDurationFormat,
+  numberInFull: () => numberInFull,
+  paddingZeros: () => paddingZeros,
+  previewRows: () => previewRows,
+  readSheet: () => readSheet,
+  serialText: () => serialText,
+  sheetTableName: () => sheetTableName,
+  storedRow: () => storedRow,
+  tableOf: () => tableOf,
+  valueAt: () => valueAt
+});
+var ELAPSED = /^(?:h+|m+|s+)$/i;
+function formatLetters(format) {
+  const text = String(format);
+  let letters = "";
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === ";") {
+      break;
+    }
+    if (char === "\\" || char === "_" || char === "*") {
+      i++;
+    } else if (char === '"') {
+      const close = text.indexOf('"', i + 1);
+      if (close === -1) {
+        break;
+      }
+      i = close;
+    } else if (char === "[") {
+      const close = text.indexOf("]", i + 1);
+      if (close === -1) {
+        break;
+      }
+      const inside = text.slice(i + 1, close);
+      if (ELAPSED.test(inside)) {
+        letters += `[${inside}]`;
+      }
+      i = close;
+    } else {
+      letters += char;
+    }
+  }
+  return letters;
+}
+var DATE_LETTERS = /[dmhys]/i;
+var isDateFormat = (format) => DATE_LETTERS.test(formatLetters(format));
+var isDurationFormat = (format) => formatLetters(format).includes("[");
+function paddingZeros(format) {
+  const letters = formatLetters(format);
+  if (DATE_LETTERS.test(letters) || /[/Ee]/.test(letters)) {
+    return 0;
+  }
+  const zeros = (letters.split(".")[0].match(/0/g) ?? []).length;
+  return zeros >= 2 ? zeros : 0;
+}
+function infoOf(format, context2) {
+  let info = context2.formats.get(format);
+  if (info === void 0) {
+    const date = isDateFormat(format);
+    info = { date, duration: isDurationFormat(format), zeros: paddingZeros(format) };
+    if (context2.formats.size >= 5e3) {
+      context2.formats.clear();
+    }
+    context2.formats.set(format, info);
+  }
+  return info;
+}
+var FORMAT_SEARCHES = 1e3;
+function knownFormats(context2) {
+  if (!context2.known) {
+    const known = [...new Set(Object.values(context2.ssf.get_table()))].filter((format) => typeof format === "string");
+    context2.known = [...known.filter((format) => isDateFormat(format)), ...known.filter((format) => !isDateFormat(format))];
+  }
+  return context2.known;
+}
+function formatOf(cell2, context2) {
+  if (typeof cell2.z === "string") {
+    return cell2.z;
+  }
+  if (typeof cell2.w !== "string" || !context2.ssf) {
+    return "General";
+  }
+  context2.searched ??= /* @__PURE__ */ new WeakMap();
+  let found = context2.searched.get(cell2);
+  if (found === void 0) {
+    found = "General";
+    if ((context2.searches ?? 0) < FORMAT_SEARCHES) {
+      context2.searches = (context2.searches ?? 0) + 1;
+      for (const format of knownFormats(context2)) {
+        try {
+          if (context2.ssf.format(format, cell2.v, { date1904: context2.date1904 }) === cell2.w) {
+            found = format;
+            break;
+          }
+        } catch {
+        }
+      }
+    }
+    context2.searched.set(cell2, found);
+  }
+  return found;
+}
+var WITH_EXPONENT = /^(-?)(\d+)(?:\.(\d+))?e([+-]\d+)$/;
+function numberInFull(number) {
+  const text = String(number);
+  const found = WITH_EXPONENT.exec(text);
+  if (found === null) {
+    return text;
+  }
+  const [, sign, whole, fraction = "", exponent] = found;
+  const digits = whole + fraction;
+  const point = whole.length + Number(exponent);
+  if (point <= 0) {
+    return `${sign}0.${"0".repeat(-point)}${digits}`;
+  }
+  return sign + digits + "0".repeat(point - digits.length);
+}
+var DAY_SECONDS = 86400;
+var EXACT_SECONDS = 2 ** 53;
+var LAST_DAY = { 1900: 2958465, 1904: 2957003 };
+var pad2 = (n) => String(n).padStart(2, "0");
+var clock = (seconds) => `${pad2(Math.floor(seconds / 3600))}:${pad2(Math.floor(seconds % 3600 / 60))}:${pad2(seconds % 60)}`;
+function civil(days) {
+  const z = days + 719468;
+  const era = Math.floor(z / 146097);
+  const dayOfEra = z - era * 146097;
+  const yearOfEra = Math.floor((dayOfEra - Math.floor(dayOfEra / 1460) + Math.floor(dayOfEra / 36524) - Math.floor(dayOfEra / 146096)) / 365);
+  const dayOfYear = dayOfEra - (365 * yearOfEra + Math.floor(yearOfEra / 4) - Math.floor(yearOfEra / 100));
+  const shifted = Math.floor((5 * dayOfYear + 2) / 153);
+  const day = dayOfYear - Math.floor((153 * shifted + 2) / 5) + 1;
+  const month = shifted < 10 ? shifted + 3 : shifted - 9;
+  return { year: yearOfEra + era * 400 + (month <= 2 ? 1 : 0), month, day };
+}
+function dateOfDay(day, date1904) {
+  if (day > LAST_DAY[date1904 ? 1904 : 1900]) {
+    return null;
+  }
+  let sinceEpoch;
+  if (date1904) {
+    sinceEpoch = day + 1462 - 25569;
+  } else if (day === 60) {
+    return "1900-02-29";
+  } else {
+    sinceEpoch = day < 60 ? day - 25568 : day - 25569;
+  }
+  const { year, month, day: of } = civil(sinceEpoch);
+  return `${String(year).padStart(4, "0")}-${pad2(month)}-${pad2(of)}`;
+}
+function serialText(number, { duration = false, date1904 = false } = {}) {
+  if (!Number.isFinite(number) || number < 0) {
+    return null;
+  }
+  const total = Math.round(number * DAY_SECONDS);
+  if (!Number.isFinite(total)) {
+    return null;
+  }
+  if (duration) {
+    if (total > EXACT_SECONDS) {
+      return null;
+    }
+    const hours = (total - total % 3600) / 3600;
+    return `${hours}:${pad2(Math.floor(total % 3600 / 60))}:${pad2(total % 60)}`;
+  }
+  const left = total % DAY_SECONDS;
+  if (number < 1) {
+    return clock(left);
+  }
+  const date = dateOfDay((total - left) / DAY_SECONDS, date1904);
+  if (date === null) {
+    return null;
+  }
+  return left === 0 ? date : `${date} ${clock(left)}`;
+}
+var ERROR_TEXTS = { 0: "#NULL!", 7: "#DIV/0!", 15: "#VALUE!", 23: "#REF!", 29: "#NAME?", 36: "#NUM!", 42: "#N/A", 43: "#GETTING_DATA" };
+function holdsValue(cell2) {
+  switch (cell2.t) {
+    case "s":
+      return cell2.v !== void 0 && cell2.v !== null && String(cell2.v) !== "";
+    case "n":
+      return typeof cell2.v === "number" && (Number.isFinite(cell2.v) || typeof cell2.w === "string" && cell2.w !== "");
+    case "b":
+    case "e":
+      return true;
+    default:
+      return false;
+  }
+}
+function cellValue(cell2, context2) {
+  if (!holdsValue(cell2)) {
+    return null;
+  }
+  switch (cell2.t) {
+    case "s":
+      return String(cell2.v);
+    case "b":
+      return cell2.v ? "TRUE" : "FALSE";
+    case "e":
+      return typeof cell2.w === "string" && cell2.w !== "" ? cell2.w : ERROR_TEXTS[cell2.v] ?? "#N/A";
+    default: {
+      if (!Number.isFinite(cell2.v)) {
+        return cell2.w;
+      }
+      const info = infoOf(formatOf(cell2, context2), context2);
+      return (info.date ? serialText(cell2.v, { duration: info.duration, date1904: context2.date1904 }) : null) ?? cell2.v;
+    }
+  }
+}
+function mergeIndex(merges) {
+  if (!Array.isArray(merges)) {
+    return null;
+  }
+  const whole = (n) => Number.isInteger(n) && n >= 0;
+  const list = [];
+  for (const merge of merges) {
+    const { s, e } = merge ?? {};
+    if (s && e && whole(s.r) && whole(s.c) && whole(e.r) && whole(e.c) && e.r >= s.r && e.c >= s.c && (e.r > s.r || e.c > s.c)) {
+      list.push({ top: s.r, left: s.c, bottom: e.r, right: e.c });
+    }
+  }
+  if (list.length === 0) {
+    return null;
+  }
+  list.sort((a, b) => a.top - b.top);
+  const reach = new Array(list.length);
+  const build = (lo, hi) => {
+    if (lo > hi) {
+      return -Infinity;
+    }
+    const mid = lo + hi >> 1;
+    reach[mid] = Math.max(list[mid].bottom, build(lo, mid - 1), build(mid + 1, hi));
+    return reach[mid];
+  };
+  build(0, list.length - 1);
+  return { list, reach };
+}
+function covered(index, lo, hi, r, c) {
+  const { list, reach } = index;
+  while (lo <= hi) {
+    const mid = lo + hi >> 1;
+    if (reach[mid] < r) {
+      return false;
+    }
+    if (covered(index, lo, mid - 1, r, c)) {
+      return true;
+    }
+    const block = list[mid];
+    if (block.top > r) {
+      return false;
+    }
+    if (block.bottom >= r && c >= block.left && c <= block.right && !(r === block.top && c === block.left)) {
+      return true;
+    }
+    lo = mid + 1;
+  }
+  return false;
+}
+var mergedAway = (index, r, c) => covered(index, 0, index.list.length - 1, r, c);
+var LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+function columnLetters(index) {
+  let letters = "";
+  for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26)) {
+    letters = LETTERS[(n - 1) % 26] + letters;
+  }
+  return letters;
+}
+var MAX_ROWS = 1048576;
+var MAX_SHEET_COLUMNS = 16384;
+function eachHeld(list, limit, visit) {
+  if (!Array.isArray(list)) {
+    return true;
+  }
+  if (list.length <= limit) {
+    for (let i = 0; i < list.length; i++) {
+      if (list[i] && visit(i, list[i]) === false) {
+        return false;
+      }
+    }
+    return true;
+  }
+  return eachKept(list, limit, visit);
+}
+function eachKept(list, limit, visit) {
+  if (!Array.isArray(list)) {
+    return true;
+  }
+  for (const key of Object.keys(list)) {
+    const i = Number(key);
+    if (!Number.isInteger(i) || i < 0 || String(i) !== key || !list[i]) {
+      continue;
+    }
+    if (i >= limit || visit(i, list[i]) === false) {
+      return false;
+    }
+  }
+  return true;
+}
+function readSheet(ws, { name, label = name, hidden = 0, page = false, date1904 = false, ssf = null }) {
+  const data = Array.isArray(ws["!data"]) ? ws["!data"] : [];
+  const merged = mergeIndex(ws["!merges"]);
+  const context2 = { date1904, ssf, formats: /* @__PURE__ */ new Map(), known: null, searched: /* @__PURE__ */ new WeakMap(), searches: 0 };
+  let top = Infinity;
+  let left = Infinity;
+  let bottom = -1;
+  let right = -1;
+  const emptyFormulaRows = [];
+  const inside = eachHeld(
+    data,
+    MAX_ROWS,
+    (r, row) => eachKept(row, MAX_SHEET_COLUMNS, (c, cell2) => {
+      if (!holdsValue(cell2)) {
+        if (cell2.f !== void 0) {
+          emptyFormulaRows.push(r);
+        }
+      } else if (merged === null || !mergedAway(merged, r, c)) {
+        top = Math.min(top, r);
+        left = Math.min(left, c);
+        bottom = Math.max(bottom, r);
+        right = Math.max(right, c);
+      }
+      return true;
+    })
+  );
+  const sheet = { name, label, hidden, state: "empty", rows: 0, columns: 0, start: null, page, ws, data, merged, context: context2, rect: null, emptyFormulaRows };
+  if (!inside) {
+    sheet.state = "damaged";
+    return sheet;
+  }
+  if (bottom === -1) {
+    return sheet;
+  }
+  sheet.rect = { top, left, bottom, right };
+  sheet.rows = bottom - top + 1;
+  sheet.columns = right - left + 1;
+  sheet.start = `${columnLetters(left)}${top + 1}`;
+  sheet.state = sheet.columns > MAX_COLUMNS ? "wide" : "ready";
+  return sheet;
+}
+var sheetTableName = (sheet, fileName) => sheet.page ? tableNameFor(fileName) : sanitiseName(sheet.label) || FALLBACK_TABLE_NAME;
+function cellAt(sheet, row, column) {
+  const r = sheet.rect.top + row;
+  const c = sheet.rect.left + column;
+  const cell2 = sheet.data[r]?.[c];
+  return !cell2 || sheet.merged !== null && mergedAway(sheet.merged, r, c) ? void 0 : cell2;
+}
+function valueAt(sheet, row, column) {
+  const cell2 = cellAt(sheet, row, column);
+  return cell2 === void 0 ? null : cellValue(cell2, sheet.context);
+}
+var textOf = (value) => value === null ? null : typeof value === "number" ? numberInFull(value) : value;
+function previewRows(sheet, from, count) {
+  const rows3 = [];
+  for (let row = from; row < Math.min(sheet.rows, from + count); row++) {
+    const values = [];
+    for (let column = 0; column < sheet.columns; column++) {
+      values.push(textOf(valueAt(sheet, row, column)));
+    }
+    rows3.push(values);
+  }
+  return rows3;
+}
+function shownText(cell2, format, context2) {
+  if (typeof cell2.w === "string") {
+    return cell2.w;
+  }
+  try {
+    return context2.ssf ? context2.ssf.format(format, cell2.v) : null;
+  } catch {
+    return null;
+  }
+}
+async function tableOf(sheet, { hasNames = true, namesRow = 1, rest = async () => {
+} } = {}) {
+  if (sheet.state !== "ready") {
+    throw new RangeError("a sheet with no values to import has no table");
+  }
+  if (hasNames && !(Number.isInteger(namesRow) && namesRow >= 1 && namesRow <= sheet.rows)) {
+    throw new RangeError(`the sheet has no row ${namesRow}`);
+  }
+  const width = sheet.columns;
+  const first = hasNames ? namesRow : 0;
+  const header = hasNames ? Array.from({ length: width }, (unused, column) => textOf(valueAt(sheet, namesRow - 1, column)) ?? "") : null;
+  const names = columnNames(header, width);
+  const tallies = Array.from({ length: width }, newTally);
+  const lost = new Array(width).fill(null);
+  let steps = 0;
+  for (let row = first; row < sheet.rows; row++) {
+    for (let column = 0; column < width; column++) {
+      const cell2 = cellAt(sheet, row, column);
+      const value = cell2 === void 0 ? null : cellValue(cell2, sheet.context);
+      if (typeof value === "number") {
+        tallyNumber(tallies[column], value);
+        if (lost[column] === null) {
+          const format = formatOf(cell2, sheet.context);
+          const zeros = infoOf(format, sheet.context).zeros;
+          if (zeros > 0 && numberInFull(Math.abs(value)).split(".")[0].length < zeros) {
+            lost[column] = { example: shownText(cell2, format, sheet.context), number: value };
+          }
+        }
+      } else {
+        tallyValue(tallies[column], value);
+      }
+    }
+    steps += width;
+    if (steps >= IMPORT_SHEET_CELLS) {
+      steps = 0;
+      await rest();
+    }
+  }
+  const above = hasNames ? sheet.rect.top + namesRow - 1 : -1;
+  let emptyFormulas = 0;
+  for (const row of sheet.emptyFormulaRows) {
+    if (row > above) {
+      emptyFormulas++;
+    }
+  }
+  const columns = names.map(({ name, original }, i) => ({
+    name,
+    original,
+    type: columnType(tallies[i]),
+    blanks: tallies[i].empty,
+    blocking: blockingValue(tallies[i])
+  }));
+  const padded = [];
+  lost.forEach((found, i) => {
+    if (found !== null) {
+      padded.push({ column: names[i].name, example: found.example, number: found.number });
+    }
+  });
+  return { sheet, hasNames, first, width, rows: sheet.rows - first, columns, emptyFormulas, padded };
+}
+function storedRow(table, index) {
+  const out = [];
+  for (let column = 0; column < table.width; column++) {
+    const cell2 = cellAt(table.sheet, table.first + index, column);
+    const value = cell2 === void 0 ? null : cellValue(cell2, table.sheet.context);
+    const type = table.columns[column].type;
+    if (typeof value !== "number") {
+      out.push(value);
+    } else if (type === "TEXT") {
+      out.push(numberInFull(value));
+    } else {
+      out.push(value === 0 ? 0 : value);
+    }
+  }
+  return out;
+}
+
 // js/lab/import-dialog.js
 init_config();
+
+// js/lab/import-workbook.js
+var import_workbook_exports = {};
+__export(import_workbook_exports, {
+  forWantOfMemory: () => forWantOfMemory,
+  inspectWorkbook: () => inspectWorkbook,
+  readWorkbook: () => readWorkbook,
+  roomAgain: () => roomAgain,
+  watchCall: () => watchCall,
+  watchStep: () => watchStep
+});
+
+// js/lab/import-zip.js
+var import_zip_exports = {};
+__export(import_zip_exports, {
+  CRC_START: () => CRC_START,
+  canUnpack: () => canUnpack,
+  checkZip: () => checkZip,
+  crc32: () => crc32,
+  crcOf: () => crcOf,
+  zipDirectory: () => zipDirectory
+});
+var END_SIGNATURE = 101010256;
+var DIRECTORY_SIGNATURE = 33639248;
+var LOCAL_SIGNATURE = 67324752;
+var LOCATOR_SIGNATURE = 117853008;
+var LOCATOR_BYTES = 20;
+var ZIP64_EXTRA = 1;
+var END_BYTES = 22;
+var DIRECTORY_ENTRY_BYTES = 46;
+var LOCAL_BYTES = 30;
+var TAIL_BYTES = 64 * 1024 + END_BYTES;
+var ALL_ONES_16 = 65535;
+var ALL_ONES_32 = 4294967295;
+var ENCRYPTED = 1;
+var STORED = 0;
+var DEFLATED = 8;
+var REST_EVERY_BYTES = 4 * 1024 * 1024;
+var PIECE_BYTES = 64 * 1024;
+var u16 = (bytes, at) => bytes[at] | bytes[at + 1] << 8;
+var u32 = (bytes, at) => (bytes[at] | bytes[at + 1] << 8 | bytes[at + 2] << 16 | bytes[at + 3] << 24) >>> 0;
+var TABLE = new Uint32Array(256).map((unused, n) => {
+  let value = n;
+  for (let bit = 0; bit < 8; bit++) {
+    value = value & 1 ? 3988292384 ^ value >>> 1 : value >>> 1;
+  }
+  return value >>> 0;
+});
+var CRC_START = 4294967295;
+function crc32(bytes, running = CRC_START) {
+  for (let i = 0; i < bytes.length; i++) {
+    running = TABLE[(running ^ bytes[i]) & 255] ^ running >>> 8;
+  }
+  return running;
+}
+var crcOf = (running) => (running ^ 4294967295) >>> 0;
+function hasExtraField(extra, id) {
+  for (let at = 0; at + 4 <= extra.length; ) {
+    if (u16(extra, at) === id) {
+      return true;
+    }
+    at += 4 + u16(extra, at + 2);
+  }
+  return false;
+}
+var bytesOfSlice = async (file, from, to) => new Uint8Array(await file.slice(from, to).arrayBuffer());
+function endRecordAt(tail) {
+  for (let at = tail.length - END_BYTES; at >= 0; at--) {
+    if (u32(tail, at) === END_SIGNATURE && at + END_BYTES + u16(tail, at + 20) <= tail.length) {
+      return at;
+    }
+  }
+  return -1;
+}
+async function zipDirectory(file) {
+  const size = file.size;
+  const tailStart = Math.max(0, size - TAIL_BYTES);
+  const tail = await bytesOfSlice(file, tailStart, size);
+  const end = endRecordAt(tail);
+  if (end === -1) {
+    return { damaged: true };
+  }
+  const disk = u16(tail, end + 4);
+  const directoryDisk = u16(tail, end + 6);
+  const countHere = u16(tail, end + 8);
+  const count = u16(tail, end + 10);
+  const length = u32(tail, end + 12);
+  const start2 = u32(tail, end + 16);
+  if ((count === ALL_ONES_16 || length === ALL_ONES_32 || start2 === ALL_ONES_32) && end >= LOCATOR_BYTES && u32(tail, end - LOCATOR_BYTES) === LOCATOR_SIGNATURE) {
+    return null;
+  }
+  const endAt = tailStart + end;
+  if (disk !== 0 || directoryDisk !== 0 || countHere !== count || start2 + length > endAt) {
+    return { damaged: true };
+  }
+  const directory = start2 >= tailStart ? tail.subarray(start2 - tailStart, start2 - tailStart + length) : await bytesOfSlice(file, start2, start2 + length);
+  const entries = [];
+  const names = new TextDecoder();
+  let at = 0;
+  let unpacked = 0;
+  for (let i = 0; i < count; i++) {
+    if (at + DIRECTORY_ENTRY_BYTES > directory.length || u32(directory, at) !== DIRECTORY_SIGNATURE) {
+      return { damaged: true };
+    }
+    const nameBytes = u16(directory, at + 28);
+    const extraBytes = u16(directory, at + 30);
+    const commentBytes = u16(directory, at + 32);
+    const next = at + DIRECTORY_ENTRY_BYTES + nameBytes + extraBytes + commentBytes;
+    if (next > directory.length) {
+      return { damaged: true };
+    }
+    const entry2 = {
+      name: names.decode(directory.subarray(at + DIRECTORY_ENTRY_BYTES, at + DIRECTORY_ENTRY_BYTES + nameBytes)),
+      method: u16(directory, at + 10),
+      flags: u16(directory, at + 8),
+      crc: u32(directory, at + 16),
+      packed: u32(directory, at + 20),
+      unpacked: u32(directory, at + 24),
+      at: u32(directory, at + 42)
+    };
+    if (entry2.packed === ALL_ONES_32 || entry2.unpacked === ALL_ONES_32 || entry2.at === ALL_ONES_32) {
+      const extra = directory.subarray(at + DIRECTORY_ENTRY_BYTES + nameBytes, at + DIRECTORY_ENTRY_BYTES + nameBytes + extraBytes);
+      return hasExtraField(extra, ZIP64_EXTRA) ? null : { damaged: true };
+    }
+    entries.push(entry2);
+    unpacked += entry2.unpacked;
+    at = next;
+  }
+  if (at !== directory.length) {
+    return { damaged: true };
+  }
+  return { entries, unpacked };
+}
+function canUnpack() {
+  try {
+    return typeof DecompressionStream === "function" && Boolean(new DecompressionStream("deflate-raw"));
+  } catch {
+    return false;
+  }
+}
+function streamOf(data) {
+  let at = 0;
+  return new ReadableStream({
+    pull(controller) {
+      if (at >= data.length) {
+        controller.close();
+        return;
+      }
+      controller.enqueue(data.subarray(at, at + PIECE_BYTES));
+      at += PIECE_BYTES;
+    }
+  });
+}
+async function unpackDeflated(data, limit, more) {
+  const reader = streamOf(data).pipeThrough(new DecompressionStream("deflate-raw")).getReader();
+  let running = CRC_START;
+  let length = 0;
+  try {
+    for (; ; ) {
+      let step;
+      try {
+        step = await reader.read();
+      } catch {
+        return null;
+      }
+      if (step.done) {
+        return { length, crc: crcOf(running) };
+      }
+      length += step.value.length;
+      if (length > limit) {
+        return null;
+      }
+      running = crc32(step.value, running);
+      await more(step.value.length);
+    }
+  } finally {
+    await reader.cancel().catch(() => {
+    });
+  }
+}
+async function checkZip(bytes, entries, { rest = async () => {
+} } = {}) {
+  if (!canUnpack()) {
+    return true;
+  }
+  let since = 0;
+  const more = async (n) => {
+    since += n;
+    if (since >= REST_EVERY_BYTES) {
+      since = 0;
+      await rest();
+    }
+  };
+  for (const entry2 of entries) {
+    await rest();
+    const at = entry2.at;
+    if (at + LOCAL_BYTES > bytes.length || u32(bytes, at) !== LOCAL_SIGNATURE) {
+      return false;
+    }
+    if (entry2.flags & ENCRYPTED || entry2.method !== STORED && entry2.method !== DEFLATED) {
+      continue;
+    }
+    if (u16(bytes, at + 8) !== entry2.method) {
+      return false;
+    }
+    const from = at + LOCAL_BYTES + u16(bytes, at + 26) + u16(bytes, at + 28);
+    const data = bytes.subarray(from, from + entry2.packed);
+    let got;
+    if (entry2.method === STORED) {
+      let running = CRC_START;
+      for (let done = 0; done < data.length; done += PIECE_BYTES) {
+        running = crc32(data.subarray(done, done + PIECE_BYTES), running);
+        await more(Math.min(PIECE_BYTES, data.length - done));
+      }
+      got = { length: data.length, crc: crcOf(running) };
+    } else {
+      got = data.length === 0 ? { length: 0, crc: crcOf(CRC_START) } : await unpackDeflated(data, entry2.unpacked, more);
+    }
+    if (got === null || got.length !== entry2.unpacked || got.crc !== entry2.crc) {
+      return false;
+    }
+  }
+  return true;
+}
 
 // js/lab/import-text.js
 var ENCODINGS = ["utf-8", "utf-16le", "utf-16be", "windows-1252"];
@@ -6880,6 +7723,18 @@ function kindByStart(head, size, fileName) {
     }
   }
   return "text";
+}
+var HEAD_LIMIT_BYTES = 16 * 1024 * 1024;
+async function headOf(blob, fileName) {
+  let length = HEAD_BYTES;
+  for (; ; ) {
+    const head = new Uint8Array(await blob.slice(0, length).arrayBuffer());
+    const quiet = blob.size > length && length < HEAD_LIMIT_BYTES && WORKBOOK_NAME.test(String(fileName)) && !startsWith(head, ZIP) && !startsWith(head, OLE2) && new TextDecoder(bomOf(head) ?? "utf-8").decode(head).trim() === "";
+    if (!quiet) {
+      return head;
+    }
+    length *= 16;
+  }
 }
 async function* slicesOf(blob, sliceBytes) {
   for (let at = 0; at < blob.size; at += sliceBytes) {
@@ -6984,6 +7839,329 @@ async function* textPieces(blob, encoding, { sliceBytes = TEXT_SLICE_BYTES, betw
   }
 }
 
+// js/lab/import-workbook.js
+var MEGABYTE = 1024 * 1024;
+var megabytes = (bytes) => Math.ceil(bytes / MEGABYTE);
+var WORKBOOK_PARTS = /* @__PURE__ */ new Set(["xl/workbook.xml", "xl/workbook.bin"]);
+var OPAQUE_FOLDERS = ["xl/embeddings/", "xl/printersettings/", "xl/activex/"];
+var partName = (name) => name.toLowerCase().replaceAll("\\", "/").replace(/^\/+/, "");
+function holdsSheetData(name) {
+  return /\.(?:xml|rels)$/.test(name) || name.endsWith(".bin") && !OPAQUE_FOLDERS.some((folder) => name.startsWith(folder));
+}
+function sheetDataBytes(directory) {
+  let data = 0;
+  for (const entry2 of directory.entries) {
+    if (holdsSheetData(partName(entry2.name))) {
+      data += entry2.unpacked;
+    }
+  }
+  return data;
+}
+var asksFirst = (file, directory) => directory?.entries ? sheetDataBytes(directory) > EXCEL_WARN_DATA_BYTES : file.size > EXCEL_WARN_BYTES;
+async function inspectWorkbook(file, kind) {
+  let directory = null;
+  if (kind === "zip") {
+    try {
+      directory = await zipDirectory(file);
+    } catch {
+      return { refused: IMPORT_UNREADABLE_REASON };
+    }
+  }
+  if (directory?.damaged) {
+    return { refused: IMPORT_WORKBOOK_CUT_REASON };
+  }
+  if (directory) {
+    const names = directory.entries.map((entry2) => partName(entry2.name));
+    if (!names.some((name) => WORKBOOK_PARTS.has(name))) {
+      return { refused: IMPORT_NOT_A_WORKBOOK_REASON };
+    }
+    const data = sheetDataBytes(directory);
+    if (data > EXCEL_MAX_DATA_BYTES) {
+      return { refused: importWorkbookTooMuchReason(megabytes(data)) };
+    }
+    if (directory.unpacked > EXCEL_MAX_UNPACKED_BYTES) {
+      return { refused: importWorkbookTooMuchReason(megabytes(directory.unpacked)) };
+    }
+    if (data > EXCEL_WARN_DATA_BYTES) {
+      return { ask: { megabytes: megabytes(file.size), unpackedMegabytes: megabytes(data), heavy: data > EXCEL_HEAVY_DATA_BYTES }, directory };
+    }
+    return { go: true, directory };
+  }
+  if (file.size > EXCEL_MAX_BYTES) {
+    return { refused: IMPORT_WORKBOOK_TOO_LARGE_REASON };
+  }
+  if (file.size > EXCEL_WARN_BYTES) {
+    return { ask: { megabytes: megabytes(file.size), unpackedMegabytes: null, heavy: file.size > EXCEL_HEAVY_BYTES }, directory: null };
+  }
+  return { go: true, directory: null };
+}
+var MOVED = /* @__PURE__ */ Symbol("moved");
+function decodePage(bytes) {
+  const strict = (encoding) => new TextDecoder(encoding, { fatal: true });
+  const bom = bomOf(bytes.subarray(0, HEAD_BYTES));
+  let text = null;
+  if (bom === null) {
+    try {
+      text = strict("utf-8").decode(bytes);
+    } catch {
+    }
+  }
+  return text ?? strict(guessEncoding({ bom, validUtf8: text !== null })).decode(bytes);
+}
+var NO_MEMORY = /out of memory|allocation size overflow|array buffer allocation failed|invalid string length/i;
+var forWantOfMemory = (thrown) => NO_MEMORY.test(String(thrown?.message ?? thrown));
+function reasonForThrown(error, kind) {
+  if (/password/i.test(String(error?.message ?? error))) {
+    return IMPORT_WORKBOOK_LOCKED_REASON;
+  }
+  if (forWantOfMemory(error)) {
+    return IMPORT_WORKBOOK_NO_MEMORY_REASON;
+  }
+  return kind === "markup" ? IMPORT_PAGE_UNREADABLE_REASON : IMPORT_WORKBOOK_UNREADABLE_REASON;
+}
+function watchCall(onLost, { every = WORKBOOK_WATCH_MS } = {}) {
+  let timer = null;
+  const stop2 = () => {
+    clearInterval(timer);
+    timer = null;
+  };
+  return {
+    begin(...told) {
+      stop2();
+      timer = setInterval(() => {
+        try {
+          onLost(...told);
+        } catch {
+          return;
+        }
+        stop2();
+      }, every);
+    },
+    end: stop2,
+    begun: () => timer !== null
+  };
+}
+var ROOM_AGAIN_OBJECTS = 2e5;
+function roomAgain() {
+  Array.from({ length: ROOM_AGAIN_OBJECTS }, () => ({}));
+}
+function watchStep(step, onLost, options) {
+  return new Promise((resolve, reject) => {
+    const watch = watchCall(() => {
+      onLost();
+      resolve();
+    }, options);
+    const run = async () => {
+      watch.begin();
+      let given;
+      try {
+        given = step();
+      } catch (error) {
+        if (!forWantOfMemory(error)) {
+          watch.end();
+        }
+        throw error;
+      }
+      watch.end();
+      return given;
+    };
+    run().then(resolve, (error) => {
+      if (!watch.begun()) {
+        reject(error);
+      }
+    });
+  });
+}
+function sheetNamed(sheets, name) {
+  if (Object.hasOwn(sheets, name)) {
+    return sheets[name];
+  }
+  if (name === "__proto__") {
+    const prototype = Object.getPrototypeOf(sheets);
+    return prototype === Object.prototype ? void 0 : prototype ?? void 0;
+  }
+  return void 0;
+}
+var hollows = /* @__PURE__ */ new WeakMap();
+function letStringsGo(XLSX, { strict = false } = {}) {
+  try {
+    let hollow = hollows.get(XLSX);
+    if (!hollow) {
+      const book = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([[]]), "s");
+      book.SSF = {};
+      hollow = new Uint8Array(XLSX.write(book, { type: "array", bookType: "xlsx" }));
+      hollows.set(XLSX, hollow);
+    }
+    XLSX.read(hollow, { type: "array" });
+    XLSX.SSF?.get_table?.();
+  } catch (error) {
+    if (strict && forWantOfMemory(error)) {
+      throw error;
+    }
+  }
+}
+function formatsHeld(XLSX) {
+  if (!XLSX.SSF) {
+    return null;
+  }
+  const table = { ...XLSX.SSF.get_table() };
+  return { get_table: () => table, format: (format, value, options) => XLSX.SSF.format(format, value, options) };
+}
+function readWorkbook(file, kind, wiring) {
+  return new Promise((resolve, reject) => {
+    const watch = watchCall((XLSX) => {
+      if (kind === "zip") {
+        letStringsGo(XLSX, { strict: true });
+      }
+      roomAgain();
+      resolve({ refused: IMPORT_WORKBOOK_NO_MEMORY_REASON });
+    });
+    reading(file, kind, wiring, watch).then(resolve, (error) => {
+      if (!watch.begun()) {
+        reject(error);
+      }
+    });
+  });
+}
+async function reading(file, kind, { directory, loadLibrary, rest = async () => {
+}, frame = async () => {
+}, current: current4 = () => true }, watch) {
+  const look = () => {
+    if (!current4()) {
+      throw MOVED;
+    }
+  };
+  const calm = async () => {
+    try {
+      await rest();
+    } catch (error) {
+      if (current4() && forWantOfMemory(error)) {
+        throw error;
+      }
+      throw MOVED;
+    }
+    look();
+  };
+  try {
+    look();
+    let XLSX;
+    try {
+      XLSX = await loadLibrary();
+    } catch {
+      return { refused: IMPORT_WORKBOOK_LIBRARY_FAILED_REASON };
+    }
+    look();
+    let workbook;
+    let ssf;
+    {
+      let bytes;
+      try {
+        bytes = new Uint8Array(await file.arrayBuffer());
+      } catch (error) {
+        return { refused: forWantOfMemory(error) ? IMPORT_WORKBOOK_NO_MEMORY_REASON : IMPORT_UNREADABLE_REASON };
+      }
+      look();
+      if (kind === "zip" && directory === void 0) {
+        try {
+          directory = await zipDirectory(file);
+        } catch {
+          return { refused: IMPORT_UNREADABLE_REASON };
+        }
+        look();
+      }
+      if (directory?.damaged) {
+        return { refused: IMPORT_WORKBOOK_CUT_REASON };
+      }
+      if (directory?.entries && !await checkZip(bytes, directory.entries, { rest: calm })) {
+        return { refused: IMPORT_WORKBOOK_DAMAGED_REASON };
+      }
+      await frame();
+      look();
+      watch.begin(XLSX);
+      try {
+        workbook = kind === "markup" ? XLSX.read(decodePage(bytes), { type: "string", raw: true, dense: true, cellNF: true, sheetStubs: true, cellHTML: false }) : XLSX.read(bytes, { type: "array", dense: true, cellNF: true, sheetStubs: true, cellHTML: false });
+      } catch (error) {
+        const reason = reasonForThrown(error, kind);
+        if (reason === IMPORT_WORKBOOK_NO_MEMORY_REASON) {
+          throw error;
+        }
+        if (kind === "zip") {
+          letStringsGo(XLSX);
+        }
+        watch.end();
+        return { refused: reason };
+      }
+      ssf = formatsHeld(XLSX);
+      if (kind === "zip") {
+        letStringsGo(XLSX);
+      }
+      bytes = null;
+    }
+    look();
+    const pause = async () => {
+      watch.end();
+      try {
+        await calm();
+      } catch (error) {
+        if (forWantOfMemory(error)) {
+          watch.begin(XLSX);
+        }
+        throw error;
+      }
+      watch.begin(XLSX);
+    };
+    const listed = await listSheets(workbook, kind, ssf, pause, asksFirst(file, directory));
+    watch.end();
+    return listed;
+  } catch (error) {
+    if (error === MOVED) {
+      watch.end();
+      return { moved: true };
+    }
+    if (!forWantOfMemory(error)) {
+      watch.end();
+    }
+    throw error;
+  }
+}
+async function listSheets(workbook, kind, ssf, calm, large) {
+  const page = kind === "markup" && workbook.Workbook === void 0;
+  const date1904 = Boolean(workbook.Workbook?.WBProps?.date1904);
+  const hiddenOf = /* @__PURE__ */ new Map();
+  if (Array.isArray(workbook.Workbook?.Sheets)) {
+    for (const entry2 of workbook.Workbook.Sheets) {
+      if (entry2 && !hiddenOf.has(entry2.name)) {
+        hiddenOf.set(entry2.name, entry2.Hidden);
+      }
+    }
+  }
+  const sheets = workbook.Sheets ?? {};
+  const listed = [];
+  let charts = 0;
+  for (const name of workbook.SheetNames ?? []) {
+    const ws = sheetNamed(sheets, name);
+    if (ws === null || typeof ws !== "object") {
+      return { refused: large ? IMPORT_WORKBOOK_SHEET_LOST_REASON : IMPORT_WORKBOOK_DAMAGED_REASON };
+    }
+    if (ws["!type"]) {
+      charts++;
+      continue;
+    }
+    const hidden = hiddenOf.get(name);
+    listed.push({ name, ws, hidden: hidden === 1 || hidden === 2 ? hidden : 0 });
+  }
+  if (listed.length === 0) {
+    return { refused: IMPORT_WORKBOOK_NO_SHEETS_REASON };
+  }
+  const made = [];
+  for (const [i, { name, ws, hidden }] of listed.entries()) {
+    made.push(readSheet(ws, { name, label: page ? importPageTableLabel(i + 1) : name, hidden, page, date1904, ssf }));
+    await calm();
+  }
+  return { sheets: made, charts };
+}
+
 // js/lab/tabs.js
 function mountTabs(tablist, { onShow = () => {
 } } = {}) {
@@ -7082,6 +8260,14 @@ function field(id, labelText, control, { hint = "" } = {}) {
     }
   };
 }
+function sendFocusToSelectedTab(strip) {
+  strip.tabIndex = -1;
+  strip.addEventListener("focus", (event) => {
+    if (event.target === strip) {
+      strip.querySelector('[role="tab"][aria-selected="true"]')?.focus({ preventScroll: true });
+    }
+  });
+}
 function select(options, value) {
   const control = el5("select", { className: "import-select" });
   for (const [optionValue, optionText] of options) {
@@ -7092,7 +8278,7 @@ function select(options, value) {
 }
 function previewCell(text, { names = false } = {}) {
   const cell2 = el5("td");
-  if (text === void 0 || text === "") {
+  if (text === void 0 || text === null || text === "") {
     cell2.append(el5("span", { className: "cell-null" }, names ? IMPORT_PREVIEW_BLANK : NULL_TEXT));
     return cell2;
   }
@@ -7107,7 +8293,38 @@ function previewCell(text, { names = false } = {}) {
   }
   return cell2;
 }
-function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }) {
+function previewTable(rows3, first, namesAt) {
+  const width = rows3.reduce((most, row) => Math.max(most, row.length), 0);
+  const table = el5("table", { className: "result-table import-preview-table" });
+  const head = el5("tr");
+  head.append(el5("th", { scope: "col", className: "import-row-heading" }, IMPORT_PREVIEW_ROW_HEADING));
+  for (let column = 1; column <= width; column++) {
+    head.append(el5("th", { scope: "col" }, String(column)));
+  }
+  table.createTHead().append(head);
+  const body = table.createTBody();
+  rows3.forEach((row, i) => {
+    const number = first + i;
+    const line = el5("tr");
+    const heading = el5("th", { scope: "row", className: "import-row-heading" });
+    heading.append(el5("span", { className: "import-row-number" }, String(number)));
+    const isNames = number === namesAt;
+    if (number < namesAt) {
+      line.className = "import-row--out";
+      heading.append(el5("span", { className: "import-row-tag" }, IMPORT_PREVIEW_LEFT_OUT));
+    } else if (isNames) {
+      line.className = "import-row--names";
+      heading.append(el5("span", { className: "import-row-tag" }, IMPORT_PREVIEW_NAMES));
+    }
+    line.append(heading);
+    for (let column = 0; column < width; column++) {
+      line.append(previewCell(row[column], { names: isNames }));
+    }
+    body.append(line);
+  });
+  return table;
+}
+function mountImportDialog({ returnFocus, getDestination, loadReader, excel = null, onImport }) {
   const dialog = el5("dialog", { id: "import-dialog", className: "app-dialog import-dialog" });
   dialog.setAttribute("aria-labelledby", "import-title");
   dialog.setAttribute("aria-describedby", "import-text");
@@ -7153,7 +8370,7 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
   const body = el5("div", { className: "import-body" });
   body.append(
     el5("h2", { id: "import-title", className: "app-dialog-title" }, IMPORT_DIALOG_TITLE),
-    el5("p", { id: "import-text", className: "app-dialog-text" }, IMPORT_DIALOG_TEXT),
+    el5("p", { id: "import-text", className: "app-dialog-text" }, excel ? IMPORT_DIALOG_TEXT_WITH_SHEETS : IMPORT_DIALOG_TEXT),
     destination,
     files,
     progress
@@ -7169,9 +8386,11 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
   let tabList = null;
   let running = null;
   let opened = 0;
+  let workbookTurn = Promise.resolve();
   let pressing = false;
   let pointerDown = false;
   let owed = null;
+  let edited = null;
   const importable = () => tabs2.filter((tab) => tab.state !== "refused");
   const usesOpenDatabase = () => openChoice.checked;
   function newTab(file, n) {
@@ -7216,7 +8435,14 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
       problem: "",
       // the mark of the text the preview was read from (markOf)
       mark: null,
-      controls: null
+      controls: null,
+      // A workbook (only with excel-import on): known to be one once its first bytes have been
+      // looked at; its zip's directory as the limits read it; and, once it has been read, its
+      // sheets (see showSheets). Until then it is a tab like the others.
+      isWorkbook: false,
+      kind: "text",
+      directory: null,
+      workbook: null
     };
   }
   function refuse(tab, reason, { own = false } = {}) {
@@ -7224,6 +8450,9 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
     tab.state = "refused";
     tab.reason = reason;
     tab.controls = null;
+    for (const mark of tab.button.querySelectorAll(".import-tab-nothing")) {
+      mark.remove();
+    }
     if (!tab.button.querySelector(".import-tab-refused")) {
       const mark = icon("circle-alert");
       mark.classList.add("import-tab-refused");
@@ -7250,14 +8479,18 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
     tab.panel.tabIndex = 0;
     refresh();
   }
-  function showWarning(tab, mine) {
+  function showWarning(tab, mine, { message = null, proceed = null } = {}) {
     tab.state = "warning";
-    const megabytes = Math.round(tab.file.size / (1024 * 1024));
+    const megabytes2 = Math.round(tab.file.size / (1024 * 1024));
     const go = el5("button", { type: "button", className: "button" }, IMPORT_LARGE_FILE_CONTINUE_TEXT);
     go.addEventListener("click", () => {
       showReading(tab);
       tab.button.focus();
-      read2(tab, mine);
+      if (proceed) {
+        proceed();
+      } else {
+        read2(tab, mine);
+      }
     });
     const leave = el5("button", { type: "button", className: "button" }, IMPORT_LARGE_FILE_LEAVE_TEXT);
     leave.addEventListener("click", () => {
@@ -7267,7 +8500,7 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
     const answers = el5("div", { className: "import-warning-answers" });
     answers.append(go, leave);
     const box = el5("div", { className: "import-warning" });
-    box.append(el5("p", { className: "import-warning-text" }, importLargeFileMessage(megabytes)), answers);
+    box.append(el5("p", { className: "import-warning-text" }, message ?? importLargeFileMessage(megabytes2)), answers);
     tab.panel.replaceChildren(box);
     tab.panel.removeAttribute("tabindex");
     refresh();
@@ -7275,7 +8508,7 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
   async function look(tab, mine) {
     let kind;
     try {
-      const head = new Uint8Array(await tab.file.slice(0, HEAD_BYTES).arrayBuffer());
+      const head = await headOf(tab.file, tab.file.name);
       kind = kindByStart(head, tab.file.size, tab.file.name);
     } catch {
       kind = "unreadable";
@@ -7287,6 +8520,8 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
       refuse(tab, IMPORT_EMPTY_REASON);
     } else if (kind === "unreadable") {
       refuse(tab, IMPORT_UNREADABLE_REASON);
+    } else if (kind !== "text" && excel) {
+      await lookWorkbook(tab, mine, kind);
     } else if (kind !== "text") {
       refuse(tab, IMPORT_WORKBOOK_REASON);
     } else if (tab.file.size > IMPORT_TEXT_MAX_BYTES) {
@@ -7465,7 +8700,7 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
       tab.namesChosen = true;
       const text = namesRow.control.value.trim();
       tab.namesRow = /^[0-9]+$/.test(text) ? Number(text) : NaN;
-      draw(tab);
+      whileEdited(namesRow.control, () => draw(tab));
       refresh();
     });
     const names = el5("div", { className: "import-names" });
@@ -7508,10 +8743,12 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
       encoding.clearError();
     } else {
       encoding.showError(importEncodingMessage(tab.encoding));
+      keepMessageWhole(encoding.control);
     }
     const problem = namesRowProblem(tab);
     if (problem) {
       namesRow.showError(problem);
+      keepMessageWhole(namesRow.control);
     } else {
       namesRow.clearError();
     }
@@ -7531,35 +8768,7 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
     const namesAt = tab.hasNames && !problem ? tab.namesRow : 0;
     const first = Math.max(1, namesAt - ROWS_ABOVE);
     const shown2 = tab.rows.slice(first - 1, namesAt + PREVIEW_ROWS);
-    const width = shown2.reduce((most, row) => Math.max(most, row.length), 0);
-    const table = el5("table", { className: "result-table import-preview-table" });
-    const head = el5("tr");
-    head.append(el5("th", { scope: "col", className: "import-row-heading" }, IMPORT_PREVIEW_ROW_HEADING));
-    for (let column = 1; column <= width; column++) {
-      head.append(el5("th", { scope: "col" }, String(column)));
-    }
-    table.createTHead().append(head);
-    const body2 = table.createTBody();
-    shown2.forEach((row, i) => {
-      const number = first + i;
-      const line = el5("tr");
-      const heading = el5("th", { scope: "row", className: "import-row-heading" });
-      heading.append(el5("span", { className: "import-row-number" }, String(number)));
-      const isNames = number === namesAt;
-      if (number < namesAt) {
-        line.className = "import-row--out";
-        heading.append(el5("span", { className: "import-row-tag" }, IMPORT_PREVIEW_LEFT_OUT));
-      } else if (isNames) {
-        line.className = "import-row--names";
-        heading.append(el5("span", { className: "import-row-tag" }, IMPORT_PREVIEW_NAMES));
-      }
-      line.append(heading);
-      for (let column = 0; column < width; column++) {
-        line.append(previewCell(row[column], { names: isNames }));
-      }
-      body2.append(line);
-    });
-    preview.replaceChildren(table);
+    preview.replaceChildren(previewTable(shown2, first, namesAt));
     const notes = [];
     if (first > 1) {
       notes.push(importPreviewAboveMessage(first - 1));
@@ -7570,50 +8779,502 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
     note.textContent = notes.join(" ");
     note.hidden = !notes.length;
   }
+  async function lookWorkbook(tab, mine, kind) {
+    tab.isWorkbook = true;
+    tab.kind = kind;
+    suggestNames();
+    const inspected = await excel.inspectWorkbook(tab.file, kind);
+    if (mine !== session) {
+      return;
+    }
+    if (inspected.refused) {
+      refuse(tab, inspected.refused);
+      return;
+    }
+    tab.directory = inspected.directory ?? null;
+    if (inspected.ask) {
+      showWarning(tab, mine, { message: importLargeWorkbookMessage(inspected.ask), proceed: () => readSheets(tab, mine) });
+      return;
+    }
+    await readSheets(tab, mine);
+  }
+  function readSheets(tab, mine) {
+    const next = workbookTurn.then(async () => {
+      if (mine !== session) {
+        return;
+      }
+      const pace = newPace();
+      let read3;
+      try {
+        read3 = await excel.readWorkbook(tab.file, tab.kind, {
+          directory: tab.directory,
+          loadLibrary: excel.loadLibrary,
+          rest: () => pace.rest(),
+          frame: nextFrame,
+          current: () => mine === session
+        });
+      } catch {
+        read3 = { refused: IMPORT_UNREADABLE_REASON };
+      }
+      if (mine !== session || read3.moved) {
+        return;
+      }
+      const lostReason = read3.refused ?? IMPORT_WORKBOOK_NO_MEMORY_REASON;
+      await watchStep(
+        () => {
+          if (read3.refused) {
+            refuse(tab, read3.refused);
+          } else {
+            showSheets(tab, read3);
+          }
+        },
+        () => {
+          if (mine === session) {
+            submit.disabled = true;
+          }
+          read3 = null;
+          tab.workbook = null;
+          tab.state = "reading";
+          tab.panel.replaceChildren();
+          roomAgain();
+          if (mine === session) {
+            tab.button.replaceChildren(tab.button.querySelector(".import-tab-name"));
+            tab.panel.setAttribute("aria-labelledby", tab.button.id);
+            refuse(tab, lostReason);
+          }
+        }
+      );
+    });
+    workbookTurn = next.catch(() => {
+    });
+    return next;
+  }
+  function newUnit(tab, sheet, i, listed) {
+    const id = `${tab.id}-s${i}`;
+    const panel = el5("div", { id: `${id}-panel`, className: "import-sheet-panel" });
+    let button = null;
+    if (listed > 1) {
+      button = el5("button", { id: `${id}-tab`, className: "tab import-tab import-sheet-tab", type: "button" });
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-controls", panel.id);
+      button.setAttribute("aria-selected", "false");
+      panel.setAttribute("role", "tabpanel");
+      panel.setAttribute("aria-labelledby", `${id}-tab-name`);
+    }
+    const unit = {
+      id,
+      tab,
+      file: tab.file,
+      sheet,
+      isSheet: true,
+      // (a name of only spaces would leave a tab and a line with nothing to read)
+      label: sheet.label.trim() === "" ? importSheetUnnamedLabel(i + 1) : sheet.label,
+      hidden: sheet.hidden,
+      state: sheet.state,
+      // visible sheets that hold values are ticked; a hidden one only when the student says so
+      ticked: sheet.state === "ready" && sheet.hidden === 0,
+      // nothing is guessed for a sheet: its first row holds the names until the student says otherwise
+      hasNames: true,
+      namesRow: 1,
+      tableName: "",
+      nameEdited: false,
+      built: false,
+      controls: null,
+      tick: null,
+      button,
+      panel
+    };
+    drawUnitTab(unit);
+    return unit;
+  }
+  function unitWords(unit) {
+    if (unit.state === "empty") {
+      return IMPORT_SHEET_NO_VALUES_TEXT;
+    }
+    if (unit.state !== "ready") {
+      return IMPORT_REFUSED_TAB_TEXT;
+    }
+    if (unit.ticked) {
+      return unit.hidden ? IMPORT_SHEET_HIDDEN_TICKED_TEXT : IMPORT_SHEET_TICKED_TEXT;
+    }
+    return unit.hidden ? IMPORT_SHEET_HIDDEN_NOT_TICKED_TEXT : IMPORT_SHEET_NOT_TICKED_TEXT;
+  }
+  function drawUnitTab(unit) {
+    if (!unit.button) {
+      return;
+    }
+    const sign = icon(unit.state !== "ready" ? "circle-alert" : unit.ticked ? "check" : "circle");
+    sign.classList.add("import-tab-sign");
+    sign.classList.toggle("import-tab-sign--quiet", unit.state !== "ready");
+    const parts = [sign, el5("span", { id: `${unit.id}-tab-name`, className: "import-tab-name", title: unit.label }, unit.label)];
+    if (unit.hidden) {
+      const word = el5("span", { className: "import-sheet-badge" }, IMPORT_SHEET_HIDDEN_WORD);
+      word.setAttribute("aria-hidden", "true");
+      parts.push(word);
+    }
+    parts.push(el5("span", { className: "visually-hidden" }, `(${unitWords(unit)})`));
+    unit.button.replaceChildren(...parts);
+  }
+  function sheetNamesProblem(unit) {
+    if (!unit.hasNames) {
+      return "";
+    }
+    if (!Number.isSafeInteger(unit.namesRow) || unit.namesRow < 1) {
+      return IMPORT_NAMES_ROW_NOT_A_ROW_MESSAGE;
+    }
+    return unit.namesRow > unit.sheet.rows ? importNamesRowSheetMessage(unit.sheet.rows) : "";
+  }
+  function showSheets(tab, read3) {
+    const listed = read3.sheets.length;
+    const units = read3.sheets.map((sheet, i) => newUnit(tab, sheet, i, listed));
+    const book = { units, listed, charts: read3.charts, strip: null, shown: null, count: null, tickAll: null, untickAll: null };
+    tab.workbook = book;
+    tab.state = "ready";
+    tab.controls = null;
+    suggestDatabaseName();
+    tab.panel.removeAttribute("tabindex");
+    const fileName = tab.button.querySelector(".import-tab-name");
+    fileName.id = `${tab.id}-file-name`;
+    tab.panel.setAttribute("aria-labelledby", fileName.id);
+    const parts = [];
+    if (listed > 1 || book.charts > 0) {
+      const head = el5("div", { className: "import-sheets-head" });
+      book.count = el5("p", { className: "import-sheets-count" });
+      book.count.setAttribute("role", "status");
+      head.append(book.count);
+      if (listed > 1) {
+        const tickAll = el5("button", { type: "button", className: "button" }, IMPORT_TICK_ALL_SHEETS_TEXT);
+        const untickAll = el5("button", { type: "button", className: "button" }, IMPORT_UNTICK_ALL_SHEETS_TEXT);
+        tickAll.addEventListener("click", () => tickEvery(tab, true));
+        untickAll.addEventListener("click", () => tickEvery(tab, false));
+        const actions3 = el5("div", { className: "import-sheets-actions" });
+        actions3.append(tickAll, untickAll);
+        head.append(actions3);
+      }
+      parts.push(head);
+    }
+    let strip = null;
+    if (listed > 1) {
+      strip = el5("div", { className: "tabs import-tabs import-sheet-tabs" });
+      strip.setAttribute("role", "tablist");
+      sendFocusToSelectedTab(strip);
+      strip.setAttribute("aria-label", importSheetsLabel(tab.file.name));
+      strip.append(...units.map((unit) => unit.button));
+      const panels = el5("div", { className: "import-sheet-panels" });
+      panels.append(...units.map((unit) => unit.panel));
+      parts.push(strip, panels);
+    } else {
+      parts.push(units[0].panel);
+    }
+    tab.panel.replaceChildren(...parts);
+    drawCount(tab);
+    markBook(tab);
+    if (strip) {
+      const first = units.find((unit) => unit.ticked) ?? units[0];
+      first.button.setAttribute("aria-selected", "true");
+      book.strip = mountTabs(strip, {
+        onShow: (id) => {
+          book.shown = units.find((unit) => unit.button.id === id);
+          buildUnit(book.shown);
+          refresh();
+        }
+      });
+      bringIntoStrip(first.button);
+    } else {
+      book.shown = units[0];
+      buildUnit(units[0]);
+    }
+    suggestNames();
+    refresh();
+  }
+  function drawCount(tab) {
+    const { units, charts, count } = tab.workbook;
+    if (!count) {
+      return;
+    }
+    const tickable = units.filter((unit) => unit.state === "ready").length;
+    const text = importSheetsCountText({ ticked: units.filter((unit) => unit.ticked).length, tickable, unable: units.length - tickable, charts });
+    if (count.textContent !== text) {
+      count.textContent = text;
+    }
+  }
+  function markBook(tab) {
+    for (const old of tab.button.querySelectorAll(".import-tab-nothing")) {
+      old.remove();
+    }
+    if (tab.workbook.units.some((unit) => unit.ticked)) {
+      return;
+    }
+    const tickable = tab.workbook.units.some((unit) => unit.state === "ready");
+    const sign = icon("circle-alert");
+    sign.classList.add("import-tab-sign", "import-tab-sign--quiet", "import-tab-nothing");
+    const words = el5("span", { className: "visually-hidden import-tab-nothing" }, `(${tickable ? IMPORT_TAB_NOTHING_TICKED_TEXT : IMPORT_REFUSED_TAB_TEXT})`);
+    tab.button.prepend(sign);
+    tab.button.append(words);
+  }
+  function setTicked(unit, on) {
+    unit.ticked = on && unit.state === "ready";
+    if (unit.tick) {
+      unit.tick.checked = unit.ticked;
+    }
+    drawUnitTab(unit);
+  }
+  function sheetsTicked(tab) {
+    drawCount(tab);
+    markBook(tab);
+    refresh();
+  }
+  function tickEvery(tab, on) {
+    for (const unit of tab.workbook.units) {
+      setTicked(unit, on);
+    }
+    sheetsTicked(tab);
+  }
+  function buildUnit(unit) {
+    if (unit.built) {
+      return;
+    }
+    const { sheet } = unit;
+    const ready = unit.state === "ready";
+    const parts = [];
+    const what = el5("div", { className: "import-sheet-what" });
+    const title = el5("p", { className: "import-sheet-name" });
+    title.append(el5("span", { className: "import-sheet-title" }, sheet.page ? unit.label : importSheetLineText(unit.label)));
+    if (unit.hidden) {
+      title.append(" ", el5("span", { className: "import-sheet-badge" }, IMPORT_SHEET_HIDDEN_WORD));
+    }
+    what.append(title);
+    if (ready || unit.state === "wide") {
+      what.append(el5("p", { className: "app-dialog-hint import-sheet-size" }, importSheetSizeText(sheet)));
+    }
+    const box = el5("input", { type: "checkbox", id: `${unit.id}-tick` });
+    const boxLabel = el5("label", { className: "import-check import-sheet-tick", htmlFor: box.id });
+    boxLabel.append(box, el5("span", {}, IMPORT_SHEET_TICK_LABEL));
+    box.checked = unit.ticked;
+    unit.tick = box;
+    const head = el5("div", { className: "import-sheet-head" });
+    head.append(what, boxLabel);
+    parts.push(head);
+    if (ready) {
+      box.addEventListener("change", () => {
+        setTicked(unit, box.checked);
+        sheetsTicked(unit.tab);
+      });
+      if (unit.hidden) {
+        const note = el5("p", { id: `${unit.id}-hidden-note`, className: "app-dialog-hint import-sheet-note" }, IMPORT_SHEET_HIDDEN_NOTE);
+        box.setAttribute("aria-describedby", note.id);
+        parts.push(note);
+      }
+    } else {
+      const reason = el5(
+        "p",
+        { id: `${unit.id}-reason`, className: "app-dialog-hint import-sheet-note" },
+        unit.state === "empty" ? IMPORT_SHEET_EMPTY_REASON : unit.state === "wide" ? IMPORT_SHEET_WIDE_REASON : IMPORT_SHEET_DAMAGED_REASON
+      );
+      box.setAttribute("aria-disabled", "true");
+      box.setAttribute("aria-describedby", reason.id);
+      box.addEventListener("click", (event) => event.preventDefault());
+      box.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+        }
+      });
+      parts.push(reason);
+    }
+    if (ready) {
+      parts.push(...buildUnitControls(unit));
+    }
+    unit.panel.replaceChildren(...parts);
+    if (ready) {
+      drawUnit(unit);
+    }
+    unit.built = true;
+  }
+  function buildUnitControls(unit) {
+    const name = field(
+      `${unit.id}-name`,
+      IMPORT_TABLE_NAME_LABEL,
+      el5("input", { type: "text", className: "app-dialog-input", autocomplete: "off", spellcheck: false }),
+      { hint: IMPORT_TABLE_NAME_HINT }
+    );
+    name.control.setAttribute("autocapitalize", "off");
+    name.control.setAttribute("autocorrect", "off");
+    name.control.value = unit.tableName;
+    name.control.addEventListener("input", () => {
+      unit.nameEdited = true;
+      unit.tableName = name.control.value;
+      name.clearError();
+    });
+    name.control.addEventListener("change", () => {
+      if (name.control.value !== "") {
+        name.control.value = sanitiseName(name.control.value);
+        unit.tableName = name.control.value;
+      }
+    });
+    const hasNames = el5("input", { type: "checkbox", id: `${unit.id}-has-names` });
+    const hasNamesLabel = el5("label", { className: "import-check", htmlFor: hasNames.id });
+    hasNamesLabel.append(hasNames, el5("span", {}, IMPORT_HAS_NAMES_SHEET_LABEL));
+    const namesRow = field(
+      `${unit.id}-names-row`,
+      IMPORT_NAMES_ROW_LABEL,
+      el5("input", { type: "number", className: "app-dialog-input import-number", min: "1", step: "1", inputMode: "numeric" })
+    );
+    hasNames.addEventListener("change", () => {
+      unit.hasNames = hasNames.checked;
+      drawUnit(unit);
+      refresh();
+    });
+    namesRow.control.addEventListener("input", () => {
+      const text = namesRow.control.value.trim();
+      unit.namesRow = /^[0-9]+$/.test(text) ? Number(text) : NaN;
+      whileEdited(namesRow.control, () => drawUnit(unit));
+      refresh();
+    });
+    const names = el5("div", { className: "import-names" });
+    names.append(hasNamesLabel, namesRow.box);
+    const settings2 = el5("div", { className: "import-settings" });
+    settings2.append(name.box, names);
+    const preview = el5("div", { className: "import-preview" });
+    preview.setAttribute("role", "region");
+    preview.setAttribute("aria-label", IMPORT_PREVIEW_LABEL);
+    preview.tabIndex = 0;
+    const note = el5("p", { className: "app-dialog-hint import-preview-note", hidden: true });
+    unit.controls = { name, hasNames, namesRow, preview, note };
+    const rows3 = el5("div", { className: "import-sheet-rows" });
+    rows3.append(el5("p", { className: "app-dialog-label import-preview-title" }, IMPORT_PREVIEW_LABEL));
+    if (unit.sheet.start !== "A1") {
+      rows3.append(el5("p", { className: "app-dialog-hint import-sheet-start" }, importSheetStartNote(unit.sheet.start)));
+    }
+    rows3.append(note, preview);
+    return [settings2, rows3];
+  }
+  function drawUnit(unit) {
+    const { name, hasNames, namesRow, preview, note } = unit.controls;
+    if (name.control.value !== unit.tableName && !unit.nameEdited) {
+      name.control.value = unit.tableName;
+    }
+    hasNames.checked = unit.hasNames;
+    if (Number.isSafeInteger(unit.namesRow) && namesRow.control.value.trim() !== String(unit.namesRow)) {
+      namesRow.control.value = String(unit.namesRow);
+    }
+    namesRow.control.disabled = !unit.hasNames;
+    const problem = sheetNamesProblem(unit);
+    if (problem) {
+      namesRow.showError(problem);
+      keepMessageWhole(namesRow.control);
+    } else {
+      namesRow.clearError();
+    }
+    const namesAt = unit.hasNames && !problem ? unit.namesRow : 0;
+    const first = Math.max(1, namesAt - ROWS_ABOVE);
+    const shown2 = previewRows(unit.sheet, first - 1, namesAt + PREVIEW_ROWS - first + 1);
+    preview.replaceChildren(previewTable(shown2, first, namesAt));
+    const notes = [];
+    if (first > 1) {
+      notes.push(importPreviewAboveMessage(first - 1));
+    }
+    if (namesAt && unit.sheet.rows === namesAt) {
+      notes.push(IMPORT_PREVIEW_NO_DATA_MESSAGE);
+    }
+    note.textContent = notes.join(" ");
+    note.hidden = !notes.length;
+  }
+  function showUnit(unit) {
+    tabList.show(unit.tab.button.id);
+    unit.tab.workbook.strip?.show(unit.button.id);
+    if (unit.button) {
+      bringIntoStrip(unit.button);
+    }
+  }
+  function bringIntoStrip(button) {
+    const strip = button.parentElement;
+    const around = strip.getBoundingClientRect();
+    const at = button.getBoundingClientRect();
+    if (around.width === 0) {
+      return;
+    }
+    if (at.left < around.left) {
+      strip.scrollLeft -= around.left - at.left;
+    } else if (at.right > around.right) {
+      strip.scrollLeft += at.right - around.right;
+    }
+  }
   function suggestNames() {
     const used = new Set(usesOpenDatabase() ? getDestination().taken().keys() : []);
-    for (const tab of importable()) {
-      if (tab.nameEdited) {
-        used.add(sameNameKey(sanitiseName(tab.tableName)));
+    for (const unit of nameUnits()) {
+      if (unit.nameEdited) {
+        used.add(sameNameKey(sanitiseName(unit.tableName)));
       } else {
-        tab.tableName = uniqueName(tableNameFor(tab.file.name), used);
-        if (tab.controls) {
-          tab.controls.name.control.value = tab.tableName;
-          tab.controls.name.clearError();
+        unit.tableName = uniqueName(unit.isSheet ? sheetTableName(unit.sheet, unit.file.name) : tableNameFor(unit.file.name), used);
+        if (unit.controls) {
+          unit.controls.name.control.value = unit.tableName;
+          unit.controls.name.clearError();
         }
       }
     }
+  }
+  function nameUnits() {
+    const units = [];
+    for (const tab of importable()) {
+      if (tab.workbook) {
+        units.push(...tab.workbook.units.filter((unit) => unit.state === "ready"));
+      } else if (!tab.isWorkbook) {
+        units.push(tab);
+      }
+    }
+    return units;
+  }
+  function tickedUnits() {
+    const units = [];
+    for (const tab of importable()) {
+      if (tab.workbook) {
+        units.push(...tab.workbook.units.filter((unit) => unit.ticked && unit.state === "ready"));
+      } else if (!tab.isWorkbook) {
+        units.push(tab);
+      }
+    }
+    return units;
   }
   function checkNames() {
     const taken = usesOpenDatabase() ? getDestination().taken() : /* @__PURE__ */ new Map();
     const seen = /* @__PURE__ */ new Map();
     let firstBad = null;
-    for (const tab of importable()) {
-      const { name } = tab.controls;
-      name.control.value = name.control.value === "" ? "" : sanitiseName(name.control.value);
-      tab.tableName = name.control.value;
-      const key = sameNameKey(tab.tableName);
+    for (const unit of tickedUnits()) {
+      const typed = unit.controls ? unit.controls.name.control.value : unit.tableName;
+      unit.tableName = typed === "" ? "" : sanitiseName(typed);
+      if (unit.controls) {
+        unit.controls.name.control.value = unit.tableName;
+      }
+      const key = sameNameKey(unit.tableName);
       let problem = "";
-      if (tab.tableName === "") {
+      if (unit.tableName === "") {
         problem = IMPORT_NAME_EMPTY_MESSAGE;
-      } else if (RESERVED_NAME.test(tab.tableName)) {
+      } else if (RESERVED_NAME.test(unit.tableName)) {
         problem = IMPORT_NAME_RESERVED_MESSAGE;
       } else if (seen.has(key)) {
-        problem = IMPORT_NAME_TWICE_MESSAGE;
+        problem = unit.isSheet || seen.get(key).isSheet ? IMPORT_NAME_TWICE_SHEET_MESSAGE : IMPORT_NAME_TWICE_MESSAGE;
       } else if (taken.has(key)) {
         problem = taken.get(key) ? IMPORT_NAME_TEMPORARY_MESSAGE : importNameTakenMessage(getDestination().name);
       }
-      seen.set(key, tab);
+      seen.set(key, unit);
       if (problem) {
-        name.showError(problem);
-        firstBad ??= tab;
+        if (!unit.controls) {
+          buildUnit(unit);
+        }
+        unit.controls.name.showError(problem);
+        firstBad ??= unit;
       } else {
-        name.clearError();
+        unit.controls?.name.clearError();
       }
     }
     if (firstBad) {
-      tabList.show(firstBad.button.id);
-      firstBad.controls.name.control.focus();
+      if (firstBad.isSheet) {
+        showUnit(firstBad);
+      } else {
+        tabList.show(firstBad.button.id);
+      }
+      firstBad.controls.name.control.focus({ preventScroll: true });
+      keepWhole(firstBad.controls.name.control);
     }
     return !firstBad;
   }
@@ -7629,6 +9290,9 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
     if (tab.state !== "ready") {
       return tab.state === "warning" ? "waiting" : "reading";
     }
+    if (tab.workbook) {
+      return "";
+    }
     if (tab.checking || tab.unsettled) {
       return "settling";
     }
@@ -7637,13 +9301,20 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
   const HOLD_MESSAGES = { reading: importHoldReadingMessage, waiting: importHoldWaitingMessage, problem: importHoldProblemMessage };
   const HOLD_READING_AFTER_MS = 600;
   let holdTimer = 0;
+  function toShow(control) {
+    const box = control.closest(".import-field");
+    if (box && control.getAttribute("aria-invalid") === "true" && box.getBoundingClientRect().height <= body.clientHeight) {
+      return box;
+    }
+    return control;
+  }
   function showWhole(control) {
     if (!pressing && control.matches(":focus-visible")) {
-      control.scrollIntoView({ block: "nearest", inline: "nearest" });
+      toShow(control).scrollIntoView({ block: "nearest", inline: "nearest" });
     }
   }
   function isWhole2(control) {
-    const box = control.getBoundingClientRect();
+    const box = toShow(control).getBoundingClientRect();
     const shown2 = body.getBoundingClientRect();
     return box.top >= shown2.top && box.bottom <= shown2.bottom;
   }
@@ -7653,36 +9324,77 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
   }
   function keepWhole(control) {
     if (pointerDown) {
-      owed = { control, at: body.scrollTop };
+      owed = { control, at: body.scrollTop, edited: control === edited };
     } else if (control.isConnected && !isWhole2(control)) {
-      control.scrollIntoView({ block: "nearest", inline: "nearest" });
+      toShow(control).scrollIntoView({ block: "nearest", inline: "nearest" });
     }
+  }
+  function keepMessageWhole(control) {
+    if (control === document.activeElement || control === edited) {
+      keepWhole(control);
+    }
+  }
+  function whileEdited(control, redraw) {
+    edited = control;
+    try {
+      redraw();
+    } finally {
+      edited = null;
+    }
+  }
+  function holds() {
+    const found = [];
+    for (const tab of importable()) {
+      const state2 = holding(tab);
+      if (state2) {
+        found.push({ state: state2, tab, unit: null });
+      }
+      for (const unit of tab.workbook?.units ?? []) {
+        if (unit.ticked && sheetNamesProblem(unit)) {
+          found.push({ state: "problem", tab, unit });
+        }
+      }
+    }
+    return found;
+  }
+  const canGive = (tab) => !tab.workbook || tab.workbook.units.some((unit) => unit.state === "ready");
+  function onShow(held) {
+    if (held.tab.button.id !== tabList?.current()) {
+      return false;
+    }
+    const book = held.tab.workbook;
+    return !held.unit || book.listed === 1 || book.shown === held.unit;
   }
   function refresh() {
     const left = importable();
-    const held = left.find((tab) => holding(tab) !== "");
-    const nothing = left.length === 0;
+    const holdups = holds();
+    const held = holdups.length > 0;
+    const nothing = !left.some(canGive);
+    const noneTicked = !held && !nothing && tickedUnits().length === 0;
     submit.hidden = nothing || Boolean(running);
-    submit.disabled = nothing || Boolean(held);
+    submit.disabled = nothing || held || noneTicked;
     destination.hidden = nothing || Boolean(running);
     cancel.textContent = nothing && !running ? IMPORT_CLOSE_TEXT : IMPORT_CANCEL_TEXT;
     databaseName.control.disabled = !newChoice.checked;
     clearTimeout(holdTimer);
-    const current4 = tabList?.current();
-    const nameable = (tab) => {
-      const state2 = holding(tab);
-      return state2 === "waiting" || (state2 === "reading" || state2 === "problem") && tab.button.id !== current4;
-    };
-    const named = running ? void 0 : left.find(nameable);
-    let message = named ? HOLD_MESSAGES[holding(named)] : null;
-    if (message === importHoldReadingMessage) {
-      const waited = performance.now() - named.readingSince;
-      if (waited < HOLD_READING_AFTER_MS) {
-        holdTimer = setTimeout(refresh, HOLD_READING_AFTER_MS - waited);
-        message = null;
+    const nameable = (one) => one.state === "waiting" || (one.state === "reading" || one.state === "problem") && !onShow(one);
+    const named = running ? void 0 : holdups.find(nameable);
+    let why = "";
+    if (named?.unit) {
+      why = importHoldSheetProblemMessage(named.unit.label, named.tab.file.name);
+    } else if (named) {
+      let message = HOLD_MESSAGES[named.state];
+      if (message === importHoldReadingMessage) {
+        const waited = performance.now() - named.tab.readingSince;
+        if (waited < HOLD_READING_AFTER_MS) {
+          holdTimer = setTimeout(refresh, HOLD_READING_AFTER_MS - waited);
+          message = null;
+        }
       }
+      why = message ? message(named.tab.file.name) : "";
+    } else if (noneTicked && !running) {
+      why = IMPORT_HOLD_NO_SHEET_MESSAGE;
     }
-    const why = message ? message(named.file.name) : "";
     const changed = hold.textContent !== why;
     const whole = changed ? focusedWhole() : null;
     if (changed) {
@@ -7701,7 +9413,7 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
   const baseName = (name) => name.lastIndexOf(".") > 0 ? name.slice(0, name.lastIndexOf(".")) : name;
   let databaseNameEdited = false;
   function suggestDatabaseName() {
-    const first = importable()[0] ?? tabs2[0];
+    const first = importable().find(canGive) ?? importable()[0] ?? tabs2[0];
     if (first && !databaseNameEdited) {
       databaseName.control.value = baseName(first.file.name);
     }
@@ -7745,13 +9457,22 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
     tabs2 = chosen.map((file, n) => newTab(file, n));
     const list = el5("div", { className: "tabs import-tabs" });
     list.setAttribute("role", "tablist");
+    sendFocusToSelectedTab(list);
     list.setAttribute("aria-label", IMPORT_TABS_LABEL);
     list.append(...tabs2.map((tab) => tab.button));
     const panels = el5("div", { className: "import-panels" });
     panels.append(...tabs2.map((tab) => tab.panel));
     files.replaceChildren(list, panels);
     tabList = null;
-    tabList = mountTabs(list, { onShow: () => refresh() });
+    tabList = mountTabs(list, {
+      onShow: (id) => {
+        refresh();
+        const shown2 = tabs2.find((tab) => tab.button.id === id)?.workbook?.shown;
+        if (shown2?.button) {
+          bringIntoStrip(shown2.button);
+        }
+      }
+    });
     fillDestination();
     for (const tab of tabs2) {
       showReading(tab);
@@ -7812,28 +9533,48 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
       const name = databaseName.control.value.trim();
       if (!name) {
         databaseName.showError(IMPORT_NEW_DATABASE_EMPTY_MESSAGE);
-        databaseName.control.focus();
+        databaseName.control.focus({ preventScroll: true });
+        keepWhole(databaseName.control);
         return;
       }
       target = { kind: "new", name };
     }
     const mine = session;
     const job = {
-      files: importable().map((tab) => ({
-        id: tab.id,
-        file: tab.file,
-        encoding: tab.encoding,
-        delimiter: tab.delimiter,
-        newline: tab.newline,
-        hasNames: tab.hasNames,
-        namesRow: tab.namesRow,
-        tableName: tab.tableName,
-        mark: tab.mark
-      })),
+      files: tickedUnits().map(
+        (unit) => unit.isSheet ? {
+          id: unit.id,
+          file: unit.file,
+          sheet: unit.sheet,
+          // (what the tab and the panel call the sheet: a name of only spaces is no name to a reader)
+          label: unit.label,
+          hasNames: unit.hasNames,
+          namesRow: unit.namesRow,
+          tableName: unit.tableName,
+          listed: unit.tab.workbook.listed
+        } : {
+          id: unit.id,
+          file: unit.file,
+          encoding: unit.encoding,
+          delimiter: unit.delimiter,
+          newline: unit.newline,
+          hasNames: unit.hasNames,
+          namesRow: unit.namesRow,
+          tableName: unit.tableName,
+          mark: unit.mark
+        }
+      ),
       destination: target
     };
     const state2 = { stop: false };
-    progressTitle.textContent = importProgressTitle(1, job.files.length, job.files[0].file.name);
+    const hasSheet = job.files.some((item2) => item2.sheet);
+    const titleOf = (at, of, name, table) => {
+      if (!hasSheet) {
+        return importProgressTitle(at, of, name);
+      }
+      return table ? importProgressTableTitle(at, of, table, name) : importProgressTextTitle(at, of, name);
+    };
+    progressTitle.textContent = titleOf(1, job.files.length, job.files[0].file.name, job.files[0].sheet ? job.files[0].tableName : null);
     progressPart.textContent = IMPORT_PROGRESS_READING;
     progressBar.value = 0;
     setRunning(state2);
@@ -7842,8 +9583,8 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
     try {
       outcome = await onImport(job, {
         cancelled: () => state2.stop,
-        progress({ at, of, name, part, done, total }) {
-          progressTitle.textContent = importProgressTitle(at, of, name);
+        progress({ at, of, name, table = null, part, done, total }) {
+          progressTitle.textContent = titleOf(at, of, name, table);
           progressPart.textContent = part === "copy" ? IMPORT_PROGRESS_COPYING : IMPORT_PROGRESS_READING;
           progressBar.value = total > 0 ? Math.min(1, done / total) : 0;
         }
@@ -7908,7 +9649,8 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
     pointerDown = false;
     const waiting2 = owed;
     owed = null;
-    if (waiting2 && waiting2.control === document.activeElement && Math.abs(body.scrollTop - waiting2.at) < 1) {
+    const at = waiting2 && (waiting2.control === document.activeElement || waiting2.edited && waiting2.control.getAttribute("aria-invalid") === "true");
+    if (at && Math.abs(body.scrollTop - waiting2.at) < 1) {
       keepWhole(waiting2.control);
     }
   };
@@ -7948,6 +9690,21 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, onImport }
   };
 }
 
+// js/lab/import-events.js
+function importEvents(tables2) {
+  const events = [];
+  let last = null;
+  for (const table of tables2) {
+    if (last === null || last.origin !== table.origin) {
+      last = { origin: table.origin, lines: [importEventFileLine(table.file, table.bytes)] };
+      events.push(last);
+    }
+    const width = table.columns.length;
+    last.lines.push(table.sheet === null || table.sheet === void 0 ? importEventTableLine(table.name, table.rows, width) : importEventSheetTableLine(table.name, table.rows, width, table.sheet));
+  }
+  return events.map(({ lines }) => ({ lines }));
+}
+
 // js/lab/import-report.js
 var import_report_exports = {};
 __export(import_report_exports, {
@@ -7984,10 +9741,25 @@ function originalCell(column) {
   cell2.append(isBlankName(column.original) ? el6("span", "cell-null", IMPORT_REPORT_BLANK_NAME) : asRead(column.original));
   return cell2;
 }
-function noteCell(column) {
+function paddedNote(padded) {
+  const number = numberInFull(padded.number);
+  const example = padded.example;
+  const node = el6("span", "import-report-padded");
+  if (example !== null && example.length > REPORT_VALUE_CHARS) {
+    node.textContent = importReportPaddedNote(`${example.slice(0, REPORT_VALUE_CHARS)}${CUT3}`, number);
+    node.title = importReportPaddedNote(example, number);
+  } else {
+    node.textContent = importReportPaddedNote(example, number);
+  }
+  return node;
+}
+function noteCell(column, padded) {
   const cell2 = el6("td", "import-report-note");
   if (column.blocking !== null) {
     cell2.append(el6("span", null, `${IMPORT_REPORT_BLOCKING_NOTE} `), asRead(column.blocking));
+  }
+  if (padded) {
+    cell2.append(paddedNote(padded));
   }
   return cell2;
 }
@@ -8008,11 +9780,12 @@ function columnsTable(table, headingId) {
   }
   node.createTHead().append(head);
   const body = node.createTBody();
+  const padded = new Map((table.padded ?? []).map((one) => [one.column, one]));
   for (const column of table.columns) {
     const row = el6("tr");
     const name = shown(el6("th", "import-report-column"), column.name);
     name.scope = "row";
-    row.append(name, originalCell(column), el6("td", null, column.type), el6("td", "num", String(column.blanks)), noteCell(column));
+    row.append(name, originalCell(column), el6("td", null, column.type), el6("td", "num", String(column.blanks)), noteCell(column, padded.get(column.name)));
     body.append(row);
   }
   return node;
@@ -8038,6 +9811,9 @@ function buildImportReport(tables2) {
     if (table.quoted?.length) {
       section.append(el6("p", "import-report-quoted", importReportQuotedText(table.quoted)));
     }
+    if (table.emptyFormulas > 0) {
+      section.append(el6("p", "import-report-formulas", importReportEmptyFormulasText(table.emptyFormulas)));
+    }
     section.append(columnsTable(table, heading.id));
     report.append(section);
   });
@@ -8048,6 +9824,8 @@ function buildImportReport(tables2) {
 var IMPORT_NAME = /\.(?:csv|tsv|txt|xlsx|xls)$/i;
 var READER_FILE = "papaparse.min.js";
 var READER_GLOBAL = "Papa";
+var EXCEL_FILE = "xlsx.full.min.js";
+var EXCEL_GLOBAL = "XLSX";
 var REFUSAL_TEXT = {
   "too-wide": IMPORT_TOO_WIDE_REASON,
   "no-names-row": IMPORT_NO_NAMES_ROW_REASON,
@@ -8079,6 +9857,7 @@ function mountImport({
     return { enabled, take: () => false, busy: () => false, dialogOpen: () => false };
   }
   fileInput.multiple = true;
+  const excel = flagOn("excel-import");
   const loadReader = () => loadVendor(READER_FILE, READER_GLOBAL);
   async function importFile(database2, item2, { reader, pace, cancelled, report }) {
     const rest = async () => {
@@ -8122,12 +9901,73 @@ function mountImport({
         columns: made.columns,
         source: item2.file.name,
         bytes: item2.file.size,
+        origin: item2.file,
+        file: item2.file.name,
+        sheet: null,
         badQuotes: read2.badQuotes,
         quoted: namesNeedingQuotes(database2, item2.tableName, made.columns.map((column) => column.name))
       };
     } finally {
       stage.drop();
     }
+  }
+  async function importSheet(database2, item2, { cancelled, report, pace, listed }) {
+    const rest = async () => {
+      await pace.rest();
+      if (cancelled()) {
+        throw new ImportCancelled();
+      }
+    };
+    const { sheet } = item2;
+    const cells = sheet.rows * sheet.columns;
+    let looked = 0;
+    report("read", 0, cells);
+    const table = await tableOf(sheet, {
+      hasNames: item2.hasNames,
+      namesRow: item2.namesRow,
+      // (the first pass, a step of cells at a time: what is counted is cells, of the rectangle)
+      rest: async () => {
+        looked = Math.min(looked + IMPORT_SHEET_CELLS, cells);
+        report("read", looked, cells);
+        await rest();
+      }
+    });
+    const typed = newTypedTable(database2, item2.tableName, table.columns);
+    let finished = false;
+    try {
+      report("copy", 0, table.rows);
+      const step = Math.max(1, Math.floor(IMPORT_SHEET_CELLS / Math.max(1, table.width)));
+      for (let done = 0; done < table.rows; done += step) {
+        const end = Math.min(done + step, table.rows);
+        for (let i = done; i < end; i++) {
+          typed.add(storedRow(table, i));
+        }
+        report("copy", end, table.rows);
+        await rest();
+      }
+      typed.finish();
+      finished = true;
+    } finally {
+      if (!finished) {
+        typed.abandon();
+      }
+    }
+    const alone = sheet.page && listed === 1;
+    const label = item2.label ?? sheet.label;
+    return {
+      name: item2.tableName,
+      rows: table.rows,
+      columns: table.columns,
+      source: alone ? item2.file.name : sheet.page ? importPageSource(item2.file.name, label) : importSheetSource(item2.file.name, label),
+      bytes: item2.file.size,
+      origin: item2.file,
+      file: item2.file.name,
+      sheet: alone ? null : label,
+      badQuotes: false,
+      quoted: namesNeedingQuotes(database2, item2.tableName, table.columns.map((column) => column.name)),
+      emptyFormulas: table.emptyFormulas,
+      padded: table.padded
+    };
   }
   async function run(job, { progress, cancelled }) {
     const own = job.destination.kind === "new";
@@ -8147,8 +9987,8 @@ function mountImport({
     let ticket = null;
     let current4 = null;
     try {
-      const reader = await loadReader().catch(() => null);
-      if (!reader) {
+      const reader = job.files.some((item2) => !item2.sheet) ? await loadReader().catch(() => null) : null;
+      if (!reader && job.files.some((item2) => !item2.sheet)) {
         return { ok: false, message: IMPORT_LIBRARY_FAILED_MESSAGE };
       }
       database2 = own ? await manager_default.init(job.destination.name, new DatabasePath("")) : getDatabase();
@@ -8157,9 +9997,15 @@ function mountImport({
       const tables2 = [];
       for (const [index, item2] of job.files.entries()) {
         current4 = item2;
-        const report = (part, done, total) => progress({ at: index + 1, of: job.files.length, name: item2.file.name, part, done, total });
-        report("read", 0, item2.file.size);
-        tables2.push(await importFile(database2, item2, { reader, pace, cancelled, report }));
+        const table = item2.sheet ? item2.tableName : null;
+        const report = (part, done, total) => progress({ at: index + 1, of: job.files.length, name: item2.file.name, table, part, done, total });
+        if (item2.sheet) {
+          const listed = item2.listed ?? job.files.filter((other) => other.file === item2.file).length;
+          tables2.push(await importSheet(database2, item2, { cancelled, report, pace, listed }));
+        } else {
+          report("read", 0, item2.file.size);
+          tables2.push(await importFile(database2, item2, { reader, pace, cancelled, report }));
+        }
       }
       endImport(database2);
       ticket = null;
@@ -8174,11 +10020,8 @@ function mountImport({
       }
       const name = getDatabase().name;
       const key = runLog2.current().key;
-      for (const table of tables2) {
-        recordEvent(key, {
-          kind: "import",
-          lines: [importEventFileLine(table.source, table.bytes), importEventTableLine(table.name, table.rows, table.columns.length)]
-        });
+      for (const event of importEvents(tables2)) {
+        recordEvent(key, { kind: "import", lines: event.lines });
       }
       const said = importedMessage(tables2.length, name);
       results2.showReport(buildImportReport(tables2), { summary: said });
@@ -8216,6 +10059,8 @@ function mountImport({
   const dialog = mountImportDialog({
     returnFocus,
     loadReader,
+    // what the dialog reads a workbook with (null: the dialog is the one of the import alone)
+    excel: excel ? { loadLibrary: () => loadVendor(EXCEL_FILE, EXCEL_GLOBAL), inspectWorkbook, readWorkbook } : null,
     getDestination() {
       const database2 = getDatabase();
       return {
@@ -8249,13 +10094,13 @@ function mountImport({
       return true;
     }
     if (ours.length !== files.length) {
-      toast(IMPORT_MIXED_MESSAGE, { tone: "note" });
+      toast(excel ? IMPORT_MIXED_WITH_EXCEL_MESSAGE : IMPORT_MIXED_MESSAGE, { tone: "note" });
       return true;
     }
     dialog.open(files);
     return true;
   }
-  return { enabled, take, busy: () => running, dialogOpen: dialog.isOpen };
+  return { enabled, take, busy: () => running, dialogOpen: dialog.isOpen, run };
 }
 
 // js/lab/more-menu.js
@@ -10433,8 +12278,9 @@ var picker = mountDatabaseSwitcher({
     }
   },
   onOpenUrl: () => openUrl(document.querySelector("#database-button")),
-  // with the import on, the entry says what else it takes (the assessment plan's Phase 2)
-  openFileDescription: flagOn("import") ? OPEN_FILE_WITH_IMPORT_DESCRIPTION : void 0
+  // with the import on, the entry says what else it takes (the assessment plan's Phase 2), and with
+  // the reading of workbooks on as well, Excel files too (its Phase 5)
+  openFileDescription: flagOn("import") ? flagOn("excel-import") ? OPEN_FILE_WITH_EXCEL_DESCRIPTION : OPEN_FILE_WITH_IMPORT_DESCRIPTION : void 0
 });
 var openUrlDialog = mountOpenUrlDialog({ onOpen: startFromUrl });
 mountThemeMenu(document.querySelector(".topbar-theme"), { buttonClass: "button button--quiet" });
@@ -11057,7 +12903,11 @@ export {
   exercises_exports as exercises,
   flags_exports as flags,
   import_exports as import,
+  import_cells_exports as importCells,
+  import_db_exports as importDb,
   import_report_exports as importReport,
+  import_workbook_exports as importWorkbook,
+  import_zip_exports as importZip,
   manager_exports as manager,
   progress_exports as progress,
   results_exports as results,

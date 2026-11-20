@@ -2273,7 +2273,7 @@ test.describe("the documents: fflate is credited with its licence, About says wh
         const text = readme();
         const section = text.slice(text.indexOf("### Features that are still switched off"), text.indexOf("## Run it locally"));
         expect(section.length).toBeGreaterThan(100);
-        expect(section).toContain("So far two features are behind a flag:");
+        expect(section).toContain("So far three features are behind a flag:");
         expect(section).toContain("- `export` (the plan's Phase 3): with `?preview=export`");
         expect(section).toContain("\"Tables as CSV…\"");
         // what it tells of the file is what the module writes: a byte-order mark, a BLOB as hex text

@@ -81,7 +81,13 @@ const EXPOSE = [
     "js/lab/events.js",
     "js/lab/exercises.js",
     "js/lab/flags.js",
+    // the reading of workbooks (the assessment plan's Phase 5): its three pure modules, and the typed
+    // table a sheet is put into, are tried in the page, against the engine and the library as the page has them
+    "js/lab/import-cells.js",
+    "js/lab/import-db.js",
     "js/lab/import-report.js",
+    "js/lab/import-workbook.js",
+    "js/lab/import-zip.js",
     "js/lab/import.js",
     "js/lab/progress.js",
     "js/lab/results.js",

@@ -29,7 +29,10 @@ const { test, expect, fixturePath, expectedFor, fixtureIndex, SAMPLE_FILE } = re
 // one stop in the thousands tried elsewhere, and that is the browser's own); a button of the foot takes
 // the focus without scrolling anything; a pointer that presses a control at the body's edge does
 // not move it (a double click in a field, a click on a tick box or its label) while the keyboard
-// brings the same control wholly into view; the two lines of the foot are in view when they are
+// brings the same control wholly into view; a message that comes under the field that has the focus, and
+// the field that Import sends the student to, are brought into view whole (the row of the names, an
+// encoding that does not fit, the new database's name), and nothing moves while a pointer is down or
+// for a field that has not the focus; the two lines of the foot are in view when they are
 // shown; the dialog is aria-busy only while the import runs. Also in 10: after a press of the mouse
 // the keyboard still brings the preview wholly into the body (Firefox, 1280x800 and 683x384) and
 // a control the keyboard brings in ends clear of the body's edge by its focus ring and its air; at
@@ -97,7 +100,7 @@ function bigAscii(name = "bigtext.csv") {
     }
     return csv(name, text);
 }
-// a workbook, whatever it is called: it is refused until the plan's Phase 5
+// a workbook, whatever it is called: with the import alone it is refused
 const WORKBOOK = fixturePath("shopping_db.xlsx");
 
 // ---- helpers ------------------------------------------------------------------------------------
@@ -1161,7 +1164,7 @@ test.describe("size limits", () => {
     });
 
     // Text under a workbook's name is text by its bytes: it is held to the text limits (50 MB asks,
-    // 250 MB refuses), not to a workbook's own (the plan's 20 MB is for the Excel files of Phase 5).
+    // 250 MB refuses), not to a workbook's own (the 20 MB of a workbook, with the flag excel-import, is in tests/aw5-excel-limits.spec.js).
     test("text of about 30 MB named t30.xlsx is read at once, with no question: its preview shows and Import is on", async ({ app, page }) => {
         test.slow();
         await app.open(OPEN);
@@ -2338,6 +2341,209 @@ test.describe("the body and the foot of the dialog", () => {
             if (!atEnd) {
                 expect(gap, `the field ends the air (${air} px) clear of the body's lower edge (${now.bodyBottom})`).toBeGreaterThanOrEqual(air - 1);
             }
+        });
+    }
+
+    // ---- 4b. a field's message is in view when it comes ---------------------------------------------------
+
+    // A message stands under its field, and the tab on show is the only place that says why Import is off for
+    // what is wrong in it: a message that the foot cuts says nothing. So a message that comes under the field
+    // that has the focus brings the field into view whole, by the least scroll that does it, and so does Import
+    // pressed (also when the focus was in the field already). While a pointer is down nothing moves.
+    // where a field lies in what the body shows: its label, its message, and its box
+    const fieldPlace = (control) =>
+        control.evaluate((node) => {
+            const body = node.closest(".import-body");
+            const box = node.closest(".import-field");
+            const error = box.querySelector(".app-dialog-error");
+            const at = (one) => one.getBoundingClientRect();
+            return {
+                bodyTop: at(body).top,
+                bodyBottom: at(body).bottom,
+                labelTop: at(box.querySelector("label")).top,
+                controlTop: at(node).top,
+                controlBottom: at(node).bottom,
+                boxBottom: at(box).bottom,
+                errorShown: !error.hidden,
+                errorBottom: at(error).bottom,
+                scrollTop: body.scrollTop,
+                room: body.scrollHeight - body.clientHeight,
+            };
+        });
+    // gives the control the focus without scrolling to it
+    const focusQuietly = (control) => control.evaluate((node) => node.focus({ preventScroll: true }));
+
+    test("at 683x384, a row typed beyond a text file's rows, with the field at the lower edge of the body, shows its message wholly in view", async ({ app, page }) => {
+        await page.setViewportSize({ width: 683, height: 384 });
+        await openDialog(app, csv("one.csv"));
+        await page.evaluate(() => document.fonts.ready);
+        await focusQuietly(namesRow(app));
+        const at = await place(page, namesRow(app), -2);
+        expect(at.edge - at.bottom, "the field ends just above the body's lower edge: its message will be below it").toBeLessThan(4);
+        await page.keyboard.type("99");
+        await expect(alertIn(app, words.importNamesRowMessage(2))).toBeVisible();
+        await settled(page);
+        const now = await fieldPlace(namesRow(app));
+        expect(now.errorShown).toBe(true);
+        expect(now.errorBottom, `the message ends (${now.errorBottom}) inside the body's lower edge (${now.bodyBottom})`).toBeLessThanOrEqual(now.bodyBottom + 0.5);
+        expect(now.labelTop, "and the field's label is in view").toBeGreaterThanOrEqual(now.bodyTop - 0.5);
+        expect(now.scrollTop, "the body moved to bring it").toBeGreaterThan(at.scrollTop);
+    });
+
+    test("at 683x384, the same row typed while the pointer is held down on the field moves nothing until the release, and then the message is wholly in view", async ({ app, page }) => {
+        await page.setViewportSize({ width: 683, height: 384 });
+        await openDialog(app, csv("one.csv"));
+        await page.evaluate(() => document.fonts.ready);
+        // (clear of the edge by the air and a little more: the browser itself reveals a caret that is within the air)
+        const at = await place(page, namesRow(app), -(await airOf(page)) - 2);
+        const box = await namesRow(app).boundingBox();
+        await page.mouse.move(box.x + 10, box.y + box.height / 2);
+        await page.mouse.down();
+        await expect(namesRow(app)).toBeFocused();
+        await page.keyboard.type("99");
+        await expect(alertIn(app, words.importNamesRowMessage(2))).toBeVisible();
+        expect(await settled(page), "the body and the dialog have not scrolled while the pointer is down").toEqual({ body: at.scrollTop, dialog: 0 });
+        const down = await fieldPlace(namesRow(app));
+        expect(down.errorBottom, "(the message is cut by the foot: that is what the release is for)").toBeGreaterThan(down.bodyBottom + 0.5);
+        await page.mouse.up();
+        await expect.poll(async () => (await fieldPlace(namesRow(app))).errorBottom, { message: "at the release the message is wholly in view" }).toBeLessThanOrEqual(down.bodyBottom + 0.5);
+    });
+
+    // The row's number changed by an arrow of the field pressed with the pointer, which Firefox does not give the
+    // focus: the field tells of the change (an "input" event) while the focus is on the box of the names.
+    test("at 683x384, a change of the row's number that the field tells of while the focus is on another control brings the message wholly in view", async ({ app, page }) => {
+        await page.setViewportSize({ width: 683, height: 384 });
+        await openDialog(app, csv("one.csv"));
+        await page.evaluate(() => document.fonts.ready);
+        await namesRow(app).fill("99");
+        await expect(alertIn(app, words.importNamesRowMessage(2))).toBeVisible();
+        await focusQuietly(hasNames(app));
+        await place(page, namesRow(app), -2);
+        const cut = await fieldPlace(namesRow(app));
+        expect(cut.errorBottom, "(the message is cut by the foot)").toBeGreaterThan(cut.bodyBottom + 0.5);
+        await namesRow(app).evaluate((node) => {
+            node.stepUp();
+            node.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+        await expect(namesRow(app)).toHaveValue("100");
+        await expect(hasNames(app)).toBeFocused();
+        await settled(page);
+        const now = await fieldPlace(namesRow(app));
+        expect(now.errorShown).toBe(true);
+        expect(now.errorBottom, `the message ends (${now.errorBottom}) inside the body's lower edge (${now.bodyBottom})`).toBeLessThanOrEqual(now.bodyBottom + 0.5);
+        expect(now.labelTop, "and the field's label is in view").toBeGreaterThanOrEqual(now.bodyTop - 0.5);
+    });
+
+    // The message of a field that does not have the focus is not brought in: ticking the box of the names again
+    // (the focus is on the box) puts the message back under the row, which lies at the lower edge of the body.
+    test("at 683x384, a message that comes back under a field that does not have the focus moves nothing", async ({ app, page }) => {
+        await page.setViewportSize({ width: 683, height: 384 });
+        await openDialog(app, csv("one.csv"));
+        await page.evaluate(() => document.fonts.ready);
+        await namesRow(app).fill("99");
+        await expect(alertIn(app, words.importNamesRowMessage(2))).toBeVisible();
+        await hasNames(app).uncheck();
+        await expect(alertIn(app, words.importNamesRowMessage(2))).toHaveCount(0);
+        const at = await place(page, namesRow(app), -(await airOf(page)) - 2);
+        await focusQuietly(hasNames(app));
+        await page.keyboard.press("Space");
+        await expect(hasNames(app)).toBeChecked();
+        await expect(alertIn(app, words.importNamesRowMessage(2))).toBeVisible();
+        expect(await settled(page), "the body and the dialog have not scrolled").toEqual({ body: at.scrollTop, dialog: 0 });
+        const now = await fieldPlace(namesRow(app));
+        expect(now.errorBottom, "(the message is cut by the foot, as it was)").toBeGreaterThan(now.bodyBottom + 0.5);
+    });
+
+    // The encoding's select keeps the focus while its change is looked at, and the message that comes under it
+    // is brought in with it.
+    test("at 683x384, an encoding that does not fit, chosen in the select that lies at the lower edge of the body, shows its message wholly in view", async ({ app, page }) => {
+        await page.setViewportSize({ width: 683, height: 384 });
+        await openDialog(app, fixturePath("windows1252.csv"));
+        await page.evaluate(() => document.fonts.ready);
+        await focusQuietly(encodingOf(app));
+        await place(page, encodingOf(app), -2);
+        await encodingOf(app).selectOption({ label: "UTF-8" });
+        await expect(alertIn(app, words.importEncodingMessage("utf-8"))).toBeVisible();
+        await settled(page);
+        const now = await fieldPlace(encodingOf(app));
+        expect(now.errorBottom, `the message ends (${now.errorBottom}) inside the body's lower edge (${now.bodyBottom})`).toBeLessThanOrEqual(now.bodyBottom + 0.5);
+        expect(now.labelTop, "and the field's label is in view").toBeGreaterThanOrEqual(now.bodyTop - 0.5);
+    });
+
+    // A window so low that a field with its message is higher than the body shows (a phone held sideways with its
+    // keyboard up): the field is not brought whole, which no scroll can do, but its control alone, as for a field
+    // that shows no message: the control is in view and ends the air from the body's lower edge, and no further.
+    test("at 683x190, where a field with its message is higher than the body shows, Tab to it brings its control in and no further, the control ending the air from the body's lower edge", async ({ app, page }) => {
+        await page.setViewportSize({ width: 683, height: 190 });
+        await openDialog(app, csv("one.csv"));
+        await page.evaluate(() => document.fonts.ready);
+        await namesRow(app).fill("99");
+        await expect(alertIn(app, words.importNamesRowMessage(2))).toBeVisible();
+        const high = await namesRow(app).evaluate((node) => ({
+            field: node.closest(".import-field").getBoundingClientRect().height,
+            body: node.closest(".import-body").clientHeight,
+        }));
+        expect(high.field, "the field with its message is higher than the body shows").toBeGreaterThan(high.body);
+        // (the stop before it is given the focus first: the dialog brings that stop into view)
+        await neighbour(namesRow(app), -1);
+        await settled(page);
+        await place(page, namesRow(app), -2);
+        const before = await fieldPlace(namesRow(app));
+        expect(before.controlBottom, "the control is whole, within the air of the lower edge").toBeLessThanOrEqual(before.bodyBottom);
+        expect(before.bodyBottom - before.controlBottom, "(and no further from the edge than that)").toBeLessThan(4);
+        await page.keyboard.press("Tab");
+        await expect(namesRow(app)).toBeFocused();
+        await settled(page);
+        const now = await fieldPlace(namesRow(app));
+        const air = await airOf(page);
+        expect(now.controlBottom, "the control is wholly in view").toBeLessThanOrEqual(now.bodyBottom + 0.5);
+        expect(now.controlTop, "its top too").toBeGreaterThanOrEqual(now.bodyTop - 0.5);
+        expect(now.bodyBottom - now.controlBottom, `the control ends the air (${air} px) from the lower edge and no further`).toBeLessThanOrEqual(air + 1.5);
+    });
+
+    // a press and a release of the mouse in the dialog are told to the window's listeners; where nothing is
+    // owed to the release, the page has no error of its own
+    test("a press and a release of the mouse on a field, a tick box and a label of the dialog, where no message has come, leave the page with no error of its own", async ({ app, page }) => {
+        const errors = pageErrors(page);
+        await openDialog(app, csv("one.csv"));
+        await namesRow(app).click();
+        await hasNames(app).click();
+        await tableName(app).click({ clickCount: 2 });
+        await app.importPanel.getByText("Table name", { exact: true }).click();
+        await frames(page);
+        expect(errors).toEqual([]);
+    });
+
+    // the new database's name, emptied, with Import pressed: the body is scrolled to its end (the field lies above
+    // what it shows), by a click and by Enter in the field that has the focus already
+    for (const how of ["a click on Import", "Enter in the field"]) {
+        test(`at 683x384, ${how}, with the new database's name emptied and the body scrolled to its end, shows the field and its message wholly in view`, async ({ app, page }) => {
+            await page.setViewportSize({ width: 683, height: 384 });
+            await openDialog(app, csv("one.csv"));
+            await page.evaluate(() => document.fonts.ready);
+            const name = app.importDialog.locator("#import-database-name");
+            await name.fill("");
+            // (the scroll that the focus of the fill starts has ended before the body is scrolled to its end: in Firefox it
+            // is smooth, and one that is still under way takes the body back to the field)
+            await settled(page);
+            await scrollBody(page, await roomOf(page));
+            expect((await fieldPlace(name)).controlBottom, "the field is above what the body shows").toBeLessThan((await fieldPlace(name)).bodyTop);
+            if (how === "Enter in the field") {
+                // (the focus is in the field from the fill: nothing is done to give it, so no "focusin" comes at the key)
+                await expect(name).toBeFocused();
+                await page.keyboard.press("Enter");
+            } else {
+                await app.importSubmit.click();
+            }
+            await expect(app.importDialog.locator("#import-database-name-error")).toHaveText(words.IMPORT_NEW_DATABASE_EMPTY_MESSAGE);
+            await expect(name).toBeFocused();
+            await settled(page);
+            const now = await fieldPlace(name);
+            expect(now.errorBottom, "the message is wholly above the body's lower edge").toBeLessThanOrEqual(now.bodyBottom + 0.5);
+            expect(now.labelTop, "and the label is in view").toBeGreaterThanOrEqual(now.bodyTop - 0.5);
+            // by the least scroll: the box comes to the air (the same above and below) from the upper edge, and the
+            // browser's own centring of a field that takes the focus is not what does it
+            expect(now.labelTop - now.bodyTop, "the field's box starts no further than the air from the upper edge").toBeLessThanOrEqual((await airOf(page)) + 1.5);
         });
     }
 

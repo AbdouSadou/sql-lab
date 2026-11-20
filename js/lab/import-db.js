@@ -44,6 +44,31 @@
 //                                     onStep(done, total) is called after each step.
 //     stage.drop()                    removes the staging table; never throws
 //
+//   newTypedTable(database, name, columns) -> typed
+//                                     a typed table filled row by row, for a sheet of a workbook: no
+//                                     staging table, the values are already typed. Creates main.<name>
+//                                     with the columns [{name, type}] at once (a name the database has
+//                                     already makes the engine throw, and nothing is left) and prepares
+//                                     one insert for it.
+//     typed.add(row)                  puts one row in: a list of values, none longer than the table is
+//                                     wide. A value is a number, a text, or null. A row that is
+//                                     shorter leaves the rest of its columns NULL. How a value is bound
+//                                     is the rule below.
+//     typed.rows                      how many rows it holds
+//     typed.finish() -> rows          finalizes the insert and keeps the table (it is the job's
+//                                     savepoint that keeps it, or undoes it with the rest)
+//     typed.abandon()                 finalizes the insert and drops the table this made; for a job
+//                                     that stops (Cancel, a failure). Neither throws; whichever comes
+//                                     second does nothing, so a `finally` may call abandon after finish.
+//   The engine's own binding takes a JavaScript number that is whole as a 64-bit integer, and a number
+//   of 2^63 or more wraps (1e19 is stored as a negative number, in a REAL column too). So a number for a
+//   REAL column is bound as a double, whatever it is; for an INTEGER column it is bound as the engine
+//   does when it is a whole number JavaScript holds exactly (a number past that is bound as a double,
+//   and the engine's own conversion decides, as it does for text); text and null are bound as they are
+//   (a text in an INTEGER or REAL column is converted by the column, as for a text file). A number for a
+//   TEXT column should be given as text: the engine's own text of a number differs (1.5e-7 is 1.5e-07),
+//   and js/lab/import-cells.js (storedRow) gives the number written out in full.
+//
 //   isOutOfMemory(error), isEngineError(error) -> boolean
 //                                     what a failure was: the engine or its allocator had no
 //                                     memory left; the engine or its allocator threw it at all
@@ -194,6 +219,13 @@ function freeStageName(db) {
     return name;
 }
 
+// creates main.<name> with the columns [{name, type}] and gives its quoted name
+function createTypedTable(db, name, columns) {
+    const target = `main.${quoteIdent(name)}`;
+    db.exec(`create table ${target} (${columns.map((column) => `${quoteIdent(column.name)} ${column.type}`).join(", ")})`);
+    return target;
+}
+
 const stageColumns = (from, to) => Array.from({ length: to - from }, (unused, i) => `c${from + i + 1}`);
 
 export function newStage(database) {
@@ -241,8 +273,7 @@ export function newStage(database) {
     stage.copyInto = async (name, columns, { rest, onStep = () => {} }) => {
         insert?.finalize();
         insert = null;
-        const target = `main.${quoteIdent(name)}`;
-        db.exec(`create table ${target} (${columns.map((column) => `${quoteIdent(column.name)} ${column.type}`).join(", ")})`);
+        const target = createTypedTable(db, name, columns);
         const values = columns.map((column, i) => (i < width ? `c${i + 1}` : "null")).join(", ");
         const copy = db.prepare(`insert into ${target} select ${values} from ${table} where rowid > ?1 and rowid <= ?2`);
         try {
@@ -273,4 +304,88 @@ export function newStage(database) {
     };
 
     return stage;
+}
+
+export function newTypedTable(database, name, columns) {
+    const { db, capi } = database;
+    const target = createTypedTable(db, name, columns);
+    // (from here on this made a table of this name, and may drop it)
+    let insert = null;
+    let over = false;
+    const typed = { rows: 0 };
+    try {
+        insert = db.prepare(`insert into ${target} (${columns.map((column) => quoteIdent(column.name)).join(", ")}) values (${columns.map(() => "?").join(", ")})`);
+    } catch (error) {
+        dropQuietly(db, target);
+        throw error;
+    }
+
+    // a number is bound as a double where the engine's own binding of a number would wrap or lose it
+    const bindDouble = (index, value) => db.checkRc(capi.sqlite3_bind_double(insert.pointer, index, value));
+
+    typed.add = (row) => {
+        if (over) {
+            throw new Error("the table is finished");
+        }
+        if (row.length > columns.length) {
+            throw new RangeError(`a row of ${row.length} values for a table of ${columns.length} columns`);
+        }
+        for (let i = 0; i < row.length; i++) {
+            const value = row[i];
+            if (value === null || value === undefined) {
+                // (reset below cleared every binding, and an unbound place is NULL)
+                continue;
+            }
+            if (typeof value === "number") {
+                if (columns[i].type === "REAL" || !Number.isSafeInteger(value)) {
+                    bindDouble(i + 1, value);
+                } else {
+                    insert.bind(i + 1, value);
+                }
+            } else {
+                insert.bind(i + 1, value);
+            }
+        }
+        insert.step();
+        // (clearing the bindings, so that a short row after a long one has NULLs in its last places)
+        insert.reset(true);
+        typed.rows++;
+    };
+
+    // the insert is finalized whatever happens to it
+    const end = () => {
+        const done = insert;
+        insert = null;
+        over = true;
+        try {
+            done?.finalize();
+        } catch {
+            // (the engine has taken it with a rolled-back job)
+        }
+    };
+
+    typed.finish = () => {
+        if (!over) {
+            end();
+        }
+        return typed.rows;
+    };
+
+    typed.abandon = () => {
+        if (over) {
+            return;
+        }
+        end();
+        dropQuietly(db, target);
+    };
+
+    return typed;
+}
+
+function dropQuietly(db, target) {
+    try {
+        db.exec(`drop table if exists ${target}`);
+    } catch {
+        // (a job that was rolled back has taken the table with it)
+    }
 }

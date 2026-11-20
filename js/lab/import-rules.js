@@ -22,6 +22,12 @@
 //   newTally() -> tally
 //   tallyValue(tally, value)   value is the field's text, or null for an empty field (rule 5: an
 //                              empty field is NULL; a field of spaces is not empty)
+//   tallyNumber(tally, number)  a numeric cell of a workbook, which is a number and not text. It
+//                              moves the same counters a text value of that kind would: whole when
+//                              it is a whole number of less than 10^15 in size (strictly: 10^15
+//                              itself is not), a decimal otherwise, so a column of numbers that
+//                              are too large to be written as 15 digits is still REAL. Never
+//                              judged by its written text: 6.02e23 written out has 24 digits.
 //   columnType(tally) -> "INTEGER" | "REAL" | "TEXT"
 //       INTEGER when every value is a plain whole number; REAL when every value is a plain
 //       number and at least one is a decimal; TEXT for everything else, and for a column with no
@@ -95,6 +101,17 @@ export function tallyValue(tally, value) {
             tally.firstText = value;
         }
         tally.text++;
+    }
+}
+
+// A number is judged as a number: 4200 and 4200.0 are one value, and a stored 1e20 is a real
+// number although no text of 15 digits holds it. The bound is the same as the text rule's.
+export function tallyNumber(tally, value) {
+    tally.values++;
+    if (Number.isInteger(value) && Math.abs(value) < 1e15) {
+        tally.whole++;
+    } else {
+        tally.decimal++;
     }
 }
 

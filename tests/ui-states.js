@@ -8,6 +8,8 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { pathToFileURL } = require("node:url");
+const XLSX = require("../vendor/xlsx.full.min.js");
 
 // a file of the owner's test files (tests/fixtures/), for the states that import one
 const fixtureFile = (name) => path.join(__dirname, "fixtures", ...name.split("/"));
@@ -475,6 +477,9 @@ shell.states = {
         await page.locator("#open-file-input").setInputFiles(fixtureFile("messy_sales.csv"));
         await page.locator('#import-dialog button[type="submit"]:enabled').click();
         await page.locator('#results-pane[data-state="report"]').waitFor({ state: "attached" });
+        // (the toast comes a moment after the report: it is waited for, and then for its going, so that
+        // a toast that has not come yet is not taken for one that has gone)
+        await page.locator("#toast-region .toast").waitFor({ state: "visible" });
         await page.locator("#toast-region .toast").waitFor({ state: "detached" });
     },
     // a file over 50 MB asks before it is read, in its tab: read it, or leave it out (the file is
@@ -508,6 +513,59 @@ shell.states = {
         },
         { busy: true }
     ),
+    // The assessment plan's Phase 5, behind its flags (?preview=import,excel-import). A workbook of
+    // several sheets (two of them hidden) chosen with a text file: the workbook's tab on show, with
+    // its first sheet; a hidden sheet on show, beside a sheet that holds no values; the question that
+    // a very large .xls adds a sentence to; and the report of two workbooks imported together.
+    "import-workbook": async (page) => {
+        await shell.open(page, `${NORTHLIGHT_URL}&preview=import,excel-import`);
+        await page.locator("#open-file-input").setInputFiles(["excel/messy_course_workbook.xlsx", "messy_sales.csv"].map(fixtureFile));
+        await workbookShown(page);
+    },
+    "import-workbook-sheet": async (page) => {
+        await shell.open(page, `${NORTHLIGHT_URL}&preview=import,excel-import`);
+        await page.locator("#open-file-input").setInputFiles({
+            name: "term_marks.xlsx",
+            mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            buffer: termMarksWorkbook(),
+        });
+        await workbookShown(page);
+        // the hidden sheet's tab (its words begin with the sheet's name)
+        await page.locator('#import-dialog [role="tab"]').filter({ hasText: /^Resit marks/ }).click();
+        await page.locator("#import-dialog .import-sheet-note:visible").waitFor();
+    },
+    "import-workbook-warning": async (page) => {
+        const { EXCEL_HEAVY_BYTES } = await import(pathToFileURL(path.join(__dirname, "..", "js", "lab", "config-workflow.js")).href);
+        await shell.open(page, `${NORTHLIGHT_URL}&preview=import,excel-import`);
+        await page.evaluate((size) => {
+            // the eight bytes that begin an old Excel file, and zeros: the question comes from the size
+            const head = new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
+            const data = new DataTransfer();
+            data.items.add(new File([head, new Uint8Array(size + 1 - head.length)], "enrolment_history.xls"));
+            for (const type of ["dragover", "drop"]) {
+                document.body.dispatchEvent(new DragEvent(type, { dataTransfer: data, bubbles: true, cancelable: true }));
+            }
+        }, EXCEL_HEAVY_BYTES);
+        await page.locator("#import-dialog .import-warning").waitFor({ state: "visible" });
+    },
+    "import-report-workbook": async (page) => {
+        await shell.open(page, `${NORTHLIGHT_URL}&preview=import,excel-import`);
+        await page.locator("#open-file-input").setInputFiles(["excel/formats.xlsx", "excel/formulas_uncached.xlsx"].map(fixtureFile));
+        await workbookShown(page);
+        await page.locator('#import-dialog button[type="submit"]:enabled').click();
+        await page.locator('#results-pane[data-state="report"]').waitFor({ state: "attached" });
+        // (the toast comes a moment after the report: it is waited for, and then for its going)
+        await page.locator("#toast-region .toast").waitFor({ state: "visible" });
+        await page.locator("#toast-region .toast").waitFor({ state: "detached" });
+        // The report is longer than the pane: the first table's note of a zero-padded column is some
+        // 380 px down, and the paragraph of formula cells that came out empty, in the last table, 950 px
+        // further, so that no scroll shows both in the window of the matrix. The picture is of the end
+        // of the report: the last table, its source, "sheet Calc", and that paragraph.
+        await page.locator("#results-pane .import-report-formulas").waitFor({ state: "attached" });
+        await page.locator("#results-pane .sqlime-result").evaluate((pane) => {
+            pane.scrollTop = pane.scrollHeight;
+        });
+    },
     // The assessment plan's Phase 3, behind its flag (?preview=export). The dialog that saves tables
     // and views as CSV, with the owner's database of edge cases (tests/fixtures/export/): the list,
     // counted, with some rows ticked (the pair whose file names collide among them: the second says
@@ -618,6 +676,30 @@ shell.states = {
         await page.locator("#exercise-feedback").filter({ hasText: "exercises complete" }).waitFor();
     },
 };
+
+// the dialog has read every workbook it was given: no tab is still reading, and a table is on show
+async function workbookShown(page) {
+    await page.waitForFunction(() => document.querySelector("#import-dialog") && !document.querySelector("#import-dialog .import-reading"));
+    await page.locator("#import-dialog .import-sheet-panel:visible .import-preview-table").first().waitFor({ state: "visible" });
+}
+
+// A workbook of the sheets a teacher keeps for a class: the marks, a hidden sheet of resit marks, and
+// a sheet with nothing in it. Nothing in it changes from one run to the next.
+function termMarksWorkbook() {
+    const book = XLSX.utils.book_new();
+    const sheets = [
+        ["Term marks", [["student_id", "name", "maths", "science", "english"], [101, "Amara Okafor", 72, 65, 80], [102, "Ben Lindqvist", 58, 70, 61], [103, "Chen Wei", 91, 88, 79], [104, "Dalia Haddad", 66, 59, 74], [105, "Emil Novak", 83, 77, 68]], 0],
+        ["Resit marks", [["student_id", "subject", "mark", "resat_on"], [102, "maths", 63, "2025-06-12"], [104, "science", 64, "2025-06-12"], [107, "english", 55, "2025-06-13"]], 1],
+        ["Notes", [], 0],
+        ["Rooms", [["room", "seats"], ["A12", 30], ["B03", 24]], 0],
+    ];
+    for (const [name, rows] of sheets) {
+        XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(rows), name);
+    }
+    book.Workbook = { Sheets: sheets.map(([, , hidden]) => ({ Hidden: hidden })) };
+    return Buffer.from(XLSX.write(book, { bookType: "xlsx", type: "buffer" }));
+}
+
 
 // The dialog of the export of tables (flag "export"): the owner's database of edge cases is
 // opened as a file, and the Export menu's entry (the More menu's on a phone) is chosen.

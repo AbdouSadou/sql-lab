@@ -82,13 +82,47 @@ export const FRAME_MAX_MS = 250;
 export const IMPORT_TEXT_WARN_BYTES = 50 * 1024 * 1024;
 export const IMPORT_TEXT_MAX_BYTES = 250 * 1024 * 1024;
 
+// Workbooks (the plan's Phase 5, flag excel-import: js/lab/import-workbook.js). A workbook is read
+// whole into memory by one call that cannot be interrupted, and needs many times its size there, so
+// what is looked at is the amount of data the reader will have to parse, not always the file's
+// size. For an .xlsx, a zip, that is the unpacked size of its parts that hold sheet data (a picture
+// inside does not make the file ask or refuse: the reader does not parse it. It is unpacked all the
+// same, once, so it costs memory as large as itself, which EXCEL_MAX_UNPACKED_BYTES bounds): over
+// EXCEL_WARN_DATA_BYTES the student is asked first, over EXCEL_MAX_DATA_BYTES the file is refused,
+// and so is one whose parts, all of them, unpack to more than EXCEL_MAX_UNPACKED_BYTES (a zip that
+// compresses a thousand times over). For an
+// .xls, a web page or an XML spreadsheet, and for a zip whose directory cannot be read, the file's
+// own size is the measure: EXCEL_WARN_BYTES and EXCEL_MAX_BYTES. Past EXCEL_HEAVY_DATA_BYTES of
+// sheet data, or EXCEL_HEAVY_BYTES of file, the question says more: the page may run out of memory.
+// A megabyte is 1024 * 1024 bytes, as for the text limits.
+export const EXCEL_WARN_BYTES = 20 * 1024 * 1024;
+export const EXCEL_HEAVY_BYTES = 50 * 1024 * 1024;
+export const EXCEL_MAX_BYTES = 100 * 1024 * 1024;
+export const EXCEL_WARN_DATA_BYTES = 100 * 1024 * 1024;
+export const EXCEL_HEAVY_DATA_BYTES = 300 * 1024 * 1024;
+export const EXCEL_MAX_DATA_BYTES = 500 * 1024 * 1024;
+export const EXCEL_MAX_UNPACKED_BYTES = 1024 * 1024 * 1024;
+// SQLite's own limit on the columns of a table (a text file's, and a sheet's rectangle)
+export const MAX_COLUMNS = 2000;
+// A sheet is worked out, and its rows put into the typed table, about this many cells at a step,
+// with the page's turn between two steps (some tens of milliseconds a step).
+export const IMPORT_SHEET_CELLS = 30_000;
+// How often the page looks whether the reading of a workbook was lost for want of memory, and tries to say so
+// (js/lab/import-workbook.js, watchCall), in milliseconds.
+export const WORKBOOK_WATCH_MS = 250;
+
 // What the "Open a file…" entry of the database menu says under its name while the import is
 // on (js/lab/config.js has the line it says otherwise).
 export const OPEN_FILE_WITH_IMPORT_DESCRIPTION = "A SQLite database, a .sql script, or CSV files to bring in as tables";
+// ... and while excel-import is on too (the entry takes workbooks as well).
+export const OPEN_FILE_WITH_EXCEL_DESCRIPTION = "A SQLite database, a .sql script, or CSV and Excel files to bring in as tables";
 
 // A choice or a drop that cannot be taken as it is: said in a toast, before any dialog opens.
 export const IMPORT_MIXED_MESSAGE =
     "Nothing was opened. Choose CSV files to bring in together, or one database or script on its own.";
+// (while excel-import is on too)
+export const IMPORT_MIXED_WITH_EXCEL_MESSAGE =
+    "Nothing was opened. Choose CSV and Excel files to bring in together, or one database or script on its own.";
 export const IMPORT_SEVERAL_DATABASES_MESSAGE = "Nothing was opened. Only one database or script can be opened at a time.";
 // What is refused while an import runs, and why (a toast).
 export const IMPORT_BUSY_MESSAGE = "An import is running, so nothing else was done. Wait for it to end, or cancel it.";
@@ -101,6 +135,9 @@ export const IMPORT_LIBRARY_FAILED_MESSAGE =
 // The dialog (js/lab/import-dialog.js).
 export const IMPORT_DIALOG_TITLE = "Import files";
 export const IMPORT_DIALOG_TEXT = "Each file becomes a table, read as it is: nothing in it is cleaned or changed.";
+// (while excel-import is on too: a workbook gives a table for each sheet that is ticked)
+export const IMPORT_DIALOG_TEXT_WITH_SHEETS =
+    "Each file, or each sheet of a workbook, becomes a table, read as it is: nothing in it is cleaned or changed.";
 export const IMPORT_TABS_LABEL = "Files";
 export const IMPORT_SUBMIT_TEXT = "Import";
 export const IMPORT_CANCEL_TEXT = "Cancel";
@@ -113,6 +150,8 @@ export const IMPORT_TABLE_NAME_HINT = "Letters, digits and underscores. Anything
 export const IMPORT_NAME_EMPTY_MESSAGE = "Give the table a name.";
 export const IMPORT_NAME_RESERVED_MESSAGE = "A name cannot start with sqlite_: SQLite keeps those for itself.";
 export const IMPORT_NAME_TWICE_MESSAGE = "Another file here has this table name. Change one of them.";
+// (when a sheet has the name, or is the other that has it)
+export const IMPORT_NAME_TWICE_SHEET_MESSAGE = "Another file or sheet here has this table name. Change one of them.";
 export const importNameTakenMessage = (database) => `${database} already has a table, view or index with this name.`;
 // (a TEMP table or view of this visit: it is in no database, and would hide the new table)
 export const IMPORT_NAME_TEMPORARY_MESSAGE = "A temporary table or view already has this name.";
@@ -133,6 +172,9 @@ export const IMPORT_NAMES_ROW_LABEL = "Column names are on row";
 export const importNamesRowMessage = (rows) =>
     rows === 1 ? "The part of the file shown here has only 1 row." : `The part of the file shown here has only ${rows} rows.`;
 export const IMPORT_NAMES_ROW_NOT_A_ROW_MESSAGE = "Give the row as a whole number, 1 or more.";
+// (a sheet: the box and the tick box beside it say "sheet" where a text file's say "file")
+export const IMPORT_HAS_NAMES_SHEET_LABEL = "The sheet has a row of column names";
+export const importNamesRowSheetMessage = (rows) => (rows === 1 ? "The sheet has only 1 row." : `The sheet has only ${rows} rows.`);
 
 export const IMPORT_PREVIEW_LABEL = "The first rows, as read";
 export const IMPORT_PREVIEW_ROW_HEADING = "Row";
@@ -158,6 +200,87 @@ export const IMPORT_TOO_LARGE_REASON = "This file is over 250 MB, which is more 
 export const IMPORT_TOO_WIDE_REASON =
     "A row of this file has more than 2,000 columns, which is more than a table can have. Nothing of it was imported.";
 export const IMPORT_UNREADABLE_REASON = "The browser could not read this file.";
+// Why a workbook is refused (its tab says so). The library's own words are never shown.
+export const IMPORT_WORKBOOK_CUT_REASON =
+    "This workbook is not whole: the end of the file is missing. Download or copy it again, and choose the new copy.";
+export const IMPORT_WORKBOOK_DAMAGED_REASON =
+    "This workbook is damaged: part of it is not what the file itself says it should be. Copy it again from where it came from, or open it in Excel and save it, and choose the new copy.";
+export const IMPORT_NOT_A_WORKBOOK_REASON = "This file is not an Excel workbook, whatever its name says, so it cannot be imported.";
+export const IMPORT_WORKBOOK_LOCKED_REASON =
+    "This workbook is locked with a password, so it cannot be read. In Excel, remove the password, save the workbook, and choose it again.";
+export const IMPORT_WORKBOOK_UNREADABLE_REASON =
+    "This workbook could not be read. It may be damaged, or not an Excel workbook at all. Open it in Excel, save it again, and choose the new copy.";
+export const IMPORT_PAGE_UNREADABLE_REASON =
+    "No table could be read from this file. It is a web page saved under an Excel name: it may be an error page or a sign-in page, not the data. Download the file again.";
+// (the browser could not hold the workbook: what it threw says so, or it gave the reading up without a word)
+export const IMPORT_WORKBOOK_NO_MEMORY_REASON =
+    "The browser ran out of memory while reading this workbook, so it was not read. An Excel file is read whole into memory and needs many times its size there. In Excel, save the sheets you need as CSV files, and import those.";
+// (a large workbook that the reader came back from with a sheet left out: it leaves a sheet out without a word when the
+// browser had no memory for it, and when the sheet is damaged, and the page cannot tell which)
+export const IMPORT_WORKBOOK_SHEET_LOST_REASON =
+    "One of this workbook's sheets could not be read, so the workbook was not read. The likely cause is its size: an Excel file is read whole into memory and needs many times its size there. The file may also be damaged. In Excel, save the sheets you need as CSV files, and import those.";
+export const IMPORT_WORKBOOK_NO_SHEETS_REASON = "This workbook has no sheet to import. Chart sheets are not imported.";
+export const IMPORT_WORKBOOK_TOO_LARGE_REASON =
+    "This workbook is over 100 MB. An Excel file is read whole into memory and needs many times its size there, which is more than the browser has. In Excel, save the sheets you need as CSV files, and import those.";
+export const importWorkbookTooMuchReason = (megabytes) =>
+    `The sheets of this workbook unpack to ${megabytes.toLocaleString("en")} MB. They are read whole into memory and need many times that there, which is more than the browser has. In Excel, save the sheets you need as CSV files, and import those.`;
+export const IMPORT_WORKBOOK_LIBRARY_FAILED_REASON =
+    "The Excel reader could not be loaded, so this workbook was not read. Check the connection, then choose the files again.";
+// What a web page's table is called where a sheet's name would be (a web page has no sheet names).
+export const importPageTableLabel = (n) => `Table ${n}`;
+// The question for a large workbook (its tab: two answers, as for a large text file). The sizes are
+// in megabytes; unpackedMegabytes is what its sheets unpack to, null when the file's own size is what
+// was measured; heavy adds the warning that the page may run out of memory.
+export const importLargeWorkbookMessage = ({ megabytes, unpackedMegabytes = null, heavy = false }) => {
+    const size =
+        unpackedMegabytes === null
+            ? `This workbook is ${megabytes.toLocaleString("en")} MB.`
+            : `This workbook is ${megabytes.toLocaleString("en")} MB, and its sheets unpack to ${unpackedMegabytes.toLocaleString("en")} MB.`;
+    const wait = "The page will not respond while it is read, which can take a minute. If the browser says the page is not responding, choose to wait.";
+    const memory = "A workbook this large can need more memory than the browser has: if the page stops, reload it, and work that was not exported is lost.";
+    return heavy ? `${size} ${wait} ${memory}` : `${size} ${wait}`;
+};
+// The sheets of a workbook (its tab holds a second strip of tabs, one for each sheet listed).
+export const importSheetsLabel = (file) => `Sheets of ${file}`;
+export const importSheetLineText = (name) => `Sheet ${name}`;
+// what a sheet is called when its name is only spaces (n is its place among the sheets listed, from 1)
+export const importSheetUnnamedLabel = (n) => `(no name, number ${n})`;
+export const IMPORT_SHEET_HIDDEN_WORD = "hidden";
+export const IMPORT_SHEET_TICK_LABEL = "Import this sheet as a table";
+export const IMPORT_SHEET_HIDDEN_NOTE = "This sheet is hidden in the workbook. It is imported only if you tick it.";
+export const IMPORT_SHEET_EMPTY_REASON = "This sheet has no values, so there is nothing to import. Cells that are only formatted do not count.";
+export const IMPORT_SHEET_WIDE_REASON = "This sheet has more than 2,000 columns, which is more than a table can have, so it cannot be imported.";
+export const IMPORT_SHEET_DAMAGED_REASON =
+    "This sheet has a cell where no Excel sheet has one, beyond its last row or its last column, so it cannot be imported. Open the workbook in Excel, save it again, and choose the new copy.";
+export const importSheetSizeText = ({ rows, columns }) => `Its values span ${counted(rows, "row", "rows")} and ${counted(columns, "column", "columns")}.`;
+export const importSheetStartNote = (address) => `This table starts at ${address} of the sheet. Rows are counted from there.`;
+// What a sheet's tab says to a screen reader, in brackets after its name (a sheet that cannot be ticked says
+// IMPORT_REFUSED_TAB_TEXT, as a refused file does).
+export const IMPORT_SHEET_TICKED_TEXT = "ticked";
+export const IMPORT_SHEET_NOT_TICKED_TEXT = "not ticked";
+export const IMPORT_SHEET_HIDDEN_NOT_TICKED_TEXT = "hidden, not ticked";
+export const IMPORT_SHEET_HIDDEN_TICKED_TEXT = "hidden, ticked";
+export const IMPORT_SHEET_NO_VALUES_TEXT = "no values";
+// ... and a workbook's tab, when none of its sheets is ticked.
+export const IMPORT_TAB_NOTHING_TICKED_TEXT = "nothing ticked";
+// The line above the sheets: how many will be imported, and what cannot be. tickable is the number of
+// sheets that can be ticked, unable those that cannot (no values, too wide, damaged), charts the chart
+// sheets the workbook has and the list leaves out.
+export const importSheetsCountText = ({ ticked, tickable, unable = 0, charts = 0 }) => {
+    let text =
+        tickable === 0
+            ? "No sheet of this workbook can be imported."
+            : `${ticked} of ${tickable} ${tickable === 1 ? "sheet" : "sheets"} will be imported.`;
+    if (unable > 0 && tickable > 0) {
+        text += ` ${unable} more cannot be imported.`;
+    }
+    if (charts > 0) {
+        text += " Chart sheets are not listed.";
+    }
+    return text;
+};
+export const IMPORT_TICK_ALL_SHEETS_TEXT = "Tick every sheet";
+export const IMPORT_UNTICK_ALL_SHEETS_TEXT = "Untick every sheet";
 export const IMPORT_NO_NAMES_ROW_REASON = "The file ends before the row that was said to hold the column names.";
 // (the preview reads the first megabyte, PREVIEW_BYTES: the line ending, the delimiter and the
 // row of column names cannot be found in a text that holds no complete row)
@@ -178,6 +301,9 @@ export const IMPORT_SETTINGS_NO_ROW_MESSAGE =
 export const importHoldReadingMessage = (name) => `Still reading ${name}. Import can be pressed once every file has been read.`;
 export const importHoldWaitingMessage = (name) => `${name} is waiting for an answer in its tab. Import can be pressed after that.`;
 export const importHoldProblemMessage = (name) => `${name} cannot be imported as it is set. Its tab says why.`;
+// (a workbook: nothing ticked though something could be, and a sheet that cannot be imported as it is set)
+export const IMPORT_HOLD_NO_SHEET_MESSAGE = "No sheet is ticked. Tick at least one sheet to import.";
+export const importHoldSheetProblemMessage = (sheet, file) => `The sheet ${sheet} of ${file} cannot be imported as it is set. Its tab says why.`;
 // A large file: a step of its own before it is read, with two answers. Left out, its tab says so
 // where a refusal would give its reason, and the other files can be imported without it.
 export const importLargeFileMessage = (megabytes) =>
@@ -189,6 +315,10 @@ export const IMPORT_LEFT_OUT_TAB_TEXT = "left out";
 
 // While the import runs, and how it can end.
 export const importProgressTitle = (at, of, name) => (of === 1 ? `Importing ${name}` : `Importing file ${at} of ${of}: ${name}`);
+// (a job that has a sheet in it counts tables, not files: a workbook gives several)
+export const importProgressTableTitle = (at, of, table, file) =>
+    of === 1 ? `Importing ${table} (${file})` : `Importing table ${at} of ${of}: ${table} (${file})`;
+export const importProgressTextTitle = (at, of, file) => (of === 1 ? `Importing ${file}` : `Importing table ${at} of ${of}: ${file}`);
 export const IMPORT_PROGRESS_READING = "Reading rows";
 export const IMPORT_PROGRESS_COPYING = "Making the table";
 export const IMPORT_FAILED_MESSAGE = "The import failed, and nothing was imported.";
@@ -215,6 +345,17 @@ export const IMPORT_REPORT_BLANKS_HEADING = "Blanks";
 export const IMPORT_REPORT_NOTE_HEADING = "Note";
 export const IMPORT_REPORT_BLANK_NAME = "blank";
 export const IMPORT_REPORT_BLOCKING_NOTE = "Mostly numbers. The first value that is not:";
+// A sheet's table: formula cells that came out empty (a paragraph), and a column whose number format shows
+// zeros that the table does not hold (in the column's note). example is the text Excel showed, number the
+// number that was stored, as text; with no example the sentence says only that the format pads with zeros.
+export const importReportEmptyFormulasText = (count) =>
+    count === 1
+        ? "1 formula cell of this sheet came out empty: the workbook stores no result for it, or it gives empty text. In the table it is a blank."
+        : `${count.toLocaleString("en")} formula cells of this sheet came out empty: the workbook stores no result for them, or they give empty text. In the table they are blanks.`;
+export const importReportPaddedNote = (example, number) =>
+    example === null
+        ? "This column's format pads numbers with zeros, which are not in the table."
+        : `Excel showed ${example} for the number ${number}: the zeros are not in the table.`;
 export const IMPORT_REPORT_QUOTES_WARNING =
     "A quote in this file has no partner. Everything after it may have been read as one field: look at the last rows.";
 // The names of a table that a query must write in double quotes (the engine said so).
@@ -225,6 +366,11 @@ export const importReportQuotedText = (names) =>
 // The lines of an import's event in the evidence log (js/lab/events.js): what matters first.
 export const importEventFileLine = (name, bytes) => `file: ${name}, ${bytes} bytes`;
 export const importEventTableLine = (table, rows, columns) => `table: ${table}, ${rows} rows, ${columns} columns`;
+// (the table of a sheet, or of a table of a web page: the line ends with the sheet)
+export const importEventSheetTableLine = (table, rows, columns, sheet) => `table: ${table}, ${rows} rows, ${columns} columns, ${sheet}`;
+// Where a table of a workbook came from, in the report's line "... from <source>".
+export const importSheetSource = (file, sheet) => `${file}, sheet ${sheet}`;
+export const importPageSource = (file, label) => `${file}, ${label}`;
 
 // ---- Export of tables as CSV (the plan's Phase 3, flag "export": js/lab/export-*.js) ----
 

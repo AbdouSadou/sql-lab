@@ -17,6 +17,7 @@ const {
     DEFAULT_DATASET,
     realManifest,
     csvFile: csv,
+    wideLastRowCsv,
     holdDataset,
     holdImport,
     holdVendor,
@@ -2841,20 +2842,8 @@ test.describe("the staging table is a TEMP table: the open database is not made 
 
 // ---- 12. a refusal found during the import leaves nothing ---------------------------------------------------
 
-// The preview reads the first megabyte of a text file, so a file whose rows are all fine for that
-// long shows as fine. A row of 2,001 fields later on is met by the import (js/lab/import-csv.js
-// throws ImportRefused "too-wide"; run() undoes what was done and refuses the file).
-const WIDE_LAST_ROW = () => {
-    const rows = ["id,note"];
-    let size = rows[0].length;
-    for (let i = 1; size < 1_200_000; i++) {
-        const row = `${i},${"x".repeat(80)}`;
-        rows.push(row);
-        size += row.length + 1;
-    }
-    rows.push(Array.from({ length: 2001 }, (unused, n) => n).join(","));
-    return csv("wide.csv", `${rows.join("\n")}\n`);
-};
+// (the file is made by wideLastRowCsv of tests/helpers.js: its last row, after the first megabyte, has 2,001 fields)
+const WIDE_LAST_ROW = wideLastRowCsv;
 const escapedText = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const refusedTabOf = (app, name) => app.page.getByRole("tab", { name: new RegExp(`^${escapedText(name)} \\(${escapedText(words.IMPORT_REFUSED_TAB_TEXT)}\\)$`) });
 

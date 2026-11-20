@@ -44,6 +44,7 @@ import {
     EXPORT_TABLES_MENU_DESCRIPTION,
     EXPORT_TABLES_MENU_TEXT,
     IMPORT_BUSY_MESSAGE,
+    OPEN_FILE_WITH_EXCEL_DESCRIPTION,
     OPEN_FILE_WITH_IMPORT_DESCRIPTION,
 } from "./lab/config-workflow.js";
 import { mountHelp } from "./lab/help.js";
@@ -192,8 +193,9 @@ const picker = mountDatabaseSwitcher({
         }
     },
     onOpenUrl: () => openUrl(document.querySelector("#database-button")),
-    // with the import on, the entry says what else it takes (the assessment plan's Phase 2)
-    openFileDescription: flagOn("import") ? OPEN_FILE_WITH_IMPORT_DESCRIPTION : undefined,
+    // with the import on, the entry says what else it takes (the assessment plan's Phase 2), and with
+    // the reading of workbooks on as well, Excel files too (its Phase 5)
+    openFileDescription: flagOn("import") ? (flagOn("excel-import") ? OPEN_FILE_WITH_EXCEL_DESCRIPTION : OPEN_FILE_WITH_IMPORT_DESCRIPTION) : undefined,
 });
 
 // "Open from URL…": its dialog (js/lab/open-url-dialog.js)

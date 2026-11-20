@@ -54,6 +54,7 @@
 // Every field stays text here. Empty lines are skipped wherever they are; a line of delimiters
 // only is a row of NULLs (rule 9); a field of spaces is not empty (rule 5).
 
+import { MAX_COLUMNS } from "./config-workflow.js";
 import { blockingValue, columnNames, columnType, newTally, tallyValue } from "./import-rules.js";
 
 export const DELIMITERS = [
@@ -63,8 +64,8 @@ export const DELIMITERS = [
     { value: "|", name: "pipe" },
 ];
 
-// SQLite's own limit on the columns of a table
-export const MAX_COLUMNS = 2000;
+// SQLite's own limit on the columns of a table (js/lab/config-workflow.js holds it)
+export { MAX_COLUMNS };
 
 export class ImportRefused extends Error {
     constructor(reason) {

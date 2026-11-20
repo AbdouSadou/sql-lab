@@ -33,6 +33,10 @@ const zlib = require("node:zlib");
 const { pathToFileURL } = require("node:url");
 const base = require("@playwright/test");
 const { expect } = base;
+const XLSX = require("../vendor/xlsx.full.min.js");
+// (the page's own name for the strip of the files' tabs: a getter cannot wait for the import() below, and the
+// module has no top-level await, so node reads it whole where it is asked for)
+const { IMPORT_TABS_LABEL } = require("../js/lab/config-workflow.js");
 
 // The page's own words for the export dialog (js/lab/config-workflow.js), read once. A text that a
 // helper waits for or looks for comes from here, never typed again.
@@ -535,8 +539,20 @@ class App {
         return this.page.locator("#import-dialog");
     }
 
+    // the tabs of the files (the outer strip: one for each file; a workbook's sheets have a strip of
+    // their own, inside the file's panel: importSheetTabs)
     get importTabs() {
-        return this.importDialog.getByRole("tab");
+        return this.importDialog.getByRole("tablist", { name: IMPORT_TABS_LABEL, exact: true }).getByRole("tab");
+    }
+
+    // the strip of a workbook's sheets, by its label ("Sheets of shopping_db.xlsx"), and the panel of
+    // the sheet that is showing
+    importSheetStrip(label) {
+        return this.importDialog.getByRole("tablist", { name: label, exact: true });
+    }
+
+    get importSheetPanel() {
+        return this.importDialog.locator(".import-panel:not([hidden]) .import-sheet-panel:not([hidden])");
     }
 
     // the panel of the tab that is showing
@@ -1401,6 +1417,21 @@ async function holdVendor(page, file, { pass = 0 } = {}) {
 // dropFiles take it
 const csvFile = (name = "people.csv", text = "id,name\n1,Ann\n2,Bob\n") => ({ name, mimeType: "text/csv", buffer: Buffer.from(text) });
 
+// wideLastRowCsv() is "wide.csv": the preview reads the first megabyte of a text file, so a file whose
+// rows are all fine for that long shows as fine; a row of 2,001 fields after it is met by the import
+// (which refuses the file as too wide and undoes what it did).
+const wideLastRowCsv = () => {
+    const rows = ["id,note"];
+    let size = rows[0].length;
+    for (let i = 1; size < 1_200_000; i++) {
+        const row = `${i},${"x".repeat(80)}`;
+        rows.push(row);
+        size += row.length + 1;
+    }
+    rows.push(Array.from({ length: 2001 }, (unused, n) => n).join(","));
+    return csvFile("wide.csv", `${rows.join("\n")}\n`);
+};
+
 // holdImport opens the import's dialog for `files`, lets the preview read them, takes the CSV
 // reader off the page so that the import has to ask for it again, holds that second request (the
 // preview's own, the first, goes through) and presses Import. The import is then running and waits
@@ -1473,6 +1504,70 @@ const slowDown = (page) =>
             };
         }
     });
+
+// gateTurns(page) holds the import at a place its dialog shows: the next turn the import gives the
+// page, once the progress shows a title that matches and a part that is as given, is held until the
+// test lets it go, so that Cancel, Escape or a change to the page can be made at exactly that place
+// whatever the machine's speed. Returns {at(title, part), held(), release()}: at() arms it (title is a
+// regular expression, part the words under the title, null for any), held() says whether a turn is
+// held, and release() lets it go. The page's clock stands still from at() until the release, so that the
+// pace always takes a plain turn and never waits for a frame. Where the browser has scheduler.yield
+// the turn is that; where not it is the message the page sends itself.
+async function gateTurns(page) {
+    await page.evaluate(() => {
+        const gate = { title: null, part: null, held: false, release: null, frozen: null };
+        window.__gate = gate;
+        const clock = performance.now.bind(performance);
+        performance.now = () => gate.frozen ?? clock();
+        const holds = () => {
+            if (!gate.title) {
+                return false;
+            }
+            const title = document.querySelector("#import-progress-title")?.textContent ?? "";
+            const part = document.querySelector("#import-dialog .results-loading-size")?.textContent ?? "";
+            return new RegExp(gate.title).test(title) && (gate.part === null || part === gate.part);
+        };
+        const wait = (go) => {
+            gate.held = true;
+            gate.release = () => {
+                gate.release = null;
+                gate.held = false;
+                gate.title = null;
+                gate.frozen = null;
+                go();
+            };
+        };
+        if (typeof globalThis.scheduler?.yield === "function") {
+            globalThis.scheduler.yield = () =>
+                new Promise((resolve) => {
+                    if (holds()) {
+                        wait(resolve);
+                    } else {
+                        setTimeout(resolve, 0);
+                    }
+                });
+        } else {
+            const post = MessagePort.prototype.postMessage;
+            MessagePort.prototype.postMessage = function (...args) {
+                if (holds()) {
+                    wait(() => post.apply(this, args));
+                } else {
+                    post.apply(this, args);
+                }
+            };
+        }
+    });
+    return {
+        at: (title, part = null) =>
+            page.evaluate(([source, words]) => {
+                window.__gate.title = source;
+                window.__gate.part = words;
+                window.__gate.frozen = performance.now();
+            }, [title.source, part]),
+        held: () => page.evaluate(() => window.__gate.held),
+        release: () => page.evaluate(() => window.__gate.release?.()),
+    };
+}
 
 // the open database as a handle that can be compared with the open one later
 const databaseHandle = (page) => page.evaluateHandle(() => window.app.database);
@@ -2249,9 +2344,67 @@ async function inNode(storage, fn) {
     }
 }
 
+// ---- what the specs of the import of Excel workbooks share (tests/aw5-excel-*.spec.js) ----------------------------
+
+// an owner's file by the last part of its name, with no folder
+const BASENAME = (name) => path.basename(name);
+
+// an owner's file as a file chosen (a path cannot be mixed with buffers in setInputFiles, so a fixture chosen
+// beside a file made in the test is handed over as its bytes)
+const owned = (name) => ({ name: path.basename(name), mimeType: "application/octet-stream", buffer: fs.readFileSync(fixturePath(name)) });
+
+// a text as a pattern that matches that text and nothing else
+const escaped = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// the line beside Import that says why it is held up
+const holdLine = (app) => app.importDialog.locator("#import-hold");
+
+const MB = 1024 * 1024;
+
+// the first bytes of an old binary workbook (an .xls)
+const OLE2_START = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+
+// the size of an owner's file, in bytes
+const BYTES = (name) => fs.statSync(fixturePath(name)).size;
+
+// the tables a workbook's expected file holds, one for each sheet that can be ticked, in the sheets' order
+const tablesOf = (expected) => expected.sheets.filter((sheet) => sheet.importable).map((sheet) => sheet.table);
+
+// waits until the dialog has looked at every file it was given, and read every workbook
+async function dialogReady(app) {
+    await expect(app.importDialog).toBeVisible();
+    await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
+}
+
+// the engine's tables, and every one of the expected file against what the page made
+async function expectTables(app, expectedTables) {
+    for (const table of expectedTables) {
+        expect(compareTable(await readTable(app, table.name), table), `table ${table.name}`).toEqual([]);
+    }
+    const made = (await app.rows("SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name")).flat();
+    expect(made).toEqual(expectedTables.map((table) => table.name).sort());
+}
+
+// the lines of one event of a workbook: its file, then a line for each table ending with its sheet
+const eventLines = (file, bytes, tables) => [`file: ${file}, ${bytes} bytes`, ...tables.map((table) => `table: ${table.name}, ${table.rows} rows, ${table.columns.length} columns, ${table.source}`)];
+
+// a workbook of sheets [{name, rows}] as the file a student would choose (the library writes it, in Node)
+// (a sheet with hidden: 1 is hidden in the workbook)
+function workbookFile(name, sheets, bookType = "xlsx") {
+    const book = XLSX.utils.book_new();
+    for (const sheet of sheets) {
+        XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(sheet.rows), sheet.name);
+    }
+    if (sheets.some((sheet) => sheet.hidden)) {
+        book.Workbook = { Sheets: sheets.map((sheet) => ({ Hidden: sheet.hidden ?? 0 })) };
+    }
+    return { name, mimeType: "application/octet-stream", buffer: Buffer.from(XLSX.write(book, { bookType, type: "buffer" })) };
+}
+
 module.exports = {
     test,
     expect,
+    READY_PANE,
     NetworkLog,
     App,
     openFresh,
@@ -2268,11 +2421,13 @@ module.exports = {
     crc32,
     readZip,
     csvFile,
+    wideLastRowCsv,
     holdVendor,
     holdImport,
     finishHeld,
     holdDataset,
     slowDown,
+    gateTurns,
     databaseHandle,
     isOpenDatabase,
     schemaNames,
@@ -2327,4 +2482,16 @@ module.exports = {
     editorValue,
     editorSelect,
     expectEditorTextOnly,
+    BASENAME,
+    BYTES,
+    tablesOf,
+    dialogReady,
+    expectTables,
+    eventLines,
+    workbookFile,
+    owned,
+    escaped,
+    holdLine,
+    MB,
+    OLE2_START,
 };

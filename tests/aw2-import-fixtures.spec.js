@@ -40,8 +40,9 @@ const {
 //     not in the four) shows Comma and one column; the plan's Windows file with one lone quote in a
 //     heading gives an INTEGER column and no carriage return (the dialog's line ending is handed to
 //     Papa); a delimiter chosen by hand is the one the import reads with
-//   - ?preview=import,excel-import: a workbook is refused as with the import alone (Phase 2 reads
-//     no flag but its own)
+//   - ?preview=import: a workbook is refused with its words, and the files beside it still import;
+//     ?preview=import,excel-import: the same files are read (tests/aw5-excel-fixtures.spec.js
+//     holds what a workbook gives)
 // Everything runs in the page, on all four projects. Node only reads the fixtures and the texts of
 // js/lab/config-workflow.js (the reasons a student is told), and checks the evidence file with
 // js/lab/evidence.js. How the dialog is built and the rules of names and types are the other specs'.
@@ -724,12 +725,13 @@ test.describe("the reason an expected file gives for a refusal", () => {
 
 // ---- both flags on ------------------------------------------------------------------------------------
 
-test.describe("?preview=import,excel-import", () => {
-    test("a workbook is refused with the same words as with the import alone, and a CSV beside it still imports", async ({ app, page }) => {
+// With the import alone a workbook is never read: Phase 5 is behind the flag excel-import.
+test.describe("?preview=import with a workbook chosen", () => {
+    test("a workbook is refused with the words of the import alone, and a CSV beside it still imports", async ({ app, page }) => {
         const { IMPORT_WORKBOOK_REASON } = await load("config-workflow.js");
-        await app.open("./?preview=import,excel-import");
-        // (both flags really are on: the test is not the one with the import alone)
-        expect(await page.evaluate(async () => (await import("./bundle/app.js")).flags.flagOn("excel-import"))).toBe(true);
+        await app.open("./?preview=import");
+        // (the flag excel-import is off: the test is not the one with both)
+        expect(await page.evaluate(async () => (await import("./bundle/app.js")).flags.flagOn("excel-import"))).toBe(false);
         expect(await page.evaluate(async () => (await import("./bundle/app.js")).flags.flagOn("import"))).toBe(true);
         await app.chooseFiles([fixturePath("shopping_db.xlsx"), fixturePath("semicolon.csv")]);
         await dialogReady(app);
@@ -749,13 +751,54 @@ test.describe("?preview=import,excel-import", () => {
 
     test("a workbook alone is refused, and Close leaves the page as it was", async ({ app, page }) => {
         const { IMPORT_WORKBOOK_REASON } = await load("config-workflow.js");
-        await app.open(`${NORTHLIGHT_URL}&preview=import,excel-import`);
+        await app.open(`${NORTHLIGHT_URL}&preview=import`);
         const before = await pageState(app, page);
         await app.chooseFiles(fixturePath("shopping_db.xlsx"));
         await expect(app.importDialog).toBeVisible();
         await expect(app.importPanel).toContainText(IMPORT_WORKBOOK_REASON);
         await expect(app.importSubmit).toBeHidden();
         await expect(app.importCancel).toHaveText(words.IMPORT_CLOSE_TEXT);
+        await app.importCancel.click();
+        await expect(app.importDialog).toBeHidden();
+        expect(await pageState(app, page)).toEqual(before);
+    });
+});
+
+// With both flags a workbook is read: its sheets are in its tab, and the files beside it import with it.
+test.describe("?preview=import,excel-import with a workbook chosen", () => {
+    test("a workbook is read, not refused, and a CSV beside it imports with its sheets", async ({ app, page }) => {
+        await app.open("./?preview=import,excel-import");
+        // (both flags really are on: the test is not the one with the import alone)
+        expect(await page.evaluate(async () => (await import("./bundle/app.js")).flags.flagOn("excel-import"))).toBe(true);
+        expect(await page.evaluate(async () => (await import("./bundle/app.js")).flags.flagOn("import"))).toBe(true);
+        await app.chooseFiles([fixturePath("shopping_db.xlsx"), fixturePath("semicolon.csv")]);
+        await dialogReady(app);
+        await expect(app.importTabs).toHaveCount(2);
+        await expect(app.importTabs.nth(0)).not.toHaveAccessibleName(refusedWords());
+        await expect(app.importTabs.nth(1)).not.toHaveAccessibleName(refusedWords());
+        await expect(app.importDialog.locator(".import-refusal")).toHaveCount(0);
+        await expect(app.importDialog.getByRole("tablist", { name: words.importSheetsLabel("shopping_db.xlsx") }).getByRole("tab")).toHaveCount(4);
+        await expect(app.importSubmit).toBeEnabled();
+        await app.importSubmit.click();
+        await expect(app.importDialog).toBeHidden();
+        await expect(app.pane).toHaveAttribute("data-state", "report");
+        // the new database is named after the first file, which is now the workbook
+        expect(await page.evaluate(() => window.app.database.name)).toBe("shopping_db");
+        expect((await app.rows("SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name")).flat()).toEqual(["customers", "orders", "products", "quantities", "semicolon"]);
+        await expectTable(app, expectedFor("semicolon.csv").tables[0]);
+        for (const sheet of expectedFor("shopping_db.xlsx").sheets) {
+            await expectTable(app, sheet.table);
+        }
+    });
+
+    test("a workbook alone is read: Import is there, and Close leaves nothing behind", async ({ app, page }) => {
+        await app.open(`${NORTHLIGHT_URL}&preview=import,excel-import`);
+        const before = await pageState(app, page);
+        await app.chooseFiles(fixturePath("shopping_db.xlsx"));
+        await dialogReady(app);
+        await expect(app.importDialog.locator(".import-refusal")).toHaveCount(0);
+        await expect(app.importSubmit).toBeEnabled();
+        await expect(app.importCancel).toHaveText(words.IMPORT_CANCEL_TEXT);
         await app.importCancel.click();
         await expect(app.importDialog).toBeHidden();
         expect(await pageState(app, page)).toEqual(before);

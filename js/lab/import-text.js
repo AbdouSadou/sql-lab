@@ -5,7 +5,7 @@
 // A file's kind is decided from its bytes before its name (the plan's Q18):
 //
 //   kindByStart(head, size, fileName) -> "empty" | "zip" | "ole2" | "markup" | "text"
-//       head is the file's first bytes (HEAD_BYTES of them are enough), size its length. In
+//       head is the file's first bytes (what headOf gives), size its length. In
 //       this order, the first that fits: no bytes at all, "empty"; the four bytes 50 4B 03 04,
 //       "zip" (an .xlsx workbook, whatever it is called: the two letters PK are not enough, a CSV
 //       whose first column is called PK starts with them); the eight bytes D0 CF 11 E0 A1 B1 1A
@@ -13,6 +13,11 @@
 //       character, after any byte-order mark and white space, under an .xls or .xlsx name,
 //       "markup" (a web page or an XML spreadsheet saved as a workbook); anything else, "text",
 //       which inspectText then looks at in full.
+//
+//   headOf(blob, fileName) -> Promise<Uint8Array>
+//       the bytes to give kindByStart: the first HEAD_BYTES, and for a file under an .xls or .xlsx
+//       name that starts with white space alone, as many more as it takes to reach the first
+//       character that is not white space (up to 16 MB).
 //
 //   inspectText(blob, options?) -> Promise<{bom, hasZero, validUtf8}>
 //       One pass over the whole file. bom is the encoding its byte-order mark names ("utf-8",
@@ -94,6 +99,31 @@ export function kindByStart(head, size, fileName) {
         }
     }
     return "text";
+}
+
+// The file's first bytes for kindByStart: HEAD_BYTES of them, and where a file under a workbook's
+// name starts with nothing but white space (and is longer than that) the file is read on, in
+// pieces that grow, to the first character that is not white space, so that a web page saved as a
+// workbook is found however much white space is in front of its first tag, up to HEAD_LIMIT_BYTES:
+// a file that is white space for longer than that is read as the text it is. (The dialog asks for
+// this whatever the flags are: with the import alone such a web page is refused as a workbook is.)
+const HEAD_LIMIT_BYTES = 16 * 1024 * 1024;
+export async function headOf(blob, fileName) {
+    let length = HEAD_BYTES;
+    for (;;) {
+        const head = new Uint8Array(await blob.slice(0, length).arrayBuffer());
+        const quiet =
+            blob.size > length &&
+            length < HEAD_LIMIT_BYTES &&
+            WORKBOOK_NAME.test(String(fileName)) &&
+            !startsWith(head, ZIP) &&
+            !startsWith(head, OLE2) &&
+            new TextDecoder(bomOf(head) ?? "utf-8").decode(head).trim() === "";
+        if (!quiet) {
+            return head;
+        }
+        length *= 16;
+    }
 }
 
 async function* slicesOf(blob, sliceBytes) {
