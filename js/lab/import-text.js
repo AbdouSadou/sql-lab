@@ -78,6 +78,9 @@ export function bomOf(head) {
 }
 
 const WORKBOOK_NAME = /\.xlsx?$/i;
+// Spreadsheets that are not read (a macro workbook, a binary workbook, an OpenDocument sheet): the
+// import takes a file with one of these endings as its own and refuses it by its name, unread.
+export const OTHER_SPREADSHEET_NAME = /\.(?:xlsm|xlsb|ods)$/i;
 
 export function kindByStart(head, size, fileName) {
     if (size === 0) {

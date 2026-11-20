@@ -3700,3 +3700,223 @@ test.describe("a field's message in a sheet's panel is in view when it comes", (
         expect(at.boxBottom, "(the hint is still cut: the box was not brought)").toBeGreaterThan(at.bodyBottom + 0.5);
     });
 });
+
+// ---- a sheet's name that the dialog made unique because the open database has it -------------------------------------
+
+// The same note as a text file's (tests/aw2-import-dialog.spec.js, group 20), in a sheet's panel. A sheet's panel is built when
+// its tab is first shown, and the note is kept on the sheet meanwhile.
+test.describe("a sheet's name that the dialog made unique because the open database has it carries a note", () => {
+    const noteOf = (app) => app.importSheetPanel.locator(".import-name-note");
+    const book = () =>
+        workbookFile("shop.xlsx", [
+            { name: "orders", rows: [["id"], [1]] },
+            { name: "items", rows: [["id"], [2]] },
+            { name: "blank", rows: [] },
+        ]);
+    const DATABASE = "a_rather_long_database_name_for_the_class_orders";
+    // the workbook is imported into a new database, which is then the open one, and the same workbook is chosen again
+    async function chooseAgain(app, file = book()) {
+        await app.open(FLAGS);
+        await app.importFiles(book(), { database: DATABASE });
+        await app.chooseFiles(file);
+        await dialogReady(app);
+        await app.importDialog.locator("#import-into-open").check();
+    }
+    const said = (sheet, given) => words.importNameMadeUniqueNote(DATABASE, sheet, given);
+
+    test("the same workbook imported twice into one database: each sheet has its note, the second sheet's panel is built only when it is first shown, and a sheet that cannot be ticked has none", async ({ app }) => {
+        await chooseAgain(app);
+        const tabs = sheetTabs(app, "shop.xlsx");
+        await expect(tabs).toHaveCount(3);
+        // (the first sheet is on show; the others have no panel yet)
+        await expect(sheetName(app)).toHaveValue("orders_2");
+        await expect(noteOf(app)).toHaveText(said("orders", "orders_2"));
+        await expect(app.importDialog.locator(".import-name-note")).toHaveCount(1);
+        const id = await sheetName(app).getAttribute("id");
+        await expect(noteOf(app)).toHaveAttribute("id", `${id}-note`);
+        await expect(sheetName(app)).toHaveAttribute("aria-describedby", `${id}-hint ${id}-note`);
+        await expect(sheetName(app)).not.toHaveAttribute("aria-invalid", /.*/);
+        await expect(app.importDialog.locator(".import-name-note").first()).not.toHaveAttribute("role", /.*/);
+        // the second sheet, looked at for the first time
+        await tabs.nth(1).click();
+        await expect(sheetName(app)).toHaveValue("items_2");
+        await expect(noteOf(app)).toHaveText(said("items", "items_2"));
+        await expect(app.importDialog.locator(".import-name-note")).toHaveCount(2);
+        // the sheet that has no values has no name to suggest, and no note
+        await tabs.nth(2).click();
+        await expect(sheetName(app)).toHaveCount(0);
+        await expect(noteOf(app)).toHaveCount(0);
+        await expect(app.importSubmit).toBeEnabled();
+        await app.importSubmit.click();
+        await expect(app.importDialog).toBeHidden();
+        expect((await schemaNames(app)).filter((name) => /orders|items/.test(name))).toEqual(["items", "items_2", "orders", "orders_2"]);
+    });
+
+    test("a sheet that is not on show has its note when it is first shown, whatever happened to the destination before that: a new database took it away and the open database brought it back", async ({ app }) => {
+        await chooseAgain(app);
+        const tabs = sheetTabs(app, "shop.xlsx");
+        // (the destination changes twice while the second sheet has not been shown)
+        await app.importDialog.locator("#import-into-new").check();
+        await expect(sheetName(app)).toHaveValue("orders");
+        await expect(noteOf(app)).toBeHidden();
+        await tabs.nth(1).click();
+        await expect(sheetName(app)).toHaveValue("items");
+        await expect(noteOf(app)).toBeHidden();
+        await app.importDialog.locator("#import-into-open").check();
+        await expect(sheetName(app)).toHaveValue("items_2");
+        await expect(noteOf(app)).toHaveText(said("items", "items_2"));
+        await tabs.nth(0).click();
+        await expect(sheetName(app)).toHaveValue("orders_2");
+        await expect(noteOf(app)).toHaveText(said("orders", "orders_2"));
+    });
+
+    test("a sheet whose name only a temporary table has gets the note for a temporary name, in a panel that is built when it is first shown; the other sheet's note names the database", async ({ app }) => {
+        await app.open(FLAGS);
+        await app.importFiles(book(), { database: DATABASE });
+        // (the database keeps orders; items is now a TEMP table's name alone, which is in no database)
+        await app.run("DROP TABLE items");
+        await app.run("CREATE TEMP TABLE items (a)");
+        await app.chooseFiles(book());
+        await dialogReady(app);
+        await app.importDialog.locator("#import-into-open").check();
+        const tabs = sheetTabs(app, "shop.xlsx");
+        await expect(sheetName(app)).toHaveValue("orders_2");
+        await expect(noteOf(app)).toHaveText(said("orders", "orders_2"));
+        await expect(app.importDialog.locator(".import-name-note")).toHaveCount(1);
+        await tabs.nth(1).click();
+        await expect(sheetName(app)).toHaveValue("items_2");
+        const temporary = words.importNameMadeUniqueTemporaryNote("items", "items_2");
+        await expect(noteOf(app)).toHaveText(temporary);
+        expect(temporary).not.toContain(DATABASE);
+        const id = await sheetName(app).getAttribute("id");
+        await expect(sheetName(app)).toHaveAttribute("aria-describedby", `${id}-hint ${id}-note`);
+        await expect(sheetName(app)).not.toHaveAttribute("aria-invalid", /.*/);
+        await expect(app.importSubmit).toBeEnabled();
+    });
+
+    test("with a new database from the start no sheet has a note", async ({ app }) => {
+        await app.open(FLAGS);
+        await app.importFiles(book(), { database: DATABASE });
+        await app.chooseFiles(book());
+        await dialogReady(app);
+        const tabs = sheetTabs(app, "shop.xlsx");
+        await expect(sheetName(app)).toHaveValue("orders");
+        await tabs.nth(1).click();
+        await expect(sheetName(app)).toHaveValue("items");
+        await expect(app.importDialog.locator(".import-name-note:not([hidden])")).toHaveCount(0);
+    });
+
+    test("typing in a sheet's field takes its note away and it does not come back when the text is typed back; the other sheet keeps its note", async ({ app }) => {
+        await chooseAgain(app);
+        const tabs = sheetTabs(app, "shop.xlsx");
+        const id = await sheetName(app).getAttribute("id");
+        await sheetName(app).fill("orders_2");
+        await expect(noteOf(app)).toBeHidden();
+        await expect(sheetName(app)).toHaveAttribute("aria-describedby", `${id}-hint`);
+        await app.importDialog.locator("#import-into-new").check();
+        await app.importDialog.locator("#import-into-open").check();
+        await expect(sheetName(app)).toHaveValue("orders_2");
+        await expect(noteOf(app)).toBeHidden();
+        // the second sheet was not typed in
+        await tabs.nth(1).click();
+        await expect(noteOf(app)).toHaveText(said("items", "items_2"));
+    });
+
+    test("a sheet that is not ticked has its note as well, and one that is unticked later keeps it", async ({ app }) => {
+        await chooseAgain(app);
+        const tabs = sheetTabs(app, "shop.xlsx");
+        await tickBox(app).uncheck();
+        await expect(noteOf(app)).toHaveText(said("orders", "orders_2"));
+        await tabs.nth(1).click();
+        await expect(noteOf(app)).toHaveText(said("items", "items_2"));
+    });
+
+    test("a workbook sheet called like a table of the database, beside a text file called like another: each has its own note, and a name taken only by the sheet before has none", async ({ app }) => {
+        await app.open(FLAGS);
+        await app.importFiles(book(), { database: DATABASE });
+        await app.chooseFiles([workbookFile("again.xlsx", [{ name: "orders", rows: [["id"], [1]] }, { name: "fresh", rows: [["id"], [1]] }, { name: "fresh!", rows: [["id"], [1]] }])]);
+        await dialogReady(app);
+        await app.importDialog.locator("#import-into-open").check();
+        const tabs = sheetTabs(app, "again.xlsx");
+        await expect(noteOf(app)).toHaveText(said("orders", "orders_2"));
+        await tabs.nth(1).click();
+        await expect(sheetName(app)).toHaveValue("fresh");
+        await expect(noteOf(app)).toBeHidden();
+        // (fresh! is fresh_ and not fresh: no clash)
+        await tabs.nth(2).click();
+        await expect(noteOf(app)).toBeHidden();
+    });
+
+    test("two sheets of one name in one choice, in two workbooks, give data and data_2 with no note: both are in view", async ({ app }) => {
+        await app.open(FLAGS);
+        await app.importFiles(book(), { database: DATABASE });
+        await app.chooseFiles([workbookFile("a.xlsx", [{ name: "data", rows: [["id"], [1]] }]), workbookFile("b.xlsx", [{ name: "data", rows: [["id"], [2]] }])]);
+        await dialogReady(app);
+        await app.importDialog.locator("#import-into-open").check();
+        await expect(sheetName(app)).toHaveValue("data");
+        await expect(noteOf(app)).toBeHidden();
+        await app.importTabs.nth(1).click();
+        await expect(sheetName(app)).toHaveValue("data_2");
+        await expect(noteOf(app)).toBeHidden();
+    });
+
+    for (const size of [
+        { name: "1366x768 (two columns)", width: 1366, height: 768 },
+        { name: "1920x1080 (stacked)", width: 1920, height: 1080 },
+        { name: "390x844 (a phone)", width: 390, height: 844 },
+    ]) {
+        test(`at ${size.name} a sheet's note lies inside its field, overlaps no other control, and the dialog does not scroll sideways`, async ({ app, page }) => {
+            await page.setViewportSize({ width: size.width, height: size.height });
+            await chooseAgain(app);
+            await expect(noteOf(app)).toBeVisible();
+            await expect(noteOf(app)).toHaveText(said("orders", "orders_2"));
+            const boxes = await page.evaluate(() => {
+                const panel = document.querySelector(".import-panel:not([hidden]) .import-sheet-panel:not([hidden])");
+                const note = panel.querySelector(".import-name-note");
+                const rect = (node) => {
+                    const { left, top, right, bottom } = node.getBoundingClientRect();
+                    return { left, top, right, bottom };
+                };
+                const owner = note.closest(".import-field");
+                const others = [...panel.querySelectorAll("input, select, label, .import-preview, .import-field")]
+                    .filter((node) => !owner.contains(node) && !node.contains(note))
+                    .map((node) => ({ tag: node.tagName, id: node.id, ...rect(node) }));
+                const dialog = document.querySelector("#import-dialog");
+                const body = dialog.querySelector(".import-body");
+                return {
+                    note: rect(note),
+                    owner: rect(owner),
+                    others,
+                    columns: getComputedStyle(panel).gridTemplateColumns,
+                    sideways: { dialog: [dialog.scrollWidth, dialog.clientWidth], body: [body.scrollWidth, body.clientWidth] },
+                };
+            });
+            const { note, owner } = boxes;
+            expect(note.left, "the note starts inside its field").toBeGreaterThanOrEqual(owner.left - 0.5);
+            expect(note.right, "the note ends inside its field").toBeLessThanOrEqual(owner.right + 0.5);
+            expect(note.bottom, "the field holds the note").toBeLessThanOrEqual(owner.bottom + 0.5);
+            const overlapping = boxes.others.filter(
+                (other) => other.left < note.right - 0.5 && other.right > note.left + 0.5 && other.top < note.bottom - 0.5 && other.bottom > note.top + 0.5 && other.right > other.left && other.bottom > other.top
+            );
+            expect(overlapping, "controls under the note").toEqual([]);
+            expect(boxes.sideways.dialog[0]).toBeLessThanOrEqual(boxes.sideways.dialog[1]);
+            // (a strip of sheets may scroll sideways on a phone, as it did: the note adds no width to the body)
+            await app.importDialog.locator("#import-into-new").check();
+            await expect(noteOf(app)).toBeHidden();
+            expect(await page.evaluate(() => document.querySelector("#import-dialog .import-body").scrollWidth), "the body's width with and without the note").toBe(boxes.sideways.body[0]);
+            if (size.width === 1366) {
+                // (the settings' column of a sheet's panel in a wide and low window: two columns, the first 14 to 17 rem)
+                const columns = boxes.columns.split(" ").map((width) => parseFloat(width));
+                expect(columns).toHaveLength(2);
+                expect(columns[0]).toBeGreaterThanOrEqual(14 * 16 - 1);
+                expect(columns[0]).toBeLessThanOrEqual(17 * 16 + 1);
+            }
+        });
+    }
+
+    test("axe finds no serious or critical violation with a sheet's note on show", async ({ app, page }) => {
+        await chooseAgain(app);
+        await expect(noteOf(app)).toBeVisible();
+        await expectNoSeriousViolations(page, "a sheet's note on show");
+    });
+});

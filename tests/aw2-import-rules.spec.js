@@ -932,6 +932,21 @@ test.describe("import text: the kind of a file by its first bytes (plan section 
 
 // ---- text: looking at the whole file ---------------------------------------------------------------------------
 
+test.describe("import text: the endings of the spreadsheets that are refused by their name", () => {
+    test.beforeEach(skipUnlessFirst);
+
+    test("a name ending in .xlsm, .xlsb or .ods, in any letter case, fits; a name that merely holds one, or ends otherwise, does not", async () => {
+        const { text } = await modules();
+        for (const name of ["a.xlsm", "a.xlsb", "a.ods", "REPORT.XLSM", "Data.XlsB", "sheet.ODS", "two.words.ods", ".ods"]) {
+            expect(text.OTHER_SPREADSHEET_NAME.test(name), name).toBe(true);
+            expect(text.OTHER_SPREADSHEET_NAME.exec(name)[0].toLowerCase()).toBe(name.slice(name.lastIndexOf(".")).toLowerCase());
+        }
+        for (const name of ["notes.ods.csv", "a.xlsm.txt", "a.xlsb.tsv", "ods", "a.odsx", "a.xls", "a.xlsx", "a.xlsmx", "a_xlsm", "a.xlsm ", "a.csv", "a.ods\n"]) {
+            expect(text.OTHER_SPREADSHEET_NAME.test(name), name).toBe(false);
+        }
+    });
+});
+
 test.describe("import text: one pass over the whole file (inspectText, guessEncoding, fitsEncoding)", () => {
     test.beforeEach(skipUnlessFirst);
 

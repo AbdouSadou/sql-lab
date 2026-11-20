@@ -153,8 +153,15 @@ export const IMPORT_NAME_TWICE_MESSAGE = "Another file here has this table name.
 // (when a sheet has the name, or is the other that has it)
 export const IMPORT_NAME_TWICE_SHEET_MESSAGE = "Another file or sheet here has this table name. Change one of them.";
 export const importNameTakenMessage = (database) => `${database} already has a table, view or index with this name.`;
+// (a line, not a fault, under a name the dialog suggested and made unique: wanted is the name the file or sheet would have
+// had, given the name in the field)
+export const importNameMadeUniqueNote = (database, wanted, given) =>
+    `${database} already has a table, view or index called ${wanted}, so this table is called ${given}.`;
 // (a TEMP table or view of this visit: it is in no database, and would hide the new table)
 export const IMPORT_NAME_TEMPORARY_MESSAGE = "A temporary table or view already has this name.";
+// (... and the line under a suggested name that was made unique because of one: the database is not named, since it does not hold it)
+export const importNameMadeUniqueTemporaryNote = (wanted, given) =>
+    `A temporary table or view is already called ${wanted}, so this table is called ${given}.`;
 
 export const IMPORT_DELIMITER_LABEL = "Delimiter";
 export const IMPORT_DELIMITER_NAMES = { ",": "Comma", ";": "Semicolon", "\t": "Tab", "|": "Pipe" };
@@ -195,6 +202,10 @@ export const IMPORT_COURSE_DATABASE_NOTE = "Files are never imported into a cour
 export const IMPORT_EMPTY_REASON = "This file is empty, so there is nothing to import.";
 export const IMPORT_WORKBOOK_REASON =
     "This is an Excel workbook, and Excel files cannot be imported yet. In Excel, save the sheet as CSV, and import that.";
+// A file ending in .xlsm, .xlsb or .ods: spreadsheets the import does not read. The ending is the file's own,
+// made lower case, with its dot; excel says whether workbooks (.xlsx) are read here (the import alone refuses them too).
+export const importOtherSpreadsheetReason = (ending, excel) =>
+    `A file ending in ${ending} cannot be imported. ${excel ? "Save it as an Excel workbook (.xlsx) or as CSV, and import that." : "Save it as CSV, and import that."}`;
 export const IMPORT_NOT_TEXT_REASON = "This file is not text, so it cannot be read as CSV.";
 export const IMPORT_TOO_LARGE_REASON = "This file is over 250 MB, which is more than the browser can import.";
 export const IMPORT_TOO_WIDE_REASON =
@@ -334,8 +345,22 @@ export const IMPORT_LOADING_DIALOG_MESSAGE =
 export const IMPORT_DESTINATION_GONE_MESSAGE =
     "Nothing was imported: files cannot go into the database that is open now. Choose a new database, or close this and choose the files again.";
 export const importedMessage = (tables, database) => `Imported ${tables} ${tables === 1 ? "table" : "tables"} into ${database}`;
+// ... and when some files gave no table: the same sentence, then how many (left is that number)
+export const importedWithLeftMessage = (tables, database, left) =>
+    left === 0 ? importedMessage(tables, database) : `${importedMessage(tables, database)}. ${left === 1 ? "1 file was not imported." : `${left} files were not imported.`}`;
 
 // The report in the results pane (js/lab/import-report.js).
+// The files that gave no table, named at the head of the report: left is [{name, why}], and why the words the file's tab
+// says to a screen reader (a name with a comma in it is left as it is). The sentence comes in parts, [text, isName]
+// each, so that the report can set a name apart from the words around it; the text of the parts, joined, is the sentence.
+export const importReportLeftParts = (left) => [
+    ["Not imported: ", false],
+    ...left.flatMap((one, n) => [
+        [one.name, true],
+        [` (${one.why})${n < left.length - 1 ? ", " : "."}`, false],
+    ]),
+];
+export const importReportLeftText = (left) => importReportLeftParts(left).map(([text]) => text).join("");
 export const importReportTableLine = (rows, columns, source) =>
     `${rows} ${rows === 1 ? "row" : "rows"}, ${columns} ${columns === 1 ? "column" : "columns"}, from ${source}`;
 export const IMPORT_REPORT_COLUMN_HEADING = "Column";

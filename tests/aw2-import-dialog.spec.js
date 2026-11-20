@@ -4504,3 +4504,428 @@ test.describe("edges a sweep by mutation found unheld: the preview's table, name
         expect(await footHeight(), "the foot is as it was before the failure").toBe(plain);
     });
 });
+
+// ---- 20. a name that the dialog made unique because the open database has it ---------------------------------------
+
+// With the open database as the destination, a name that the dialog suggested and had to change (Staff to Staff_2)
+// has a line under the field that says so. It is a note, not a fault: nothing holds Import, the field is not invalid,
+// nothing is announced. It goes when the student types in the field, and when the destination is a new database.
+test.describe("a name that the dialog made unique because the open database has it carries a note", () => {
+    const noteOf = (app) => app.importPanel.locator(".import-name-note");
+    const fieldId = (app) => tableName(app).getAttribute("id");
+    // the page with sample.db open and the tables, views and indexes given made in it
+    async function openWith(app, sql = []) {
+        await openSample(app);
+        for (const statement of sql) {
+            await app.run(statement);
+        }
+    }
+    // the files chosen, and the open database picked
+    async function chooseIntoOpen(app, files) {
+        await app.chooseFiles(files);
+        await expect(app.importDialog).toBeVisible();
+        await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
+        await app.importDialog.locator("#import-into-open").check();
+    }
+    // every name the tabs hold, in the tabs' order, and the note of each (read from the page, tab by tab)
+    async function namesAndNotes(app, count) {
+        const found = [];
+        for (let n = 0; n < count; n++) {
+            await app.importTabs.nth(n).click();
+            const note = noteOf(app);
+            found.push([await tableName(app).inputValue(), (await note.isVisible()) ? await note.textContent() : null]);
+        }
+        return found;
+    }
+
+    test("a CSV file imported into the open database and chosen again: the field holds x_2 and the note says why, with Import on", async ({ app }) => {
+        await openSample(app);
+        await app.importFiles(csv("x.csv"), { into: "open" });
+        expect(await app.rows("SELECT count(*) FROM x")).toEqual([[1]]);
+        await chooseIntoOpen(app, csv("x.csv"));
+        await expect(tableName(app)).toHaveValue("x_2");
+        const said = words.importNameMadeUniqueNote("sample.db", "x", "x_2");
+        expect(said).toBe("sample.db already has a table, view or index called x, so this table is called x_2.");
+        await expect(noteOf(app)).toHaveText(said);
+        await expect(noteOf(app)).toBeVisible();
+        await expect(app.importSubmit).toBeEnabled();
+        // it is a note and not a fault: the field is not invalid, and nothing is an alert
+        await expect(tableName(app)).not.toHaveAttribute("aria-invalid", /.*/);
+        await expect(noteOf(app)).not.toHaveAttribute("role", /.*/);
+        await expect(app.importPanel.getByRole("alert")).toHaveCount(0);
+        // the field is described by the hint and the note, and the note is a line of its own after the hint
+        const id = await fieldId(app);
+        await expect(noteOf(app)).toHaveAttribute("id", `${id}-note`);
+        await expect(tableName(app)).toHaveAttribute("aria-describedby", `${id}-hint ${id}-note`);
+        await expect(tableName(app)).toHaveAccessibleDescription(`${words.IMPORT_TABLE_NAME_HINT} ${said}`);
+        expect(await noteOf(app).evaluate((node) => [node.className, node.previousElementSibling.id, node.nextElementSibling.id])).toEqual([
+            "app-dialog-hint import-name-note",
+            `${id}-hint`,
+            `${id}-error`,
+        ]);
+        // Import imports it under that name
+        await app.importSubmit.click();
+        await expect(app.importDialog).toBeHidden();
+        expect(await app.rows("SELECT count(*) FROM x_2")).toEqual([[1]]);
+    });
+
+    test("typing in the field takes the note away, and it does not come back when the text is typed back", async ({ app }) => {
+        await openWith(app, ["CREATE TABLE x (a)"]);
+        await chooseIntoOpen(app, csv("x.csv"));
+        const id = await fieldId(app);
+        await expect(noteOf(app)).toBeVisible();
+        await tableName(app).fill("x_2!");
+        await expect(noteOf(app)).toBeHidden();
+        await expect(noteOf(app)).toHaveText("");
+        await expect(tableName(app)).toHaveAttribute("aria-describedby", `${id}-hint`);
+        // (the same text as the suggestion, typed back)
+        await tableName(app).fill("x_2");
+        await expect(noteOf(app)).toBeHidden();
+        await expect(tableName(app)).toHaveAttribute("aria-describedby", `${id}-hint`);
+        // nor does choosing the destination again bring it back: the name is the student's
+        await app.importDialog.locator("#import-into-new").check();
+        await expect(tableName(app)).toHaveValue("x_2");
+        await app.importDialog.locator("#import-into-open").check();
+        await expect(tableName(app)).toHaveValue("x_2");
+        await expect(noteOf(app)).toBeHidden();
+    });
+
+    test("the note stays, with the same words, when the file is read again after the delimiter, the encoding or the row of names is changed", async ({ app }) => {
+        await openWith(app, ["CREATE TABLE x (a)"]);
+        await chooseIntoOpen(app, csv("x.csv", "a;b\n1;2\n"));
+        const said = words.importNameMadeUniqueNote("sample.db", "x", "x_2");
+        await expect(noteOf(app)).toHaveText(said);
+        await delimiterOf(app).selectOption(";");
+        await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
+        await encodingOf(app).selectOption({ label: "UTF-16, little-endian" });
+        await encodingOf(app).selectOption({ label: "UTF-8" });
+        await hasNames(app).uncheck();
+        await hasNames(app).check();
+        await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
+        await expect(tableName(app)).toHaveValue("x_2");
+        await expect(noteOf(app)).toHaveText(said);
+        const id = await fieldId(app);
+        await expect(tableName(app)).toHaveAttribute("aria-describedby", `${id}-hint ${id}-note`);
+        await expect(app.importSubmit).toBeEnabled();
+    });
+
+    test("a new database takes the note away and gives the natural name, and the open database brings both back", async ({ app }) => {
+        await openWith(app, ["CREATE TABLE x (a)"]);
+        await chooseIntoOpen(app, csv("x.csv"));
+        const said = words.importNameMadeUniqueNote("sample.db", "x", "x_2");
+        const id = await fieldId(app);
+        await expect(noteOf(app)).toHaveText(said);
+        await app.importDialog.locator("#import-into-new").check();
+        await expect(tableName(app)).toHaveValue("x");
+        await expect(noteOf(app)).toBeHidden();
+        await expect(noteOf(app)).toHaveText("");
+        await expect(tableName(app)).toHaveAttribute("aria-describedby", `${id}-hint`);
+        await app.importDialog.locator("#import-into-open").check();
+        await expect(tableName(app)).toHaveValue("x_2");
+        await expect(noteOf(app)).toHaveText(said);
+        await expect(tableName(app)).toHaveAttribute("aria-describedby", `${id}-hint ${id}-note`);
+    });
+
+    test("with a new database as the destination there is no note from the start", async ({ app }) => {
+        await openWith(app, ["CREATE TABLE x (a)"]);
+        await app.chooseFiles(csv("x.csv"));
+        await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
+        await expect(tableName(app)).toHaveValue("x");
+        await expect(noteOf(app)).toBeHidden();
+    });
+
+    // (a table, a view and an index are the database's names, in any letter case: the one sentence is true of each)
+    for (const [kind, sql, file] of [
+        ["a view", "CREATE VIEW seen AS SELECT 1 AS a", "seen.csv"],
+        ["an index", "CREATE INDEX idx_by_name ON fruit(name)", "idx_by_name.csv"],
+        ["a table in another letter case", "CREATE TABLE Staff (a)", "STAFF.csv"],
+    ]) {
+        test(`${kind} of that name gives the note as well`, async ({ app }) => {
+            await openWith(app, [sql]);
+            await chooseIntoOpen(app, csv(file));
+            const wanted = file.slice(0, -4);
+            await expect(tableName(app)).toHaveValue(`${wanted}_2`);
+            await expect(noteOf(app)).toHaveText(words.importNameMadeUniqueNote("sample.db", wanted, `${wanted}_2`));
+            await expect(app.importSubmit).toBeEnabled();
+        });
+    }
+
+    // (a TEMP table or view is in no database: a note that named sample.db would send the student to look for it there)
+    for (const [kind, sql, file] of [
+        ["a temporary table", "CREATE TEMP TABLE tempdata (a)", "tempdata.csv"],
+        ["a temporary view", "CREATE TEMP VIEW tempseen AS SELECT 1 AS a", "tempseen.csv"],
+        ["a temporary table in another letter case", "CREATE TEMP TABLE TempStaff (a)", "TEMPSTAFF.csv"],
+    ]) {
+        test(`${kind} of that name gives the note for a temporary name, which does not name the database`, async ({ app }) => {
+            await openWith(app, [sql]);
+            await chooseIntoOpen(app, csv(file));
+            const wanted = file.slice(0, -4);
+            await expect(tableName(app)).toHaveValue(`${wanted}_2`);
+            const said = words.importNameMadeUniqueTemporaryNote(wanted, `${wanted}_2`);
+            await expect(noteOf(app)).toHaveText(said);
+            expect(said).not.toContain("sample.db");
+            // a note like the other: the field is described by the hint and by it, is not invalid, and Import is on
+            const id = await fieldId(app);
+            await expect(tableName(app)).toHaveAttribute("aria-describedby", `${id}-hint ${id}-note`);
+            await expect(tableName(app)).not.toHaveAttribute("aria-invalid", /.*/);
+            await expect(app.importPanel.getByRole("alert")).toHaveCount(0);
+            await expect(app.importSubmit).toBeEnabled();
+            // ... and it goes with a new database, and is back with the open one
+            await app.importDialog.locator("#import-into-new").check();
+            await expect(tableName(app)).toHaveValue(wanted);
+            await expect(noteOf(app)).toBeHidden();
+            await app.importDialog.locator("#import-into-open").check();
+            await expect(tableName(app)).toHaveValue(`${wanted}_2`);
+            await expect(noteOf(app)).toHaveText(said);
+        });
+    }
+
+    test("a name that the database and a temporary table both have gives the note that names the database", async ({ app }) => {
+        // (the database's table is the one the student finds in the schema: the names it holds come first)
+        await openWith(app, ["CREATE TABLE twice (a)", "CREATE TEMP TABLE twice (a)"]);
+        await chooseIntoOpen(app, csv("twice.csv"));
+        await expect(tableName(app)).toHaveValue("twice_2");
+        await expect(noteOf(app)).toHaveText(words.importNameMadeUniqueNote("sample.db", "twice", "twice_2"));
+    });
+
+    test("two files beside a temporary table and a table of the database: each has the note of its own kind", async ({ app }) => {
+        await openWith(app, ["CREATE TABLE kept (a)", "CREATE TEMP TABLE passing (a)"]);
+        await chooseIntoOpen(app, [csv("kept.csv"), csv("passing.csv"), csv("free.csv")]);
+        expect(await namesAndNotes(app, 3)).toEqual([
+            ["kept_2", words.importNameMadeUniqueNote("sample.db", "kept", "kept_2")],
+            ["passing_2", words.importNameMadeUniqueTemporaryNote("passing", "passing_2")],
+            ["free", null],
+        ]);
+    });
+
+    test("a file that is read again after a change of delimiter or of encoding keeps its name and its note", async ({ app }) => {
+        await openWith(app, ["CREATE TABLE x (a)"]);
+        await chooseIntoOpen(app, csv("x.csv", "a;b\n1;2\n"));
+        const id = await fieldId(app);
+        const said = words.importNameMadeUniqueNote("sample.db", "x", "x_2");
+        await expect(noteOf(app)).toHaveText(said);
+        // (a pipe splits nothing in this file: its first row is then a single cell, "a;b")
+        await delimiterOf(app).selectOption({ label: words.IMPORT_DELIMITER_NAMES["|"] });
+        await expect(app.importPanel.locator(".import-preview-table")).toContainText("a;b");
+        await encodingOf(app).selectOption({ label: words.IMPORT_ENCODING_NAMES["windows-1252"] });
+        await expect(app.importSubmit).toBeEnabled();
+        await expect(tableName(app)).toHaveValue("x_2");
+        await expect(noteOf(app)).toHaveText(said);
+        await expect(tableName(app)).toHaveAttribute("aria-describedby", `${id}-hint ${id}-note`);
+    });
+
+    test("a dialog that is closed and opened again with other files starts with no note and a new database", async ({ app }) => {
+        await openWith(app, ["CREATE TABLE x (a)"]);
+        await chooseIntoOpen(app, csv("x.csv"));
+        await expect(noteOf(app)).toBeVisible();
+        await app.importCancel.click();
+        await expect(app.importDialog).toBeHidden();
+        await app.chooseFiles([csv("y.csv"), csv("x.csv")]);
+        await expect(app.importDialog).toBeVisible();
+        await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
+        await expect(app.importDialog.locator("#import-into-new")).toBeChecked();
+        expect(await namesAndNotes(app, 2)).toEqual([["y", null], ["x", null]]);
+        await app.importDialog.locator("#import-into-open").check();
+        expect(await namesAndNotes(app, 2)).toEqual([["y", null], ["x_2", words.importNameMadeUniqueNote("sample.db", "x", "x_2")]]);
+    });
+
+    test("Import pressed with a wrong name in another tab shows that error there and leaves the note of this tab as it is", async ({ app }) => {
+        await openWith(app, ["CREATE TABLE x (a)"]);
+        await chooseIntoOpen(app, [csv("x.csv"), csv("y.csv")]);
+        await app.importTabs.nth(1).click();
+        await tableName(app).fill("");
+        await app.importSubmit.click();
+        await expect(alertIn(app, words.IMPORT_NAME_EMPTY_MESSAGE)).toBeVisible();
+        await expect(noteOf(app)).toBeHidden();
+        await app.importTabs.nth(0).click();
+        await expect(noteOf(app)).toHaveText(words.importNameMadeUniqueNote("sample.db", "x", "x_2"));
+        await expect(tableName(app)).not.toHaveAttribute("aria-invalid", /.*/);
+        const id = await fieldId(app);
+        await expect(tableName(app)).toHaveAttribute("aria-describedby", `${id}-hint ${id}-note`);
+    });
+
+    test("two files of one name in one choice give x and x_2, and neither has a note: both tabs are in view", async ({ app }) => {
+        await openWith(app);
+        await chooseIntoOpen(app, [csv("dup.csv"), csv("dup.txt")]);
+        expect(await namesAndNotes(app, 2)).toEqual([
+            ["dup", null],
+            ["dup_2", null],
+        ]);
+    });
+
+    test("a file whose natural name the database has, and that an earlier tab took as well, is called x_3, with the note", async ({ app }) => {
+        await openWith(app, ["CREATE TABLE x (a)"]);
+        await chooseIntoOpen(app, [csv("x.csv"), csv("x.txt"), csv("other.csv")]);
+        expect(await namesAndNotes(app, 3)).toEqual([
+            ["x_2", words.importNameMadeUniqueNote("sample.db", "x", "x_2")],
+            ["x_3", words.importNameMadeUniqueNote("sample.db", "x", "x_3")],
+            ["other", null],
+        ]);
+    });
+
+    test("a refused file does not take a name: the next one is called x_2, and the refused file's tab has no field", async ({ app }) => {
+        await openWith(app, ["CREATE TABLE x (a)"]);
+        await chooseIntoOpen(app, [{ name: "x.csv", mimeType: "text/csv", buffer: Buffer.alloc(0) }, csv("x.txt")]);
+        await expect(app.importTabs).toHaveCount(2);
+        await app.importTabs.nth(1).click();
+        await expect(tableName(app)).toHaveValue("x_2");
+        await expect(noteOf(app)).toHaveText(words.importNameMadeUniqueNote("sample.db", "x", "x_2"));
+        await app.importTabs.nth(0).click();
+        await expect(app.importPanel.locator(".import-name-note")).toHaveCount(0);
+    });
+
+    test("a file left out gives its name up: the next file is given x_2, with its note", async ({ app, page }) => {
+        await openWith(app, ["CREATE TABLE x (a)"]);
+        // (the first file is over 50 MB: it asks before it is read, and holds its name meanwhile)
+        expect(await dropMade(page, [{ name: "x.csv", megabytes: 51 }, { name: "x.txt", text: SMALL_TEXT }])).toBe(true);
+        await expect(app.importDialog).toBeVisible();
+        await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
+        await app.importDialog.locator("#import-into-open").check();
+        await app.importTabs.nth(1).click();
+        await expect(tableName(app)).toHaveValue("x_3");
+        await expect(noteOf(app)).toHaveText(words.importNameMadeUniqueNote("sample.db", "x", "x_3"));
+        await app.importTabs.nth(0).click();
+        await leaveButton(app).click();
+        await app.importTabs.nth(1).click();
+        await expect(tableName(app)).toHaveValue("x_2");
+        await expect(noteOf(app)).toHaveText(words.importNameMadeUniqueNote("sample.db", "x", "x_2"));
+    });
+
+    test("a name typed that the database has is what it was: the error when Import is pressed, and no note beside it", async ({ app }) => {
+        await openWith(app, ["CREATE TABLE x (a)"]);
+        await chooseIntoOpen(app, csv("x.csv"));
+        const id = await fieldId(app);
+        await expect(noteOf(app)).toBeVisible();
+        await tableName(app).fill("x");
+        await expect(noteOf(app)).toBeHidden();
+        await app.importSubmit.click();
+        await expect(alertIn(app, words.importNameTakenMessage("sample.db"))).toBeVisible();
+        await expect(tableName(app)).toHaveAttribute("aria-invalid", "true");
+        await expect(noteOf(app)).toBeHidden();
+        // (the error first, then the hint, as it always was)
+        await expect(tableName(app)).toHaveAttribute("aria-describedby", `${id}-error ${id}-hint`);
+    });
+
+    test("a suggested name that is refused when Import is pressed shows its error and not its note, and the note returns when the error is gone", async ({ app }) => {
+        // sqlite_sequence is taken once a table counts with AUTOINCREMENT, and a name that starts with sqlite_ is reserved
+        await openWith(app, ["CREATE TABLE counted (id INTEGER PRIMARY KEY AUTOINCREMENT, a)", "INSERT INTO counted (a) VALUES (1)"]);
+        await chooseIntoOpen(app, csv("sqlite_sequence.csv"));
+        const id = await fieldId(app);
+        await expect(tableName(app)).toHaveValue("sqlite_sequence_2");
+        await expect(noteOf(app)).toBeVisible();
+        await app.importSubmit.click();
+        await expect(alertIn(app, words.IMPORT_NAME_RESERVED_MESSAGE)).toBeVisible();
+        await expect(noteOf(app)).toBeHidden();
+        await expect(tableName(app)).toHaveAttribute("aria-describedby", `${id}-error ${id}-hint`);
+        // the destination changes: the names are suggested again, the error is gone, and the field is as it was
+        await app.importDialog.locator("#import-into-new").check();
+        await app.importDialog.locator("#import-into-open").check();
+        await expect(alertIn(app, words.IMPORT_NAME_RESERVED_MESSAGE)).toHaveCount(0);
+        await expect(tableName(app)).not.toHaveAttribute("aria-invalid", /.*/);
+        await expect(noteOf(app)).toBeVisible();
+        await expect(tableName(app)).toHaveAttribute("aria-describedby", `${id}-hint ${id}-note`);
+    });
+
+    test("a field that never has a note is described as it was: by its hint, and by its error when it has one", async ({ app }) => {
+        await openDialog(app, csv("alpha.csv"));
+        const id = await fieldId(app);
+        await expect(noteOf(app)).toBeHidden();
+        await expect(tableName(app)).toHaveAttribute("aria-describedby", `${id}-hint`);
+        // (a field with no hint: the delimiter's, and the new database's name)
+        await expect(delimiterOf(app)).not.toHaveAttribute("aria-describedby", /.*/);
+        const database = app.importDialog.locator("#import-database-name");
+        await expect(database).not.toHaveAttribute("aria-describedby", /.*/);
+        await tableName(app).fill("");
+        await app.importSubmit.click();
+        await expect(alertIn(app, words.IMPORT_NAME_EMPTY_MESSAGE)).toBeVisible();
+        await expect(tableName(app)).toHaveAttribute("aria-describedby", `${id}-error ${id}-hint`);
+        // the new database's name, with no hint: its error alone, and nothing again once it is typed in
+        await tableName(app).fill("alpha");
+        await database.fill("");
+        await app.importSubmit.click();
+        await expect(app.importDialog.locator("#import-database-name-error")).toHaveText(words.IMPORT_NEW_DATABASE_EMPTY_MESSAGE);
+        await expect(database).toHaveAttribute("aria-describedby", "import-database-name-error");
+        await database.fill("named");
+        await expect(database).not.toHaveAttribute("aria-describedby", /.*/);
+    });
+
+    // the layout: the note wraps inside the field's column, and covers nothing
+    for (const size of [
+        { name: "1366x768 (two columns)", width: 1366, height: 768 },
+        { name: "1920x1080 (stacked)", width: 1920, height: 1080 },
+        { name: "390x844 (a phone)", width: 390, height: 844 },
+    ]) {
+        test(`at ${size.name} the note lies inside its field, overlaps no other control, and the dialog does not scroll sideways`, async ({ app, page }) => {
+            await page.setViewportSize({ width: size.width, height: size.height });
+            // a long name: the note is long, and has no place to break but where the browser may
+            const long = "customer_orders_2024_quarterly_summary_report_with_a_very_long_name_indeed";
+            await openWith(app, [`CREATE TABLE ${long} (a)`]);
+            await chooseIntoOpen(app, csv(`${long}.csv`));
+            await expect(noteOf(app)).toBeVisible();
+            await expect(noteOf(app)).toHaveText(words.importNameMadeUniqueNote("sample.db", long, `${long}_2`));
+            const boxes = await page.evaluate(() => {
+                const panel = document.querySelector(".import-panel:not([hidden])");
+                const note = panel.querySelector(".import-name-note");
+                const rect = (node) => {
+                    const { left, top, right, bottom } = node.getBoundingClientRect();
+                    return { left, top, right, bottom };
+                };
+                const owner = note.closest(".import-field");
+                const others = [...panel.querySelectorAll("input, select, label, .import-preview, .import-field")]
+                    .filter((node) => !owner.contains(node) && !node.contains(note))
+                    .map((node) => ({ tag: node.tagName, id: node.id, ...rect(node) }));
+                const dialog = document.querySelector("#import-dialog");
+                const body = dialog.querySelector(".import-body");
+                return {
+                    note: rect(note),
+                    owner: rect(owner),
+                    others,
+                    sideways: { dialog: [dialog.scrollWidth, dialog.clientWidth], body: [body.scrollWidth, body.clientWidth] },
+                };
+            });
+            const { note, owner } = boxes;
+            // (a hair of rounding is allowed)
+            expect(note.left, "the note starts inside its field").toBeGreaterThanOrEqual(owner.left - 0.5);
+            expect(note.right, "the note ends inside its field").toBeLessThanOrEqual(owner.right + 0.5);
+            expect(note.bottom, "the field holds the note").toBeLessThanOrEqual(owner.bottom + 0.5);
+            const overlapping = boxes.others.filter(
+                (other) => other.left < note.right - 0.5 && other.right > note.left + 0.5 && other.top < note.bottom - 0.5 && other.bottom > note.top + 0.5 && other.right > other.left && other.bottom > other.top
+            );
+            expect(overlapping, "controls under the note").toEqual([]);
+            expect(boxes.sideways.dialog[0]).toBeLessThanOrEqual(boxes.sideways.dialog[1]);
+            expect(boxes.sideways.body[0]).toBeLessThanOrEqual(boxes.sideways.body[1]);
+        });
+    }
+
+    test("nothing scrolls for the note: the body is where it was when the note comes, with the field in focus", async ({ app, page }) => {
+        await page.setViewportSize({ width: 683, height: 384 });
+        await openWith(app, ["CREATE TABLE x (a)"]);
+        await app.chooseFiles(csv("x.csv"));
+        await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
+        await tableName(app).focus();
+        const before = await page.evaluate(() => document.querySelector(".import-body").scrollTop);
+        // (the destination changes under a field that has the focus, as a script can make it)
+        await page.evaluate(() => {
+            const open = document.querySelector("#import-into-open");
+            open.checked = true;
+            open.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+        await expect(noteOf(app)).toBeVisible();
+        expect(await page.evaluate(() => document.querySelector(".import-body").scrollTop)).toBe(before);
+    });
+
+    for (const theme of ["light", "dark"]) {
+        test(`axe finds no serious or critical violation with a note on show, ${theme}`, async ({ app, page }) => {
+            await page.emulateMedia({ colorScheme: theme });
+            await openWith(app, ["CREATE TABLE x (a)"]);
+            await chooseIntoOpen(app, csv("x.csv"));
+            await expect(noteOf(app)).toBeVisible();
+            const results = await new AxeBuilder({ page }).include("#import-dialog").analyze();
+            expect(results.passes.length).toBeGreaterThan(5);
+            const serious = results.violations
+                .filter((v) => v.impact === "serious" || v.impact === "critical")
+                .map((v) => `${v.id} (${v.impact}): ${v.help} at ${v.nodes.slice(0, 4).map((n) => n.target.join(" ")).join(" | ")}`);
+            expect(serious).toEqual([]);
+        });
+    }
+});

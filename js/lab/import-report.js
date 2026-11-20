@@ -2,9 +2,11 @@
 // the results pane when it ends. It points a student at what there is to clean, and cleans
 // nothing. Built with createElement and textContent only: names and values come from a file.
 //
-//   buildImportReport(tables) -> element
+//   buildImportReport(tables, {left}) -> element
 //     tables: [{name, rows, source, badQuotes, quoted, columns: [{name, original, type, blanks, blocking}],
 //               emptyFormulas, padded: [{column, example, number}]}]
+//     left: [{name, why}], the files that gave no table, with the words their tabs say (optional): one
+//           paragraph names them before the first table
 //     emptyFormulas and padded are the two facts of a sheet of a workbook (js/lab/import-cells.js
 //     tableOf); a table of a text file has neither, and its report is what it always was.
 //
@@ -34,6 +36,8 @@ import {
     IMPORT_REPORT_QUOTES_WARNING,
     IMPORT_REPORT_TYPE_HEADING,
     importReportEmptyFormulasText,
+    importReportLeftParts,
+    importReportLeftText,
     importReportPaddedNote,
     importReportQuotedText,
     importReportTableLine,
@@ -58,13 +62,14 @@ const REPORT_VALUE_CHARS = 80;
 const CUT = "…";
 let reports = 0;
 
+// a text as long as it may be shown
+const cut = (text) => (text.length > REPORT_VALUE_CHARS ? `${text.slice(0, REPORT_VALUE_CHARS)}${CUT}` : text);
+
 // what is shown of a text, and the whole of it in a title when that is more
 function shown(node, text) {
+    node.textContent = cut(text);
     if (text.length > REPORT_VALUE_CHARS) {
-        node.textContent = `${text.slice(0, REPORT_VALUE_CHARS)}${CUT}`;
         node.title = text;
-    } else {
-        node.textContent = text;
     }
     return node;
 }
@@ -143,9 +148,26 @@ function warning(text) {
     return node;
 }
 
-export function buildImportReport(tables) {
+// the paragraph that names the files that gave no table: each name cut as a value is, and the whole sentence
+// in its title when a name was cut. A name is the student's file name and may hold characters that change the
+// direction of the text after them, so each one is in a <bdi> element, which sets it apart from what is around it.
+function leftParagraph(left) {
+    const node = el("p", "import-report-left");
+    for (const [text, isName] of importReportLeftParts(left.map((one) => ({ ...one, name: cut(one.name) })))) {
+        node.append(isName ? el("bdi", null, text) : text);
+    }
+    if (left.some((one) => one.name.length > REPORT_VALUE_CHARS)) {
+        node.title = importReportLeftText(left);
+    }
+    return node;
+}
+
+export function buildImportReport(tables, { left = [] } = {}) {
     const report = el("div", "import-report");
     reports++;
+    if (left.length) {
+        report.append(leftParagraph(left));
+    }
     tables.forEach((table, n) => {
         const section = el("section", "import-report-table");
         const heading = el("h2", "import-report-name", table.name);

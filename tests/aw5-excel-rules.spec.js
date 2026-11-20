@@ -393,6 +393,80 @@ test.describe("the limits and the texts of a workbook, and tallyNumber", () => {
         expect(config.importReportTableLine(50, 4, "shopping_db.xlsx, sheet orders")).toBe("50 rows, 4 columns, from shopping_db.xlsx, sheet orders");
     });
 
+    test("the reason for a file ending in .xlsm, .xlsb or .ods is typed here, with and without the reading of workbooks", async () => {
+        const { config } = await modules();
+        for (const ending of [".xlsm", ".xlsb", ".ods"]) {
+            expect(config.importOtherSpreadsheetReason(ending, true)).toBe(
+                `A file ending in ${ending} cannot be imported. Save it as an Excel workbook (.xlsx) or as CSV, and import that.`
+            );
+            expect(config.importOtherSpreadsheetReason(ending, false)).toBe(`A file ending in ${ending} cannot be imported. Save it as CSV, and import that.`);
+        }
+        expect(config.importOtherSpreadsheetReason(".xlsm", true)).toBe(
+            "A file ending in .xlsm cannot be imported. Save it as an Excel workbook (.xlsx) or as CSV, and import that."
+        );
+        expect(config.importOtherSpreadsheetReason(".ods", false)).toBe("A file ending in .ods cannot be imported. Save it as CSV, and import that.");
+        // it is not one of the other reasons
+        expect(config.importOtherSpreadsheetReason(".ods", true)).not.toBe(config.importOtherSpreadsheetReason(".ods", false));
+        expect(config.importOtherSpreadsheetReason(".ods", false)).not.toBe(config.IMPORT_WORKBOOK_REASON);
+    });
+
+    test("the sentence that counts the files that were not imported, and the paragraph that names them, are typed here", async () => {
+        const { config } = await modules();
+        // no file left: the old sentence, word for word
+        expect(config.importedWithLeftMessage(7, "sample.db", 0)).toBe("Imported 7 tables into sample.db");
+        expect(config.importedWithLeftMessage(1, "people", 0)).toBe("Imported 1 table into people");
+        expect(config.importedWithLeftMessage(7, "sample.db", 0)).toBe(config.importedMessage(7, "sample.db"));
+        // one, and more than one
+        expect(config.importedWithLeftMessage(7, "sample.db", 1)).toBe("Imported 7 tables into sample.db. 1 file was not imported.");
+        expect(config.importedWithLeftMessage(1, "people", 3)).toBe("Imported 1 table into people. 3 files were not imported.");
+        expect(config.importedWithLeftMessage(2, "x", 2)).toBe("Imported 2 tables into x. 2 files were not imported.");
+        // the paragraph: the three words a tab can say, the names joined with a comma and a space, a full stop at the end
+        expect(config.importReportLeftText([{ name: "a.xls", why: config.IMPORT_REFUSED_TAB_TEXT }])).toBe("Not imported: a.xls (cannot be imported).");
+        expect(
+            config.importReportLeftText([
+                { name: "a.xls", why: config.IMPORT_REFUSED_TAB_TEXT },
+                { name: "b.xlsx", why: config.IMPORT_LEFT_OUT_TAB_TEXT },
+            ])
+        ).toBe("Not imported: a.xls (cannot be imported), b.xlsx (left out).");
+        expect(
+            config.importReportLeftText([
+                { name: "c.xlsx", why: config.IMPORT_TAB_NOTHING_TICKED_TEXT },
+                { name: "d.csv", why: config.IMPORT_REFUSED_TAB_TEXT },
+                { name: "e.ods", why: config.IMPORT_LEFT_OUT_TAB_TEXT },
+            ])
+        ).toBe("Not imported: c.xlsx (nothing ticked), d.csv (cannot be imported), e.ods (left out).");
+        // a name with a comma in it is left as it is
+        expect(config.importReportLeftText([{ name: "sales, 2024.xls", why: "left out" }, { name: "b.csv", why: "left out" }])).toBe(
+            "Not imported: sales, 2024.xls (left out), b.csv (left out)."
+        );
+        // the same sentence in parts, with the names marked: what the report sets apart from the words around them
+        expect(config.importReportLeftParts([{ name: "a.xls", why: config.IMPORT_REFUSED_TAB_TEXT }, { name: "b.xlsx", why: config.IMPORT_LEFT_OUT_TAB_TEXT }])).toEqual([
+            ["Not imported: ", false],
+            ["a.xls", true],
+            [" (cannot be imported), ", false],
+            ["b.xlsx", true],
+            [" (left out).", false],
+        ]);
+    });
+
+    test("the note under a name that the dialog made unique is typed here", async () => {
+        const { config } = await modules();
+        expect(config.importNameMadeUniqueNote("sample.db", "Staff", "Staff_2")).toBe(
+            "sample.db already has a table, view or index called Staff, so this table is called Staff_2."
+        );
+        expect(config.importNameMadeUniqueNote("sample.db", "x", "x_3")).toBe("sample.db already has a table, view or index called x, so this table is called x_3.");
+        expect(config.importNameMadeUniqueNote("class list", "orders", "orders_2")).toBe(
+            "class list already has a table, view or index called orders, so this table is called orders_2."
+        );
+        // it is not the error that a typed name gets
+        expect(config.importNameMadeUniqueNote("sample.db", "x", "x_2")).not.toBe(config.importNameTakenMessage("sample.db"));
+        // a name that only a TEMP table or view has: the database is not named, since it does not hold it
+        expect(config.importNameMadeUniqueTemporaryNote("Staff", "Staff_2")).toBe("A temporary table or view is already called Staff, so this table is called Staff_2.");
+        expect(config.importNameMadeUniqueTemporaryNote("x", "x_3")).toBe("A temporary table or view is already called x, so this table is called x_3.");
+        expect(config.importNameMadeUniqueTemporaryNote("x", "x_2")).not.toBe(config.IMPORT_NAME_TEMPORARY_MESSAGE);
+        expect(config.importNameMadeUniqueTemporaryNote("x", "x_2")).not.toBe(config.importNameMadeUniqueNote("sample.db", "x", "x_2"));
+    });
+
     test("the five refusals of a workbook and the other reasons are all different texts", async () => {
         const { config } = await modules();
         const reasons = [

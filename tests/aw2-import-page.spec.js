@@ -24,6 +24,7 @@ const {
     finishHeld,
     slowDown,
     snapshot,
+    dialogReady,
     expectNothingLeft,
     eventsOf,
     eventKeys,
@@ -163,6 +164,16 @@ test.describe("with the flag off the page is as it was", () => {
         await expect(app.errorBand).toBeVisible();
         await expect(app.errorBand).toContainText(/not a database/i);
         await expect(page.locator("#import-dialog[open]")).toHaveCount(0);
+    });
+
+    test("a file ending in .xlsm, .xlsb or .ods that is chosen is tried as a database, and no dialog opens", async ({ page, app }) => {
+        for (const name of ["budget.xlsm", "data.xlsb", "sheet.ods"]) {
+            await app.open(NORTHLIGHT_URL);
+            await app.chooseFiles({ name, mimeType: "application/octet-stream", buffer: Buffer.from("this is not a spreadsheet at all\n") });
+            await expect(app.errorBand, name).toBeVisible();
+            await expect(app.errorBand, name).toContainText(/not a database/i);
+            await expect(page.locator("#import-dialog[open]"), name).toHaveCount(0);
+        }
     });
 
     test("a file that is dropped is cancelled and opens nothing", async ({ page, app }) => {
@@ -3201,6 +3212,353 @@ test.describe("axe finds no serious or critical violation with the notice for ev
                     .filter((v) => v.impact === "serious" || v.impact === "critical")
                     .map((v) => `${v.id} (${v.impact}): ${v.help} at ${v.nodes.slice(0, 4).map((n) => n.target.join(" ")).join(" | ")}`);
                 // (the page was looked at: some rules ran and passed)
+                expect(results.passes.length).toBeGreaterThan(5);
+                expect(serious).toEqual([]);
+            });
+        }
+    }
+});
+
+// ---- A file ending in .xlsm, .xlsb or .ods is refused by its name ----------------------------------------------------------
+
+// These endings are the import's own: a file that has one is a tab of the dialog, refused in plain words by its name, and
+// none of its bytes are read (no library is asked for, whichever the file holds). Beside a database or a script it is
+// the mixed choice it is beside a CSV file.
+test.describe("a file ending in .xlsm, .xlsb or .ods is refused in its tab, by its name", () => {
+    const WORD = false;
+    const URL = NORTHLIGHT_IMPORT_URL;
+    const ENDINGS = ["budget.xlsm", "data.xlsb", "sheet.ods", "REPORT.XLSM"];
+    const endingOf = (name) => name.slice(name.lastIndexOf(".")).toLowerCase();
+    const otherFile = (name) => ({ name, mimeType: "application/octet-stream", buffer: Buffer.from("this is not a spreadsheet at all\n") });
+    const reasonFor = (name) => words.importOtherSpreadsheetReason(endingOf(name), WORD);
+
+    for (const how of ["chosen", "dropped"]) {
+        for (const name of ENDINGS) {
+            test(`${name}, ${how} alone: one refused tab with the reason, only Close, nothing asked for from vendor/, and nothing left`, async ({ page, app, net, pageErrors }) => {
+                await app.open(URL);
+                await page.waitForLoadState("networkidle");
+                const before = await snapshot(page, app);
+                net.clear();
+                if (how === "chosen") {
+                    await app.chooseFiles(otherFile(name));
+                } else {
+                    expect(await app.dropFiles(otherFile(name), { target: "#results-pane" })).toBe(true);
+                }
+                await dialogReady(app);
+                await expect(app.importTabs).toHaveCount(1);
+                await expect(app.importTabs.first()).toContainText(`(${words.IMPORT_REFUSED_TAB_TEXT})`);
+                await expect(app.importPanel.locator(".import-refusal")).toHaveText(reasonFor(name));
+                // (the sentence names the ending as it is made lower case, with its dot)
+                await expect(app.importPanel.locator(".import-refusal")).toContainText(`A file ending in ${endingOf(name)} cannot be imported.`);
+                await expect(app.importSubmit).toBeHidden();
+                await expect(app.importCancel).toHaveText(words.IMPORT_CLOSE_TEXT);
+                await expect(app.importDialog.locator(".import-destination")).toBeHidden();
+                await page.waitForLoadState("networkidle");
+                expect(net.paths.filter((p) => p.startsWith("vendor/")), "requests for a library").toEqual([]);
+                await app.importCancel.click();
+                await expect(app.importDialog).toBeHidden();
+                await expectNothingLeft(page, app, before);
+                expect(pageErrors).toEqual([]);
+            });
+        }
+    }
+
+    test("a real workbook under the name .xlsm is refused in the same words, and the workbook library is not asked for", async ({ page, app, net, pageErrors }) => {
+        await app.open(URL);
+        await page.waitForLoadState("networkidle");
+        const before = await snapshot(page, app);
+        net.clear();
+        await app.chooseFiles({ name: "shopping.xlsm", mimeType: "application/octet-stream", buffer: fs.readFileSync(fixturePath("shopping_db.xlsx")) });
+        await dialogReady(app);
+        await expect(app.importTabs).toHaveCount(1);
+        await expect(app.importPanel.locator(".import-refusal")).toHaveText(words.importOtherSpreadsheetReason(".xlsm", WORD));
+        await expect(app.importSubmit).toBeHidden();
+        await page.waitForLoadState("networkidle");
+        expect(net.paths.filter((p) => p.startsWith("vendor/")), "requests for a library").toEqual([]);
+        await app.importCancel.click();
+        await expect(app.importDialog).toBeHidden();
+        await expectNothingLeft(page, app, before);
+        expect(pageErrors).toEqual([]);
+    });
+
+    for (const how of ["chosen", "dropped"]) {
+        test(`beside a CSV file, ${how}: the CSV is imported, and the other is a refused tab that says why`, async ({ page, app }) => {
+            await app.open(URL);
+            const files = [csv("people.csv"), otherFile("old.ods")];
+            if (how === "chosen") {
+                await app.chooseFiles(files);
+            } else {
+                expect(await app.dropFiles(files)).toBe(true);
+            }
+            await dialogReady(app);
+            await expect(app.importTabs).toHaveText(["people.csv", "old.ods"].map((name, n) => (n === 0 ? name : `${name}(${words.IMPORT_REFUSED_TAB_TEXT})`)));
+            await app.importTabs.nth(1).click();
+            await expect(app.importPanel.locator(".import-refusal")).toHaveText(words.importOtherSpreadsheetReason(".ods", WORD));
+            await expect(app.importSubmit).toBeEnabled();
+            await app.importSubmit.click();
+            await expect(app.importDialog).toBeHidden();
+            await expect(app.pane).toHaveAttribute("data-state", "report");
+            expect(await names(app)).toEqual(["people"]);
+        });
+    }
+
+    test("beside a database file, the choice is the mixed one: a toast, and no dialog", async ({ page, app }) => {
+        await app.open(URL);
+        await app.recordToasts();
+        const before = await databaseHandle(page);
+        await app.chooseFiles([copyOfSample("sample.db"), otherFile("old.xlsb")]);
+        await app.expectToasts([words.IMPORT_MIXED_MESSAGE]);
+        await expect(page.locator("#import-dialog[open]")).toHaveCount(0);
+        expect(await isOpenDatabase(page, before)).toBe(true);
+    });
+
+    test("beside a script, dropped, the choice is the mixed one as well", async ({ page, app }) => {
+        await app.open(URL);
+        await app.recordToasts();
+        const before = await databaseHandle(page);
+        expect(await app.dropFiles([SCRIPT, otherFile("old.xlsm")])).toBe(true);
+        await app.expectToasts([words.IMPORT_MIXED_MESSAGE]);
+        await expect(page.locator("#import-dialog[open]")).toHaveCount(0);
+        expect(await isOpenDatabase(page, before)).toBe(true);
+    });
+
+    // The name decides: none of the file's bytes are asked for. A spy on the methods that read a Blob counts the calls
+    // made on files with these endings; an empty one is refused for its name too, and not as an empty file.
+    test("such files are refused before a byte of them is read, an empty one by its name as well", async ({ page, app }) => {
+        await app.open(URL);
+        await page.evaluate(() => {
+            window.readsOfSpreadsheets = 0;
+            for (const method of ["slice", "arrayBuffer", "stream", "text"]) {
+                const original = Blob.prototype[method];
+                Blob.prototype[method] = function (...args) {
+                    if (this instanceof File && /\.(?:xlsm|xlsb|ods)$/i.test(this.name)) {
+                        window.readsOfSpreadsheets++;
+                    }
+                    return original.apply(this, args);
+                };
+            }
+        });
+        const names = ["budget.xlsm", "data.xlsb", "sheet.ODS", "empty.xlsm"];
+        await app.chooseFiles([...names.slice(0, 3).map(otherFile), { name: "empty.xlsm", mimeType: "application/octet-stream", buffer: Buffer.alloc(0) }]);
+        await dialogReady(app);
+        await expect(app.importTabs).toHaveCount(names.length);
+        for (const [n, name] of names.entries()) {
+            await app.importTabs.nth(n).click();
+            await expect(app.importPanel.locator(".import-refusal")).toHaveText(reasonFor(name));
+        }
+        expect(await page.evaluate(() => window.readsOfSpreadsheets), "reads of the files").toBe(0);
+    });
+
+    test("a name that holds the ending but does not end with it is the file it ends as: notes.ods.csv is read as a CSV file", async ({ app }) => {
+        await app.open(URL);
+        await app.chooseFiles(csv("notes.ods.csv"));
+        await dialogReady(app);
+        await expect(app.importTabs).toHaveCount(1);
+        await expect(app.importTabs.locator(".import-tab-refused")).toHaveCount(0);
+        await expect(app.importPanel.locator(".import-preview-table")).toBeVisible();
+        await expect(app.importSubmit).toBeEnabled();
+    });
+});
+
+// ---- Files that gave no table are counted in the sentence and named in the report -----------------------------------
+
+// A file that gives no table in an import (a refused one, or one the student left out) is counted in the sentence that
+// says what was imported (the summary line, the toast and the announcement are that one string) and named in a paragraph
+// before the first table of the report, with the words its tab says to a screen reader. The events of the evidence log
+// list what was imported, and are what they are without those files.
+test.describe("files that gave no table are counted in the sentence and named in the report", () => {
+    // (as buffers, so that they can be chosen beside files that are made here)
+    const fixtureFile = (name, file) => ({ name, mimeType: "application/octet-stream", buffer: fs.readFileSync(fixturePath(file)) });
+    const EMPTY = () => fixtureFile("empty.csv", "csv/empty.csv");
+    const WORKBOOK = () => fixtureFile("shopping_db.xlsx", "shopping_db.xlsx");
+    const emptyFile = (name) => ({ name, mimeType: "text/csv", buffer: Buffer.alloc(0) });
+    const paragraph = (app) => app.pane.locator(".import-report > *").first();
+    const peopleBytes = csv("people.csv").buffer.length;
+
+    test("a CSV file beside two refused files: the sentence counts them, the report names them in the tabs' order, and the events are the CSV file's alone", async ({ page, app, pageErrors }) => {
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        await app.recordToasts();
+        await app.importFiles([WORKBOOK(), csv("people.csv"), EMPTY()]);
+        const said = words.importedWithLeftMessage(1, "people", 2);
+        expect(said).toBe("Imported 1 table into people. 2 files were not imported.");
+        await expect(app.status).toHaveText(said);
+        await expect(app.announcer).toHaveText(said);
+        await app.expectToasts([said]);
+        await expect(app.pane).toHaveAttribute("data-state", "report");
+        // the paragraph is the report's first element, with the files in the tabs' order
+        await expect(paragraph(app)).toHaveClass("import-report-left");
+        const left = [
+            { name: "shopping_db.xlsx", why: words.IMPORT_REFUSED_TAB_TEXT },
+            { name: "empty.csv", why: words.IMPORT_REFUSED_TAB_TEXT },
+        ];
+        await expect(paragraph(app)).toHaveText(words.importReportLeftText(left));
+        await expect(paragraph(app)).toHaveText("Not imported: shopping_db.xlsx (cannot be imported), empty.csv (cannot be imported).");
+        await expect(paragraph(app)).not.toHaveAttribute("title", /.*/);
+        // the tables are the imported file's only
+        await expect(app.pane.locator(".import-report section h2")).toHaveText(["people"]);
+        expect(await names(app)).toEqual(["people"]);
+        // the event of the evidence log lists what was imported
+        const { found } = await eventsOf(page, ["northlight", "file:people"]);
+        expect(found["northlight"]).toEqual([]);
+        expect(found["file:people"]).toHaveLength(1);
+        expect(found["file:people"][0]).toMatchObject({ kind: "import", lines: [words.importEventFileLine("people.csv", peopleBytes), words.importEventTableLine("people", 2, 2)] });
+        expect(pageErrors).toEqual([]);
+    });
+
+    test("one file that was not imported is counted in the singular", async ({ app }) => {
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        await app.importFiles([csv("people.csv"), EMPTY()]);
+        const said = words.importedWithLeftMessage(1, "people", 1);
+        expect(said).toBe("Imported 1 table into people. 1 file was not imported.");
+        await expect(app.status).toHaveText(said);
+        await expect(paragraph(app)).toHaveText("Not imported: empty.csv (cannot be imported).");
+    });
+
+    test("into the open database the sentence names the database, and the report names the file that was not imported", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        await app.upload(SAMPLE_FILE);
+        await app.importFiles([EMPTY(), csv("people.csv")], { into: "open" });
+        await expect(app.status).toHaveText(words.importedWithLeftMessage(1, "sample.db", 1));
+        await expect(paragraph(app)).toHaveText(words.importReportLeftText([{ name: "empty.csv", why: words.IMPORT_REFUSED_TAB_TEXT }]));
+        expect(await names(app)).toEqual(expect.arrayContaining(["fruit", "people", "tags"]));
+    });
+
+    test("with nothing left out there is no such paragraph, the sentence is the old one, and the report starts with its first table", async ({ app }) => {
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        await app.recordToasts();
+        await app.importFiles([csv("people.csv"), csv("more.csv", "a,b\n1,2\n")]);
+        const said = words.importedMessage(2, "people");
+        await expect(app.status).toHaveText(said);
+        await expect(app.announcer).toHaveText(said);
+        await app.expectToasts([said]);
+        await expect(app.pane.locator(".import-report-left")).toHaveCount(0);
+        await expect(app.pane.locator(".import-report > *").first()).toHaveClass("import-report-table");
+        expect(words.importedWithLeftMessage(2, "people", 0)).toBe(said);
+    });
+
+    test("a name made of markup is text in the paragraph, and nothing runs", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        const name = "<img src=x onerror=window.__pwned=1>.csv";
+        await app.importFiles([csv("people.csv"), emptyFile(name)]);
+        await expect(paragraph(app)).toHaveText(words.importReportLeftText([{ name, why: words.IMPORT_REFUSED_TAB_TEXT }]));
+        await expect(app.pane.locator(".import-report-left img")).toHaveCount(0);
+        await expect(app.pane.locator(".import-report-left > :not(bdi)")).toHaveCount(0);
+        await expect(app.pane.locator(".import-report-left bdi *")).toHaveCount(0);
+        expect(await page.evaluate(() => window.__pwned)).toBeUndefined();
+    });
+
+    test("a name of 200 characters is cut as the report cuts a value, and the title holds the whole sentence", async ({ app }) => {
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        const name = `${"n".repeat(196)}.csv`;
+        expect(name).toHaveLength(200);
+        await app.importFiles([csv("people.csv"), emptyFile(name)]);
+        const why = words.IMPORT_REFUSED_TAB_TEXT;
+        await expect(paragraph(app)).toHaveText(words.importReportLeftText([{ name: `${name.slice(0, 80)}…`, why }]));
+        await expect(paragraph(app)).toHaveAttribute("title", words.importReportLeftText([{ name, why }]));
+        // (the sentence of the summary has no name in it)
+        await expect(app.status).toHaveText(words.importedWithLeftMessage(1, "people", 1));
+    });
+
+    test("a name that holds a right-to-left override is shown in a box of its own: the words after it and the other names keep their order", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        const first = "evil\u202Efdp.csv";
+        const second = "after.csv";
+        await app.importFiles([csv("people.csv"), emptyFile(first), emptyFile(second)]);
+        const why = words.IMPORT_REFUSED_TAB_TEXT;
+        // the text is the sentence, word for word
+        await expect(paragraph(app)).toHaveText(words.importReportLeftText([{ name: first, why }, { name: second, why }]));
+        // each name is in an element that isolates it, and nothing else is an element
+        await expect(app.pane.locator(".import-report-left > :not(bdi)")).toHaveCount(0);
+        await expect(app.pane.locator(".import-report-left bdi")).toHaveText([first, second]);
+        await expect(app.pane.locator(".import-report-left bdi *")).toHaveCount(0);
+        // and as drawn, the parts of the sentence follow one another from left to right
+        const lefts = await page.evaluate(() => {
+            const walker = document.createTreeWalker(document.querySelector(".import-report-left"), NodeFilter.SHOW_TEXT);
+            const found = [];
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                const range = document.createRange();
+                range.selectNodeContents(node);
+                found.push(range.getBoundingClientRect().left);
+            }
+            return found;
+        });
+        expect(lefts).toHaveLength(5);
+        expect(lefts, "the parts in the order of the sentence").toEqual([...lefts].sort((a, b) => a - b));
+    });
+
+    test("a name of exactly 80 characters is shown whole, with no title", async ({ app }) => {
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        const name = `${"m".repeat(76)}.csv`;
+        expect(name).toHaveLength(80);
+        await app.importFiles([csv("people.csv"), emptyFile(name)]);
+        await expect(paragraph(app)).toHaveText(words.importReportLeftText([{ name, why: words.IMPORT_REFUSED_TAB_TEXT }]));
+        await expect(paragraph(app)).not.toHaveAttribute("title", /.*/);
+    });
+
+    test("Cancel with a refused file beside leaves nothing, and says nothing of files", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        await app.trackConnections();
+        const before = await snapshot(page, app);
+        const held = await holdImport(page, app, { files: [csv("people.csv"), emptyFile("empty.csv")] });
+        await app.importCancel.click();
+        await expect(app.importDialog).toBeHidden();
+        held.open();
+        await expectNothingLeft(page, app, before, { logKeys: ["northlight", "file:people"] });
+        await expect(app.status).not.toContainText("not imported");
+    });
+
+    test("the evidence file made after an import that left files out verifies, and its events list the imported file only", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_IMPORT_URL);
+        await app.importFiles([EMPTY(), csv("people.csv"), WORKBOOK()]);
+        await expect(paragraph(app)).toHaveClass("import-report-left");
+        const evidence = await app.exportEvidence();
+        expect(evidence.text.match(/event: import/g)).toHaveLength(1);
+        expect(evidence.text).toContain(words.importEventFileLine("people.csv", peopleBytes));
+        expect(evidence.text).not.toContain("empty.csv");
+        expect(evidence.text).not.toContain("shopping_db");
+        const checker = await page.context().newPage();
+        await checker.goto("verify.html");
+        await checker.locator("#evidence-file").setInputFiles({ name: "evidence.txt", mimeType: "text/plain", buffer: evidence.buffer });
+        await expect(checker.locator("#verify-result .verdict-word")).toHaveText("VALID");
+        // (the one event of the evidence file is the imported file's)
+        await expect(checker.locator("#verify-result")).toContainText("Events1");
+        await checker.close();
+    });
+
+    // the paragraph at each window size, in both themes, with names that are long and names with no break in them
+    for (const viewport of [
+        { name: "desktop", width: 1366, height: 768 },
+        { name: "large desktop", width: 1920, height: 1080 },
+        { name: "phone", width: 390, height: 844 },
+    ]) {
+        for (const theme of ["light", "dark"]) {
+            test(`the paragraph lies inside the results pane above the first table, the page does not scroll sideways, and axe finds nothing serious, ${theme}, ${viewport.name}`, async ({ page, app }) => {
+                await page.setViewportSize({ width: viewport.width, height: viewport.height });
+                await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+                await app.open(NORTHLIGHT_IMPORT_URL);
+                await app.importFiles([csv("people.csv"), emptyFile(`${"a".repeat(150)}.ods`), emptyFile("a-name-with-no-break-in-it-that-is-long-enough-to-want-to-wrap-in-the-paragraph.xlsm"), emptyFile("empty.csv")]);
+                await expect(paragraph(app)).toHaveClass("import-report-left");
+                await page.evaluate(() => document.fonts.ready);
+                const found = await page.evaluate(() => {
+                    const line = document.querySelector(".import-report-left").getBoundingClientRect();
+                    const pane = document.querySelector("#results-pane").getBoundingClientRect();
+                    const first = document.querySelector(".import-report-table").getBoundingClientRect();
+                    const own = document.querySelector(".import-report-left");
+                    return {
+                        inside: line.left >= pane.left - 1 && line.right <= pane.right + 1,
+                        above: first.top - line.bottom,
+                        cut: own.scrollWidth > own.clientWidth + 1,
+                        sideways: document.documentElement.scrollWidth > window.innerWidth,
+                    };
+                });
+                expect(found.inside, "the paragraph is inside the pane").toBe(true);
+                expect(found.above, "the paragraph ends above the first table").toBeGreaterThan(0);
+                expect(found.cut, "no name is cut by the paragraph's edge").toBe(false);
+                expect(found.sideways, "the page does not scroll sideways").toBe(false);
+                const results = await new AxeBuilder({ page }).analyze();
+                const serious = results.violations
+                    .filter((v) => v.impact === "serious" || v.impact === "critical")
+                    .map((v) => `${v.id} (${v.impact}): ${v.help} at ${v.nodes.slice(0, 4).map((n) => n.target.join(" ")).join(" | ")}`);
                 expect(results.passes.length).toBeGreaterThan(5);
                 expect(serious).toEqual([]);
             });

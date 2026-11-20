@@ -3150,7 +3150,9 @@ var IMPORT_NAME_RESERVED_MESSAGE = "A name cannot start with sqlite_: SQLite kee
 var IMPORT_NAME_TWICE_MESSAGE = "Another file here has this table name. Change one of them.";
 var IMPORT_NAME_TWICE_SHEET_MESSAGE = "Another file or sheet here has this table name. Change one of them.";
 var importNameTakenMessage = (database2) => `${database2} already has a table, view or index with this name.`;
+var importNameMadeUniqueNote = (database2, wanted, given) => `${database2} already has a table, view or index called ${wanted}, so this table is called ${given}.`;
 var IMPORT_NAME_TEMPORARY_MESSAGE = "A temporary table or view already has this name.";
+var importNameMadeUniqueTemporaryNote = (wanted, given) => `A temporary table or view is already called ${wanted}, so this table is called ${given}.`;
 var IMPORT_DELIMITER_LABEL = "Delimiter";
 var IMPORT_DELIMITER_NAMES = { ",": "Comma", ";": "Semicolon", "	": "Tab", "|": "Pipe" };
 var IMPORT_ENCODING_LABEL = "Text encoding";
@@ -3182,6 +3184,7 @@ var importOpenDatabaseLabel = (name) => `The open database, ${name}`;
 var IMPORT_COURSE_DATABASE_NOTE = "Files are never imported into a course database.";
 var IMPORT_EMPTY_REASON = "This file is empty, so there is nothing to import.";
 var IMPORT_WORKBOOK_REASON = "This is an Excel workbook, and Excel files cannot be imported yet. In Excel, save the sheet as CSV, and import that.";
+var importOtherSpreadsheetReason = (ending, excel) => `A file ending in ${ending} cannot be imported. ${excel ? "Save it as an Excel workbook (.xlsx) or as CSV, and import that." : "Save it as CSV, and import that."}`;
 var IMPORT_NOT_TEXT_REASON = "This file is not text, so it cannot be read as CSV.";
 var IMPORT_TOO_LARGE_REASON = "This file is over 250 MB, which is more than the browser can import.";
 var IMPORT_TOO_WIDE_REASON = "A row of this file has more than 2,000 columns, which is more than a table can have. Nothing of it was imported.";
@@ -3261,6 +3264,15 @@ var IMPORT_NOT_OPENED_MESSAGE = "The new database could not be opened, and nothi
 var IMPORT_LOADING_DIALOG_MESSAGE = "A database is still loading, so nothing was imported. Once it has opened, choose the files again. If it does not open, press Import again.";
 var IMPORT_DESTINATION_GONE_MESSAGE = "Nothing was imported: files cannot go into the database that is open now. Choose a new database, or close this and choose the files again.";
 var importedMessage = (tables2, database2) => `Imported ${tables2} ${tables2 === 1 ? "table" : "tables"} into ${database2}`;
+var importedWithLeftMessage = (tables2, database2, left) => left === 0 ? importedMessage(tables2, database2) : `${importedMessage(tables2, database2)}. ${left === 1 ? "1 file was not imported." : `${left} files were not imported.`}`;
+var importReportLeftParts = (left) => [
+  ["Not imported: ", false],
+  ...left.flatMap((one, n) => [
+    [one.name, true],
+    [` (${one.why})${n < left.length - 1 ? ", " : "."}`, false]
+  ])
+];
+var importReportLeftText = (left) => importReportLeftParts(left).map(([text]) => text).join("");
 var importReportTableLine = (rows3, columns, source) => `${rows3} ${rows3 === 1 ? "row" : "rows"}, ${columns} ${columns === 1 ? "column" : "columns"}, from ${source}`;
 var IMPORT_REPORT_COLUMN_HEADING = "Column";
 var IMPORT_REPORT_ORIGINAL_HEADING = "Name in the file";
@@ -7705,6 +7717,7 @@ function bomOf(head) {
   return found ? found[0] : null;
 }
 var WORKBOOK_NAME = /\.xlsx?$/i;
+var OTHER_SPREADSHEET_NAME = /\.(?:xlsm|xlsb|ods)$/i;
 function kindByStart(head, size, fileName) {
   if (size === 0) {
     return "empty";
@@ -8225,7 +8238,7 @@ function el5(tag, props = {}, text = "") {
   }
   return node;
 }
-function field(id, labelText, control, { hint = "" } = {}) {
+function field(id, labelText, control, { hint = "", note = false } = {}) {
   const box = el5("div", { className: "import-field" });
   const label = el5("label", { className: "app-dialog-label", htmlFor: id }, labelText);
   control.id = id;
@@ -8235,10 +8248,30 @@ function field(id, labelText, control, { hint = "" } = {}) {
   let hintLine = null;
   if (hint) {
     hintLine = el5("p", { id: `${id}-hint`, className: "app-dialog-hint" }, hint);
-    control.setAttribute("aria-describedby", hintLine.id);
     box.append(hintLine);
   }
+  let noteLine = null;
+  if (note) {
+    noteLine = el5("p", { id: `${id}-note`, className: "app-dialog-hint import-name-note", hidden: true });
+    box.append(noteLine);
+  }
   box.append(error);
+  let noteText = "";
+  const describe = () => {
+    const ids = [error, hintLine, noteLine].filter((line) => line && !line.hidden).map((line) => line.id);
+    if (ids.length) {
+      control.setAttribute("aria-describedby", ids.join(" "));
+    } else {
+      control.removeAttribute("aria-describedby");
+    }
+  };
+  describe();
+  const drawNote = () => {
+    if (noteLine) {
+      noteLine.textContent = error.hidden ? noteText : "";
+      noteLine.hidden = error.hidden ? !noteText : true;
+    }
+  };
   return {
     box,
     control,
@@ -8246,17 +8279,25 @@ function field(id, labelText, control, { hint = "" } = {}) {
       error.textContent = message;
       error.hidden = false;
       control.setAttribute("aria-invalid", "true");
-      control.setAttribute("aria-describedby", hintLine ? `${error.id} ${hintLine.id}` : error.id);
+      drawNote();
+      describe();
     },
     clearError() {
       error.textContent = "";
       error.hidden = true;
       control.removeAttribute("aria-invalid");
-      if (hintLine) {
-        control.setAttribute("aria-describedby", hintLine.id);
-      } else {
-        control.removeAttribute("aria-describedby");
-      }
+      drawNote();
+      describe();
+    },
+    showNote(text) {
+      noteText = text;
+      drawNote();
+      describe();
+    },
+    clearNote() {
+      noteText = "";
+      drawNote();
+      describe();
     }
   };
 }
@@ -8282,9 +8323,9 @@ function previewCell(text, { names = false } = {}) {
     cell2.append(el5("span", { className: "cell-null" }, names ? IMPORT_PREVIEW_BLANK : NULL_TEXT));
     return cell2;
   }
-  const cut2 = text.length > PREVIEW_CELL_CHARS;
-  const shown2 = el5("span", { className: "import-cell-text" }, cut2 ? `${text.slice(0, PREVIEW_CELL_CHARS)}${CUT2}` : text);
-  if (cut2) {
+  const cut3 = text.length > PREVIEW_CELL_CHARS;
+  const shown2 = el5("span", { className: "import-cell-text" }, cut3 ? `${text.slice(0, PREVIEW_CELL_CHARS)}${CUT2}` : text);
+  if (cut3) {
     shown2.title = text;
   }
   cell2.append(shown2);
@@ -8421,6 +8462,8 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, excel = nu
       tableName: "",
       // what the student has set by hand is left alone when the file is read again
       nameEdited: false,
+      // the line under the name when the dialog made it unique because the destination has it ("" for none)
+      note: "",
       delimiterChosen: false,
       namesChosen: false,
       // the encoding that is being checked against the bytes, while it is
@@ -8436,6 +8479,8 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, excel = nu
       // the mark of the text the preview was read from (markOf)
       mark: null,
       controls: null,
+      // the words a refused tab says to a screen reader, in brackets after its name
+      said: "",
       // A workbook (only with excel-import on): known to be one once its first bytes have been
       // looked at; its zip's directory as the limits read it; and, once it has been read, its
       // sheets (see showSheets). Until then it is a tab like the others.
@@ -8458,7 +8503,8 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, excel = nu
       mark.classList.add("import-tab-refused");
       mark.classList.toggle("import-tab-refused--own", own);
       tab.button.prepend(mark);
-      tab.button.append(el5("span", { className: "visually-hidden" }, `(${own ? IMPORT_LEFT_OUT_TAB_TEXT : IMPORT_REFUSED_TAB_TEXT})`));
+      tab.said = own ? IMPORT_LEFT_OUT_TAB_TEXT : IMPORT_REFUSED_TAB_TEXT;
+      tab.button.append(el5("span", { className: "visually-hidden" }, `(${tab.said})`));
     }
     tab.panel.replaceChildren(el5("p", { className: "import-refusal" }, reason));
     tab.panel.tabIndex = 0;
@@ -8506,6 +8552,11 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, excel = nu
     refresh();
   }
   async function look(tab, mine) {
+    const other = OTHER_SPREADSHEET_NAME.exec(tab.file.name);
+    if (other) {
+      refuse(tab, importOtherSpreadsheetReason(other[0].toLowerCase(), Boolean(excel)));
+      return;
+    }
     let kind;
     try {
       const head = await headOf(tab.file, tab.file.name);
@@ -8632,13 +8683,18 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, excel = nu
       `${tab.id}-name`,
       IMPORT_TABLE_NAME_LABEL,
       el5("input", { type: "text", className: "app-dialog-input", autocomplete: "off", spellcheck: false }),
-      { hint: IMPORT_TABLE_NAME_HINT }
+      { hint: IMPORT_TABLE_NAME_HINT, note: true }
     );
     name.control.setAttribute("autocapitalize", "off");
     name.control.setAttribute("autocorrect", "off");
+    if (tab.note) {
+      name.showNote(tab.note);
+    }
     name.control.addEventListener("input", () => {
       tab.nameEdited = true;
       tab.tableName = name.control.value;
+      tab.note = "";
+      name.clearNote();
       name.clearError();
     });
     name.control.addEventListener("change", () => {
@@ -8878,6 +8934,7 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, excel = nu
       namesRow: 1,
       tableName: "",
       nameEdited: false,
+      note: "",
       built: false,
       controls: null,
       tick: null,
@@ -9002,15 +9059,31 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, excel = nu
     for (const old of tab.button.querySelectorAll(".import-tab-nothing")) {
       old.remove();
     }
-    if (tab.workbook.units.some((unit) => unit.ticked)) {
+    const said = bookWords(tab);
+    if (!said) {
       return;
     }
-    const tickable = tab.workbook.units.some((unit) => unit.state === "ready");
     const sign = icon("circle-alert");
     sign.classList.add("import-tab-sign", "import-tab-sign--quiet", "import-tab-nothing");
-    const words = el5("span", { className: "visually-hidden import-tab-nothing" }, `(${tickable ? IMPORT_TAB_NOTHING_TICKED_TEXT : IMPORT_REFUSED_TAB_TEXT})`);
+    const words = el5("span", { className: "visually-hidden import-tab-nothing" }, `(${said})`);
     tab.button.prepend(sign);
     tab.button.append(words);
+  }
+  function bookWords(tab) {
+    if (tab.workbook.units.some((unit) => unit.ticked)) {
+      return "";
+    }
+    return tab.workbook.units.some((unit) => unit.state === "ready") ? IMPORT_TAB_NOTHING_TICKED_TEXT : IMPORT_REFUSED_TAB_TEXT;
+  }
+  function filesLeft() {
+    const left = [];
+    for (const tab of tabs2) {
+      const why = tab.state === "refused" ? tab.said : tab.workbook ? bookWords(tab) : "";
+      if (why) {
+        left.push({ name: tab.file.name, why });
+      }
+    }
+    return left;
   }
   function setTicked(unit, on) {
     unit.ticked = on && unit.state === "ready";
@@ -9095,14 +9168,19 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, excel = nu
       `${unit.id}-name`,
       IMPORT_TABLE_NAME_LABEL,
       el5("input", { type: "text", className: "app-dialog-input", autocomplete: "off", spellcheck: false }),
-      { hint: IMPORT_TABLE_NAME_HINT }
+      { hint: IMPORT_TABLE_NAME_HINT, note: true }
     );
     name.control.setAttribute("autocapitalize", "off");
     name.control.setAttribute("autocorrect", "off");
     name.control.value = unit.tableName;
+    if (unit.note) {
+      name.showNote(unit.note);
+    }
     name.control.addEventListener("input", () => {
       unit.nameEdited = true;
       unit.tableName = name.control.value;
+      unit.note = "";
+      name.clearNote();
       name.clearError();
     });
     name.control.addEventListener("change", () => {
@@ -9200,15 +9278,32 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, excel = nu
     }
   }
   function suggestNames() {
-    const used = new Set(usesOpenDatabase() ? getDestination().taken().keys() : []);
+    const taken = usesOpenDatabase() ? getDestination().taken() : /* @__PURE__ */ new Map();
+    const used = new Set(taken.keys());
     for (const unit of nameUnits()) {
       if (unit.nameEdited) {
         used.add(sameNameKey(sanitiseName(unit.tableName)));
+        unit.note = "";
+        unit.controls?.name.clearNote();
       } else {
-        unit.tableName = uniqueName(unit.isSheet ? sheetTableName(unit.sheet, unit.file.name) : tableNameFor(unit.file.name), used);
+        const wanted = unit.isSheet ? sheetTableName(unit.sheet, unit.file.name) : tableNameFor(unit.file.name);
+        unit.tableName = uniqueName(wanted, used);
+        const key = sameNameKey(wanted);
+        if (!taken.has(key)) {
+          unit.note = "";
+        } else if (taken.get(key)) {
+          unit.note = importNameMadeUniqueTemporaryNote(wanted, unit.tableName);
+        } else {
+          unit.note = importNameMadeUniqueNote(getDestination().name, wanted, unit.tableName);
+        }
         if (unit.controls) {
           unit.controls.name.control.value = unit.tableName;
           unit.controls.name.clearError();
+          if (unit.note) {
+            unit.controls.name.showNote(unit.note);
+          } else {
+            unit.controls.name.clearNote();
+          }
         }
       }
     }
@@ -9564,7 +9659,8 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, excel = nu
           mark: unit.mark
         }
       ),
-      destination: target
+      destination: target,
+      left: filesLeft()
     };
     const state2 = { stop: false };
     const hasSheet = job.files.some((item2) => item2.sheet);
@@ -9723,12 +9819,11 @@ function el6(tag, className, text) {
 var REPORT_VALUE_CHARS = 80;
 var CUT3 = "…";
 var reports = 0;
+var cut = (text) => text.length > REPORT_VALUE_CHARS ? `${text.slice(0, REPORT_VALUE_CHARS)}${CUT3}` : text;
 function shown(node, text) {
+  node.textContent = cut(text);
   if (text.length > REPORT_VALUE_CHARS) {
-    node.textContent = `${text.slice(0, REPORT_VALUE_CHARS)}${CUT3}`;
     node.title = text;
-  } else {
-    node.textContent = text;
   }
   return node;
 }
@@ -9797,9 +9892,22 @@ function warning(text) {
   node.append(glyph, el6("span", null, text));
   return node;
 }
-function buildImportReport(tables2) {
+function leftParagraph(left) {
+  const node = el6("p", "import-report-left");
+  for (const [text, isName] of importReportLeftParts(left.map((one) => ({ ...one, name: cut(one.name) })))) {
+    node.append(isName ? el6("bdi", null, text) : text);
+  }
+  if (left.some((one) => one.name.length > REPORT_VALUE_CHARS)) {
+    node.title = importReportLeftText(left);
+  }
+  return node;
+}
+function buildImportReport(tables2, { left = [] } = {}) {
   const report = el6("div", "import-report");
   reports++;
+  if (left.length) {
+    report.append(leftParagraph(left));
+  }
   tables2.forEach((table, n) => {
     const section = el6("section", "import-report-table");
     const heading = el6("h2", "import-report-name", table.name);
@@ -10023,8 +10131,9 @@ function mountImport({
       for (const event of importEvents(tables2)) {
         recordEvent(key, { kind: "import", lines: event.lines });
       }
-      const said = importedMessage(tables2.length, name);
-      results2.showReport(buildImportReport(tables2), { summary: said });
+      const left = job.left ?? [];
+      const said = importedWithLeftMessage(tables2.length, name, left.length);
+      results2.showReport(buildImportReport(tables2, { left }), { summary: said });
       showResult2();
       toast(said);
       return { ok: true };
@@ -10072,7 +10181,7 @@ function mountImport({
     onImport: run
   });
   function take(files) {
-    const ours = files.filter((file) => IMPORT_NAME.test(file.name));
+    const ours = files.filter((file) => IMPORT_NAME.test(file.name) || OTHER_SPREADSHEET_NAME.test(file.name));
     if (files.length === 1 && !ours.length) {
       return false;
     }
@@ -10802,9 +10911,9 @@ function buildResultTable({ columns, values }, { popover = null } = {}) {
         td.append(mark);
       } else {
         const text = cellText(value);
-        const cut2 = popover && text.length > CELL_MAX_CHARS ? firstCharacters(text, CELL_MAX_CHARS) : null;
-        if (cut2?.more) {
-          td.append(longCell(cut2.head, text, name, rowIndex + 1, popover));
+        const cut3 = popover && text.length > CELL_MAX_CHARS ? firstCharacters(text, CELL_MAX_CHARS) : null;
+        if (cut3?.more) {
+          td.append(longCell(cut3.head, text, name, rowIndex + 1, popover));
         } else {
           td.textContent = text;
         }
@@ -10941,12 +11050,12 @@ function mountCellPopover(popover) {
 // js/lab/results.js
 var oneLine2 = (text) => String(text).replace(/\s+/g, " ").trim();
 var sampleLine = (sql) => oneLine2(sql).replace(/\(\s+/g, "(").replace(/\s+\)/g, ")");
-function cut(text, max) {
+function cut2(text, max) {
   const characters = Array.from(text);
   return characters.length > max ? characters.slice(0, max).join("").trimEnd() + STATEMENT_ELLIPSIS : text;
 }
 function sampleText(sql) {
-  return cut(sampleLine(sql), SAMPLE_SQL_CHARS);
+  return cut2(sampleLine(sql), SAMPLE_SQL_CHARS);
 }
 function errorText(exc) {
   return oneLine2(engineMessage(exc));
@@ -11143,7 +11252,7 @@ function mountResults({ ui: ui2, pane, summary, getDatabase, getSamples = () => 
         const item2 = el9("li");
         const choose = el9("button", "results-sample");
         choose.type = "button";
-        choose.append(el9("span", "results-sample-label", cut(sample.label, SAMPLE_LABEL_CHARS)), el9("span", "results-sample-sql", sampleText(sample.sql)));
+        choose.append(el9("span", "results-sample-label", cut2(sample.label, SAMPLE_LABEL_CHARS)), el9("span", "results-sample-sql", sampleText(sample.sql)));
         choose.addEventListener("click", () => {
           ui2.editor.fill(sample.sql);
         });

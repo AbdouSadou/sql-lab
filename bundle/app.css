@@ -3479,6 +3479,11 @@ body {
     margin: var(--space-1) 0 0;
 }
 
+/* the note under a name that the dialog made unique: a line in the hint's colour, wrapping inside the field */
+.import-name-note {
+    overflow-wrap: anywhere;
+}
+
 .import-select {
     box-sizing: border-box;
     width: 100%;
@@ -3816,6 +3821,13 @@ body {
 
 .results-pane[data-state="report"] > .sqlime-result {
     padding: var(--space-4) var(--space-5) var(--space-5);
+}
+
+/* the files that gave no table: a line before the first table, as far from it as one table is from the next */
+.import-report-left {
+    margin: 0 0 var(--space-6);
+    color: var(--graphite);
+    overflow-wrap: anywhere;
 }
 
 .import-report-table + .import-report-table {

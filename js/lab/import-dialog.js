@@ -19,8 +19,11 @@
 //                       {loadLibrary, inspectWorkbook, readWorkbook}: what reads a workbook
 //                       (js/lab/import-workbook.js; loadLibrary() -> Promise<XLSX>, loaded on demand)
 //     onImport(job, {progress, cancelled}) -> Promise<outcome>
-//                       job is {files: [entry], destination: {kind: "new", name} or {kind: "open"}},
-//                       in the order of the tabs, a workbook's sheets together. An entry is a text
+//                       job is {files: [entry], destination: {kind: "new", name} or {kind: "open"},
+//                       left: [{name, why}]}, files in the order of the tabs, a workbook's sheets
+//                       together. left names, in the tabs' order, each file that gives no table in
+//                       this import, with the words its tab says to a screen reader (a refused
+//                       file, a file the student left out, a workbook with no sheet ticked). An entry is a text
 //                       file, {id, file, encoding, delimiter, newline, hasNames, namesRow, tableName,
 //                       mark}, or a sheet that is ticked, {id, file, sheet, hasNames, namesRow,
 //                       tableName, listed}: sheet is the sheet as js/lab/import-cells.js made it, and
@@ -34,8 +37,9 @@
 //                       again), or {ok: false, cancelled: true} (the import was told to stop: the
 //                       dialog has closed by then, and does not look at it).
 //
-// What a file is, is decided from its bytes before its name (js/lab/import-text.js). A file that
-// cannot be imported gets a tab with its reason, and the others can still be imported; with
+// What a file is, is decided from its bytes before its name (js/lab/import-text.js), except for a
+// name ending in .xlsm, .xlsb or .ods: such a file is refused by its name, and none of its bytes
+// are read. A file that cannot be imported gets a tab with its reason, and the others can still be imported; with
 // nothing left to import, the dialog offers only Close. A file over IMPORT_TEXT_WARN_BYTES asks
 // first, in its tab, before it is read: it is read, or it is left out, which is a refusal of the
 // student's own (the others can be imported without it; its tab's sign is a quiet one, since
@@ -64,6 +68,14 @@
 // (js/lab/import-cells.js); the import reaches them through the sheet it is handed. Enter in a tick box
 // that can be used submits the form, as it does in any field of it (the import then runs); in the box of a
 // sheet that cannot be ticked it does nothing, as Space and a click do not change it.
+//
+// With the open database as the destination, a name that the dialog suggested and had to make unique
+// because the database already has the natural one (Staff becomes Staff_2) has a line of its own under
+// the field that says so (importNameMadeUniqueNote); when it is a TEMP table or view that has the name,
+// which is in no database, the line says that instead (importNameMadeUniqueTemporaryNote). It is a note,
+// not a fault: Import is not held, the field is not invalid, nothing is announced and nothing scrolls. It
+// goes when the student types in the field, or the destination becomes a new database; a name that is
+// made unique only by an earlier file or sheet of the same choice has none.
 //
 // Closing the dialog while an import runs, by Cancel or by Escape (which a page cannot hold
 // back), cancels the import: the caller undoes it, and nothing is left behind. A database that
@@ -162,10 +174,13 @@ import {
     importHoldWaitingMessage,
     importLargeFileMessage,
     importLargeWorkbookMessage,
+    importNameMadeUniqueNote,
+    importNameMadeUniqueTemporaryNote,
     importNameTakenMessage,
     importNamesRowMessage,
     importNamesRowSheetMessage,
     importOpenDatabaseLabel,
+    importOtherSpreadsheetReason,
     importPreviewAboveMessage,
     importProgressTableTitle,
     importProgressTextTitle,
@@ -185,7 +200,7 @@ import { DELIMITERS, MAX_COLUMNS, readStart } from "./import-csv.js";
 import { newPace, nextFrame } from "./import-pace.js";
 import { roomAgain, watchStep } from "./import-workbook.js";
 import { firstRowLooksLikeNames, sameNameKey, sanitiseName, tableNameFor, uniqueName } from "./import-rules.js";
-import { ENCODINGS, fitsEncoding, guessEncoding, headOf, inspectText, kindByStart, markOf, startOfText } from "./import-text.js";
+import { ENCODINGS, OTHER_SPREADSHEET_NAME, fitsEncoding, guessEncoding, headOf, inspectText, kindByStart, markOf, startOfText } from "./import-text.js";
 import { mountTabs } from "./tabs.js";
 
 // rows shown above the row of column names, when that row is not the first
@@ -205,8 +220,11 @@ function el(tag, props = {}, text = "") {
     return node;
 }
 
-// a labelled control with room for a hint and an error under it
-function field(id, labelText, control, { hint = "" } = {}) {
+// A labelled control with room for a hint and an error under it. With `note` it has a line for a note as
+// well, after the hint and before the error: a note says something that is not a fault (the control is not
+// invalid, nothing is announced, and nothing is scrolled into view for it). A note and an error are never
+// on show together: while the error shows the note waits, and it comes back when the error goes.
+function field(id, labelText, control, { hint = "", note = false } = {}) {
     const box = el("div", { className: "import-field" });
     const label = el("label", { className: "app-dialog-label", htmlFor: id }, labelText);
     control.id = id;
@@ -216,10 +234,32 @@ function field(id, labelText, control, { hint = "" } = {}) {
     let hintLine = null;
     if (hint) {
         hintLine = el("p", { id: `${id}-hint`, className: "app-dialog-hint" }, hint);
-        control.setAttribute("aria-describedby", hintLine.id);
         box.append(hintLine);
     }
+    let noteLine = null;
+    if (note) {
+        noteLine = el("p", { id: `${id}-note`, className: "app-dialog-hint import-name-note", hidden: true });
+        box.append(noteLine);
+    }
     box.append(error);
+    let noteText = "";
+    // what describes the control: the error first, then the hint, then the note
+    const describe = () => {
+        const ids = [error, hintLine, noteLine].filter((line) => line && !line.hidden).map((line) => line.id);
+        if (ids.length) {
+            control.setAttribute("aria-describedby", ids.join(" "));
+        } else {
+            control.removeAttribute("aria-describedby");
+        }
+    };
+    // (the hint, when there is one, is on show from the start)
+    describe();
+    const drawNote = () => {
+        if (noteLine) {
+            noteLine.textContent = error.hidden ? noteText : "";
+            noteLine.hidden = error.hidden ? !noteText : true;
+        }
+    };
     return {
         box,
         control,
@@ -227,17 +267,25 @@ function field(id, labelText, control, { hint = "" } = {}) {
             error.textContent = message;
             error.hidden = false;
             control.setAttribute("aria-invalid", "true");
-            control.setAttribute("aria-describedby", hintLine ? `${error.id} ${hintLine.id}` : error.id);
+            drawNote();
+            describe();
         },
         clearError() {
             error.textContent = "";
             error.hidden = true;
             control.removeAttribute("aria-invalid");
-            if (hintLine) {
-                control.setAttribute("aria-describedby", hintLine.id);
-            } else {
-                control.removeAttribute("aria-describedby");
-            }
+            drawNote();
+            describe();
+        },
+        showNote(text) {
+            noteText = text;
+            drawNote();
+            describe();
+        },
+        clearNote() {
+            noteText = "";
+            drawNote();
+            describe();
         },
     };
 }
@@ -450,6 +498,8 @@ export function mountImportDialog({ returnFocus, getDestination, loadReader, exc
             tableName: "",
             // what the student has set by hand is left alone when the file is read again
             nameEdited: false,
+            // the line under the name when the dialog made it unique because the destination has it ("" for none)
+            note: "",
             delimiterChosen: false,
             namesChosen: false,
             // the encoding that is being checked against the bytes, while it is
@@ -465,6 +515,8 @@ export function mountImportDialog({ returnFocus, getDestination, loadReader, exc
             // the mark of the text the preview was read from (markOf)
             mark: null,
             controls: null,
+            // the words a refused tab says to a screen reader, in brackets after its name
+            said: "",
             // A workbook (only with excel-import on): known to be one once its first bytes have been
             // looked at; its zip's directory as the limits read it; and, once it has been read, its
             // sheets (see showSheets). Until then it is a tab like the others.
@@ -493,7 +545,8 @@ export function mountImportDialog({ returnFocus, getDestination, loadReader, exc
             mark.classList.add("import-tab-refused");
             mark.classList.toggle("import-tab-refused--own", own);
             tab.button.prepend(mark);
-            tab.button.append(el("span", { className: "visually-hidden" }, `(${own ? IMPORT_LEFT_OUT_TAB_TEXT : IMPORT_REFUSED_TAB_TEXT})`));
+            tab.said = own ? IMPORT_LEFT_OUT_TAB_TEXT : IMPORT_REFUSED_TAB_TEXT;
+            tab.button.append(el("span", { className: "visually-hidden" }, `(${tab.said})`));
         }
         tab.panel.replaceChildren(el("p", { className: "import-refusal" }, reason));
         tab.panel.tabIndex = 0;
@@ -551,6 +604,12 @@ export function mountImportDialog({ returnFocus, getDestination, loadReader, exc
 
     // look decides what the file is, from its first bytes, and whether it is read at once
     async function look(tab, mine) {
+        // (the name is tested first: such a file is refused by its name, and none of its bytes are read)
+        const other = OTHER_SPREADSHEET_NAME.exec(tab.file.name);
+        if (other) {
+            refuse(tab, importOtherSpreadsheetReason(other[0].toLowerCase(), Boolean(excel)));
+            return;
+        }
         let kind;
         try {
             const head = await headOf(tab.file, tab.file.name);
@@ -692,13 +751,19 @@ export function mountImportDialog({ returnFocus, getDestination, loadReader, exc
             `${tab.id}-name`,
             IMPORT_TABLE_NAME_LABEL,
             el("input", { type: "text", className: "app-dialog-input", autocomplete: "off", spellcheck: false }),
-            { hint: IMPORT_TABLE_NAME_HINT }
+            { hint: IMPORT_TABLE_NAME_HINT, note: true }
         );
         name.control.setAttribute("autocapitalize", "off");
         name.control.setAttribute("autocorrect", "off");
+        if (tab.note) {
+            name.showNote(tab.note);
+        }
         name.control.addEventListener("input", () => {
             tab.nameEdited = true;
             tab.tableName = name.control.value;
+            // (the name is the student's now, not the dialog's)
+            tab.note = "";
+            name.clearNote();
             name.clearError();
         });
         // a name the student types goes through the same rule as one taken from a file
@@ -986,6 +1051,7 @@ export function mountImportDialog({ returnFocus, getDestination, loadReader, exc
             namesRow: 1,
             tableName: "",
             nameEdited: false,
+            note: "",
             built: false,
             controls: null,
             tick: null,
@@ -1135,15 +1201,37 @@ export function mountImportDialog({ returnFocus, getDestination, loadReader, exc
         for (const old of tab.button.querySelectorAll(".import-tab-nothing")) {
             old.remove();
         }
-        if (tab.workbook.units.some((unit) => unit.ticked)) {
+        const said = bookWords(tab);
+        if (!said) {
             return;
         }
-        const tickable = tab.workbook.units.some((unit) => unit.state === "ready");
         const sign = icon("circle-alert");
         sign.classList.add("import-tab-sign", "import-tab-sign--quiet", "import-tab-nothing");
-        const words = el("span", { className: "visually-hidden import-tab-nothing" }, `(${tickable ? IMPORT_TAB_NOTHING_TICKED_TEXT : IMPORT_REFUSED_TAB_TEXT})`);
+        const words = el("span", { className: "visually-hidden import-tab-nothing" }, `(${said})`);
         tab.button.prepend(sign);
         tab.button.append(words);
+    }
+
+    // what a workbook's tab says to a screen reader when none of its sheets is ticked, or "" when one is
+    function bookWords(tab) {
+        if (tab.workbook.units.some((unit) => unit.ticked)) {
+            return "";
+        }
+        return tab.workbook.units.some((unit) => unit.state === "ready") ? IMPORT_TAB_NOTHING_TICKED_TEXT : IMPORT_REFUSED_TAB_TEXT;
+    }
+
+    // The files that give no table when Import is pressed, in the tabs' order: each with the words its tab
+    // says to a screen reader (a refused file, a file the student left out, a workbook with no sheet ticked).
+    // A workbook that gives a table is not listed: the sheets it leaves unticked are the student's choice.
+    function filesLeft() {
+        const left = [];
+        for (const tab of tabs) {
+            const why = tab.state === "refused" ? tab.said : tab.workbook ? bookWords(tab) : "";
+            if (why) {
+                left.push({ name: tab.file.name, why });
+            }
+        }
+        return left;
     }
 
     // a tick, from the tick box or from a button: the sheet, its tab, the count, the workbook's tab, and
@@ -1251,14 +1339,20 @@ export function mountImportDialog({ returnFocus, getDestination, loadReader, exc
             `${unit.id}-name`,
             IMPORT_TABLE_NAME_LABEL,
             el("input", { type: "text", className: "app-dialog-input", autocomplete: "off", spellcheck: false }),
-            { hint: IMPORT_TABLE_NAME_HINT }
+            { hint: IMPORT_TABLE_NAME_HINT, note: true }
         );
         name.control.setAttribute("autocapitalize", "off");
         name.control.setAttribute("autocorrect", "off");
         name.control.value = unit.tableName;
+        if (unit.note) {
+            name.showNote(unit.note);
+        }
         name.control.addEventListener("input", () => {
             unit.nameEdited = true;
             unit.tableName = name.control.value;
+            // (the name is the student's now, not the dialog's)
+            unit.note = "";
+            name.clearNote();
             name.clearError();
         });
         name.control.addEventListener("change", () => {
@@ -1375,16 +1469,40 @@ export function mountImportDialog({ returnFocus, getDestination, loadReader, exc
     // The names the dialog suggests are given in one pass: the names the destination already
     // holds come first, then the tabs in order; each takes the first of x, x_2, x_3 that nothing
     // before it has. A name the student has typed is theirs: it only takes its place.
+    // A name that the dialog changed because the destination already has the natural one has a note,
+    // which says so: importNameMadeUniqueNote names the database, and importNameMadeUniqueTemporaryNote
+    // is for a name that only a TEMP table or view has (taken() gives true for it: it is in no database,
+    // and the student would look for it there in vain). A name that is x_2 only because an earlier file
+    // or sheet of this choice has x has none: both are in view, and nothing is asked of the student
+    // there. The note is kept on the unit, since the panel of a sheet may not be built yet; the panel
+    // shows it when it is built.
     function suggestNames() {
-        const used = new Set(usesOpenDatabase() ? getDestination().taken().keys() : []);
+        const taken = usesOpenDatabase() ? getDestination().taken() : new Map();
+        const used = new Set(taken.keys());
         for (const unit of nameUnits()) {
             if (unit.nameEdited) {
                 used.add(sameNameKey(sanitiseName(unit.tableName)));
+                unit.note = "";
+                unit.controls?.name.clearNote();
             } else {
-                unit.tableName = uniqueName(unit.isSheet ? sheetTableName(unit.sheet, unit.file.name) : tableNameFor(unit.file.name), used);
+                const wanted = unit.isSheet ? sheetTableName(unit.sheet, unit.file.name) : tableNameFor(unit.file.name);
+                unit.tableName = uniqueName(wanted, used);
+                const key = sameNameKey(wanted);
+                if (!taken.has(key)) {
+                    unit.note = "";
+                } else if (taken.get(key)) {
+                    unit.note = importNameMadeUniqueTemporaryNote(wanted, unit.tableName);
+                } else {
+                    unit.note = importNameMadeUniqueNote(getDestination().name, wanted, unit.tableName);
+                }
                 if (unit.controls) {
                     unit.controls.name.control.value = unit.tableName;
                     unit.controls.name.clearError();
+                    if (unit.note) {
+                        unit.controls.name.showNote(unit.note);
+                    } else {
+                        unit.controls.name.clearNote();
+                    }
                 }
             }
         }
@@ -1849,6 +1967,7 @@ export function mountImportDialog({ returnFocus, getDestination, loadReader, exc
                       }
             ),
             destination: target,
+            left: filesLeft(),
         };
         const state = { stop: false };
         // A job of text files only says "Importing file 2 of 3: name". A job that has a sheet counts

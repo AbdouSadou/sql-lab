@@ -5,9 +5,10 @@
 //   mountImport(page) -> {enabled, take(files), busy(), dialogOpen()}
 //     enabled        the flag, as it was when the page loaded (js/lab/flags.js)
 //     take(files)    what to do with files that were chosen or dropped. false: not the import's
-//                    (one file that is not one of the five kinds: it is opened as today). true:
+//                    (one file that is not the import's: it is opened as today). true:
 //                    taken. Files of the five kinds (.csv .tsv .txt .xlsx .xls, in any letter
-//                    case), one or several, open the dialog (js/lab/import-dialog.js); a choice
+//                    case), and files ending in .xlsm, .xlsb or .ods (which the dialog refuses
+//                    by name), one or several, open the dialog (js/lab/import-dialog.js); a choice
 //                    that mixes them with a database or a script, or that holds more than one
 //                    database or script, is refused in a toast before any dialog opens, and so
 //                    are files that come while a database is loading (the open one is about to
@@ -65,6 +66,11 @@
 // text file. progress is called with {at, of, name, part, done, total}: at of the tables, name the file's, and
 // table the name of the table made from a sheet (null for a text file); part is "read" or "copy".
 //
+// job.left (optional) lists the files of the dialog that gave no table, [{name, why}], in the tabs' order. When
+// there are some, the sentence that says what was imported (the summary line, the toast and the announcement)
+// says how many files were not imported, and the report names them (js/lab/import-report.js). The events
+// of the evidence log list what was imported, and are the same.
+//
 // When it has finished: one event for each file goes into the evidence log (js/lab/events.js; a
 // workbook's tables are the lines of one event: js/lab/import-events.js), under the log key of
 // the database that now holds the tables, and the report is shown in the results pane
@@ -94,7 +100,7 @@ import {
     IMPORT_UNREADABLE_REASON,
     importPageSource,
     importSheetSource,
-    importedMessage,
+    importedWithLeftMessage,
 } from "./config-workflow.js";
 import { recordEvent } from "./events.js";
 import { flagOn } from "./flags.js";
@@ -105,7 +111,7 @@ import { mountImportDialog } from "./import-dialog.js";
 import { importEvents } from "./import-events.js";
 import { newPace } from "./import-pace.js";
 import { buildImportReport } from "./import-report.js";
-import { TextChanged, sameStart, textPieces } from "./import-text.js";
+import { OTHER_SPREADSHEET_NAME, TextChanged, sameStart, textPieces } from "./import-text.js";
 import { inspectWorkbook, readWorkbook } from "./import-workbook.js";
 import { toast } from "./toast.js";
 import { loadVendor } from "./vendor-loader.js";
@@ -333,8 +339,9 @@ export function mountImport({
             for (const event of importEvents(tables)) {
                 recordEvent(key, { kind: "import", lines: event.lines });
             }
-            const said = importedMessage(tables.length, name);
-            results.showReport(buildImportReport(tables), { summary: said });
+            const left = job.left ?? [];
+            const said = importedWithLeftMessage(tables.length, name, left.length);
+            results.showReport(buildImportReport(tables, { left }), { summary: said });
             showResult();
             toast(said);
             return { ok: true };
@@ -389,7 +396,7 @@ export function mountImport({
     });
 
     function take(files) {
-        const ours = files.filter((file) => IMPORT_NAME.test(file.name));
+        const ours = files.filter((file) => IMPORT_NAME.test(file.name) || OTHER_SPREADSHEET_NAME.test(file.name));
         if (files.length === 1 && !ours.length) {
             return false;
         }
