@@ -1,8 +1,15 @@
 const fs = require("node:fs");
 const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 const { test, expect, NORTHLIGHT_URL } = require("./helpers");
 
 const ROOT = path.resolve(__dirname, "..");
+
+// the page's own words for the entry that saves tables (the page ships with the export on)
+let tablesTitle;
+test.beforeAll(async () => {
+    ({ EXPORT_TABLES_TITLE: tablesTitle } = await import(pathToFileURL(path.join(ROOT, "js", "lab", "config-workflow.js")).href));
+});
 
 function walkShipped() {
     const files = [];
@@ -66,6 +73,7 @@ test("no sharing: the top bar, editor toolbar and status bar carry no settings, 
     await expect(page.locator("#more-menu [role^=menuitem]")).toHaveText([
         /Copy link/,
         /Database \(\.db\)/,
+        new RegExp(tablesTitle),
         /Results \(\.csv\)/,
         /Evidence \(\.txt\)/,
         /Light/,

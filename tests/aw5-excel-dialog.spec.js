@@ -4,8 +4,9 @@
 // tests/aw5-excel-page.spec.js. The owner's fixtures go through the page in
 // tests/aw5-excel-fixtures.spec.js, and the modules that read a workbook are tried in Node
 // (tests/aw5-excel-rules.spec.js).
-// A page opened with ?preview=import,excel-import has both flags (the flag "excel-import" does
-// nothing without "import"). Page tests reach code through the bundle only
+// A page opened with the state flagState("import", "excel-import") has both imports on and the export
+// off, whatever the shipped defaults are (the flag "excel-import" does nothing without "import").
+// Page tests reach code through the bundle only
 // (await import("./bundle/app.js")). The workbooks are made in the test, in Node, as files a student
 // would choose; the texts a student reads come from js/lab/config-workflow.js and are never typed again.
 //
@@ -96,15 +97,16 @@ const {
     tablesOf,
     holdVendor,
     NORTHLIGHT_URL,
+    flagState,
     SAMPLE_FILE,
 } = require("./helpers");
 
 const load = (file) => import(pathToFileURL(path.join(__dirname, "..", "js", "lab", file)).href);
 
-const FLAGS = "./?preview=import,excel-import";
+const FLAGS = `./?${flagState("import", "excel-import")}`;
 // the course database is the one that a test opens, never the default one; the library is asked for
 // by this address (the workbook is read when its first file is chosen)
-const OPEN = `${NORTHLIGHT_URL}&preview=import,excel-import`;
+const OPEN = `${NORTHLIGHT_URL}&${flagState("import", "excel-import")}`;
 const LIBRARY = "xlsx.full.min.js";
 
 let words;
@@ -2950,7 +2952,7 @@ test.describe("nothing of the sheets exists until a workbook has been read", () 
     });
 
     test("with the import alone a workbook is refused with its reason, and none of it exists either", async ({ app }) => {
-        await app.open(`${NORTHLIGHT_URL}&preview=import`);
+        await app.open(`${NORTHLIGHT_URL}&${flagState("import")}`);
         await app.chooseFiles(made("book.xlsx", [{ name: "alpha", rows: table(2) }, { name: "beta", rows: table(2) }]));
         await dialogReady(app);
         await expect(app.importTabs.first()).toHaveAccessibleName(`book.xlsx (${words.IMPORT_REFUSED_TAB_TEXT})`);

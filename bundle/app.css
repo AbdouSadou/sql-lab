@@ -1435,6 +1435,15 @@ body {
     white-space: normal;
 }
 
+/* the two actions of the database menu say what they take, which a student has to be able to
+   read: where the menu is too narrow for the line (a small phone), it wraps and is not cut, in
+   lines of about the same length where the browser can (so that no word is left alone) */
+#open-file .menu-item-description,
+#open-url .menu-item-description {
+    white-space: normal;
+    text-wrap: balance;
+}
+
 /* the shortcut of an entry ("Ctrl O"), at its end */
 .menu-item-shortcut {
     flex: none;

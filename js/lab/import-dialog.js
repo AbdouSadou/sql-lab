@@ -3,7 +3,7 @@
 // of the table it will make, and where the tables go. Nothing is imported before the student
 // presses Import. While the import runs the same dialog shows its progress, with Cancel.
 //
-//   mountImportDialog({returnFocus, getDestination, loadReader, excel, onImport}) -> {open(files), isOpen()}
+//   mountImportDialog({returnFocus, getDestination, loadReader, excel, onImport}) -> {open(files)}
 //     returnFocus       an object with focus(): where the keyboard focus goes when the dialog
 //                       closes and the place it was in before has gone (otherwise the browser
 //                       puts it back there)
@@ -2132,8 +2132,5 @@ export function mountImportDialog({ returnFocus, getDestination, loadReader, exc
         }
     });
 
-    return {
-        open,
-        isOpen: () => dialog.open,
-    };
+    return { open };
 }

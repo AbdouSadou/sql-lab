@@ -3,7 +3,20 @@
 // and the sizes and the hidden sidebar survive a reload; the sidebar's tabs, the database
 // switcher, the Export menu, Help, the status bar and the skip link work from the keyboard.
 
-const { test, expect, failStorage, realManifest, modelQuery, SAMPLE_FILE, NORTHLIGHT_URL } = require("./helpers");
+const path = require("node:path");
+const { pathToFileURL } = require("node:url");
+const { test, expect, failStorage, realManifest, modelQuery, SAMPLE_FILE, NORTHLIGHT_URL, flagState } = require("./helpers");
+
+// The page's own words (js/lab/config.js and config-workflow.js), read once: a text a test looks for is
+// the constant's (the evidence entry's line is typed out once, in the Export menu's test). The page ships with the import, the export and the import of Excel
+// workbooks on, so its menus and its file chooser are those of that page; a test of the page without
+// them opens it with every flag off.
+const load = (file) => import(pathToFileURL(path.join(__dirname, "..", "js", "lab", file)).href);
+let words;
+test.beforeAll(async () => {
+    words = { ...(await load("config.js")), ...(await load("config-workflow.js")) };
+});
+const OFF = `${NORTHLIGHT_URL}&${flagState()}`;
 
 const LAYOUT_KEY = "sqllab.layout";
 const MANY_ROWS = "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 400) SELECT i, 'row ' || i AS label FROM n;";
@@ -442,8 +455,11 @@ test.describe("the database switcher", () => {
     test("Open a file… opens the file chooser; Open from URL… asks for an address", async ({ page, app }) => {
         await app.open(NORTHLIGHT_URL);
         await app.databaseButton.click();
+        // (the page as it ships has the import on: the chooser takes several files, and the entry's
+        // line says what else it takes)
+        await expect(page.locator("#open-file .menu-item-description")).toHaveText(words.OPEN_FILE_WITH_EXCEL_DESCRIPTION);
         const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.locator("#open-file").click()]);
-        expect(chooser.isMultiple()).toBe(false);
+        expect(chooser.isMultiple()).toBe(true);
         await expect(app.databaseMenu).toBeHidden();
 
         // Open from URL… is a dialog with one labelled, empty address field (it was window.prompt)
@@ -470,14 +486,19 @@ test.describe("the Export menu", () => {
         const menu = page.locator("#export-menu");
         await expect(menu).toBeVisible();
         await expect(menu).toHaveAttribute("role", "menu");
-        await expect(menu.getByRole("menuitem")).toHaveText([/^Database \(\.db\)…/, /^Results \(\.csv\)/, /^Evidence \(\.txt\)…/]);
+        await expect(menu.getByRole("menuitem")).toHaveText([/^Database \(\.db\)…/, new RegExp(`^${words.EXPORT_TABLES_MENU_TEXT}`), /^Results \(\.csv\)/, /^Evidence \(\.txt\)…/]);
         await expect(page.locator("#export-csv")).toHaveAttribute("aria-disabled", "true");
         await expect(page.locator("#export-csv")).toContainText("Run a query that returns rows first");
-        await expect(page.locator("#export-evidence")).toContainText("A text record of the queries you ran, for your assessment");
+        // the evidence entry's line is typed out here once: it is the config's, and the entry shows it
+        const evidenceLine = "Your queries, imports and table exports, for your assessment";
+        expect(words.EXPORT_EVIDENCE_DESCRIPTION).toBe(evidenceLine);
+        await expect(page.locator("#export-evidence .menu-item-description")).toHaveText(evidenceLine);
         // an unavailable entry can be reached but does nothing: the menu stays open, nothing is saved
         let saved = false;
         page.on("download", () => (saved = true));
         await expect(page.locator("#export-db")).toBeFocused();
+        await page.keyboard.press("ArrowDown");
+        await expect(page.locator("#export-tables")).toBeFocused();
         await page.keyboard.press("ArrowDown");
         await expect(page.locator("#export-csv")).toBeFocused();
         await page.keyboard.press("Enter");
@@ -524,6 +545,39 @@ test.describe("the Export menu", () => {
     });
 });
 
+test.describe("the shell with every flag off", () => {
+    test("Open a file… takes one file, from its entry, from Ctrl+O and from Ctrl+O with a menu open, and its line names a database and a script only", async ({ page, app }) => {
+        await app.open(OFF);
+        await app.databaseButton.click();
+        await expect(page.locator("#open-file .menu-item-description")).toHaveText(words.OPEN_FILE_DESCRIPTION);
+        const [fromEntry] = await Promise.all([page.waitForEvent("filechooser"), page.locator("#open-file").click()]);
+        expect(fromEntry.isMultiple()).toBe(false);
+        await expect(app.databaseMenu).toBeHidden();
+        await app.editor.click();
+        const [fromKey] = await Promise.all([page.waitForEvent("filechooser"), page.keyboard.press("Control+o")]);
+        expect(fromKey.isMultiple()).toBe(false);
+        await app.databaseButton.click();
+        await expect(app.databaseMenu).toBeVisible();
+        const [withMenu] = await Promise.all([page.waitForEvent("filechooser"), page.keyboard.press("Control+o")]);
+        expect(withMenu.isMultiple()).toBe(false);
+        await expect(app.databaseMenu).toBeHidden();
+    });
+
+    test("the Export menu offers the database, the result as CSV and the evidence, in that order, and ArrowDown goes from one to the next", async ({ page, app }) => {
+        await app.open(OFF);
+        await page.locator("#export-button").click();
+        const menu = page.locator("#export-menu");
+        await expect(menu.getByRole("menuitem")).toHaveText([/^Database \(\.db\)…/, /^Results \(\.csv\)/, /^Evidence \(\.txt\)…/]);
+        await expect(page.locator("#export-tables")).toHaveCount(0);
+        await expect(page.locator("#export-evidence")).toContainText(words.EXPORT_EVIDENCE_DESCRIPTION);
+        await expect(page.locator("#export-db")).toBeFocused();
+        await page.keyboard.press("ArrowDown");
+        await expect(page.locator("#export-csv")).toBeFocused();
+        await page.keyboard.press("ArrowDown");
+        await expect(page.locator("#export-evidence")).toBeFocused();
+    });
+});
+
 test.describe("Help", () => {
     test("opens a popover with the shortcuts, the privacy line and About; Escape closes it and gives the focus back", async ({ page, app }) => {
         await app.open();
@@ -541,6 +595,8 @@ test.describe("Help", () => {
         await expect(popover).toContainText("Runs entirely in your browser. Your data and queries never leave this device.");
         // (Phase 3 added the editor's Ctrl+/ and Ctrl+Space)
         await expect(popover.locator(".help-keys dt")).toHaveText([/Ctrl\s+Enter/, /Ctrl\s+Shift\s+Enter/, /Ctrl\s+\//, /Ctrl\s+Space/, /Ctrl\s+O/, /Ctrl\s+U/, /Tab/, /Esc\s+then\s+Tab/]);
+        // Ctrl O is named as its menu entry is: it opens the chooser of "Open a file…", whatever that takes
+        await expect(popover.locator(".help-keys dd").nth(4)).toHaveText("Open a file");
         await expect(popover.getByRole("link", { name: "About SQL Lab" })).toHaveAttribute("href", "about.html");
         // the SQLite function reference: a link to another site, opened apart, never fetched
         const functions = popover.getByRole("link", { name: "SQLite functions" });
@@ -923,7 +979,7 @@ test.describe("keyboard and pointer details", () => {
         await app.editor.click();
         // (the key a keyboard sends is "o": Ctrl with the letter, no Shift)
         const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.keyboard.press("Control+o")]);
-        expect(chooser.isMultiple()).toBe(false);
+        expect(chooser.isMultiple()).toBe(true);
     });
 
     test("a disabled Run is drawn plainly, not grey on blue", async ({ page }) => {
@@ -982,6 +1038,27 @@ test.describe("following the page", () => {
         await page.locator("#open-file-input").setInputFiles(SAMPLE_FILE);
         await expect(page.locator("#export-dialog")).toBeHidden();
         await expect(page).toHaveTitle(/^sample\.db - /);
+    });
+
+    test("the evidence dialog closes when another database loads, so the file it names is never another database's", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_URL);
+        await app.run("SELECT 1");
+        await app.openEvidence();
+        await expect(app.evidenceDialog).toBeVisible();
+        await expect(page.locator("#evidence-file")).toContainText("northlight");
+        await app.evidenceInput.fill("U2034567");
+        // a load lands while the dialog is open (Back or Forward, or a file the page was already opening)
+        await page.locator("#open-file-input").setInputFiles(SAMPLE_FILE);
+        await expect(app.evidenceDialog).toBeHidden();
+        await expect(page).toHaveTitle(/^sample\.db - /);
+        // the number that was typed is gone, and the dialog names the open database when it is opened again
+        await app.waitReady();
+        await app.run("SELECT 2");
+        await app.openEvidence();
+        await expect(app.evidenceDialog).toBeVisible();
+        await expect(app.evidenceInput).toHaveValue("");
+        await expect(page.locator("#evidence-file")).toContainText("sample");
+        await expect(page.locator("#evidence-file")).not.toContainText("northlight");
     });
 
     test("a new database opens its schema scrolled to the top", async ({ page, app }) => {
@@ -1072,7 +1149,7 @@ test.describe("checked again", () => {
         await app.databaseButton.click();
         await expect(app.databaseMenu).toBeVisible();
         const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.keyboard.press("Control+o")]);
-        expect(chooser.isMultiple()).toBe(false);
+        expect(chooser.isMultiple()).toBe(true);
         await expect(app.databaseMenu).toBeHidden();
     });
 

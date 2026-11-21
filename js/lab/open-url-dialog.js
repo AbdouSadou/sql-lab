@@ -1,11 +1,13 @@
 // "Open from URL…" (the database switcher's menu, and Ctrl/Cmd+U): a dialog with one labelled
 // address field, Open and Cancel (UI plan, section 5). It replaces window.prompt.
 //
-// mountOpenUrlDialog({onOpen}) -> {open(returnFocus)}
+// mountOpenUrlDialog({onOpen}) -> {open(returnFocus), isOpen()}
 //   onOpen(address)  the address to open (index.js startFromUrl); the dialog has closed by then
 //   open(returnFocus)  shows it; Cancel, Escape or a refused address keep the student here, and
 //                      on Cancel or Escape the focus goes back to returnFocus (the element that
 //                      had it: the database button, or the editor for the shortcut)
+//   isOpen()         it is open (Ctrl/Cmd+U then goes to its field; under any other dialog the
+//                    shortcut does nothing, js/index.js)
 //
 // A native <dialog> (showModal): the browser keeps the focus inside and Escape closes it. The field
 // starts empty every time (never a suggested third-party address). Inline checks before anything
@@ -140,5 +142,5 @@ export function mountOpenUrlDialog({ onOpen }) {
         }
     });
 
-    return { open };
+    return { open, isOpen: () => dialog.open };
 }

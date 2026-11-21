@@ -30,6 +30,7 @@ const {
     databaseFingerprint,
     isOpenDatabase,
     EXPORT_URL,
+    flagState,
     EDGE_DATABASE,
     openEdgeCases,
     recordDownloads,
@@ -42,11 +43,12 @@ const {
     storedEventLines,
 } = require("./helpers");
 
-// Assessment plan, Phase 3 (export tables as CSV): the page around the export. Behind the preview
-// flag "export": a page opened with ?preview=export has "Tables as CSV…" in the Export menu and in
-// the More menu, and its dialog. What the dialog does and what the files hold are pinned by the
-// other aw3 files (tests/aw3-export-dialog.spec.js, -fixtures, -rules); here is the page around
-// them (js/index.js, js/lab/export-tables.js, js/lab/export-menu.js, js/lab/more-menu.js). With the
+// Assessment plan, Phase 3 (export tables as CSV): the page around the export. The export is
+// switched by the flag "export" (on in the page as it ships): a page with the export alone on
+// (flagState("export"), the kit's EXPORT_URL) has "Tables as CSV…" in the Export menu and in
+// the More menu, and its dialog; a page with the flag off has neither. What the dialog does and what
+// the files hold are pinned by the other aw3 files (tests/aw3-export-dialog.spec.js, -fixtures,
+// -rules); here is the page around them (js/index.js, js/lab/export-tables.js, js/lab/export-menu.js, js/lab/more-menu.js). With the
 // owner's tests/fixtures/export/export_edge_cases.db opened as a file:
 //   - what an export saves: one table (basic) alone as basic.csv, with the bytes of the owner's
 //     expected file; all fourteen as export_edge_cases-tables.zip, whose entries, read with readZip
@@ -57,7 +59,8 @@ const {
 //     an export that was cancelled or failed;
 //   - the flag: both menus with it off and on (their entries, order, texts and glyphs; with it on, axe on
 //     each menu with the entry in it, and the entry's words measured against the menu, light and dark), with "export" on
-//     while "import" is off and the reverse, no dialog and no new request with it off, and the flag
+//     while "import" is off and the reverse, no dialog and no new request with it off, the page as
+//     it ships (the entry and the dialog are there, with the import beside them), and the flag
 //     still on after a dataset, a file, an exercise set and an exercise were opened (the address
 //     drops the parameter);
 //   - the toasts: for a file (one row, several, none), for a zip, and for Cancel;
@@ -95,7 +98,7 @@ const {
 
 const load = (file) => import(pathToFileURL(path.join(__dirname, "..", "js", "lab", file)).href);
 
-const BOTH_URL = "./?preview=import,export";
+const BOTH_URL = `./?${flagState("import", "export")}`;
 const ZIP_TOOL_URL = `**/vendor/${ZIP_TOOL}`;
 
 let words;
@@ -392,7 +395,7 @@ test.describe("each export that saved a file is one event of the evidence log", 
 
 test.describe("the flag off: the page is as it was", () => {
     test("with the flag off neither menu has the entry, and the dialog is not in the page", async ({ page, app, net }) => {
-        for (const address of ["./", "./?preview=import"]) {
+        for (const address of [`./?${flagState()}`, `./?${flagState("import")}`]) {
             await app.open(address);
             await expect(page.locator("#export-tables")).toHaveCount(0);
             await expect(page.locator("#more-export-tables")).toHaveCount(0);
@@ -412,7 +415,7 @@ test.describe("the flag off: the page is as it was", () => {
             { id: "export-csv", label: words.EXPORT_RESULTS_TEXT },
             { id: "export-evidence", label: words.EXPORT_EVIDENCE_TEXT },
         ];
-        for (const address of ["./", "./?preview=import"]) {
+        for (const address of [`./?${flagState()}`, `./?${flagState("import")}`]) {
             await app.open(address);
             await app.openExportMenu();
             const items = await entriesOf(app.exportMenu, "export-");
@@ -425,7 +428,7 @@ test.describe("the flag off: the page is as it was", () => {
 
     test("on a phone the More menu keeps its three entries too, and no dialog is built", async ({ page, app }) => {
         await page.setViewportSize({ width: 390, height: 844 });
-        await app.open("./");
+        await app.open(`./?${flagState()}`);
         expect(await app.isPhone()).toBe(true);
         await app.openMore();
         const ids = await app.moreMenu.getByRole("menuitem").evaluateAll((nodes) => nodes.map((node) => node.id));
@@ -453,9 +456,55 @@ test.describe("the flag off: the page is as it was", () => {
                 await context.close();
             }
         };
-        const off = await requested("./");
-        expect(await requested("./?preview=excel-import")).toEqual(off);
+        const off = await requested(`./?${flagState()}`);
+        expect(await requested(`./?${flagState("excel-import")}`)).toEqual(off);
         expect(off.filter((file) => /fflate/.test(file))).toEqual([]);
+    });
+});
+
+test.describe("the page as it ships", () => {
+    test("the Export menu and the More menu have the entry right after the database's, the dialog is in the page, and the chooser takes several files", async ({ page, app, net }) => {
+        await app.open();
+        await expect(page.locator("#export-tables-dialog")).toHaveCount(1);
+        await app.openExportMenu();
+        const items = await app.exportMenu.getByRole("menuitem").evaluateAll((nodes) => nodes.map((node) => node.id));
+        expect(items).toEqual(["export-db", "export-tables", "export-csv", "export-evidence"]);
+        const entries = await entriesOf(app.exportMenu, "export-");
+        expect(entries[1]).toEqual({ id: "export-tables", label: words.EXPORT_TABLES_MENU_TEXT, description: words.EXPORT_TABLES_MENU_DESCRIPTION });
+        await page.keyboard.press("Escape");
+        const more = await entriesOf(app.moreMenu, "more-export-");
+        expect(more.map(({ id }) => id)).toEqual(["more-export-db", "more-export-tables", "more-export-csv", "more-export-evidence"]);
+        expect(await page.locator("#open-file-input").evaluate((input) => input.multiple)).toBe(true);
+        // and no zip tool is asked for until a zip is made
+        expect(await page.evaluate(() => typeof globalThis.fflate)).toBe("undefined");
+        expect(net.paths.filter((file) => /fflate/.test(file))).toEqual([]);
+    });
+
+    test("on a phone the More menu has the entry too, and the dialog opens from it", async ({ page, app }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await app.open();
+        expect(await app.isPhone()).toBe(true);
+        await app.openMore();
+        const ids = await app.moreMenu.getByRole("menuitem").evaluateAll((nodes) => nodes.map((node) => node.id));
+        expect(ids.slice(0, 5)).toEqual(["more-copy-link", "more-export-db", "more-export-tables", "more-export-csv", "more-export-evidence"]);
+        await app.moreTablesItem.click();
+        await expect(app.tablesDialog).toBeVisible();
+        await app.tablesCancel.click();
+        await expect(app.tablesDialog).toBeHidden();
+    });
+
+    test("a minus before the name in the address switches the export off for that visit, and the page opened without it has the export again", async ({ page, app }) => {
+        await app.open(`./?${words.PREVIEW_PARAM}=-export`);
+        await expect(page.locator("#export-tables")).toHaveCount(0);
+        await expect(page.locator("#more-export-tables")).toHaveCount(0);
+        await expect(page.locator("#export-tables-dialog")).toHaveCount(0);
+        await app.openExportMenu();
+        await expect(app.exportMenu.getByRole("menuitem")).toHaveCount(3);
+        await page.keyboard.press("Escape");
+        // (the minus switched off the export and nothing else: the import is still on)
+        expect(await page.locator("#open-file-input").evaluate((input) => input.multiple)).toBe(true);
+        await app.open();
+        await expect(page.locator("#export-tables-dialog")).toHaveCount(1);
     });
 });
 
@@ -615,7 +664,7 @@ test.describe("export and import, each alone and both", () => {
     });
 
     test("import on and export off: the file chooser takes several files and a CSV opens the import's dialog, and there is no entry and no export dialog", async ({ page, app }) => {
-        await app.open("./?preview=import");
+        await app.open(`./?${flagState("import")}`);
         expect(await page.locator("#open-file-input").evaluate((input) => input.multiple)).toBe(true);
         await expect(page.locator("#export-tables-dialog")).toHaveCount(0);
         await expect(page.locator("#export-tables")).toHaveCount(0);
@@ -680,7 +729,7 @@ test.describe("the flag is read once, when the page loads", () => {
     test("it stays on after an exercise set is opened from the picker, and after an exercise is opened and the set closed", async ({ page, app }) => {
         test.skip(!SET || SET.exercises.length < 2, "no exercise set that the page can open has two exercises");
         // (the set's own database is open first, so that opening the set does not load another)
-        await app.open(`./?db=${SET.dataset}&preview=export`);
+        await app.open(`./?db=${SET.dataset}&${flagState("export")}`);
         await app.pickSet(SET.title);
         await expect(app.exercisePanel).toBeVisible();
         await app.waitReady();
@@ -798,7 +847,7 @@ test.describe("while an export runs, what could change the database is refused w
 
     test("Check answer: nothing is checked, nothing is marked, and the export goes on", async ({ page, app }) => {
         test.skip(!SET, "no exercise set that the page can open ships");
-        await page.goto(`./?set=${SET.id}&preview=export`);
+        await page.goto(`./?set=${SET.id}&${flagState("export")}`);
         await expect(app.exercisePanel).toBeVisible();
         await app.waitReady();
         await app.editor.fill(SET.exercises[0].model_query);
@@ -861,7 +910,7 @@ test.describe("while an export runs, what could change the database is refused w
 
     test("picking another course database is refused, and the switcher shows what is open again", async ({ page, app }) => {
         test.skip(!OTHER_DATASET, "only one course database ships");
-        await app.open(`./?db=${OTHER_DATASET.id}&preview=export`);
+        await app.open(`./?db=${OTHER_DATASET.id}&${flagState("export")}`);
         await app.recordToasts();
         const labelBefore = await app.databaseLabel.textContent();
         const handle = await databaseHandle(page);
@@ -931,7 +980,7 @@ test.describe("while an export runs, what could change the database is refused w
 
     test("opening and closing an exercise set are refused, and the set picker keeps the open set", async ({ page, app }) => {
         test.skip(!OTHER_SET, "only one exercise set that the page can open ships");
-        await page.goto(`./?set=${SET.id}&preview=export`);
+        await page.goto(`./?set=${SET.id}&${flagState("export")}`);
         await expect(app.exercisePanel).toBeVisible();
         await app.waitReady();
         await app.recordToasts();
@@ -1050,7 +1099,7 @@ test.describe("while an export runs, what could change the database is refused w
 
     test("Back and Forward open nothing, put the address back, and say why", async ({ page, app }) => {
         test.skip(!OTHER_DATASET, "only one course database ships");
-        await app.open(`./?db=${DEFAULT_DATASET.id}&preview=export`);
+        await app.open(`./?db=${DEFAULT_DATASET.id}&${flagState("export")}`);
         // a history of the page's own: the default course database, the other one, the default one
         // again, and back to the other: an entry that the page itself made (it carries the name of
         // the database), with a Forward to give

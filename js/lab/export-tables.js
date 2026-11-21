@@ -2,13 +2,12 @@
 // does when a student chooses "Tables as CSV…" in the Export menu. With the flag off none of this
 // exists: no element, no listener, no request.
 //
-//   mountTableExport(page) -> {enabled, open(), dialogOpen()}
+//   mountTableExport(page) -> {enabled, open()}
 //     enabled        the flag, as it was when the page loaded (js/lab/flags.js)
 //     open()         what the menu entry does: opens the dialog (js/lab/export-tables-dialog.js), or
 //                    says in a toast why it does not: no database is open, one is loading, an
 //                    import or an export runs, there is no table or view to export, or the
 //                    tables could not be listed
-//     dialogOpen()   the dialog is open (Ctrl+O and Ctrl+U do nothing then)
 //
 //   page, what the export needs from js/index.js:
 //     returnFocus         where the focus goes when the dialog closes
@@ -223,7 +222,7 @@ export function mountTableExport({ returnFocus, getDatabase, isLoading = () => f
     const enabled = flagOn("export");
     let running = false;
     if (!enabled) {
-        return { enabled, open() {}, dialogOpen: () => false };
+        return { enabled, open() {} };
     }
 
     // The library is asked for, and Cancel looked at every CANCEL_LOOK_MS while it is awaited, so
@@ -482,5 +481,5 @@ export function mountTableExport({ returnFocus, getDatabase, isLoading = () => f
         }
     }
 
-    return { enabled, open, dialogOpen: dialog.isOpen };
+    return { enabled, open };
 }

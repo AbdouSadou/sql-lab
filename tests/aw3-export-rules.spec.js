@@ -2204,7 +2204,7 @@ test.describe("engineLine of the runner: the engine's words on one line", () => 
 // and a name in About would be left stale). The page's own words about the browser's memory, and the credit for Papa
 // Parse, are held in the page by tests/aw2-import-page.spec.js ("about.html"); this group is the
 // export's half and needs no page.
-test.describe("the documents: fflate is credited with its licence, About says what is noted of an export, the README tells how to try it", () => {
+test.describe("the documents: fflate is credited with its licence, About says what is noted of an export, the README tells how the export is switched off and on", () => {
     test.beforeEach(skipUnlessFirst);
 
     const ROOT = path.join(__dirname, "..");
@@ -2269,12 +2269,15 @@ test.describe("the documents: fflate is credited with its licence, About says wh
         }
     });
 
-    test("the README lists the export among the features that are switched off, with the address that turns it on", () => {
+    test("the README lists the export among the features that are on, with the switch that turns it off and the address that shows the page without it", () => {
         const text = readme();
-        const section = text.slice(text.indexOf("### Features that are still switched off"), text.indexOf("## Run it locally"));
+        const section = text.slice(text.indexOf("## Import and export of tables"), text.indexOf("## Run it locally"));
         expect(section.length).toBeGreaterThan(100);
-        expect(section).toContain("So far three features are behind a flag:");
-        expect(section).toContain("- `export` (the plan's Phase 3): with `?preview=export`");
+        expect(section).toContain("are on for everyone since Nov 20, 2026");
+        // the switch, for everyone, and the address, for one visit, with the minus that switches a feature off
+        expect(section).toContain("`PREVIEW_FLAGS` (`js/lab/config-workflow.js`)");
+        expect(section).toContain("`index.html?preview=-import`");
+        expect(section).toContain("- `export` (the plan's Phase 3): the Export menu");
         expect(section).toContain("\"Tables as CSV…\"");
         // what it tells of the file is what the module writes: a byte-order mark, a BLOB as hex text
         expect(section).toContain("UTF-8 with a byte-order mark");
@@ -2283,6 +2286,8 @@ test.describe("the documents: fflate is credited with its licence, About says wh
         for (const word of ["Tableau", "Excel", "Safari", "lab PC", "con.csv", "Windows"]) {
             expect(section, word).toContain(word);
         }
+        // and the export's own list says that it was switched on before those checks were made
+        expect(section).toContain("`export` was switched on on Nov 20, 2026 at the owner's word before these checks were made, and they are still to make");
     });
 
     test("the README's sizes for the app bundle are those of the files, to within a few kilobytes", () => {

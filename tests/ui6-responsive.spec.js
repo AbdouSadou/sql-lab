@@ -14,7 +14,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 const { pathToFileURL } = require("node:url");
-const { test, expect, App, NORTHLIGHT_URL, EDITOR_INPUT, editorValue, failStorage, modelQuery, realSet, tabTo } = require("./helpers");
+const { test, expect, App, NORTHLIGHT_URL, EDITOR_INPUT, editorValue, failStorage, modelQuery, realSet, tabTo, flagState, lineFit } = require("./helpers");
 const { EXERCISE, CORRECT_SQL, WRONG_SQL } = require("./ui-states.js");
 
 const ROOT = path.join(__dirname, "..");
@@ -331,7 +331,15 @@ test.describe("the phone, under 700 px", () => {
         await expect(app.feedback).toBeInViewport();
     });
 
-    test("More holds Copy link, the three exports, the three themes and Help, and each does what its own control does", async ({ page, app }) => {
+    test("with every flag off, More holds eight entries: Copy link, the three exports, the three themes and Help", async ({ page, app }) => {
+        await page.setViewportSize(PHONE);
+        await app.open(`./?${flagState()}`);
+        await app.openMore();
+        const ids = await app.moreMenu.locator("[role^=menuitem]").evaluateAll((items) => items.map((item) => item.id));
+        expect(ids).toEqual(["more-copy-link", "more-export-db", "more-export-csv", "more-export-evidence", "more-theme-light", "more-theme-dark", "more-theme-device", "more-help"]);
+    });
+
+    test("More holds Copy link, the exports, the three themes and Help, and each does what its own control does", async ({ page, app }) => {
         await page.setViewportSize(PHONE);
         await app.open();
         const more = app.moreButton;
@@ -353,7 +361,10 @@ test.describe("the phone, under 700 px", () => {
         expect(menu.x + menu.width).toBeLessThanOrEqual(PHONE.width - 8);
         // each entry a 32 px target with a mouse (44 on a touch screen: "on a touch screen" below)
         const heights = await app.moreMenu.locator("[role^=menuitem]").evaluateAll((items) => items.map((item) => item.getBoundingClientRect().height));
-        expect(heights.length).toBe(8);
+        // (the page as it ships has the export of tables too: nine entries)
+        expect(heights.length).toBe(9);
+        const entries = await app.moreMenu.locator("[role^=menuitem]").evaluateAll((items) => items.map((item) => item.id));
+        expect(entries.slice(0, 5)).toEqual(["more-copy-link", "more-export-db", "more-export-tables", "more-export-csv", "more-export-evidence"]);
         expect(Math.min(...heights)).toBeGreaterThanOrEqual(32);
         // with no result yet there is nothing to save as CSV
         await expect(page.locator("#more-export-csv")).toHaveAttribute("aria-disabled", "true");
@@ -501,6 +512,56 @@ test.describe("the phone, under 700 px: what the review found", () => {
             expect(cut, `${width}`).toEqual([]);
             const box = await app.moreMenu.boundingBox();
             expect(box.x + box.width, `${width}`).toBeLessThanOrEqual(width - 8);
+        }
+    });
+
+    test("the one line under each action of the database menu and under each entry of the Export menu is whole, from a phone 320 px wide to a desktop", async ({ page, app }) => {
+        // These menus show one line under an entry's name. A dataset's own line may be cut with an
+        // ellipsis (css/menu.css): its whole text is in its title and in the Schema tab. The lines of
+        // the two actions and of the Export menu are the page's own words and are never cut: they are
+        // written to stay on one line from a phone 360 px wide, and where the menu is narrower still
+        // the line of an action wraps.
+        // The state is the page as it ships, named in full: the three features on. (The line under
+        // "Open a file…" is another text in each state of the import: tests/aw0-states.spec.js.)
+        const SHIPPED = `./?${flagState("import", "export", "excel-import")}`;
+        for (const size of [{ width: 320, height: 640 }, { width: 360, height: 740 }, PHONE, TABLET, { width: 1366, height: 768 }]) {
+            await page.setViewportSize(size);
+            await app.open(SHIPPED);
+            await app.databaseButton.click();
+            await expect(app.databaseMenu).toBeVisible();
+            const actions = app.databaseMenu.locator("#open-file .menu-item-description, #open-url .menu-item-description");
+            await expect(actions, `${size.width}`).toHaveCount(2);
+            for (const line of await actions.all()) {
+                const fit = await lineFit(line);
+                expect(fit.text.trim(), `${size.width}`).not.toBe("");
+                expect(fit.cut, `"${fit.text}" in the database menu at ${size.width}`).toBe(false);
+                if (size.width >= 360) {
+                    expect(fit.lines, `"${fit.text}" in the database menu at ${size.width}`).toBe(1);
+                }
+            }
+            await page.keyboard.press("Escape");
+            await expect(app.databaseMenu).toBeHidden();
+            if (size.width < 700) {
+                // (a phone has the exports in More, whose lines wrap: the test above)
+                continue;
+            }
+            // the Export menu before a query has run (Results says why it is unavailable), and after one
+            const exportLines = page.locator("#export-menu .menu-item-description");
+            for (const query of [null, "SELECT 1 AS one;"]) {
+                if (query) {
+                    await app.run(query);
+                    await expect(app.status).toContainText("1 row in");
+                }
+                await page.locator("#export-button").click();
+                await expect(page.locator("#export-menu")).toBeVisible();
+                expect(await exportLines.count(), `${size.width}`).toBeGreaterThanOrEqual(3);
+                for (const line of await exportLines.all()) {
+                    const fit = await lineFit(line);
+                    expect(fit.cut, `"${fit.text}" in the Export menu at ${size.width}${query ? ", after a query" : ""}`).toBe(false);
+                }
+                await page.keyboard.press("Escape");
+                await expect(page.locator("#export-menu")).toBeHidden();
+            }
         }
     });
 
@@ -1068,6 +1129,9 @@ test.describe("About", () => {
         // the keys, as the Help popover draws them: Ctrl here (and ⌘ on an Apple device)
         await expect(page.locator("dl.keys dt").first()).toHaveText(/^Ctrl\s+Enter$/);
         expect(await page.locator("dl.keys kbd").first().evaluate((k) => getComputedStyle(k).borderTopStyle)).toBe("solid");
+        // Ctrl O is named as in Help and as its menu entry is
+        await expect(page.locator("dl.keys dt").nth(4)).toHaveText(/^Ctrl\s+O$/);
+        await expect(page.locator("dl.keys dd").nth(4)).toHaveText("Open a file");
         // one column of text: 16 px, no wider than 42rem, on the paper of the theme
         const m = await page.evaluate(() => {
             const main = document.querySelector("body > main");

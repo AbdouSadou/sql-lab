@@ -2,12 +2,12 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
-const { test, expect, App, fixturePath, quoteIdent, readZip, EXPORT_URL, openEdgeCases, recordDownloads, eventsOfOpen, expectedBytes, databaseFingerprint } = require("./helpers");
+const { test, expect, App, fixturePath, quoteIdent, readZip, EXPORT_URL, flagState, openEdgeCases, recordDownloads, eventsOfOpen, expectedBytes, databaseFingerprint } = require("./helpers");
 
 // Assessment plan, Phase 3 (export tables as CSV): what an export WRITES, judged against the
 // owner's test files (tests/fixtures/export/, with the result each must give in
-// tests/fixtures/expected/export.json), through the real dialog and the real engine, with the flag
-// on (?preview=export). Pinned here:
+// tests/fixtures/expected/export.json), through the real dialog and the real engine, with the export
+// alone on (flagState("export")). Pinned here:
 //   - the owner's database export_edge_cases.db, opened as a file: its dialog lists the fourteen
 //     tables and views in the order export.json gives, with their kinds and row counts
 //   - each of the fourteen exported ALONE: the file is named sanitiseName(table) + ".csv", and its
@@ -15,11 +15,11 @@ const { test, expect, App, fixturePath, quoteIdent, readZip, EXPORT_URL, openEdg
 //   - all fourteen together: export_edge_cases-tables.zip, whose entries (read by readZip, which
 //     does not use the library that wrote the zip) are the expected file names in the dialog's order
 //     and the expected bytes; sales_2024 and "sales/2024" together, and the row that says so
-//   - the round trip (plan sections 5 and 9): each exported file imported again (?preview=import,
-//     export) gives what export.json says under after_reimport and nothing else. The comparison is
-//     worked out from the database itself (every value of the original, read with typeof()) and
-//     from export.json's list, and each listed difference is shown to be needed: leave it out of
-//     the list and the comparison finds it
+//   - the round trip (plan sections 5 and 9): each exported file imported again (flagState("import",
+//     "export"): the export and the import, the Excel import off) gives what export.json says
+//     under after_reimport and nothing else. The comparison is worked out from the database itself
+//     (every value of the original, read with typeof()) and from export.json's list, and each listed
+//     difference is shown to be needed: leave it out of the list and the comparison finds it
 //   - databases made in the test (a .sql file opened in the page, then SQL run on it): a text column
 //     of digits and a REAL column of whole values; -0.0 and the two infinities; integers beyond
 //     2^53; a view that counts and then fails part-way, alone and among others; views whose rows
@@ -54,7 +54,7 @@ test.beforeAll(async () => {
     importRules = await load("import-rules.js");
 });
 
-const ROUND_TRIP_URL = "./?preview=import,export";
+const ROUND_TRIP_URL = `./?${flagState("import", "export")}`;
 const STUDENT = "U2034567";
 const BOM = "\uFEFF";
 

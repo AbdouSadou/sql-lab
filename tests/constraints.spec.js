@@ -1,6 +1,6 @@
 // Fixes from the constraints review: the engine's address overrides, rich content dropped or
 // pasted into the editor and the export dialog's file name, .sql scripts and the SQL guard, and phone text entry.
-const { test, expect, serveRepoAt, editorValue, editorSelect, expectEditorTextOnly } = require("./helpers");
+const { test, expect, serveRepoAt, editorValue, editorSelect, expectEditorTextOnly, flagState } = require("./helpers");
 
 const LZString = require("../vendor/lz-string.min.js");
 const shareHash = (state) => "#s=" + LZString.compressToEncodedURIComponent(JSON.stringify({ v: 1, ...state }));
@@ -384,11 +384,11 @@ test.describe("plain text only", () => {
         { label: "CodeMirror", plain: false },
     ];
 
-    async function openEditor(page, app, { plain }) {
+    async function openEditor(page, app, { plain }, address) {
         if (plain) {
             await page.route("**/vendor/editor.js", (route) => route.abort());
         }
-        await app.open();
+        await app.open(address);
         await expect(app.editorHost).toHaveAttribute("data-editor", plain ? "plain" : "code");
     }
 
@@ -571,24 +571,31 @@ test.describe("plain text only", () => {
             await expect(app.editorHost.locator("img:not(.cm-widgetBuffer), iframe, form, b")).toHaveCount(0);
         });
 
-        test(`a drop that carries files inserts nothing and is cancelled, so the tab does not open them, ${mode.label}`, async ({ page, app }) => {
-            await openEditor(page, app, mode);
-            await app.editor.fill("AAAA");
-            const nameBefore = await app.pickedText();
-            const url = page.url();
-            // files, with a text/plain alongside (file managers send the path or the name)
-            expect(await dispatchDrop(app.editor, { "text/plain": "/tmp/evil.html" }, { files: ["evil.html"] })).toBe(true);
-            const field = await openExportName(app);
-            const fieldBefore = await field.inputValue();
-            expect(await dispatchDrop(field, { "text/plain": "evil.html" }, { files: ["evil.html"] })).toBe(true);
-            // anywhere else on the page too
-            expect(await dispatchDrop(page.locator("#export-dialog"), { "text/plain": "evil.html" }, { files: ["evil.html"] })).toBe(true);
-            expect(await dispatchDrop(page.locator("#results-pane"), { "text/plain": "evil.html" }, { files: ["evil.html"] })).toBe(true);
-            expect(await editorValue(page)).toBe("AAAA");
-            expect(await field.inputValue()).toBe(fieldBefore);
-            expect(await app.pickedText()).toBe(nameBefore);
-            expect(page.url()).toBe(url);
-        });
+        // (the page as it ships takes a dropped file as a chosen one; with every flag off it only refuses it.
+        // Either way no text goes into a field and the tab does not open the file)
+        for (const [state, address] of [
+            ["", undefined],
+            [", with every flag off", `./?${flagState()}`],
+        ]) {
+            test(`a drop that carries files inserts nothing and is cancelled, so the tab does not open them, ${mode.label}${state}`, async ({ page, app }) => {
+                await openEditor(page, app, mode, address);
+                await app.editor.fill("AAAA");
+                const nameBefore = await app.pickedText();
+                const url = page.url();
+                // files, with a text/plain alongside (file managers send the path or the name)
+                expect(await dispatchDrop(app.editor, { "text/plain": "/tmp/evil.html" }, { files: ["evil.html"] })).toBe(true);
+                const field = await openExportName(app);
+                const fieldBefore = await field.inputValue();
+                expect(await dispatchDrop(field, { "text/plain": "evil.html" }, { files: ["evil.html"] })).toBe(true);
+                // anywhere else on the page too
+                expect(await dispatchDrop(page.locator("#export-dialog"), { "text/plain": "evil.html" }, { files: ["evil.html"] })).toBe(true);
+                expect(await dispatchDrop(page.locator("#results-pane"), { "text/plain": "evil.html" }, { files: ["evil.html"] })).toBe(true);
+                expect(await editorValue(page)).toBe("AAAA");
+                expect(await field.inputValue()).toBe(fieldBefore);
+                expect(await app.pickedText()).toBe(nameBefore);
+                expect(page.url()).toBe(url);
+            });
+        }
     }
 
     test("a drag that starts inside the editor keeps the browser's move behaviour, plain editor", async ({ page, app }) => {

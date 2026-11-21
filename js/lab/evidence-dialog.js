@@ -239,6 +239,14 @@ export function mountEvidence({ runLog, returnFocus }) {
         exportNow();
     });
     cancel.addEventListener("click", closeDialog);
+    // A database that opens while the dialog is open is not the one whose file the dialog names
+    // (Back and Forward reach the page under a dialog): the dialog closes, as the export dialogs
+    // do, and an export that was making its checksum saves nothing.
+    document.addEventListener("lab:database-loaded", () => {
+        if (dialog.open) {
+            closeDialog();
+        }
+    });
     // Escape: the number goes the moment the dialog is asked to close
     dialog.addEventListener("cancel", () => {
         input.value = "";

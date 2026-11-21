@@ -113,8 +113,9 @@ export const EXPORT_RESULTS_TEXT = "Results (.csv)";
 export const EXPORT_RESULTS_DESCRIPTION = "The whole result on screen, for a spreadsheet";
 export const EXPORT_RESULTS_NONE = "Run a query that returns rows first";
 export const EXPORT_EVIDENCE_TEXT = "Evidence (.txt)…";
-// one line in the menu; the evidence dialog itself explains the file at length
-export const EXPORT_EVIDENCE_DESCRIPTION = "A text record of the queries you ran, for your assessment";
+// one line in the menu, short enough to be whole there; the evidence dialog itself explains the
+// file at length
+export const EXPORT_EVIDENCE_DESCRIPTION = "Your queries, imports and table exports, for your assessment";
 // The database export dialog (js/lab/export-dialog.js): the file name is also the database's
 // name, so a rename happens here (it used to be the editable name in the header).
 export const EXPORT_DIALOG_TITLE = "Export the database";
@@ -577,7 +578,7 @@ export const evidenceSavedMessage = (filename, count) =>
     `Exported ${filename} with ${count} ${count === 1 ? "query" : "queries"}`;
 // The dialog explains itself in one sentence and names the file it will save (UI plan, section 5).
 export const EVIDENCE_DIALOG_TITLE = "Export evidence";
-export const EVIDENCE_DIALOG_TEXT = "Creates a text record of the queries you ran, to attach to your assessment.";
+export const EVIDENCE_DIALOG_TEXT = "Creates a text record of the queries you ran, the files you imported and the tables you exported, to attach to your assessment.";
 export const EVIDENCE_FILE_LABEL = "Saved as";
 export const EVIDENCE_LABEL = "Student number";
 export const EVIDENCE_HINT = "6 to 12 letters or digits, no spaces. It goes in the file and nowhere else.";

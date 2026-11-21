@@ -6,7 +6,7 @@
 // export, which can leave the dialog open with a note.
 //
 //   mountTableExportDialog({returnFocus, getDatabase, list, count, plan, onExport})
-//       -> {open() -> boolean, isOpen()}
+//       -> {open() -> boolean}
 //     returnFocus   an object with focus(): where the keyboard focus goes when the dialog closes
 //                   and the place it was in before has gone
 //     getDatabase() the open database, or null
@@ -609,8 +609,5 @@ export function mountTableExportDialog({ returnFocus, getDatabase, list, count, 
         }
     });
 
-    return {
-        open,
-        isOpen: () => dialog.open,
-    };
+    return { open };
 }

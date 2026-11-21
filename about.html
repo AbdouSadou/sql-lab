@@ -78,16 +78,23 @@
                 saves the log as a text file
                 with your student number and a checksum, so you can attach it to
                 assessed work and a marker can see it has not been edited. The file
-                covers the dataset that is open, so export once for each dataset you
-                worked on. The log is kept in this browser on this device, so on a
-                shared computer export it before you log off, and note that a private
-                window starts with an empty log. Times in the history list are UTC.
+                also lists each file you imported and each export of tables you
+                saved. The file covers the dataset that is open, so export once for
+                each dataset you worked on. The log is kept in this browser on this
+                device, so on a shared computer export it before you log off, and
+                note that a private window starts with an empty log. Times in the
+                history list are UTC.
             </li>
             <li>
-                <strong>Use your own data.</strong> Open a SQLite database file or
-                a SQL script from the database menu, and save the database, with your
-                changes, as a file (Export, then Database; the name you give it there
-                also renames it on the page).
+                <strong>Use your own data.</strong> Open a SQLite database file or a
+                SQL script from the database menu, or bring in CSV files and Excel
+                workbooks as tables: choose them there, or drop them on the page,
+                and a dialog shows what will be imported before anything is. What
+                you open or bring in is held in the page only: it is gone when the
+                page is closed or reloaded, or when another database is opened, so
+                save the database as a file to keep it (Export, then Database; the
+                name you give it there also renames it on the page). Export, then
+                Tables as CSV, saves tables as CSV files.
             </li>
         </ul>
 
@@ -96,7 +103,8 @@
             To check an evidence file, open the <a href="verify.html">check page</a>
             and paste the file or drop it on the page. It says VALID or EDITED
             without uploading anything. A file lists the queries run on one dataset
-            only (its <code>dataset:</code> line), so ask a student who worked on
+            only (its <code>dataset:</code> line), with the files imported into it
+            and the tables exported from it, so ask a student who worked on
             two datasets for two files. The checksum shows the file was not changed
             after it was exported; it does not prove who ran the queries.
         </p>
@@ -112,9 +120,9 @@
 
         <h2>Your own data stays with you</h2>
         <p>
-            Open a SQLite database file or a SQL script from your computer
-            and it is read by your browser only. There is no server, no account,
-            no analytics and no cookies.
+            Open a SQLite database file, a SQL script, a CSV file or an Excel
+            workbook from your computer and it is read by your browser only.
+            There is no server, no account, no analytics and no cookies.
         </p>
         <p>
             Some things are remembered between visits, in your browser's local
@@ -162,7 +170,7 @@
             <dt><kbd>Ctrl</kbd> <kbd>Space</kbd></dt>
             <dd>Suggest table, column and function names (in the editor)</dd>
             <dt><kbd data-mod>Ctrl</kbd> <kbd>O</kbd></dt>
-            <dd>Open a database file</dd>
+            <dd>Open a file</dd>
             <dt><kbd data-mod>Ctrl</kbd> <kbd>U</kbd></dt>
             <dd>Open a database from a URL</dd>
         </dl>

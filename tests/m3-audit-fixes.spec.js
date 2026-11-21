@@ -14,6 +14,7 @@ const {
     SAMPLE_ENTRY,
     DEFAULT_DATASET,
     NORTHLIGHT_URL,
+    flagState,
 } = require("./helpers");
 
 const SAMPLE_URL = /\/datasets\/sample\.db(\?.*)?$/;
@@ -750,23 +751,30 @@ test("'Open a file…' is a menu item of the database switcher, right after the 
     await expect(app.databaseLabel).toHaveText("sample.db");
 });
 
-// two tests, because a file chooser that has only just been cancelled can swallow the next click
-for (const [name, key] of [
-    ["Enter", "Enter"],
-    ["Space", " "],
+// two tests for each state, because a file chooser that has only just been cancelled can swallow the
+// next click. The page as it ships has the import on, so its chooser takes several files; with every
+// flag off it takes one.
+for (const [state, address, several] of [
+    ["", undefined, true],
+    [" with every flag off", `./?${flagState()}`, false],
 ]) {
-    test(`'Open a file…' opens the file chooser with ${name}`, async ({ page, app }) => {
-        // listen before the page loads: Playwright turns chooser interception on when the
-        // first listener is added, and a chooser that opens before that is a real dialog
-        const opened = new Promise((resolve) => page.once("filechooser", resolve));
-        await app.open();
-        await focusOpenFile(page, app);
-        await page.keyboard.press(key);
-        const chooser = await opened;
-        expect(chooser.isMultiple()).toBe(false);
-        await chooser.setFiles(SAMPLE_FILE);
-        await expect(app.databaseLabel).toHaveText("sample.db");
-    });
+    for (const [name, key] of [
+        ["Enter", "Enter"],
+        ["Space", " "],
+    ]) {
+        test(`'Open a file…' opens the file chooser with ${name}${state}`, async ({ page, app }) => {
+            // listen before the page loads: Playwright turns chooser interception on when the
+            // first listener is added, and a chooser that opens before that is a real dialog
+            const opened = new Promise((resolve) => page.once("filechooser", resolve));
+            await app.open(address);
+            await focusOpenFile(page, app);
+            await page.keyboard.press(key);
+            const chooser = await opened;
+            expect(chooser.isMultiple()).toBe(several);
+            await chooser.setFiles(SAMPLE_FILE);
+            await expect(app.databaseLabel).toHaveText("sample.db");
+        });
+    }
 }
 
 test("the Help button has a name and its icon is hidden from assistive technology; its popover links to About", async ({

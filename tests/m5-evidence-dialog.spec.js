@@ -1,5 +1,5 @@
 const fs = require("node:fs");
-const { test, expect, evidenceFile, openFresh, modelQuery, SAMPLE_FILE, EDITOR_INPUT, editorValue, NORTHLIGHT_URL } = require("./helpers");
+const { test, expect, evidenceFile, openFresh, modelQuery, SAMPLE_FILE, EDITOR_INPUT, editorValue, NORTHLIGHT_URL, flagState } = require("./helpers");
 
 // F11, the page side: the Export menu's "Evidence (.txt)…" item, the dialog, what the file holds for
 // each kind of log, and that the student number goes nowhere but the file.
@@ -286,25 +286,34 @@ test.describe("the dialog", () => {
         await expect(app.toast).toContainText("Nothing to export yet");
     });
 
-    test("the dialog works by keyboard alone", async ({ page, app }) => {
-        await app.open(NORTHLIGHT_URL);
-        await app.query("SELECT 1;");
-        // Enter on the Export menu's button opens the menu on its first item; two ArrowDowns reach
-        // "Evidence (.txt)…" and Enter chooses it
-        await app.exportMenuButton.focus();
-        await page.keyboard.press("Enter");
-        await expect(page.locator("#export-menu")).toBeVisible();
-        await page.keyboard.press("ArrowDown");
-        await page.keyboard.press("ArrowDown");
-        await expect(app.evidenceButton).toBeFocused();
-        await page.keyboard.press("Enter");
-        await expect(app.evidenceDialog).toBeVisible();
-        await page.keyboard.type(STUDENT);
-        const downloaded = page.waitForEvent("download");
-        await page.keyboard.press("Enter");
-        expect((await downloaded).suggestedFilename()).toBe("evidence-northlight.txt");
-        await expect(app.exportMenuButton).toBeFocused();
-    });
+    // the Export menu opens on its first item, "Database (.db)", and "Evidence (.txt)…" is reached with
+    // ArrowDown: the page as it ships has "Tables as CSV…" between them, so it takes three presses;
+    // with every flag off it takes two
+    for (const [state, address, downs] of [
+        ["", NORTHLIGHT_URL, 3],
+        [" with every flag off", `${NORTHLIGHT_URL}&${flagState()}`, 2],
+    ]) {
+        test(`the dialog works by keyboard alone${state}`, async ({ page, app }) => {
+            await app.open(address);
+            await app.query("SELECT 1;");
+            // Enter on the Export menu's button opens the menu on its first item; the ArrowDowns reach
+            // "Evidence (.txt)…" and Enter chooses it
+            await app.exportMenuButton.focus();
+            await page.keyboard.press("Enter");
+            await expect(page.locator("#export-menu")).toBeVisible();
+            for (let press = 0; press < downs; press++) {
+                await page.keyboard.press("ArrowDown");
+            }
+            await expect(app.evidenceButton).toBeFocused();
+            await page.keyboard.press("Enter");
+            await expect(app.evidenceDialog).toBeVisible();
+            await page.keyboard.type(STUDENT);
+            const downloaded = page.waitForEvent("download");
+            await page.keyboard.press("Enter");
+            expect((await downloaded).suggestedFilename()).toBe("evidence-northlight.txt");
+            await expect(app.exportMenuButton).toBeFocused();
+        });
+    }
 
     test("the dialog fits and can be used at phone width, in both colour schemes", async ({ page, app }) => {
         await page.setViewportSize({ width: 390, height: 700 });

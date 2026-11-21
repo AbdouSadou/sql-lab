@@ -12,27 +12,63 @@ const {
     fakeStorage,
     inNode,
     READY_PANE,
+    flagState,
 } = require("./helpers");
 
 // Assessment plan, Phase 0 (groundwork): the preview flags (js/lab/flags.js, settings in
-// js/lab/config-workflow.js; plan section 2, "Preview switch"). Each new feature of the plan sits behind a
-// named flag, off by default, and a visit turns flags on for itself with ?preview=name,name. The
-// address is read once, when the page loads, and kept in memory; opening a dataset, a file or an
-// exercise set drops the parameter from the address and the flag stays on; only Open from URL keeps
-// the parameter; a flag never travels in a share link or an evidence file; and the groundwork alone
-// changes nothing a student can see.
+// js/lab/config-workflow.js; plan section 2, "Preview switch"). Each feature of the plan has a named
+// flag. The import of CSV files, the export of tables and the import of Excel workbooks are on for
+// everyone, the export of Excel workbooks (not built) is off, and a visit changes flags for itself
+// with ?preview=name,name (a name switches a flag on) and ?preview=-name (a hyphen-minus in front of
+// a name switches it off; a name given both ways is off). The address is read once, when the page
+// loads, and kept in memory; opening a dataset, a file or an exercise set drops the parameter from
+// the address and the flags stay as they were read; only Open from URL keeps the parameter; a flag
+// never travels in a share link or an evidence file; and a flag that is on or off changes nothing
+// but what it is for.
+//
+// A test that is about a state of the flags names that state in full with flagState(...) (every
+// flag is named, on or off), so that it keeps testing that state whatever ships. A test of the page
+// as it ships opens the plain address. A test whose address is a bare minus (?preview=-import, with no
+// other name) is about the minus: the flags it does not name stay as they ship, and it says so.
 //
 // The first group runs the rule itself, and the module with no page, in Node (once, not on every
-// project: it checks files, not the page). The second drives the real page and reaches the module
-// through bundle/app.js (its "flags" export).
+// project: it checks files, not the page). A test of the rule hands readFlags its own table of
+// defaults and of needs, so that it does not depend on what ships; one test says what ships. The
+// second group drives the real page and reaches the module through bundle/app.js (its "flags"
+// export).
 
 const load = (file) => import(pathToFileURL(path.join(__dirname, "..", "js", "lab", file)).href);
 
-// The flags as they ship. A phase that adds a flag adds its name here and in ALL_OFF, on purpose:
-// most of this file compares whole results with them.
+// The names of the flags, and the table that the tests of the rule use for their defaults (the four
+// names, all off) with the needs between them. A phase that adds a flag adds its name here, in
+// ALL_OFF, in NEEDS when it needs another, and in SHIPPED, on purpose: most of this file compares
+// whole results with them.
 const NAMES = ["import", "export", "excel-import", "excel-export"];
 const ALL_OFF = { import: false, export: false, "excel-import": false, "excel-export": false };
+const NEEDS = { "excel-import": "import", "excel-export": "export" };
 const only = (...on) => ({ ...ALL_OFF, ...Object.fromEntries(on.map((name) => [name, true])) });
+// The flags as they ship: the import, the export and the import of Excel workbooks on; the export of
+// Excel workbooks (not built) off. This is what the plain address gives. The one test of the
+// shipped defaults pins it against the config.
+const SHIPPED = only("import", "export", "excel-import");
+
+// the address with every flag named off
+const OFF_URL = `./?${flagState()}`;
+
+// the rule, handed its defaults (the four names, all off) and its needs, unless the test gives its
+// own: what ships does not matter to a test of the rule
+async function rule() {
+    const { readFlags } = await load("flags.js");
+    return (search, defaults = ALL_OFF, needs = NEEDS) => readFlags(search, defaults, needs);
+}
+
+// A table of defaults with flags on and flags off, for the tests of the minus. a, b and c are on
+// (b needs a, c needs b); d and e are off (e needs d); f is on and needs nothing; g is off and
+// needs nothing. mix(...) is the result with exactly these flags on.
+const MIX = { a: true, b: true, c: true, d: false, e: false, f: true, g: false };
+const MIX_NEEDS = { b: "a", c: "b", e: "d" };
+const mix = (...on) => Object.fromEntries(Object.keys(MIX).map((name) => [name, on.includes(name)]));
+const MIX_DEFAULT = mix("a", "b", "c", "f");
 
 // a database that is not the default one, to pick from the switcher (none when only one ships:
 // the test that needs it is skipped)
@@ -51,98 +87,126 @@ test.describe("the rule and the module, with no page (in Node)", () => {
         test.skip(testInfo.project.name !== "chromium-root", "checks files, not the page: once is enough");
     });
 
-    test("the shipped defaults are four flags, all off, and the parameter is called preview", async () => {
+    test("the shipped defaults are four flags, the import, the export and the import of Excel workbooks on and the export of Excel workbooks off, and the parameter is called preview", async () => {
         const { PREVIEW_FLAGS, PREVIEW_FLAG_NEEDS, PREVIEW_PARAM } = await load("config-workflow.js");
         expect(PREVIEW_PARAM).toBe("preview");
         expect(Object.keys(PREVIEW_FLAGS).sort()).toEqual([...NAMES].sort());
-        expect(PREVIEW_FLAGS).toEqual(ALL_OFF);
-        for (const name of NAMES) {
-            expect(PREVIEW_FLAGS[name], name).toBe(false);
+        expect(PREVIEW_FLAGS).toEqual(SHIPPED);
+        for (const name of ["import", "export", "excel-import"]) {
+            expect(PREVIEW_FLAGS[name], name).toBe(true);
         }
-        expect(PREVIEW_FLAG_NEEDS).toEqual({ "excel-import": "import", "excel-export": "export" });
+        expect(PREVIEW_FLAGS["excel-export"]).toBe(false);
+        expect(PREVIEW_FLAG_NEEDS).toEqual(NEEDS);
     });
 
-    test("with no parameter, or none that names a flag, every flag is off", async () => {
+    test("on the shipped table the plain address gives the shipped flags, a name switches a flag on, a minus switches it off, and the needs follow", async () => {
         const { readFlags } = await load("flags.js");
-        for (const search of ["", "?", "?db=northlight", `?set=${SET_ID}&ex=e1`, "?other=import", "?previews=import"]) {
-            expect(readFlags(search), JSON.stringify(search)).toEqual(ALL_OFF);
+        const { PREVIEW_FLAGS, PREVIEW_FLAG_NEEDS } = await load("config-workflow.js");
+        const shipped = (search) => readFlags(search, PREVIEW_FLAGS, PREVIEW_FLAG_NEEDS);
+        expect(shipped("")).toEqual(SHIPPED);
+        expect(shipped("?db=northlight")).toEqual(SHIPPED);
+        expect(shipped("?preview=import,export")).toEqual(SHIPPED);
+        expect(shipped("?preview=excel-export")).toEqual(only("import", "export", "excel-import", "excel-export"));
+        expect(shipped("?preview=-import")).toEqual(only("export"));
+        expect(shipped("?preview=-export")).toEqual(only("import", "excel-import"));
+        expect(shipped("?preview=-excel-import")).toEqual(only("import", "export"));
+        expect(shipped("?preview=-export,-excel-import")).toEqual(only("import"));
+        expect(shipped("?preview=-import,-export")).toEqual(ALL_OFF);
+        expect(shipped("?preview=-import&preview=excel-export")).toEqual(only("export", "excel-export"));
+        expect(shipped("?preview=-export,excel-export")).toEqual(only("import", "excel-import"));
+        expect(shipped("?preview=import,-import")).toEqual(only("export"));
+        expect(shipped("?preview=-import,import")).toEqual(only("export"));
+        // a name that is no flag, with or without the minus, changes nothing
+        expect(shipped("?preview=-bogus,bogus,-Import,- import,--import,-")).toEqual(SHIPPED);
+        // the same through the flags the module reads from its own table
+        const { flags } = await load("flags.js");
+        expect(flags()).toEqual(SHIPPED);
+    });
+
+    test("with no parameter, or none that names a flag, every flag is at its default", async () => {
+        const read = await rule();
+        for (const search of ["", "?", "?db=northlight", `?set=${SET_ID}&ex=e1`, "?other=import", "?previews=import", "?other=-import", "?previews=-f"]) {
+            expect(read(search), JSON.stringify(search)).toEqual(ALL_OFF);
+            expect(read(search, MIX, MIX_NEEDS), JSON.stringify(search)).toEqual(MIX_DEFAULT);
         }
-        expect(readFlags(undefined)).toEqual(ALL_OFF);
-        expect(readFlags(null)).toEqual(ALL_OFF);
+        expect(read(undefined)).toEqual(ALL_OFF);
+        expect(read(null)).toEqual(ALL_OFF);
+        expect(read(undefined, MIX, MIX_NEEDS)).toEqual(MIX_DEFAULT);
+        expect(read(null, MIX, MIX_NEEDS)).toEqual(MIX_DEFAULT);
     });
 
     test("one name turns that flag on and no other", async () => {
-        const { readFlags } = await load("flags.js");
-        expect(readFlags("?preview=import")).toEqual(only("import"));
-        expect(readFlags("?preview=export")).toEqual(only("export"));
+        const read = await rule();
+        expect(read("?preview=import")).toEqual(only("import"));
+        expect(read("?preview=export")).toEqual(only("export"));
     });
 
     test("several names are separated by commas, in one preview= parameter or in several", async () => {
-        const { readFlags } = await load("flags.js");
-        expect(readFlags("?preview=import,export")).toEqual(only("import", "export"));
-        expect(readFlags("?preview=export,import")).toEqual(only("import", "export"));
-        expect(readFlags("?preview=import&preview=export")).toEqual(only("import", "export"));
-        expect(readFlags("?preview=import,export&preview=excel-import,excel-export")).toEqual(
+        const read = await rule();
+        expect(read("?preview=import,export")).toEqual(only("import", "export"));
+        expect(read("?preview=export,import")).toEqual(only("import", "export"));
+        expect(read("?preview=import&preview=export")).toEqual(only("import", "export"));
+        expect(read("?preview=import,export&preview=excel-import,excel-export")).toEqual(
             only("import", "export", "excel-import", "excel-export")
         );
     });
 
     test("spaces round a name are ignored, as a plus sign or an encoded space in the address", async () => {
-        const { readFlags } = await load("flags.js");
-        expect(readFlags("?preview=%20import%20,%20export%20")).toEqual(only("import", "export"));
-        expect(readFlags("?preview=import+,+export")).toEqual(only("import", "export"));
-        expect(readFlags("?preview=%09import%0A")).toEqual(only("import"));
+        const read = await rule();
+        expect(read("?preview=%20import%20,%20export%20")).toEqual(only("import", "export"));
+        expect(read("?preview=import+,+export")).toEqual(only("import", "export"));
+        expect(read("?preview=%09import%0A")).toEqual(only("import"));
     });
 
     test("an encoded comma separates names like a plain one", async () => {
-        const { readFlags } = await load("flags.js");
-        expect(readFlags("?preview=import%2Cexport")).toEqual(only("import", "export"));
-        expect(readFlags("?preview=import%2cexport")).toEqual(only("import", "export"));
+        const read = await rule();
+        expect(read("?preview=import%2Cexport")).toEqual(only("import", "export"));
+        expect(read("?preview=import%2cexport")).toEqual(only("import", "export"));
     });
 
     test("a name given twice is on once, and empty parts do no harm", async () => {
-        const { readFlags } = await load("flags.js");
-        expect(readFlags("?preview=import,import")).toEqual(only("import"));
-        expect(readFlags("?preview=import&preview=import")).toEqual(only("import"));
-        expect(readFlags("?preview=,,import,,")).toEqual(only("import"));
-        expect(readFlags("?preview=,%20,")).toEqual(ALL_OFF);
+        const read = await rule();
+        expect(read("?preview=import,import")).toEqual(only("import"));
+        expect(read("?preview=import&preview=import")).toEqual(only("import"));
+        expect(read("?preview=,,import,,")).toEqual(only("import"));
+        expect(read("?preview=,%20,")).toEqual(ALL_OFF);
     });
 
     test("an empty value turns nothing on", async () => {
-        const { readFlags } = await load("flags.js");
-        expect(readFlags("?preview=")).toEqual(ALL_OFF);
-        expect(readFlags("?preview")).toEqual(ALL_OFF);
-        expect(readFlags("?preview=&preview=")).toEqual(ALL_OFF);
-        expect(readFlags("?preview=&preview=import")).toEqual(only("import"));
+        const read = await rule();
+        expect(read("?preview=")).toEqual(ALL_OFF);
+        expect(read("?preview")).toEqual(ALL_OFF);
+        expect(read("?preview=&preview=")).toEqual(ALL_OFF);
+        expect(read("?preview=&preview=import")).toEqual(only("import"));
     });
 
     test("other parameters beside preview are not read as flags and do not hide it", async () => {
-        const { readFlags } = await load("flags.js");
-        expect(readFlags("?db=northlight&preview=import")).toEqual(only("import"));
-        expect(readFlags("?preview=import&db=northlight")).toEqual(only("import"));
-        expect(readFlags(`?set=${SET_ID}&preview=export&ex=e2`)).toEqual(only("export"));
-        expect(readFlags("?db=import&set=export")).toEqual(ALL_OFF);
-        expect(readFlags("?x=1&preview=import,export&y=2")).toEqual(only("import", "export"));
+        const read = await rule();
+        expect(read("?db=northlight&preview=import")).toEqual(only("import"));
+        expect(read("?preview=import&db=northlight")).toEqual(only("import"));
+        expect(read(`?set=${SET_ID}&preview=export&ex=e2`)).toEqual(only("export"));
+        expect(read("?db=import&set=export")).toEqual(ALL_OFF);
+        expect(read("?x=1&preview=import,export&y=2")).toEqual(only("import", "export"));
     });
 
     test("a name the app does not know is ignored, and so is a name in another letter case", async () => {
-        const { readFlags } = await load("flags.js");
+        const read = await rule();
         for (const value of ["bogus", "Import", "IMPORT", "iMpOrT", "Excel-Import", "excel_import", "excelimport", "import.", "im port"]) {
-            expect(readFlags(`?preview=${encodeURIComponent(value)}`), value).toEqual(ALL_OFF);
+            expect(read(`?preview=${encodeURIComponent(value)}`), value).toEqual(ALL_OFF);
         }
         // an unknown name beside a known one does not stop the known one
-        expect(readFlags("?preview=bogus,import,Export")).toEqual(only("import"));
+        expect(read("?preview=bogus,import,Export")).toEqual(only("import"));
     });
 
     test("names that exist on every object are ignored and do not change the result's shape", async () => {
-        const { readFlags } = await load("flags.js");
+        const read = await rule();
         for (const value of ["__proto__", "constructor", "toString", "hasOwnProperty", "valueOf", "prototype", "__defineGetter__"]) {
-            const result = readFlags(`?preview=${value}`);
+            const result = read(`?preview=${value}`);
             expect(result, value).toEqual(ALL_OFF);
             expect(Object.keys(result), value).toEqual(Object.keys(ALL_OFF));
             expect(Object.getPrototypeOf(result), value).toBe(Object.prototype);
         }
-        const both = readFlags("?preview=__proto__,import,constructor");
+        const both = read("?preview=__proto__,import,constructor");
         expect(both).toEqual(only("import"));
         expect(Object.getPrototypeOf(both)).toBe(Object.prototype);
         // nothing leaked onto Object
@@ -151,119 +215,326 @@ test.describe("the rule and the module, with no page (in Node)", () => {
     });
 
     test("a very long value never throws and still finds a name at its end", async () => {
-        const { readFlags } = await load("flags.js");
-        expect(readFlags(`?preview=${"x".repeat(200_000)}`)).toEqual(ALL_OFF);
-        expect(readFlags(`?preview=${"bogus,".repeat(40_000)}`)).toEqual(ALL_OFF);
-        expect(readFlags(`?preview=${"bogus,".repeat(40_000)}export`)).toEqual(only("export"));
-        expect(readFlags(`?preview=import${" ".repeat(100_000)}`)).toEqual(only("import"));
-        expect(readFlags("?" + "preview=import&".repeat(20_000))).toEqual(only("import"));
+        const read = await rule();
+        expect(read(`?preview=${"x".repeat(200_000)}`)).toEqual(ALL_OFF);
+        expect(read(`?preview=${"bogus,".repeat(40_000)}`)).toEqual(ALL_OFF);
+        expect(read(`?preview=${"bogus,".repeat(40_000)}export`)).toEqual(only("export"));
+        expect(read(`?preview=import${" ".repeat(100_000)}`)).toEqual(only("import"));
+        expect(read("?" + "preview=import&".repeat(20_000))).toEqual(only("import"));
     });
 
     test("a malformed address never throws", async () => {
-        const { readFlags } = await load("flags.js");
+        const read = await rule();
         for (const search of ["?preview=%", "?preview=%ZZ,import", "?preview=%E0%A4%A", "?%=%&&&==preview", "?preview=\u0000", "?preview=\ud800"]) {
-            expect(() => readFlags(search), JSON.stringify(search)).not.toThrow();
+            expect(() => read(search), JSON.stringify(search)).not.toThrow();
         }
-        expect(readFlags("?preview=%ZZ,import")).toEqual(only("import"));
-        expect(readFlags("?preview=%")).toEqual(ALL_OFF);
-        expect(() => readFlags(123)).not.toThrow();
-        expect(() => readFlags({})).not.toThrow();
-        expect(() => readFlags(Symbol.iterator.description)).not.toThrow();
+        expect(read("?preview=%ZZ,import")).toEqual(only("import"));
+        expect(read("?preview=%")).toEqual(ALL_OFF);
+        expect(() => read(123)).not.toThrow();
+        expect(() => read({})).not.toThrow();
+        expect(() => read(Symbol.iterator.description)).not.toThrow();
     });
 
     test("excel-import is off without import and on with it, in either order in the address", async () => {
-        const { readFlags } = await load("flags.js");
-        expect(readFlags("?preview=excel-import")).toEqual(ALL_OFF);
-        expect(readFlags("?preview=excel-import,export")).toEqual(only("export"));
-        expect(readFlags("?preview=excel-import,import")).toEqual(only("import", "excel-import"));
-        expect(readFlags("?preview=import,excel-import")).toEqual(only("import", "excel-import"));
-        expect(readFlags("?preview=excel-import&preview=import")).toEqual(only("import", "excel-import"));
-        expect(readFlags("?preview=import&preview=excel-import")).toEqual(only("import", "excel-import"));
+        const read = await rule();
+        expect(read("?preview=excel-import")).toEqual(ALL_OFF);
+        expect(read("?preview=excel-import,export")).toEqual(only("export"));
+        expect(read("?preview=excel-import,import")).toEqual(only("import", "excel-import"));
+        expect(read("?preview=import,excel-import")).toEqual(only("import", "excel-import"));
+        expect(read("?preview=excel-import&preview=import")).toEqual(only("import", "excel-import"));
+        expect(read("?preview=import&preview=excel-import")).toEqual(only("import", "excel-import"));
         // import alone does not turn its Excel flag on
-        expect(readFlags("?preview=import")).toEqual(only("import"));
+        expect(read("?preview=import")).toEqual(only("import"));
     });
 
     test("excel-export is off without export and on with it, in either order in the address", async () => {
-        const { readFlags } = await load("flags.js");
-        expect(readFlags("?preview=excel-export")).toEqual(ALL_OFF);
-        expect(readFlags("?preview=excel-export,import")).toEqual(only("import"));
-        expect(readFlags("?preview=excel-export,export")).toEqual(only("export", "excel-export"));
-        expect(readFlags("?preview=export,excel-export")).toEqual(only("export", "excel-export"));
-        expect(readFlags("?preview=excel-export&preview=export")).toEqual(only("export", "excel-export"));
-        expect(readFlags("?preview=export&preview=excel-export")).toEqual(only("export", "excel-export"));
-        expect(readFlags("?preview=export")).toEqual(only("export"));
+        const read = await rule();
+        expect(read("?preview=excel-export")).toEqual(ALL_OFF);
+        expect(read("?preview=excel-export,import")).toEqual(only("import"));
+        expect(read("?preview=excel-export,export")).toEqual(only("export", "excel-export"));
+        expect(read("?preview=export,excel-export")).toEqual(only("export", "excel-export"));
+        expect(read("?preview=excel-export&preview=export")).toEqual(only("export", "excel-export"));
+        expect(read("?preview=export&preview=excel-export")).toEqual(only("export", "excel-export"));
+        expect(read("?preview=export")).toEqual(only("export"));
     });
 
     test("the two Excel flags depend each on their own flag and not on the other side's", async () => {
-        const { readFlags } = await load("flags.js");
-        expect(readFlags("?preview=import,excel-export")).toEqual(only("import"));
-        expect(readFlags("?preview=export,excel-import")).toEqual(only("export"));
-        expect(readFlags("?preview=import,export,excel-import,excel-export")).toEqual(
+        const read = await rule();
+        expect(read("?preview=import,excel-export")).toEqual(only("import"));
+        expect(read("?preview=export,excel-import")).toEqual(only("export"));
+        expect(read("?preview=import,export,excel-import,excel-export")).toEqual(
             only("import", "export", "excel-import", "excel-export")
         );
     });
 
     test("a default set to true in the table turns that flag on with no parameter", async () => {
-        const { readFlags } = await load("flags.js");
-        const { PREVIEW_FLAG_NEEDS } = await load("config-workflow.js");
-        expect(readFlags("", { ...ALL_OFF, import: true }, PREVIEW_FLAG_NEEDS)).toEqual(only("import"));
-        expect(readFlags("?db=northlight", { ...ALL_OFF, export: true }, PREVIEW_FLAG_NEEDS)).toEqual(only("export"));
-        expect(readFlags("", { ...ALL_OFF, import: true, "excel-import": true }, PREVIEW_FLAG_NEEDS)).toEqual(
+        const read = await rule();
+        expect(read("", { ...ALL_OFF, import: true })).toEqual(only("import"));
+        expect(read("?db=northlight", { ...ALL_OFF, export: true })).toEqual(only("export"));
+        expect(read("", { ...ALL_OFF, import: true, "excel-import": true })).toEqual(
             only("import", "excel-import")
         );
-        // a parameter adds to the defaults and never switches one off
-        expect(readFlags("?preview=export", { ...ALL_OFF, import: true }, PREVIEW_FLAG_NEEDS)).toEqual(only("import", "export"));
-        expect(readFlags("?preview=bogus", { ...ALL_OFF, import: true }, PREVIEW_FLAG_NEEDS)).toEqual(only("import"));
+        // a name adds to the defaults and never switches one off
+        expect(read("?preview=export", { ...ALL_OFF, import: true })).toEqual(only("import", "export"));
+        expect(read("?preview=bogus", { ...ALL_OFF, import: true })).toEqual(only("import"));
     });
 
     test("a flag that needs another stays off when the other is off, whatever its own default", async () => {
-        const { readFlags } = await load("flags.js");
-        const { PREVIEW_FLAG_NEEDS } = await load("config-workflow.js");
-        expect(readFlags("", { ...ALL_OFF, "excel-import": true }, PREVIEW_FLAG_NEEDS)).toEqual(ALL_OFF);
-        expect(readFlags("", { ...ALL_OFF, "excel-export": true }, PREVIEW_FLAG_NEEDS)).toEqual(ALL_OFF);
-        expect(readFlags("", { import: true, export: false, "excel-import": true, "excel-export": true }, PREVIEW_FLAG_NEEDS)).toEqual(
+        const read = await rule();
+        expect(read("", { ...ALL_OFF, "excel-import": true })).toEqual(ALL_OFF);
+        expect(read("", { ...ALL_OFF, "excel-export": true })).toEqual(ALL_OFF);
+        expect(read("", { import: true, export: false, "excel-import": true, "excel-export": true })).toEqual(
             only("import", "excel-import")
         );
         // and the parameter cannot give it what its needed flag lacks
-        expect(readFlags("?preview=excel-import", { ...ALL_OFF, export: true }, PREVIEW_FLAG_NEEDS)).toEqual(only("export"));
+        expect(read("?preview=excel-import", { ...ALL_OFF, export: true })).toEqual(only("export"));
     });
 
     test("the needs table is the rule: a table of its own is followed, and an empty one means no dependency", async () => {
-        const { readFlags } = await load("flags.js");
+        const read = await rule();
         const defaults = { a: false, b: false, c: false };
-        expect(readFlags("?preview=b", defaults, { b: "a" })).toEqual({ a: false, b: false, c: false });
-        expect(readFlags("?preview=a,b", defaults, { b: "a" })).toEqual({ a: true, b: true, c: false });
-        expect(readFlags("?preview=excel-import", ALL_OFF, {})).toEqual(only("excel-import"));
+        expect(read("?preview=b", defaults, { b: "a" })).toEqual({ a: false, b: false, c: false });
+        expect(read("?preview=a,b", defaults, { b: "a" })).toEqual({ a: true, b: true, c: false });
+        expect(read("?preview=excel-import", ALL_OFF, {})).toEqual(only("excel-import"));
         // a name comes from the table of defaults, not from the shipped four
-        expect(readFlags("?preview=a,import", defaults, {})).toEqual({ a: true, b: false, c: false });
+        expect(read("?preview=a,import", defaults, {})).toEqual({ a: true, b: false, c: false });
     });
 
     test("a chain of needs comes out the same in whatever order the table lists it", async () => {
-        const { readFlags } = await load("flags.js");
+        const read = await rule();
         const defaults = { a: false, b: false, c: false };
         // a needs b, b needs c: with c off, all three are off
         for (const needs of [{ a: "b", b: "c" }, { b: "c", a: "b" }]) {
-            expect(readFlags("?preview=a,b", defaults, needs), JSON.stringify(needs)).toEqual({ a: false, b: false, c: false });
-            expect(readFlags("?preview=a,c", defaults, needs), JSON.stringify(needs)).toEqual({ a: false, b: false, c: true });
-            expect(readFlags("?preview=a,b,c", defaults, needs), JSON.stringify(needs)).toEqual({ a: true, b: true, c: true });
+            expect(read("?preview=a,b", defaults, needs), JSON.stringify(needs)).toEqual({ a: false, b: false, c: false });
+            expect(read("?preview=a,c", defaults, needs), JSON.stringify(needs)).toEqual({ a: false, b: false, c: true });
+            expect(read("?preview=a,b,c", defaults, needs), JSON.stringify(needs)).toEqual({ a: true, b: true, c: true });
         }
         // a flag that needs itself, or two that need each other, cannot hang the page
-        expect(readFlags("?preview=a", defaults, { a: "a" })).toEqual({ a: true, b: false, c: false });
-        expect(readFlags("?preview=a", defaults, { a: "b", b: "a" })).toEqual({ a: false, b: false, c: false });
-        expect(readFlags("?preview=a,b", defaults, { a: "b", b: "a" })).toEqual({ a: true, b: true, c: false });
+        expect(read("?preview=a", defaults, { a: "a" })).toEqual({ a: true, b: false, c: false });
+        expect(read("?preview=a", defaults, { a: "b", b: "a" })).toEqual({ a: false, b: false, c: false });
+        expect(read("?preview=a,b", defaults, { a: "b", b: "a" })).toEqual({ a: true, b: true, c: false });
         // a need that names no flag can never be met
-        expect(readFlags("?preview=a", defaults, { a: "nothing" })).toEqual({ a: false, b: false, c: false });
+        expect(read("?preview=a", defaults, { a: "nothing" })).toEqual({ a: false, b: false, c: false });
     });
 
     test("readFlags makes a new result each time and leaves the table of defaults as it was", async () => {
-        const { readFlags } = await load("flags.js");
+        const read = await rule();
         const defaults = { ...ALL_OFF };
-        const first = readFlags("?preview=import", defaults);
-        const second = readFlags("?preview=import", defaults);
+        const first = read("?preview=import", defaults);
+        const second = read("?preview=import", defaults);
         expect(first).not.toBe(second);
         first.import = false;
-        expect(readFlags("?preview=import", defaults)).toEqual(only("import"));
+        expect(read("?preview=import", defaults)).toEqual(only("import"));
         expect(defaults).toEqual(ALL_OFF);
+    });
+
+    // ---- the minus: a name with a hyphen-minus in front of it switches that flag off for the visit ----
+    // (tested on MIX: a, b, c are on with b needing a and c needing b, d and e are off with e needing d,
+    // f is on alone, g is off alone; the four flags that ship are in the tests above)
+
+    test("a minus switches that flag off and no other", async () => {
+        const read = await rule();
+        const m = (search) => read(search, MIX, MIX_NEEDS);
+        expect(m("?preview=-f")).toEqual(mix("a", "b", "c"));
+        expect(m("?preview=-c")).toEqual(mix("a", "b", "f"));
+        // two names: one flag each
+        expect(m("?preview=-f,-c")).toEqual(mix("a", "b"));
+        expect(m("?preview=-c&preview=-f")).toEqual(mix("a", "b"));
+        expect(m("?preview=-f&preview=-c,-b")).toEqual(mix("a"));
+        // a name and a minus beside each other: each does its own
+        expect(m("?preview=d,-f")).toEqual(mix("a", "b", "c", "d"));
+        expect(m("?preview=-f,g")).toEqual(mix("a", "b", "c", "g"));
+        // on the four flags: the table of the tests of the rule, all on, one by one
+        const allOn = { import: true, export: true, "excel-import": true, "excel-export": true };
+        expect(read("?preview=-export", allOn)).toEqual(only("import", "excel-import"));
+        expect(read("?preview=-excel-export", allOn)).toEqual(only("import", "export", "excel-import"));
+    });
+
+    test("a minus before a flag that is already off leaves it off, and a minus never switches anything on", async () => {
+        const read = await rule();
+        const m = (search) => read(search, MIX, MIX_NEEDS);
+        expect(m("?preview=-d")).toEqual(MIX_DEFAULT);
+        expect(m("?preview=-g,-e,-d")).toEqual(MIX_DEFAULT);
+        expect(read("?preview=-import,-export")).toEqual(ALL_OFF);
+        expect(read("?preview=-excel-import", only("excel-import"))).toEqual(ALL_OFF);
+        // (the plain name still switches it on: only the minus is new)
+        expect(m("?preview=-d,g")).toEqual(mix("a", "b", "c", "f", "g"));
+    });
+
+    test("a name given both ways is off, in either order, in one parameter or in several", async () => {
+        const read = await rule();
+        const m = (search) => read(search, MIX, MIX_NEEDS);
+        // on by default and named on: the minus still wins
+        expect(m("?preview=f,-f")).toEqual(mix("a", "b", "c"));
+        expect(m("?preview=-f,f")).toEqual(mix("a", "b", "c"));
+        expect(m("?preview=f&preview=-f")).toEqual(mix("a", "b", "c"));
+        expect(m("?preview=-f&preview=f")).toEqual(mix("a", "b", "c"));
+        // off by default and named on: off wins too
+        expect(m("?preview=g,-g")).toEqual(MIX_DEFAULT);
+        expect(m("?preview=-g,g")).toEqual(MIX_DEFAULT);
+        expect(m("?preview=-g&preview=g")).toEqual(MIX_DEFAULT);
+        expect(m("?preview=g&preview=-g")).toEqual(MIX_DEFAULT);
+        // with other names between, and a name given many times
+        expect(m("?preview=f,d,-f,g")).toEqual(mix("a", "b", "c", "d", "g"));
+        expect(m("?preview=-f,d,f,g")).toEqual(mix("a", "b", "c", "d", "g"));
+        expect(m("?preview=f,f,-f,f,f")).toEqual(mix("a", "b", "c"));
+        expect(m("?preview=-f,-f,f")).toEqual(mix("a", "b", "c"));
+        expect(m("?preview=f&preview=g&preview=-f&preview=f")).toEqual(mix("a", "b", "c", "g"));
+        // and on the four flags: the import named both ways is off, and takes its Excel flag with it
+        expect(read("?preview=import,-import")).toEqual(ALL_OFF);
+        expect(read("?preview=-import,import")).toEqual(ALL_OFF);
+        expect(read("?preview=import,excel-import,-import")).toEqual(ALL_OFF);
+        expect(read("?preview=-import&preview=import&preview=excel-import")).toEqual(ALL_OFF);
+        expect(read("?preview=export,-import,import")).toEqual(only("export"));
+    });
+
+    test("spaces around a name with a minus are ignored, and a minus with a space after it is no name", async () => {
+        const read = await rule();
+        const m = (search) => read(search, MIX, MIX_NEEDS);
+        expect(m("?preview=%20-f%20")).toEqual(mix("a", "b", "c"));
+        expect(m("?preview=-f+,+-c")).toEqual(mix("a", "b"));
+        expect(m("?preview=%09-f%0A")).toEqual(mix("a", "b", "c"));
+        expect(m("?preview=%20-f%20,%20-c%20&preview=%20-b")).toEqual(mix("a"));
+        // the minus is the first character of the part: a space after it makes the rest no name
+        expect(m("?preview=-%20f")).toEqual(MIX_DEFAULT);
+        expect(m("?preview=-+f")).toEqual(MIX_DEFAULT);
+        expect(m("?preview=%20-%20f%20")).toEqual(MIX_DEFAULT);
+        expect(m("?preview=-%09f")).toEqual(MIX_DEFAULT);
+        // (and it is not read as the name f with a minus left over, either)
+        expect(m("?preview=-%20f,g")).toEqual(mix("a", "b", "c", "f", "g"));
+        // an encoded comma and an encoded minus
+        expect(m("?preview=-f%2C-c")).toEqual(mix("a", "b"));
+        expect(m("?preview=%2Df")).toEqual(mix("a", "b", "c"));
+    });
+
+    test("with the minus, a name in another letter case or that is no flag is ignored", async () => {
+        const read = await rule();
+        const m = (search) => read(search, MIX, MIX_NEEDS);
+        for (const value of ["-F", "-A", "-bogus", "--f", "--a", "-", "--", "-f-", "-f.", "-ff", "-fa", "-f f", "-f_", "-_f", "-+f-", "--f,--a", "+f", "-excel_import", "-Import", "-IMPORT"]) {
+            expect(m(`?preview=${encodeURIComponent(value)}`), value).toEqual(MIX_DEFAULT);
+        }
+        expect(read(`?preview=${encodeURIComponent("-Import")}`, only("import"))).toEqual(only("import"));
+        expect(read(`?preview=${encodeURIComponent("-Excel-Import")}`, only("import", "excel-import"))).toEqual(only("import", "excel-import"));
+        // a name that is no flag beside a real one does not stop it
+        expect(m("?preview=-bogus,-f,-F,--c")).toEqual(mix("a", "b", "c"));
+        expect(m("?preview=-F,-f")).toEqual(mix("a", "b", "c"));
+        // a lone minus beside a name, and a minus in front of an empty part
+        expect(m("?preview=-,g")).toEqual(mix("a", "b", "c", "f", "g"));
+        expect(m("?preview=,-,,-f,")).toEqual(mix("a", "b", "c"));
+        expect(m("?preview=-&preview=-f")).toEqual(mix("a", "b", "c"));
+        // a name in another case is not made a flag by being named on beside the minus
+        expect(m("?preview=F,-F")).toEqual(MIX_DEFAULT);
+        expect(m("?preview=G,-G")).toEqual(MIX_DEFAULT);
+    });
+
+    test("with the minus, names that exist on every object are ignored and do not change the result's shape", async () => {
+        const read = await rule();
+        for (const value of ["-__proto__", "-constructor", "-toString", "-hasOwnProperty", "-valueOf", "-prototype", "-__defineGetter__", "-isPrototypeOf", "-propertyIsEnumerable"]) {
+            const result = read(`?preview=${value}`, MIX, MIX_NEEDS);
+            expect(result, value).toEqual(MIX_DEFAULT);
+            expect(Object.keys(result), value).toEqual(Object.keys(MIX));
+            expect(Object.getPrototypeOf(result), value).toBe(Object.prototype);
+            expect(read(`?preview=${value}`), value).toEqual(ALL_OFF);
+        }
+        const both = read("?preview=-__proto__,-f,-constructor,g", MIX, MIX_NEEDS);
+        expect(both).toEqual(mix("a", "b", "c", "g"));
+        expect(Object.getPrototypeOf(both)).toBe(Object.prototype);
+        // a table that holds such a name as a flag of its own is read as a table
+        expect(read("?preview=-constructor", { constructor: true }, {})).toEqual({ constructor: false });
+        expect(read("?preview=-__proto__", { a: true }, {})).toEqual({ a: true });
+        // nothing leaked onto Object
+        expect({}.f).toBeUndefined();
+        expect({}.polluted).toBeUndefined();
+        expect(Object.keys(Object.prototype)).toEqual([]);
+    });
+
+    test("the needs follow a minus: a flag that needs one that was switched off is off, however long the chain", async () => {
+        const read = await rule();
+        const m = (search) => read(search, MIX, MIX_NEEDS);
+        // a is the root of the chain a, b, c
+        expect(m("?preview=-a")).toEqual(mix("f"));
+        expect(m("?preview=-b")).toEqual(mix("a", "f"));
+        expect(m("?preview=-c")).toEqual(mix("a", "b", "f"));
+        // a name cannot give a flag what its need lacks
+        expect(m("?preview=-a,b")).toEqual(mix("f"));
+        expect(m("?preview=-a,b,c")).toEqual(mix("f"));
+        expect(m("?preview=b,-a")).toEqual(mix("f"));
+        expect(m("?preview=-b,c")).toEqual(mix("a", "f"));
+        // a flag off by default whose need is on is switched on by its name, and its need switched off takes it down again
+        expect(m("?preview=d,e")).toEqual(mix("a", "b", "c", "d", "e", "f"));
+        expect(m("?preview=d,e,-d")).toEqual(MIX_DEFAULT);
+        expect(m("?preview=-d,e")).toEqual(MIX_DEFAULT);
+        expect(m("?preview=e")).toEqual(MIX_DEFAULT);
+        // the chain is the same whatever order the table lists it in
+        for (const needs of [{ b: "a", c: "b" }, { c: "b", b: "a" }]) {
+            expect(read("?preview=-a", MIX, needs), JSON.stringify(needs)).toEqual(mix("f"));
+            expect(read("?preview=-a,c", MIX, needs), JSON.stringify(needs)).toEqual(mix("f"));
+            expect(read("?preview=-b", MIX, needs), JSON.stringify(needs)).toEqual(mix("a", "f"));
+        }
+        // the four flags: -import takes excel-import with it, -export takes excel-export with it, and no flag takes the other side's
+        const allOn = { import: true, export: true, "excel-import": true, "excel-export": true };
+        expect(read("?preview=-import", allOn)).toEqual(only("export", "excel-export"));
+        expect(read("?preview=-export", allOn)).toEqual(only("import", "excel-import"));
+        expect(read("?preview=-import,-export", allOn)).toEqual(ALL_OFF);
+        expect(read("?preview=-import,excel-import", allOn)).toEqual(only("export", "excel-export"));
+        expect(read("?preview=-import", only("import", "excel-import"))).toEqual(ALL_OFF);
+        // a need that was never on stays unmet: the minus on the Excel flag alone leaves its parent on
+        expect(read("?preview=-excel-import", allOn)).toEqual(only("import", "export", "excel-export"));
+    });
+
+    test("with the minus, other parameters are not read, and the parameter is found beside them", async () => {
+        const read = await rule();
+        const m = (search) => read(search, MIX, MIX_NEEDS);
+        expect(m("?db=-f&preview=-c")).toEqual(mix("a", "b", "f"));
+        expect(m("?preview=-c&db=northlight")).toEqual(mix("a", "b", "f"));
+        expect(m(`?set=${SET_ID}&preview=-f&ex=e2`)).toEqual(mix("a", "b", "c"));
+        expect(m("?db=-f&set=-c")).toEqual(MIX_DEFAULT);
+        expect(m("?x=1&preview=-f,-c&y=2")).toEqual(mix("a", "b"));
+        expect(m("?previews=-f&Preview=-f&PREVIEW=-f")).toEqual(MIX_DEFAULT);
+        // the same address without its question mark
+        expect(m("preview=-f")).toEqual(mix("a", "b", "c"));
+    });
+
+    test("with the minus, a very long value never throws and still finds a name at its end", async () => {
+        const read = await rule();
+        const m = (search) => read(search, MIX, MIX_NEEDS);
+        expect(m(`?preview=-${"x".repeat(200_000)}`)).toEqual(MIX_DEFAULT);
+        expect(m(`?preview=${"-bogus,".repeat(40_000)}`)).toEqual(MIX_DEFAULT);
+        expect(m(`?preview=${"-bogus,".repeat(40_000)}-f`)).toEqual(mix("a", "b", "c"));
+        expect(m(`?preview=${"-f,".repeat(40_000)}f`)).toEqual(mix("a", "b", "c"));
+        expect(m(`?preview=-f${" ".repeat(100_000)}`)).toEqual(mix("a", "b", "c"));
+        expect(m(`?preview=${" ".repeat(100_000)}-f`)).toEqual(mix("a", "b", "c"));
+        expect(m("?" + "preview=-f&".repeat(20_000))).toEqual(mix("a", "b", "c"));
+        expect(m("?" + "preview=f&".repeat(20_000) + "preview=-f")).toEqual(mix("a", "b", "c"));
+    });
+
+    test("with the minus, a malformed address never throws and a minus after the fault is still read", async () => {
+        const read = await rule();
+        const m = (search) => read(search, MIX, MIX_NEEDS);
+        for (const search of ["?preview=-%", "?preview=-%ZZ", "?preview=%ZZ,-f", "?preview=%E0%A4%A,-f", "?preview=-\u0000", "?preview=-\ud800", "?preview=-f&%=%&&&==-preview"]) {
+            expect(() => m(search), JSON.stringify(search)).not.toThrow();
+        }
+        expect(m("?preview=%ZZ,-f")).toEqual(mix("a", "b", "c"));
+        expect(m("?preview=%E0%A4%A,-f")).toEqual(mix("a", "b", "c"));
+        expect(m("?preview=-%")).toEqual(MIX_DEFAULT);
+        expect(m("?preview=-f&preview=%")).toEqual(mix("a", "b", "c"));
+        expect(m("?preview=%&preview=-f")).toEqual(mix("a", "b", "c"));
+    });
+
+    test("with the minus, readFlags makes a new result each time and leaves the tables as they were", async () => {
+        const read = await rule();
+        const defaults = { ...MIX };
+        const needs = { ...MIX_NEEDS };
+        const first = read("?preview=-a,-f", defaults, needs);
+        const second = read("?preview=-a,-f", defaults, needs);
+        expect(first).toEqual(mix());
+        expect(first).not.toBe(second);
+        first.a = true;
+        expect(read("?preview=-a,-f", defaults, needs)).toEqual(mix());
+        expect(defaults).toEqual(MIX);
+        expect(needs).toEqual(MIX_NEEDS);
+        // tables that cannot be written to are read as well as any
+        expect(read("?preview=-f", Object.freeze({ ...MIX }), Object.freeze({ ...MIX_NEEDS }))).toEqual(mix("a", "b", "c"));
     });
 
     test("the module loads in Node, where there is no location, and every flag is at its default", async () => {
@@ -271,9 +542,9 @@ test.describe("the rule and the module, with no page (in Node)", () => {
         const { flags, flagOn } = await load("flags.js");
         const { PREVIEW_FLAGS } = await load("config-workflow.js");
         expect(flags()).toEqual(PREVIEW_FLAGS);
-        expect(flags()).toEqual(ALL_OFF);
+        expect(flags()).toEqual(SHIPPED);
         for (const name of NAMES) {
-            expect(flagOn(name), name).toBe(false);
+            expect(flagOn(name), name).toBe(SHIPPED[name]);
         }
     });
 
@@ -287,28 +558,38 @@ test.describe("the rule and the module, with no page (in Node)", () => {
     test("flags() is a copy: changing it changes nothing in the module", async () => {
         const { flags, flagOn } = await load("flags.js");
         const copy = flags();
-        copy.import = true;
+        // (one flag that is on is set to false, one that is off to true)
+        copy.import = false;
+        copy["excel-export"] = true;
         copy.extra = true;
-        expect(flagOn("import")).toBe(false);
-        expect(flags()).toEqual(ALL_OFF);
+        expect(flagOn("import")).toBe(true);
+        expect(flagOn("excel-export")).toBe(false);
+        expect(flagOn("extra")).toBe(false);
+        expect(flags()).toEqual(SHIPPED);
     });
 
     test("the address is read when the module first runs and never again, and the module touches no storage", async () => {
         const storage = fakeStorage();
         await inNode(storage, async (_events, tab) => {
-            globalThis.location = { search: "?db=northlight&preview=import,export,excel-export" };
+            globalThis.location = { search: "?db=northlight&preview=-import,excel-export" };
             try {
                 const copy = await tab().load("flags.js");
-                expect(copy.flags()).toEqual(only("import", "export", "excel-export"));
-                expect(copy.flagOn("import")).toBe(true);
+                // (a minus and a name: the import is off and takes its Excel flag with it, the export of
+                // Excel workbooks is on beside the export)
+                expect(copy.flags()).toEqual(only("export", "excel-export"));
+                expect(copy.flagOn("export")).toBe(true);
+                expect(copy.flagOn("import")).toBe(false);
                 expect(copy.flagOn("excel-import")).toBe(false);
                 // the visit goes on to another address: the flags stay as they were read
                 globalThis.location = { search: "?db=northlight" };
-                expect(copy.flags()).toEqual(only("import", "export", "excel-export"));
-                expect(copy.flagOn("import")).toBe(true);
+                expect(copy.flags()).toEqual(only("export", "excel-export"));
+                expect(copy.flagOn("export")).toBe(true);
+                globalThis.location = { search: "?db=northlight&preview=-export,import" };
+                expect(copy.flags()).toEqual(only("export", "excel-export"));
                 // another copy of the module (another tab) reads its own address
+                globalThis.location = { search: "?db=northlight" };
                 const later = await tab().load("flags.js");
-                expect(later.flags()).toEqual(ALL_OFF);
+                expect(later.flags()).toEqual(SHIPPED);
             } finally {
                 delete globalThis.location;
             }
@@ -326,7 +607,7 @@ test.describe("the rule and the module, with no page (in Node)", () => {
             });
             try {
                 const copy = await tab().load("flags.js");
-                expect(copy.flags()).toEqual(ALL_OFF);
+                expect(copy.flags()).toEqual(SHIPPED);
             } finally {
                 delete globalThis.location;
             }
@@ -345,49 +626,105 @@ const pageFlags = (page) =>
     });
 
 test.describe("the flags in the page", () => {
-    test("with no parameter every flag is off", async ({ app, page }) => {
+    test("with no parameter the flags are the shipped ones: the import, the export and the import of Excel workbooks on", async ({ app, page }) => {
         await app.open("./");
+        const seen = await pageFlags(page);
+        expect(seen.all).toEqual(SHIPPED);
+        expect(seen.on).toEqual(SHIPPED);
+    });
+
+    test("with every flag named off, every flag is off", async ({ app, page }) => {
+        await app.open(OFF_URL);
         const seen = await pageFlags(page);
         expect(seen.all).toEqual(ALL_OFF);
         expect(seen.on).toEqual(ALL_OFF);
     });
 
-    test("?preview=import turns the import flag on and no other", async ({ app, page }) => {
-        await app.open("./?preview=import");
+    test("the import named on and the three others named off turn the import flag on and no other", async ({ app, page }) => {
+        await app.open(`./?${flagState("import")}`);
         const seen = await pageFlags(page);
         expect(seen.all).toEqual(only("import"));
         expect(seen.on).toEqual(only("import"));
     });
 
-    test("?preview=import,export turns both on and leaves the Excel flags off", async ({ app, page }) => {
-        await app.open("./?preview=import,export");
+    test("the import and the export named on and the Excel flags named off turn both on and leave the Excel flags off", async ({ app, page }) => {
+        await app.open(`./?${flagState("import", "export")}`);
         expect((await pageFlags(page)).all).toEqual(only("import", "export"));
     });
 
-    test("the Excel flags follow their needs in the page too", async ({ app, page }) => {
-        await app.open("./?preview=excel-import,excel-export");
-        expect((await pageFlags(page)).all).toEqual(ALL_OFF);
-        await app.open("./?preview=excel-import,import");
+    test("?preview=excel-export turns on the one flag that is off, and the others stay as they ship", async ({ app, page }) => {
+        await app.open("./?preview=excel-export");
+        expect((await pageFlags(page)).all).toEqual(only(...NAMES));
+    });
+
+    test("a minus switches that flag off and no other", async ({ app, page }) => {
+        await app.open("./?preview=-export");
         expect((await pageFlags(page)).all).toEqual(only("import", "excel-import"));
-        await app.open("./?preview=excel-export&preview=export");
+        await app.open("./?preview=-excel-import");
+        expect((await pageFlags(page)).all).toEqual(only("import", "export"));
+        // a flag that is off already stays off, and a name that is no flag does nothing
+        await app.open("./?preview=-excel-export,-bogus");
+        expect((await pageFlags(page)).all).toEqual(SHIPPED);
+        // a minus with a space after it is no name
+        await app.open("./?preview=-%20import,-+export");
+        expect((await pageFlags(page)).all).toEqual(SHIPPED);
+        // spaces around a name with a minus are ignored
+        await app.open("./?preview=%20-export%20");
+        expect((await pageFlags(page)).all).toEqual(only("import", "excel-import"));
+    });
+
+    test("the Excel flags follow their needs in the page too", async ({ app, page }) => {
+        await app.open(`./?${flagState("excel-import", "excel-export")}`);
+        expect((await pageFlags(page)).all).toEqual(ALL_OFF);
+        await app.open(`./?${flagState("excel-import", "import")}`);
+        expect((await pageFlags(page)).all).toEqual(only("import", "excel-import"));
+        await app.open(`./?${flagState("excel-export", "export")}`);
         expect((await pageFlags(page)).all).toEqual(only("export", "excel-export"));
     });
 
-    test("a name in the wrong letter case is not a flag in the page", async ({ app, page }) => {
-        await app.open("./?preview=Import,EXPORT");
+    test("a minus on the flag an Excel flag needs leaves the Excel flag off in the page too", async ({ app, page }) => {
+        await app.open("./?preview=-import");
+        expect((await pageFlags(page)).all).toEqual(only("export"));
+        await app.open("./?preview=-import&preview=excel-export");
+        expect((await pageFlags(page)).all).toEqual(only("export", "excel-export"));
+        await app.open("./?preview=-export,excel-export");
+        expect((await pageFlags(page)).all).toEqual(only("import", "excel-import"));
+        await app.open("./?preview=-export,-excel-import");
+        expect((await pageFlags(page)).all).toEqual(only("import"));
+        await app.open("./?preview=-import,-export");
         expect((await pageFlags(page)).all).toEqual(ALL_OFF);
     });
 
+    test("a name given both ways is off in the page, in either order and in several parameters", async ({ app, page }) => {
+        for (const address of ["./?preview=import,-import", "./?preview=-import,import", "./?preview=-import&preview=import", "./?preview=import&preview=-import"]) {
+            await app.open(address);
+            expect((await pageFlags(page)).all, address).toEqual(only("export"));
+        }
+    });
+
+    test("a name in the wrong letter case is not a flag in the page, with or without the minus", async ({ app, page }) => {
+        await app.open(`./?${flagState()}&preview=Import,EXPORT`);
+        expect((await pageFlags(page)).all).toEqual(ALL_OFF);
+        await app.open("./?preview=Import,EXPORT,-Import,-EXPORT,-Excel-Import");
+        expect((await pageFlags(page)).all).toEqual(SHIPPED);
+    });
+
     test("the parameter is read beside the ones the page itself uses (db=)", async ({ app, page }) => {
-        await app.open(`${NORTHLIGHT_URL}&preview=import`);
+        await app.open(`${NORTHLIGHT_URL}&${flagState("import")}`);
         expect((await pageFlags(page)).all).toEqual(only("import"));
+        await app.expectPicked("northlight");
+        await app.open(`${NORTHLIGHT_URL}&preview=-import`);
+        expect((await pageFlags(page)).all).toEqual(only("export"));
         await app.expectPicked("northlight");
     });
 
     test("the parameter is read beside the exercise set's (set=)", async ({ app, page }) => {
         test.skip(!SET, "no exercise set with its course database ships");
-        await app.open(`./?preview=export&set=${SET.id}`);
+        await app.open(`./?${flagState("export")}&set=${SET.id}`);
         expect((await pageFlags(page)).all).toEqual(only("export"));
+        await expect(app.exercisePanel).toBeVisible();
+        await app.open(`./?preview=-export&set=${SET.id}`);
+        expect((await pageFlags(page)).all).toEqual(only("import", "excel-import"));
         await expect(app.exercisePanel).toBeVisible();
     });
 
@@ -399,7 +736,22 @@ test.describe("the flags in the page", () => {
         await app.expectPicked(DEFAULT_DATASET.id, DEFAULT_DATASET.name);
         await expect(app.pane).toHaveAttribute("data-state", "empty");
         await expect(app.errorBand).toHaveCount(0);
-        expect((await pageFlags(page)).all).toEqual(ALL_OFF);
+        // (the shipped flags: a name that is no flag changes none)
+        expect((await pageFlags(page)).all).toEqual(SHIPPED);
+        await app.expectToasts([]);
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
+
+    test("an unknown name with a minus alone opens the default dataset with no notice and no error", async ({ app, page, pageErrors }) => {
+        const consoleErrors = [];
+        page.on("console", (message) => message.type() === "error" && consoleErrors.push(message.text()));
+        await app.recordToasts({ fromStart: true });
+        await app.open("./?preview=-bogus,-,--import,-Import");
+        await app.expectPicked(DEFAULT_DATASET.id, DEFAULT_DATASET.name);
+        await expect(app.pane).toHaveAttribute("data-state", "empty");
+        await expect(app.errorBand).toHaveCount(0);
+        expect((await pageFlags(page)).all).toEqual(SHIPPED);
         await app.expectToasts([]);
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
@@ -410,8 +762,8 @@ test.describe("the flags in the page", () => {
         page,
     }) => {
         test.skip(!OTHER_DATASET, "only one course database ships");
-        await app.open("./?preview=import,export");
-        expect(page.url()).toContain("preview=import,export");
+        await app.open(`./?${flagState("import", "export")}`);
+        expect(page.url()).toContain(flagState("import", "export"));
         await app.pickDatabaseById(OTHER_DATASET.id);
         await app.expectPicked(OTHER_DATASET.id, OTHER_DATASET.name);
         await app.waitReady();
@@ -420,13 +772,37 @@ test.describe("the flags in the page", () => {
         expect((await pageFlags(page)).all).toEqual(only("import", "export"));
     });
 
+    test("a flag switched off stays off when the visit opens another database from the switcher, and the parameter leaves the address", async ({
+        app,
+        page,
+    }) => {
+        test.skip(!OTHER_DATASET, "only one course database ships");
+        await app.open("./?preview=-import");
+        expect(page.url()).toContain("preview=-import");
+        await app.pickDatabaseById(OTHER_DATASET.id);
+        await app.expectPicked(OTHER_DATASET.id, OTHER_DATASET.name);
+        await app.waitReady();
+        await expect.poll(() => page.url()).toContain(`db=${OTHER_DATASET.id}`);
+        expect(page.url()).not.toContain("preview");
+        expect((await pageFlags(page)).all).toEqual(only("export"));
+    });
+
     test("a flag turned on stays on when the visit opens a file, and the parameter leaves the address", async ({ app, page }) => {
-        await app.open("./?preview=import");
-        expect(page.url()).toContain("preview=import");
+        await app.open(`./?${flagState("import")}`);
+        expect(page.url()).toContain(flagState("import"));
         await app.upload(SAMPLE_FILE);
         await expect.poll(() => page.url()).not.toContain("preview");
         expect(page.url()).not.toContain("?");
         expect((await pageFlags(page)).all).toEqual(only("import"));
+    });
+
+    test("a flag switched off stays off when the visit opens a file, and the parameter leaves the address", async ({ app, page }) => {
+        await app.open("./?preview=-export");
+        expect(page.url()).toContain("preview=-export");
+        await app.upload(SAMPLE_FILE);
+        await expect.poll(() => page.url()).not.toContain("preview");
+        expect(page.url()).not.toContain("?");
+        expect((await pageFlags(page)).all).toEqual(only("import", "excel-import"));
     });
 
     test("a flag turned on stays on when the visit opens an exercise set from the picker, and the parameter leaves the address", async ({
@@ -434,8 +810,8 @@ test.describe("the flags in the page", () => {
         page,
     }) => {
         test.skip(!SET, "no exercise set with its course database ships");
-        await app.open(`${NORTHLIGHT_URL}&preview=export`);
-        expect(page.url()).toContain("preview=export");
+        await app.open(`${NORTHLIGHT_URL}&${flagState("export")}`);
+        expect(page.url()).toContain(flagState("export"));
         await app.pickSet(SET.title);
         await expect(app.exercisePanel).toBeVisible();
         await app.waitReady();
@@ -444,9 +820,24 @@ test.describe("the flags in the page", () => {
         expect((await pageFlags(page)).all).toEqual(only("export"));
     });
 
+    test("a flag switched off stays off when the visit opens an exercise set from the picker, and the parameter leaves the address", async ({
+        app,
+        page,
+    }) => {
+        test.skip(!SET, "no exercise set with its course database ships");
+        await app.open(`${NORTHLIGHT_URL}&preview=-export`);
+        expect(page.url()).toContain("preview=-export");
+        await app.pickSet(SET.title);
+        await expect(app.exercisePanel).toBeVisible();
+        await app.waitReady();
+        await expect.poll(() => page.url()).toContain(`set=${SET.id}`);
+        expect(page.url()).not.toContain("preview");
+        expect((await pageFlags(page)).all).toEqual(only("import", "excel-import"));
+    });
+
     test("a flag turned on stays on when the visit opens an exercise and then closes the set", async ({ app, page }) => {
         test.skip(!SET, "no exercise set with its course database ships");
-        await app.open(`./?preview=import&set=${SET.id}`);
+        await app.open(`./?${flagState("import")}&set=${SET.id}`);
         await expect(app.exercisePanel).toBeVisible();
         await app.exerciseButton(2).click();
         await app.pickSet("None");
@@ -455,16 +846,34 @@ test.describe("the flags in the page", () => {
         expect((await pageFlags(page)).all).toEqual(only("import"));
     });
 
+    test("a flag switched off stays off when the visit opens an exercise and then closes the set", async ({ app, page }) => {
+        test.skip(!SET, "no exercise set with its course database ships");
+        await app.open(`./?preview=-import&set=${SET.id}`);
+        await expect(app.exercisePanel).toBeVisible();
+        await app.exerciseButton(2).click();
+        await app.pickSet("None");
+        await app.waitReady();
+        await expect.poll(() => page.url()).not.toContain("preview");
+        expect((await pageFlags(page)).all).toEqual(only("export"));
+    });
+
     test("a flag that is off cannot be turned on later by a change of address", async ({ app, page }) => {
-        await app.open("./");
+        await app.open(OFF_URL);
         await page.evaluate(() => history.pushState(null, "", "?preview=import,export"));
         expect(page.url()).toContain("preview=import,export");
         expect((await pageFlags(page)).all).toEqual(ALL_OFF);
     });
 
+    test("a flag that is on cannot be switched off later by a change of address", async ({ app, page }) => {
+        await app.open("./");
+        await page.evaluate(() => history.pushState(null, "", "?preview=-import,-export"));
+        expect(page.url()).toContain("preview=-import,-export");
+        expect((await pageFlags(page)).all).toEqual(SHIPPED);
+    });
+
     test("Open from URL keeps the parameter in the address, and the flag stays on", async ({ app, page }) => {
-        await app.open(`${NORTHLIGHT_URL.replace("northlight", DEFAULT_DATASET.id)}&preview=import`);
-        expect(page.url()).toContain("preview=import");
+        await app.open(`${NORTHLIGHT_URL.replace("northlight", DEFAULT_DATASET.id)}&${flagState("import")}`);
+        expect(page.url()).toContain(flagState("import"));
         await page.keyboard.press("Control+u");
         const field = page.locator("#open-url-input");
         await expect(field).toBeVisible();
@@ -472,27 +881,48 @@ test.describe("the flags in the page", () => {
         await field.press("Enter");
         await expect.poll(() => page.url()).toContain("#");
         await app.waitReady();
-        expect(page.url()).toContain("preview=import");
+        expect(page.url()).toContain(flagState("import"));
         expect(page.url()).toContain("northlight_retail.db");
         expect((await pageFlags(page)).all).toEqual(only("import"));
+    });
+
+    test("Open from URL keeps a parameter with a minus in the address, and the flag stays off", async ({ app, page }) => {
+        await app.open(`${NORTHLIGHT_URL.replace("northlight", DEFAULT_DATASET.id)}&preview=-import`);
+        expect(page.url()).toContain("preview=-import");
+        await page.keyboard.press("Control+u");
+        const field = page.locator("#open-url-input");
+        await expect(field).toBeVisible();
+        await field.fill("datasets/northlight_retail.db");
+        await field.press("Enter");
+        await expect.poll(() => page.url()).toContain("#");
+        await app.waitReady();
+        expect(page.url()).toContain("preview=-import");
+        expect(page.url()).toContain("northlight_retail.db");
+        expect((await pageFlags(page)).all).toEqual(only("export"));
     });
 });
 
 test.describe("a flag never travels", () => {
-    test("a link made by Copy link does not carry the parameter", async ({ app, page }) => {
-        await app.open("./?preview=import&db=northlight");
-        expect(page.url()).toContain("preview=import");
-        await app.run("SELECT store_name FROM stores ORDER BY 1;");
-        const link = await app.copyLink();
-        // a share link is the page's address without its query string, and the state in its hash
-        expect(link).toMatch(/^https?:\/\/[^?#]*#s=/);
-        expect(link).not.toContain("?");
-        expect(link).not.toContain("preview");
-        expect(link).not.toContain("import");
-    });
+    // an address that names a flag on, and one that switches a flag off with a minus
+    for (const [how, address] of [
+        ["on", `./?${flagState("import")}&db=northlight`],
+        ["off", "./?preview=-import&db=northlight"],
+    ]) {
+        test(`a link made by Copy link does not carry the parameter (a flag named ${how})`, async ({ app, page }) => {
+            await app.open(address);
+            expect(page.url()).toContain("preview=");
+            await app.run("SELECT store_name FROM stores ORDER BY 1;");
+            const link = await app.copyLink();
+            // a share link is the page's address without its query string, and the state in its hash
+            expect(link).toMatch(/^https?:\/\/[^?#]*#s=/);
+            expect(link).not.toContain("?");
+            expect(link).not.toContain("preview");
+            expect(link).not.toContain("import");
+        });
+    }
 
     test("the link: lines of an exported evidence file do not carry it either", async ({ app, page }) => {
-        await app.open("./?preview=import,export&db=northlight");
+        await app.open(`./?${flagState("import", "export")}&db=northlight`);
         await app.run("SELECT store_name FROM stores ORDER BY 1;");
         await app.run("SELECT 1 AS one;", { via: "button" });
         const file = await app.exportEvidence();
@@ -505,6 +935,22 @@ test.describe("a flag never travels", () => {
         expect(file.text).not.toContain("preview");
         // the flag is on in this file's page, so what it did not write was left out, not unknown
         expect((await pageFlags(page)).all).toEqual(only("import", "export"));
+    });
+
+    test("the link: lines of an exported evidence file do not carry a minus either", async ({ app, page }) => {
+        await app.open("./?preview=-import,-export&db=northlight");
+        await app.run("SELECT store_name FROM stores ORDER BY 1;");
+        await app.run("SELECT 1 AS one;", { via: "button" });
+        const file = await app.exportEvidence();
+        const links = file.text.split("\n").filter((line) => line.startsWith("link: "));
+        expect(links.length, "an entry that ran on a course dataset has a link line").toBeGreaterThan(0);
+        for (const line of links) {
+            expect(line).toMatch(/^link: https?:\/\/[^?#\s]*#s=\S+$/);
+            expect(line).not.toContain("preview");
+        }
+        expect(file.text).not.toContain("preview");
+        // the flags are off in this file's page: what it did not write was left out, not unknown
+        expect((await pageFlags(page)).all).toEqual(ALL_OFF);
     });
 });
 
@@ -883,7 +1329,8 @@ async function pressInMenu(page) {
     return steps;
 }
 
-// What two deep visits must show alike: the page with a flag on and the page with every flag off.
+// What two deep visits must show alike: the page with a flag on and the page with that flag off (the
+// tests below name each page in full, with flagState, so that the pair is the same whatever ships).
 // The same markup (the nodes the flag adds were taken out), the same storage, the same focus, at
 // four moments (after the load and the wait, after a query, after the database export's dialog,
 // and at the very end, after both menus were gone through on a narrow window); the same listeners
@@ -962,6 +1409,12 @@ function expectSameDeep(flagged, plain, { ids = [], listeners = [], properties =
 // out of UNREAD_FLAGS and adds a test for what it adds. This group is not the pattern for a feature's
 // own tests (those are tests/aw2-* and tests/aw3-*).
 //
+// Every page of this group is named in full: the page with every flag off is OFF_URL, the page
+// with the import alone is flagState("import"), and so on, so that each test compares the two
+// states it says, whatever ships. Two tests at the end compare the pages that ship with the same
+// states named in full: the plain address is the page of the three flags named on, and an address
+// with a minus on the import and the export is the page of every flag named off.
+//
 // What this group can see. It compares two pages: the page with every flag off, and the same page
 // with a flag on. So it sees a difference between the two: a fault in the branch that a mount
 // takes when its flag is off (a node, a listener, a timer, a key handler, a write to storage, a
@@ -973,8 +1426,9 @@ function expectSameDeep(flagged, plain, { ids = [], listeners = [], properties =
 // style sheet that reaches an element both pages have), is not this group's to find: it is the
 // same on both sides. The tests of the feature that the change touches hold it.
 test.describe("nothing a student can see", () => {
-    const ALL_FLAGS = "preview=import,export,excel-import,excel-export";
-    const UNREAD_FLAGS = "preview=excel-export";
+    const ALL_FLAGS = flagState(...NAMES);
+    // the flag that nothing reads, named on (its parent, the export, is named off, so the flag does nothing)
+    const UNREAD_FLAGS = flagState("excel-export");
     // the listeners the import adds on the whole page: a drop of files (js/lab/import.js), and the
     // dialog's (js/lab/import-dialog.js): the end of a press, wherever the pointer is let go, the
     // window losing the focus, and a database that has loaded
@@ -993,7 +1447,7 @@ test.describe("nothing a student can see", () => {
         browser,
         baseURL,
     }) => {
-        const plain = await visit(browser, baseURL, "./", { deep: true });
+        const plain = await visit(browser, baseURL, OFF_URL, { deep: true });
         const flagged = await visit(browser, baseURL, `./?${UNREAD_FLAGS}`, { deep: true });
 
         // the page the plain visit opens is a real one (so the comparison is not of two blanks)
@@ -1043,12 +1497,13 @@ test.describe("nothing a student can see", () => {
     // for, up to three seconds after the load, after a query and after the export dialog was opened and closed.
     for (const flags of ["excel-import", "excel-import,excel-export"]) {
         test(`the flags ${flags} on and the flags they need off, the page shows what it shows with none: menus, file chooser, markup, storage, listeners, requests`, async ({ browser, baseURL }) => {
-            const plain = await visit(browser, baseURL, "./", { deep: true });
-            const flagged = await visit(browser, baseURL, `./?preview=${flags}`, { deep: true });
+            const state = flagState(...flags.split(","));
+            const plain = await visit(browser, baseURL, OFF_URL, { deep: true });
+            const flagged = await visit(browser, baseURL, `./?${state}`, { deep: true });
             // (the plain page is a real one, and the flagged one is not the plain one asked for twice)
             expect(plain.databaseItems.length).toBeGreaterThan(0);
             expect(plain.fileInput.multiple).toBe(false);
-            expect(flagged.url).toBe(`?preview=${flags}`);
+            expect(flagged.url).toBe(`?${state}`);
             expect(flagged.fileInput).toEqual(plain.fileInput);
             expect(flagged.fileInput.multiple).toBe(false);
             expect(flagged.databaseItems).toEqual(plain.databaseItems);
@@ -1074,7 +1529,7 @@ test.describe("nothing a student can see", () => {
     }
 
     test("all four flags on, localStorage gets no new key and no value that names a flag", async ({ browser, baseURL }) => {
-        const plain = await visit(browser, baseURL, "./");
+        const plain = await visit(browser, baseURL, OFF_URL);
         const flagged = await visit(browser, baseURL, `./?${ALL_FLAGS}`);
         expect(flagged.storageKeys).toEqual(plain.storageKeys);
         for (const key of flagged.storageKeys) {
@@ -1088,21 +1543,26 @@ test.describe("nothing a student can see", () => {
         browser,
         baseURL,
     }) => {
-        const plain = await visit(browser, baseURL, "./");
+        const plain = await visit(browser, baseURL, OFF_URL);
         const flagged = await visit(browser, baseURL, `./?${ALL_FLAGS}`);
         expect(flagged.historyLength).toBe(plain.historyLength);
         expect(flagged.historyCalls).toEqual(plain.historyCalls);
         // the address is the one the student typed: the page did not rewrite it
         expect(flagged.url).toBe(`?${ALL_FLAGS}`);
-        expect(plain.url).toBe("");
+        expect(plain.url).toBe(`?${flagState()}`);
     });
 
-    test("every flag that nothing reads yet on, the menus offer the entries they offer today (no Excel or import item has appeared)", async ({
+    test("every flag that nothing reads yet on, the menus offer the entries they offer today (no entry has appeared whose words name Excel or an import; the evidence entry's line, which says what the file holds, is left out of the words searched)", async ({
         browser,
         baseURL,
     }) => {
+        const { EXPORT_EVIDENCE_DESCRIPTION } = await load("config.js");
         const flagged = await visit(browser, baseURL, `./?${UNREAD_FLAGS}`);
-        const joined = flagged.exportItems.concat(flagged.moreItems, flagged.databaseItems).join("\n");
+        // (the one line that names imports is the evidence entry's description, which says what the file
+        // holds whatever the flags are: it is taken out of the words searched, and it must be there to be taken out)
+        const entries = flagged.exportItems.concat(flagged.moreItems, flagged.databaseItems);
+        expect(entries.filter((item) => item.includes(EXPORT_EVIDENCE_DESCRIPTION))).not.toHaveLength(0);
+        const joined = entries.map((item) => item.replace(EXPORT_EVIDENCE_DESCRIPTION, "")).join("\n");
         expect(joined).not.toMatch(/excel|xlsx|\.xls|import/i);
     });
 
@@ -1115,8 +1575,8 @@ test.describe("nothing a student can see", () => {
         // what the flag adds on purpose, taken out of the markup: the chooser's `multiple`, and the
         // import's dialog (the words under "Open a file…" are put back to the plain ones below)
         const added = ["#open-file-input@multiple", "#import-dialog"];
-        const plain = await visit(browser, baseURL, "./", { deep: true });
-        const flagged = await visit(browser, baseURL, "./?preview=import", { deep: true, without: added });
+        const plain = await visit(browser, baseURL, OFF_URL, { deep: true });
+        const flagged = await visit(browser, baseURL, `./?${flagState("import")}`, { deep: true, without: added });
 
         // what the flag adds
         expect(plain.fileInput.multiple).toBe(false);
@@ -1173,8 +1633,8 @@ test.describe("nothing a student can see", () => {
         // (the three sentences are not the old ones: a swap of two would otherwise pass)
         expect(IMPORT_DIALOG_TEXT_WITH_SHEETS).not.toBe(IMPORT_DIALOG_TEXT);
         expect(OPEN_FILE_WITH_EXCEL_DESCRIPTION).not.toBe(OPEN_FILE_WITH_IMPORT_DESCRIPTION);
-        const alone = await visit(browser, baseURL, "./?preview=import", { deep: true });
-        const both = await visit(browser, baseURL, "./?preview=import,excel-import", { deep: true });
+        const alone = await visit(browser, baseURL, `./?${flagState("import")}`, { deep: true });
+        const both = await visit(browser, baseURL, `./?${flagState("import", "excel-import")}`, { deep: true });
         // the description of the entry, and nothing else of the menus
         const openFile = alone.databaseItems.find((item) => item.startsWith("open-file|"));
         expect(openFile).toContain(OPEN_FILE_WITH_IMPORT_DESCRIPTION);
@@ -1240,8 +1700,8 @@ test.describe("nothing a student can see", () => {
         baseURL,
     }) => {
         const { IMPORT_DIALOG_TEXT, IMPORT_DIALOG_TEXT_WITH_SHEETS } = await load("config-workflow.js");
-        const alone = await chooseTextFiles(browser, baseURL, "./?preview=import");
-        const both = await chooseTextFiles(browser, baseURL, "./?preview=import,excel-import");
+        const alone = await chooseTextFiles(browser, baseURL, `./?${flagState("import")}`);
+        const both = await chooseTextFiles(browser, baseURL, `./?${flagState("import", "excel-import")}`);
         expect(alone.errors).toEqual([]);
         expect(both.errors).toEqual([]);
         // (the import ran: the page made tables, and it is not two empty results that agree)
@@ -1279,8 +1739,8 @@ test.describe("nothing a student can see", () => {
             await context.close();
             return { text, open };
         };
-        expect(await toastOf("./?preview=import")).toEqual({ text: IMPORT_MIXED_MESSAGE, open: false });
-        expect(await toastOf("./?preview=import,excel-import")).toEqual({ text: IMPORT_MIXED_WITH_EXCEL_MESSAGE, open: false });
+        expect(await toastOf(`./?${flagState("import")}`)).toEqual({ text: IMPORT_MIXED_MESSAGE, open: false });
+        expect(await toastOf(`./?${flagState("import", "excel-import")}`)).toEqual({ text: IMPORT_MIXED_WITH_EXCEL_MESSAGE, open: false });
         expect(IMPORT_MIXED_WITH_EXCEL_MESSAGE).not.toBe(IMPORT_MIXED_MESSAGE);
     });
 
@@ -1290,8 +1750,8 @@ test.describe("nothing a student can see", () => {
     }) => {
         const { EXPORT_TABLES_MENU_DESCRIPTION, EXPORT_TABLES_MENU_TEXT } = await load("config-workflow.js");
         const added = ["#export-tables", "#more-export-tables", "#export-tables-dialog"];
-        const plain = await visit(browser, baseURL, "./", { deep: true });
-        const flagged = await visit(browser, baseURL, "./?preview=export", { deep: true, without: added });
+        const plain = await visit(browser, baseURL, OFF_URL, { deep: true });
+        const flagged = await visit(browser, baseURL, `./?${flagState("export")}`, { deep: true, without: added });
 
         // what the flag adds: the entry, right after the database's, in each menu, and the dialog
         const entry = `${EXPORT_TABLES_MENU_TEXT}${EXPORT_TABLES_MENU_DESCRIPTION}`;
@@ -1336,5 +1796,71 @@ test.describe("nothing a student can see", () => {
         expectSameDeep(flagged, plain, { ids: ["export-tables", "more-export-tables"], listeners: ["document lab:database-loaded"] });
         expect(flagged.exportArrows).toContain("export-tables");
         expect(flagged.moreArrows).toContain("more-export-tables");
+    });
+
+    // What two visits must show alike, said once for the tests below that compare an address with the
+    // state it should be: the menus, the file chooser, the dialogs, toasts, errors, the pane, title and
+    // toolbar, the files asked for, storage and history, and then the page as a whole (expectSameDeep).
+    function expectSamePage(one, other) {
+        expect(one.exportItems).toEqual(other.exportItems);
+        expect(one.moreItems).toEqual(other.moreItems);
+        expect(one.databaseItems).toEqual(other.databaseItems);
+        expect(one.fileInput).toEqual(other.fileInput);
+        expect(one.dialogs).toEqual(other.dialogs);
+        expect(one.openDialogs).toEqual(other.openDialogs);
+        expect(one.toasts).toEqual(other.toasts);
+        expect(one.errors).toEqual([]);
+        expect(other.errors).toEqual([]);
+        expect(one.pane).toBe(other.pane);
+        expect(one.database).toBe(other.database);
+        expect(one.title).toBe(other.title);
+        expect(one.toolbar).toBe(other.toolbar);
+        expect(one.requests).toEqual(other.requests);
+        expect(one.storageKeys).toEqual(other.storageKeys);
+        expect(one.storageText).toBe(other.storageText);
+        expect(one.historyLength).toBe(other.historyLength);
+        expect(one.historyCalls).toEqual(other.historyCalls);
+        expectSameDeep(one, other);
+    }
+
+    test("the plain address is the page of the three flags named on and the Excel export named off, deeply: the shipped defaults are that state and nothing more", async ({
+        browser,
+        baseURL,
+    }) => {
+        const shipped = await visit(browser, baseURL, "./", { deep: true });
+        const named = await visit(browser, baseURL, `./?${flagState("import", "export", "excel-import")}`, { deep: true });
+        const off = await visit(browser, baseURL, OFF_URL, { deep: true });
+        // (the pages are real ones, and the page that ships is not the page with every flag off)
+        expect(shipped.url).toBe("");
+        expect(named.url).toBe(`?${flagState("import", "export", "excel-import")}`);
+        expect(shipped.fileInput.multiple).toBe(true);
+        expect(shipped.exportItems.length).toBeGreaterThan(off.exportItems.length);
+        expect(shipped.moreItems.length).toBeGreaterThan(off.moreItems.length);
+        expect(shipped.dialogs.length).toBeGreaterThan(off.dialogs.length);
+        expect(shipped.afterRun.dom).toContain("data-state=\"result\"");
+        expect(shipped.keys).toHaveLength(KEYS.length);
+        expectSamePage(shipped, named);
+    });
+
+    test("an address with a minus on the import and the export is the page of every flag named off, deeply", async ({ browser, baseURL }) => {
+        const minus = await visit(browser, baseURL, "./?preview=-import,-export", { deep: true });
+        const off = await visit(browser, baseURL, OFF_URL, { deep: true });
+        const shipped = await visit(browser, baseURL, "./", { deep: true });
+        expect(minus.url).toBe("?preview=-import,-export");
+        expect(off.url).toBe(`?${flagState()}`);
+        // (the page is the one without the features, and not the one that ships)
+        expect(minus.fileInput.multiple).toBe(false);
+        expect(minus.exportItems.length).toBeLessThan(shipped.exportItems.length);
+        expect(minus.moreItems.length).toBeLessThan(shipped.moreItems.length);
+        expect(minus.dialogs.length).toBeLessThan(shipped.dialogs.length);
+        expect(minus.afterRun.dom).toContain("data-state=\"result\"");
+        expectSamePage(minus, off);
+    });
+
+    test("the flag that nothing reads, named on beside the three that ship, leaves the page as it ships", async ({ browser, baseURL }) => {
+        const shipped = await visit(browser, baseURL, "./", { deep: true });
+        const flagged = await visit(browser, baseURL, "./?preview=excel-export", { deep: true });
+        expect(flagged.url).toBe("?preview=excel-export");
+        expectSamePage(flagged, shipped);
     });
 });

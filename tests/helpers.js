@@ -20,6 +20,12 @@
 // app.run() and app.settle() wait for it to finish, never for text a previous run could
 // already show. Toasts (#toast-region) answer actions: Copy link, the exports, a database opened.
 //
+// The page ships with the import, the export and the import of Excel workbooks on (PREVIEW_FLAGS in
+// js/lab/config-workflow.js), and an address can switch each flag on or off for one visit. A test
+// that is about a state of the flags opens its page with that state named in full, flagState(...),
+// so that it keeps testing that state whatever the shipped defaults are; a test of the page as it
+// ships opens the plain address.
+//
 // Import `test` and `expect` from here, not from @playwright/test:
 //
 //   const { test, expect } = require("./helpers");
@@ -36,7 +42,49 @@ const { expect } = base;
 const XLSX = require("../vendor/xlsx.full.min.js");
 // (the page's own name for the strip of the files' tabs: a getter cannot wait for the import() below, and the
 // module has no top-level await, so node reads it whole where it is asked for)
-const { IMPORT_TABS_LABEL } = require("../js/lab/config-workflow.js");
+const { IMPORT_TABS_LABEL, PREVIEW_FLAGS, PREVIEW_PARAM } = require("../js/lab/config-workflow.js");
+
+// The address parameter that gives exactly this state, whatever the shipped defaults are: every
+// flag is named, the ones that are on by their name and the others with a minus.
+//   flagState("import")  ->  "preview=import,-export,-excel-import,-excel-export"
+//   flagState()          ->  "preview=-import,-export,-excel-import,-excel-export"
+// The names come from PREVIEW_FLAGS of the config. A name that is not a flag throws: a typing fault
+// in a test must not pass for a state.
+function flagState(...on) {
+    for (const name of on) {
+        if (typeof name !== "string" || !Object.hasOwn(PREVIEW_FLAGS, name)) {
+            throw new Error(`flagState: ${JSON.stringify(name)} is not a flag (the flags are ${Object.keys(PREVIEW_FLAGS).join(", ")})`);
+        }
+    }
+    const parts = Object.keys(PREVIEW_FLAGS).map((name) => (on.includes(name) ? name : `-${name}`));
+    return `${PREVIEW_PARAM}=${parts.join(",")}`;
+}
+
+// How a line of text sits in its box: `cut` when part of it cannot be seen (the box is narrower or
+// lower than the text, so the line ends in an ellipsis or is clipped), and `lines`, the number of
+// lines it is drawn on (one for a line that fits or is cut, more for a line that wraps). The widths
+// are compared as the browser lays them out, in fractions of a pixel: scrollWidth and clientWidth are
+// whole numbers, and a line that is a pixel too long for its box already ends in an ellipsis. (A
+// twentieth of a pixel is let through: a line that is exactly as wide as its box is whole.)
+function lineFit(locator) {
+    return locator.evaluate((node) => {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const rects = Array.from(range.getClientRects());
+        const tops = new Set(rects.map((rect) => Math.round(rect.top)));
+        const style = getComputedStyle(node);
+        const sides = ["paddingLeft", "paddingRight", "borderLeftWidth", "borderRightWidth"].reduce((sum, side) => sum + parseFloat(style[side]), 0);
+        const room = node.getBoundingClientRect().width - sides;
+        // (the text from its left end to its right end, whatever it is made of: for a line that wraps,
+        // the widest line)
+        const widest = rects.length ? range.getBoundingClientRect().width : 0;
+        return {
+            text: node.textContent,
+            cut: widest > room + 0.05 || node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1,
+            lines: tops.size,
+        };
+    });
+}
 
 // The page's own words for the export dialog (js/lab/config-workflow.js), read once. A text that a
 // helper waits for or looks for comes from here, never typed again.
@@ -493,7 +541,7 @@ class App {
     }
 
     // chooseFiles feeds one or several files (paths, or {name, mimeType, buffer}) to the "open
-    // file" input and waits for nothing: with the import on (?preview=import), CSV files open the
+    // file" input and waits for nothing: with the import on (it ships on), CSV files open the
     // import's dialog and no database changes until Import is pressed. (Several files need the
     // flag: without it the input takes one.)
     async chooseFiles(files) {
@@ -686,7 +734,7 @@ class App {
         await expect(this.exportMenu).toBeVisible();
     }
 
-    // ---- the export of tables as CSV (js/lab/export-tables-dialog.js; behind ?preview=export)
+    // ---- the export of tables as CSV (js/lab/export-tables-dialog.js; the flag "export")
     // its entries in the two menus, and its dialog: its parts, by what they are
     get tablesItem() {
         return this.page.locator("#export-tables");
@@ -1435,8 +1483,8 @@ const wideLastRowCsv = () => {
 // holdImport opens the import's dialog for `files`, lets the preview read them, takes the CSV
 // reader off the page so that the import has to ask for it again, holds that second request (the
 // preview's own, the first, goes through) and presses Import. The import is then running and waits
-// on the gate. Returns {open, requests}, as holdVendor does. Needs the page opened with
-// ?preview=import.
+// on the gate. Returns {open, requests}, as holdVendor does. Needs the page opened with the
+// import on (the plain address, or flagState("import")).
 async function holdImport(page, app, { files = [csvFile()], into = "new", database = null } = {}) {
     const held = await holdVendor(page, "papaparse.min.js", { pass: 1 });
     await app.chooseFiles(files);
@@ -1710,12 +1758,12 @@ async function expectNothingLeft(page, app, before, { logKeys = [] } = {}) {
 
 // ---- what the export's page specs share -------------------------------------------------------------
 
-// the address that opens the page with the export flag on
-const EXPORT_URL = "./?preview=export";
+// the address that opens the page with the export alone on
+const EXPORT_URL = `./?${flagState("export")}`;
 // the owner's edge-case database, as a path under tests/fixtures/
 const EDGE_DATABASE = "export/export_edge_cases.db";
 
-// opens the owner's edge-case database as a file, with the export flag on (or the address given);
+// opens the owner's edge-case database as a file, with the export alone on (or the address given);
 // the toast that says it was opened is waited for, so that no later wait for a toast reads it
 async function openEdgeCases(app, address = EXPORT_URL) {
     await app.open(address);
@@ -2403,6 +2451,8 @@ function workbookFile(name, sheets, bookType = "xlsx") {
 
 module.exports = {
     test,
+    flagState,
+    lineFit,
     expect,
     READY_PANE,
     NetworkLog,

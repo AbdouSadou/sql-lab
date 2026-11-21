@@ -6,6 +6,7 @@
 // state has a screenshot (tests/ui-states.js, tests/ui-visual.spec.js).
 const fs = require("node:fs");
 const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 const {
     test,
     expect,
@@ -22,6 +23,12 @@ const {
 const { RECIPES } = require("./ui-states.js");
 
 const ROOT = path.resolve(__dirname, "..");
+
+// the page's own words (js/lab/config.js), read once
+let words;
+test.beforeAll(async () => {
+    words = await import(pathToFileURL(path.join(ROOT, "js", "lab", "config.js")).href);
+});
 
 // The query of the acceptance suite (tests/m3-datasets.spec.js, spec section 7 item 2)
 const SPEC_QUERY = `WITH category_revenue AS (
@@ -218,14 +225,14 @@ test.describe("the plan's check", () => {
     const PRODUCES = {
         loading: async (page, app) => {
             await expect(app.pane).toHaveAttribute("data-state", "loading");
-            await expect(page.locator(".results-loading-title")).toHaveText("Loading Northlight Retail");
-            expect(await page.locator("progress.results-progress").evaluate((b) => b.hasAttribute("value"))).toBe(false);
+            await expect(page.locator("#result .results-loading-title")).toHaveText("Loading Northlight Retail");
+            expect(await page.locator("#result progress.results-progress").evaluate((b) => b.hasAttribute("value"))).toBe(false);
         },
         "loading-progress": async (page, app) => {
             await expect(app.pane).toHaveAttribute("data-state", "loading");
-            const bar = page.locator("progress.results-progress");
+            const bar = page.locator("#result progress.results-progress");
             await expect(bar).toHaveJSProperty("value", 0.5);
-            await expect(page.locator(".results-loading-size")).toHaveText("43 KB of 86 KB");
+            await expect(page.locator("#result .results-loading-size")).toHaveText("43 KB of 86 KB");
         },
         capped: async (page, app) => {
             await expect(app.status).toHaveText(/^Showing 500 of 906 rows in \d+ ms$/);
@@ -1118,15 +1125,15 @@ test.describe("loading", () => {
         await expect(app.pane).toHaveAttribute("data-state", "loading");
         const { total, half } = await page.evaluate(() => window.__stalled);
         expect(total).toBe(fs.statSync(path.join(ROOT, "datasets", "northlight_retail.db")).size);
-        await expect(page.locator(".results-loading-title")).toHaveText("Loading Northlight Retail");
-        await expect(page.locator(".results-loading-size")).toHaveText(`${kb(half)} of ${kb(total)}`);
-        const bar = page.locator("progress.results-progress");
+        await expect(page.locator("#result .results-loading-title")).toHaveText("Loading Northlight Retail");
+        await expect(page.locator("#result .results-loading-size")).toHaveText(`${kb(half)} of ${kb(total)}`);
+        const bar = page.locator("#result progress.results-progress");
         await expect(bar).toHaveJSProperty("value", half / total);
         await expect(bar).toHaveJSProperty("max", 1);
         // the rest arrives: the bar and its line go with the loading state
         await page.evaluate(() => window.__finishFetch());
         await app.waitReady();
-        await expect(page.locator(".results-loading")).toHaveCount(0);
+        await expect(page.locator("#result .results-loading")).toHaveCount(0);
     });
 
     for (const [mode, why] of [
@@ -1139,8 +1146,8 @@ test.describe("loading", () => {
             await page.goto(NORTHLIGHT_URL);
             await expect.poll(() => page.evaluate(() => window.__stalled?.half)).toBeGreaterThan(0);
             const { half } = await page.evaluate(() => window.__stalled);
-            await expect(page.locator(".results-loading-size")).toHaveText(kb(half));
-            const bar = page.locator("progress.results-progress");
+            await expect(page.locator("#result .results-loading-size")).toHaveText(kb(half));
+            const bar = page.locator("#result progress.results-progress");
             await expect(bar).not.toHaveAttribute("value", /.*/);
             await expect(bar).toHaveJSProperty("position", -1);
             await expect(bar).toHaveJSProperty("max", 1);
@@ -1157,9 +1164,9 @@ test.describe("loading", () => {
         await expect.poll(() => page.evaluate(() => window.__stalled?.half)).toBeGreaterThan(0);
         const { total, half } = await page.evaluate(() => window.__stalled);
         expect(total).toBe(fs.statSync(path.join(__dirname, "fixtures", "sample.db")).size);
-        await expect(page.locator(".results-loading-title")).toHaveText(`Loading ${SAMPLE_ENTRY.name}`);
-        await expect(page.locator(".results-loading-size")).toHaveText(`${kb(half)} of ${kb(total)}`);
-        await expect(page.locator("progress.results-progress")).toHaveJSProperty("value", half / total);
+        await expect(page.locator("#result .results-loading-title")).toHaveText(`Loading ${SAMPLE_ENTRY.name}`);
+        await expect(page.locator("#result .results-loading-size")).toHaveText(`${kb(half)} of ${kb(total)}`);
+        await expect(page.locator("#result progress.results-progress")).toHaveJSProperty("value", half / total);
         await page.evaluate(() => window.__finishFetch());
         await expect(app.toast).toHaveText(`Opened ${SAMPLE_ENTRY.name}`);
         await expect(app.pane).toHaveAttribute("data-state", "empty");
@@ -1178,10 +1185,10 @@ test.describe("loading", () => {
         await page.locator("#open-url-input").press("Enter");
         await expect(page.locator("#open-url-dialog")).toBeHidden();
         await expect(app.pane).toHaveAttribute("data-state", "loading");
-        await expect(page.locator(".results-loading-title")).toHaveText("Loading northlight_retail.db");
+        await expect(page.locator("#result .results-loading-title")).toHaveText("Loading northlight_retail.db");
         // its size is not known to the page: no figure, a bar that waits
-        await expect(page.locator(".results-loading-size")).toHaveText("");
-        await expect(page.locator("progress.results-progress")).not.toHaveAttribute("value", /.*/);
+        await expect(page.locator("#result .results-loading-size")).toHaveText("");
+        await expect(page.locator("#result progress.results-progress")).not.toHaveAttribute("value", /.*/);
         release();
         await expect(app.toast).toHaveText("Opened northlight_retail.db");
         await expect(app.pane).toHaveAttribute("data-state", "empty");
@@ -1663,7 +1670,10 @@ test.describe("the evidence dialog", () => {
         await app.run("SELECT 1;");
         await app.openEvidence();
         await expect(app.evidenceDialog.locator("h2")).toHaveText("Export evidence");
-        await expect(app.evidenceDialog.locator("#evidence-text")).toHaveText("Creates a text record of the queries you ran, to attach to your assessment.");
+        // the sentence is typed out here once: it is the config's, and the dialog shows it whole
+        const sentence = "Creates a text record of the queries you ran, the files you imported and the tables you exported, to attach to your assessment.";
+        expect(words.EVIDENCE_DIALOG_TEXT).toBe(sentence);
+        await expect(app.evidenceDialog.locator("#evidence-text")).toHaveText(sentence);
         await expect(app.evidenceDialog.locator("#evidence-file")).toHaveText("Saved as evidence-northlight.txt");
         await expect(app.evidenceDialog).toHaveAttribute("aria-describedby", "evidence-text");
         await expect(app.evidenceDialog.locator(".evidence-submit")).toHaveClass(/button--primary/);

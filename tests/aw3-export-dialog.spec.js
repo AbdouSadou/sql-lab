@@ -24,6 +24,7 @@ const {
     realManifest,
     ZIP_TOOL,
     EXPORT_URL,
+    flagState,
     EDGE_DATABASE,
     openEdgeCases,
     recordDownloads,
@@ -32,8 +33,9 @@ const {
 } = require("./helpers");
 
 // Assessment plan, Phase 3 (export tables as CSV), the dialog as a student meets it (the plan's
-// section 5; CODEMAP 9.7; js/lab/export-tables-dialog.js and js/lab/export-tables.js). Behind the preview
-// flag "export": a page opened with ?preview=export has "Tables as CSV..." in the Export menu (in the
+// section 5; CODEMAP 9.7; js/lab/export-tables-dialog.js and js/lab/export-tables.js). The export is
+// switched by the flag "export" (on in the page as it ships): a page with the export alone on
+// (flagState("export"), the kit's EXPORT_URL) has "Tables as CSV..." in the Export menu (in the
 // More menu of a phone), and a dialog that lists the tables and views of the open database, counts
 // them, and saves the ticked ones as one CSV file or as a zip of them. What the files hold is the
 // business of tests/aw3-export-rules.spec.js and tests/aw3-export-fixtures.spec.js; what the page does
@@ -1054,7 +1056,7 @@ test.describe("counts that arrive after the dialog has gone", () => {
 
     test("after another database has opened under it (Back): the dialog closes, its counts stop, nothing wrong is shown, and the next dialog is the new database's", async ({ page, app, pageErrors }) => {
         test.skip(!OTHER_DATASET, "only one course database ships");
-        await app.open(`./?db=${OTHER_DATASET.id}&preview=export`);
+        await app.open(`./?db=${OTHER_DATASET.id}&${flagState("export")}`);
         const first = await page.evaluate(() => window.app.database.name);
         await app.pickDatabaseById(DEFAULT_DATASET.id);
         await expect(app.databaseLabel).toHaveText(DEFAULT_DATASET.name);
@@ -1102,7 +1104,7 @@ test.describe("the dialog is not opened when it cannot be of use: a toast says w
 
     test("with no database open: the page's own words for it", async ({ page, app }) => {
         const { NO_DATABASE_MESSAGE } = await load("config.js");
-        await page.goto("./?preview=export#datasets/gone.db");
+        await page.goto(`./?${flagState("export")}#datasets/gone.db`);
         await expect(app.errorBand).toContainText("Failed to load database from URL datasets/gone.db");
         await expectRefused(page, app, NO_DATABASE_MESSAGE);
     });
@@ -1120,7 +1122,7 @@ test.describe("the dialog is not opened when it cannot be of use: a toast says w
 
     test("while a database is loading", async ({ page, app }) => {
         test.skip(!OTHER_DATASET, "only one course database ships");
-        await app.open(`./?db=${OTHER_DATASET.id}&preview=export`);
+        await app.open(`./?db=${OTHER_DATASET.id}&${flagState("export")}`);
         const held = await holdDataset(page);
         await app.pickDatabaseById(DEFAULT_DATASET.id);
         await held.requested;
@@ -1139,7 +1141,7 @@ test.describe("the dialog is not opened when it cannot be of use: a toast says w
     });
 
     test("while an import runs: the import's own message, and the dialog is offered when the import has ended", async ({ page, app }) => {
-        await app.open("./?preview=import,export");
+        await app.open(`./?${flagState("import", "export")}`);
         const held = await holdVendor(page, "papaparse.min.js", { pass: 1 });
         await app.chooseFiles([{ name: "people.csv", mimeType: "text/csv", buffer: Buffer.from("id,name\n1,Ada\n2,Grace\n") }]);
         await expect(app.importDialog).toBeVisible();
@@ -2168,7 +2170,7 @@ test.describe("a database that opens under the idle dialog closes it", () => {
 
     test("Forward does the same", async ({ page, app }) => {
         test.skip(!OTHER_DATASET, "only one course database ships");
-        await app.open(`./?db=${OTHER_DATASET.id}&preview=export`);
+        await app.open(`./?db=${OTHER_DATASET.id}&${flagState("export")}`);
         await app.pickDatabaseById(DEFAULT_DATASET.id);
         await expect(app.databaseLabel).toHaveText(DEFAULT_DATASET.name);
         await page.goBack();

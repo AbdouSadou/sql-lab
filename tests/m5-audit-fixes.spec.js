@@ -1,5 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 const { test, expect, evidenceFile, App, NORTHLIGHT_URL } = require("./helpers");
 
 // M5 audit fixes: one test per behaviour changed after the independent audits. The statement
@@ -499,7 +500,62 @@ test.describe("the About page and the README", () => {
     });
 
     test("the README says what the query count is, and how SQL lines that look like entries are written", () => {
-        expect(readme()).toMatch(/number of entries the exporter wrote/);
+        expect(readme()).toMatch(/number of query entries the exporter wrote/);
         expect(readme()).toMatch(/backslash in front/);
+    });
+
+    test("About and the README say that an evidence file also lists the files imported and the tables exported, and the README says what the check page shows for such a file", () => {
+        expect(about()).toContain("The file also lists each file you imported and each export of tables you saved.");
+        // (the paragraph for markers: the file is for one dataset, and holds that dataset's imports and exports)
+        expect(about()).toContain("with the files imported into it and the tables exported from it, so ask a student who worked on two datasets for two files.");
+        expect(readme()).toContain("The file also lists each file imported and each export of tables.");
+        expect(readme()).toContain("with the files imported into it and the tables exported from it: for work on two datasets, ask for two files.");
+        // step 3 of the marking steps names the row the check page really shows, under the row of queries
+        expect(readme()).toContain("also shows the number of events, in a line \"Events\" under \"Queries\"");
+        const page = read("js/lab/verify-page.js");
+        expect(page).toContain('["Queries", result.queries]');
+        expect(page).toContain('rows.push(["Events", result.events]);');
+        // the notes that the browser keeps of imports and exports are in the README's list of what is kept
+        expect(readme()).toContain("a note of each file imported and of each file saved when tables are exported (its name, its size and its tables)");
+    });
+
+    test("About says that CSV files and Excel workbooks can be brought in and tables saved as CSV files, with the menu entry's own name, and that what is brought in is held in the page only", async () => {
+        const { EXPORT_TABLES_TITLE, EXPORT_TABLES_MENU_TEXT } = await import(pathToFileURL(path.join(ROOT, "js", "lab", "config-workflow.js")).href);
+        expect(about()).toContain("or bring in CSV files and Excel workbooks as tables: choose them there, or drop them on the page, and a dialog shows what will be imported before anything is.");
+        expect(about()).toContain("What you open or bring in is held in the page only: it is gone when the page is closed or reloaded, or when another database is opened, so save the database as a file to keep it");
+        expect(about()).toContain(`Export, then ${EXPORT_TABLES_TITLE}, saves tables as CSV files.`);
+        expect(about()).toContain("Open a SQLite database file, a SQL script, a CSV file or an Excel workbook from your computer and it is read by your browser only.");
+        // the README names the same entry, with its ellipsis, and the sentence that was true of the README before is kept beside it
+        expect(readme()).toContain(`Export, then ${EXPORT_TABLES_MENU_TEXT}.`);
+        expect(readme()).toContain("CSV files and Excel workbooks are brought in as tables from the same entry, several at once, or by dropping them on the page");
+    });
+
+    test("the README tells the owner how a feature of the import and export is switched off for everyone, for one visit, and how one that is still off is tried", async () => {
+        const { PREVIEW_FLAGS } = await import(pathToFileURL(path.join(ROOT, "js", "lab", "config-workflow.js")).href);
+        const text = readme();
+        const section = text.slice(text.indexOf("## Import and export of tables"), text.indexOf("## Run it locally"));
+        expect(section.length).toBeGreaterThan(100);
+        expect(section).toContain("are on for everyone since Nov 20, 2026");
+        expect(section).toContain("set one to `false`, rebuild the bundle (`npm run build:app`), commit and push, and that feature is off for everyone again");
+        // and what does not follow the switch: the texts, the tests of the page as it ships, and what browsers already hold
+        expect(section).toContain("When a feature is switched off for everyone, three things do not follow the switch:");
+        for (const name of ["`EVIDENCE_DIALOG_TEXT`", "`EXPORT_EVIDENCE_DESCRIPTION`", "`flagState`", "version 2 files even on a page with every flag off"]) {
+            expect(section, name).toContain(name);
+        }
+        expect(section).toContain("put a minus before its name in the address, `index.html?preview=-import`");
+        expect(section).toContain("`?preview=excel-export`");
+        // it names every flag the config holds
+        for (const name of Object.keys(PREVIEW_FLAGS)) {
+            expect(section, name).toContain(name);
+        }
+        // and it says without softening that the checks by hand were not made before the features were switched on
+        expect(section).toContain("were switched on before the checks by hand that the plan's section 9 lists were made");
+        for (const name of ["import", "export", "excel-import"]) {
+            expect(section, name).toContain(`\`${name}\` was switched on on Nov 20, 2026 at the owner's word before these checks were made, and they are still to make`);
+        }
+        // the features' limits are still there, under their own heading
+        expect(section).toContain(" - Limits:");
+        // the table of what to do tells where the switch is
+        expect(text).toContain("[Import and export of tables](#import-and-export-of-tables)");
     });
 });

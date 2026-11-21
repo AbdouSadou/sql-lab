@@ -14,6 +14,7 @@ const {
     App,
     SAMPLE_FILE,
     NORTHLIGHT_URL,
+    flagState,
     DEFAULT_DATASET,
     realManifest,
     csvFile: csv,
@@ -44,8 +45,11 @@ const {
 // demand, the busy state while an import runs, Cancel, and what the page looks like after an
 // import. What the import makes of a file (types, names, the report's rows) is pinned by the
 // other aw2 files. Everything here drives the real page, on all four projects; the one thing
-// read in Node is config-workflow.js, for the texts the student sees. With the flag off
-// (the first group) nothing is different from the page as it was.
+// read in Node is config-workflow.js, for the texts the student sees. With every flag off
+// (the first group) nothing is different from the page as it was. A page is opened with the state it
+// is about, named in full with flagState(...): the import alone for most groups, so that a test keeps
+// its state whatever the shipped defaults are. The last group before the page's own checks holds the
+// page as it ships, at the plain address.
 //
 // It also pins: Back and Forward under an idle dialog (the dialog closes, nothing is imported, and
 // with a database still on its way Import says so), files chosen or dropped while a database loads
@@ -87,23 +91,26 @@ const {
 // the dialog, the second Escape of a visit, the end of an import by itself and a dialog closed from
 // script each leave no held Enter to repeat into the editor and no tabs behind.
 //
-// The import is behind the preview flag "import": a page opened with ?preview=import has it.
+// The import has the flag "import": a page opened with flagState("import") has it, with the export and
+// the import of Excel workbooks off.
 // A held import is made by routing the library's request through a gate (vendor/papaparse.min.js:
 // the first request, the preview's, goes through; the next one waits), so the import is "running"
 // for as long as the test wants, and the tests can try what is refused meanwhile.
 
 const load = (file) => import(pathToFileURL(path.join(__dirname, "..", "js", "lab", file)).href);
 
-const IMPORT_URL = "./?preview=import";
+const IMPORT_URL = `./?${flagState("import")}`;
 const READER = "vendor/papaparse.min.js";
 const READER_URL = `**/${READER}`;
-const NORTHLIGHT_IMPORT_URL = `${NORTHLIGHT_URL}&preview=import`;
+const NORTHLIGHT_IMPORT_URL = `${NORTHLIGHT_URL}&${flagState("import")}`;
+// every flag off: the page without any of the features
+const NO_FLAG_URL = `${NORTHLIGHT_URL}&${flagState()}`;
 // A course database that is not the default one (none when only one ships). The tests that pick the
 // default from the switcher while something is held start on it: the pick is then a change of
 // database whichever course database is the default (picking the open one changes nothing, and
 // nothing would load). A test that needs it is skipped when there is none.
 const OTHER_DATASET = realManifest().datasets.find((entry) => entry.id !== DEFAULT_DATASET.id);
-const OTHER_IMPORT_URL = `./?db=${OTHER_DATASET?.id}&preview=import`;
+const OTHER_IMPORT_URL = `./?db=${OTHER_DATASET?.id}&${flagState("import")}`;
 const NO_OTHER_DATASET = "only one course database ships";
 
 let words;
@@ -149,17 +156,17 @@ const focusIsOnBody = (page) => page.evaluate(() => document.activeElement === n
 const bigCsv = (name = "big.csv", rows = 4000) =>
     csv(name, `id,note\n${Array.from({ length: rows }, (_, i) => `${i},${"x".repeat(60)}${i}`).join("\n")}\n`);
 
-// ---- 1. the flag off ----------------------------------------------------------------------------
+// ---- 1. every flag off --------------------------------------------------------------------------
 
-test.describe("with the flag off the page is as it was", () => {
+test.describe("with every flag off the page is as it was", () => {
     test("the file input takes one file and has no list of kinds", async ({ page, app }) => {
-        await app.open(NORTHLIGHT_URL);
+        await app.open(NO_FLAG_URL);
         const input = await page.locator("#open-file-input").evaluate((el) => ({ multiple: el.multiple, accept: el.getAttribute("accept") }));
         expect(input).toEqual({ multiple: false, accept: null });
     });
 
     test("a CSV file that is chosen is tried as a database, and no dialog opens", async ({ page, app }) => {
-        await app.open(NORTHLIGHT_URL);
+        await app.open(NO_FLAG_URL);
         await app.chooseFiles(fixturePath("messy_sales.csv"));
         await expect(app.errorBand).toBeVisible();
         await expect(app.errorBand).toContainText(/not a database/i);
@@ -168,7 +175,7 @@ test.describe("with the flag off the page is as it was", () => {
 
     test("a file ending in .xlsm, .xlsb or .ods that is chosen is tried as a database, and no dialog opens", async ({ page, app }) => {
         for (const name of ["budget.xlsm", "data.xlsb", "sheet.ods"]) {
-            await app.open(NORTHLIGHT_URL);
+            await app.open(NO_FLAG_URL);
             await app.chooseFiles({ name, mimeType: "application/octet-stream", buffer: Buffer.from("this is not a spreadsheet at all\n") });
             await expect(app.errorBand, name).toBeVisible();
             await expect(app.errorBand, name).toContainText(/not a database/i);
@@ -177,7 +184,7 @@ test.describe("with the flag off the page is as it was", () => {
     });
 
     test("a file that is dropped is cancelled and opens nothing", async ({ page, app }) => {
-        await app.open(NORTHLIGHT_URL);
+        await app.open(NO_FLAG_URL);
         await app.recordToasts();
         const before = await databaseHandle(page);
         const editorBefore = await editorValue(page);
@@ -193,7 +200,7 @@ test.describe("with the flag off the page is as it was", () => {
     });
 
     test("the reader is never requested, and is not on the page", async ({ page, app, net }) => {
-        await app.open(NORTHLIGHT_URL);
+        await app.open(NO_FLAG_URL);
         const count = countReader(page);
         await app.chooseFiles(fixturePath("messy_sales.csv"));
         await expect(app.errorBand).toBeVisible();
@@ -205,16 +212,16 @@ test.describe("with the flag off the page is as it was", () => {
     });
 
     test("the menu entry keeps its old description", async ({ page, app }) => {
-        await app.open(NORTHLIGHT_URL);
+        await app.open(NO_FLAG_URL);
         await app.databaseButton.click();
         await expect(page.locator("#open-file")).toContainText(words.OPEN_FILE_DESCRIPTION);
         await expect(page.locator("#open-file")).not.toContainText(words.OPEN_FILE_WITH_IMPORT_DESCRIPTION);
     });
 });
 
-// ---- 2. the flag on, before anything is chosen ----------------------------------------------------
+// ---- 2. the import alone, before anything is chosen -----------------------------------------------
 
-test.describe("with the flag on, before anything is chosen", () => {
+test.describe("with the import alone, before anything is chosen", () => {
     test("the file input takes several files and has no list of kinds", async ({ page, app }) => {
         await app.open(NORTHLIGHT_IMPORT_URL);
         const input = await page.locator("#open-file-input").evaluate((el) => ({ multiple: el.multiple, accept: el.getAttribute("accept") }));
@@ -237,8 +244,61 @@ test.describe("with the flag on, before anything is chosen", () => {
     });
 });
 
+// ---- 2b. the page as it ships ------------------------------------------------------------------------
+
+// The import is on at the plain address (the address has no preview parameter), so what a student meets
+// every day is held here too, beside the groups that hold the import alone.
+test.describe("the page as it ships: the import is on at the plain address", () => {
+    test("the file input takes several files and has no list of kinds", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_URL);
+        const input = await page.locator("#open-file-input").evaluate((el) => ({ multiple: el.multiple, accept: el.getAttribute("accept") }));
+        expect(input).toEqual({ multiple: true, accept: null });
+    });
+
+    test("the menu entry says that it takes CSV files and Excel files too", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_URL);
+        await app.databaseButton.click();
+        await expect(page.locator("#open-file")).toContainText(words.OPEN_FILE_WITH_EXCEL_DESCRIPTION);
+        await expect(page.locator("#open-file")).not.toContainText(words.OPEN_FILE_DESCRIPTION);
+    });
+
+    test("a first visit asks for no library, and the page has none", async ({ page, app, net }) => {
+        await app.open(NORTHLIGHT_URL);
+        await page.waitForLoadState("networkidle");
+        expect(net.paths.filter((p) => /papaparse|xlsx|fflate/i.test(p))).toEqual([]);
+        expect(await page.evaluate(() => window.Papa)).toBeUndefined();
+        await expect(page.locator("#import-dialog[open]")).toHaveCount(0);
+    });
+
+    test("a CSV file that is chosen opens the dialog, the reader is requested once, and importing it makes the table", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_URL);
+        const count = countReader(page);
+        await app.chooseFiles(csv("people.csv"));
+        await expect(app.importDialog).toBeVisible();
+        await expect(app.importTabs).toHaveText(["people.csv"]);
+        await app.importCancel.click();
+        await expect(app.importDialog).toBeHidden();
+        await app.importFiles(csv("people.csv"));
+        expect(count()).toBe(1);
+        await expect(app.summary).toContainText(words.importedMessage(1, "people"));
+        expect(await names(app)).toEqual(["people"]);
+        expect(await app.rows("SELECT count(*) FROM people")).toEqual([[2]]);
+    });
+
+    test("a file that is dropped is a choice: a database opens, and CSV files open the dialog", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_URL);
+        const before = await databaseHandle(page);
+        expect(await app.dropFiles(SAMPLE_FILE, { target: "#results-pane" })).toBe(true);
+        await expectOpened(page, app, before);
+        await expect(app.databaseLabel).toHaveText("sample.db");
+        expect(await app.dropFiles([csv("a.csv"), csv("b.csv")], { target: "#results-pane" })).toBe(true);
+        await expect(app.importDialog).toBeVisible();
+        await expect(app.importTabs).toHaveText(["a.csv", "b.csv"]);
+    });
+});
+
 test.describe("the flag is read once, when the page loads", () => {
-    test("it stays on after a database was opened and the address lost ?preview=import", async ({ page, app }) => {
+    test("it stays on after a database was opened and the address lost its preview parameter", async ({ page, app }) => {
         await app.open(NORTHLIGHT_IMPORT_URL);
         const before = await databaseHandle(page);
         await app.chooseFiles(SAMPLE_FILE);
@@ -349,7 +409,7 @@ test.describe("the CSV reader is loaded when it is first needed", () => {
 const SCRIPT = App.sqlFile("notes.sql", "CREATE TABLE note (id INTEGER, body TEXT);\nINSERT INTO note VALUES (1, 'first');\n");
 const DROP_TARGETS = ["#results-pane", ".topbar", "#editor", "#sidebar"];
 
-test.describe("what a choice does, with the flag on", () => {
+test.describe("what a choice does, with the import alone", () => {
     test("one database is opened as ever", async ({ page, app }) => {
         await app.open(NORTHLIGHT_IMPORT_URL);
         await app.recordToasts();
@@ -976,9 +1036,9 @@ test.describe("files that come while a database loads are refused, in a toast, a
         await expect(app.databaseLabel).toHaveText("notes.sql");
     });
 
-    test("with the flag off nothing of this exists: a CSV file chosen or dropped while a load is held is tried as a database", async ({ page, app }) => {
+    test("with every flag off nothing of this exists: a CSV file chosen or dropped while a load is held is tried as a database", async ({ page, app }) => {
         test.skip(!OTHER_DATASET, NO_OTHER_DATASET);
-        await app.open(`./?db=${OTHER_DATASET.id}`);
+        await app.open(`./?db=${OTHER_DATASET.id}&${flagState()}`);
         await app.recordToasts();
         const handle = await databaseHandle(page);
         const held = await holdDataset(page);
@@ -1249,7 +1309,7 @@ test.describe("while an import runs, a drop is ignored", () => {
 test.describe("while an import runs, an exercise set stays as it is", () => {
     test("Check checks nothing and marks nothing, and the set picker keeps the open set", async ({ page, app }) => {
         test.skip(!SET, "no exercise set that the site can open ships");
-        await page.goto(`./?set=${SET.id}&preview=import`);
+        await page.goto(`./?set=${SET.id}&${flagState("import")}`);
         await expect(app.exercisePanel).toBeVisible();
         await app.waitReady();
         await app.editor.fill(SET.exercises[0].model_query);
@@ -3569,7 +3629,7 @@ test.describe("files that gave no table are counted in the sentence and named in
 // ---- 15. About names the files an import keeps a note of, and credits Papa Parse ------------------------------------
 
 // The sentences are in about.html (not in the config), so the words that matter are typed here. About
-// says so although the flag is off, and the page is opened without it.
+// says so whatever the flags are (it reads none).
 test.describe("about.html", () => {
     test("its list of what the browser remembers names the files a student imports", async ({ page }) => {
         await page.goto("./about.html");

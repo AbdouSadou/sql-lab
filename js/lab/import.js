@@ -2,7 +2,7 @@
 // page does with files a student chooses or drops, once the flag is on. With the flag off none
 // of this runs: a choice and a drop are what they were (js/index.js).
 //
-//   mountImport(page) -> {enabled, take(files), busy(), dialogOpen()}
+//   mountImport(page) -> {enabled, take(files), busy()}
 //     enabled        the flag, as it was when the page loaded (js/lab/flags.js)
 //     take(files)    what to do with files that were chosen or dropped. false: not the import's
 //                    (one file that is not the import's: it is opened as today). true:
@@ -15,7 +15,6 @@
 //                    be replaced).
 //     busy()         an import is running: js/index.js refuses Run, Check, the database export
 //                    and every way of opening another database meanwhile
-//     dialogOpen()   the dialog is open (a drop is ignored then, and Ctrl+O)
 //     run(job, {progress, cancelled})  what the dialog calls when Import is pressed; exported for the
 //                    tests, which call it with a job made by hand (see below)
 //
@@ -151,7 +150,7 @@ export function mountImport({
     const enabled = flagOn("import");
     let running = false;
     if (!enabled) {
-        return { enabled, take: () => false, busy: () => false, dialogOpen: () => false };
+        return { enabled, take: () => false, busy: () => false };
     }
     // several files can be chosen together
     fileInput.multiple = true;
@@ -425,5 +424,5 @@ export function mountImport({
         return true;
     }
 
-    return { enabled, take, busy: () => running, dialogOpen: dialog.isOpen, run };
+    return { enabled, take, busy: () => running, run };
 }

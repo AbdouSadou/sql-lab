@@ -2,14 +2,15 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const AxeBuilder = require("@axe-core/playwright").default;
-const { test, expect, fixturePath, expectedFor, fixtureIndex, SAMPLE_FILE } = require("./helpers");
+const { test, expect, fixturePath, expectedFor, fixtureIndex, SAMPLE_FILE, flagState } = require("./helpers");
 
 // Assessment plan, Phase 2 (import CSV): the import's dialog (section 3, "Preview dialog" and
 // "Names"; section 7, "Large files"; the headers of js/lab/import-dialog.js and import.js). What
 // the files pin is how the dialog behaves, not what an import makes: another spec reads the
 // tables. Little is imported here; most tests only open the dialog, look at it, and close it.
 //
-// Every test drives the real page, with the flag on (?preview=import), so each runs in all four
+// Every test drives the real page, with the import alone on (flagState("import"): the export and the
+// import of Excel workbooks off, whatever the shipped defaults are), so each runs in all four
 // projects; nothing here is Node-only. The files are the owner's fixtures (tests/fixtures/, never
 // edited) and a few made in the test: a buffer in Node, or a file made inside the page for the
 // size limits (no bytes travel; the sizes are typed here as the plan gives them, 50 MB and 250
@@ -71,7 +72,7 @@ const { test, expect, fixturePath, expectedFor, fixtureIndex, SAMPLE_FILE } = re
 // Also in 9: only a repeat of Enter is taken away in the dialog (a held letter, Backspace or arrow key in
 // the table's name still repeats).
 
-const OPEN = "./?preview=import";
+const OPEN = `./?${flagState("import")}`;
 const MB = 1024 * 1024;
 const READER_URL = "**/vendor/papaparse.min.js";
 
@@ -105,7 +106,7 @@ const WORKBOOK = fixturePath("shopping_db.xlsx");
 
 // ---- helpers ------------------------------------------------------------------------------------
 
-// openDialog opens the page with the flag on, chooses the files, and waits until every one has
+// openDialog opens the page with the import alone on, chooses the files, and waits until every one has
 // been looked at (a tab that is still being read says so)
 async function openDialog(app, files, { address = OPEN } = {}) {
     await app.open(address);
@@ -114,7 +115,7 @@ async function openDialog(app, files, { address = OPEN } = {}) {
     await expect(app.importDialog.locator(".import-reading")).toHaveCount(0);
 }
 
-// the page with the flag on and sample.db open: its tables fruit and tags, and its view v_priced
+// the page with the import alone on and sample.db open: its tables fruit and tags, and its view v_priced
 async function openSample(app) {
     await app.open(OPEN);
     await app.upload(SAMPLE_FILE);

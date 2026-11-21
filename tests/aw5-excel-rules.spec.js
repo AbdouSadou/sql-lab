@@ -306,10 +306,10 @@ test.describe("the limits and the texts of a workbook, and tallyNumber", () => {
         const { config } = await modules();
         // the three sentences that differ while the reading of workbooks is on (the old ones stay for the import alone)
         expect(config.IMPORT_DIALOG_TEXT_WITH_SHEETS).toBe("Each file, or each sheet of a workbook, becomes a table, read as it is: nothing in it is cleaned or changed.");
-        expect(config.OPEN_FILE_WITH_EXCEL_DESCRIPTION).toBe("A SQLite database, a .sql script, or CSV and Excel files to bring in as tables");
+        expect(config.OPEN_FILE_WITH_EXCEL_DESCRIPTION).toBe("A SQLite, .sql, CSV or Excel file");
         expect(config.IMPORT_MIXED_WITH_EXCEL_MESSAGE).toBe("Nothing was opened. Choose CSV and Excel files to bring in together, or one database or script on its own.");
         expect(config.IMPORT_DIALOG_TEXT).toBe("Each file becomes a table, read as it is: nothing in it is cleaned or changed.");
-        expect(config.OPEN_FILE_WITH_IMPORT_DESCRIPTION).toBe("A SQLite database, a .sql script, or CSV files to bring in as tables");
+        expect(config.OPEN_FILE_WITH_IMPORT_DESCRIPTION).toBe("A SQLite, .sql or CSV file");
         expect(config.IMPORT_MIXED_MESSAGE).toBe("Nothing was opened. Choose CSV files to bring in together, or one database or script on its own.");
         // the question for a large workbook
         const wait = "The page will not respond while it is read, which can take a minute. If the browser says the page is not responding, choose to wait.";

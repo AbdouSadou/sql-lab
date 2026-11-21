@@ -9,7 +9,7 @@ const { execFileSync } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
 const AxeBuilder = require("@axe-core/playwright").default;
-const { test, expect, EDITOR_INPUT, editorValue, editorSelect, expectEditorTextOnly, withSampleDataset, PAYLOAD, NORTHLIGHT_URL } = require("./helpers");
+const { test, expect, EDITOR_INPUT, editorValue, editorSelect, expectEditorTextOnly, withSampleDataset, PAYLOAD, NORTHLIGHT_URL, SAMPLE_FILE, csvFile, flagState } = require("./helpers");
 
 const ROOT = path.resolve(__dirname, "..");
 const BUNDLE = "vendor/editor.js";
@@ -571,8 +571,11 @@ test.describe("text only, as before", () => {
         expect(pageErrors).toEqual([]);
     });
 
-    test("a dropped file inserts nothing and the tab does not open it", async ({ page, app }) => {
-        await app.open();
+    // With every flag off a file dropped on the page is refused: nothing goes into the editor, the tab
+    // does not open it, and nothing else happens. (The page as it ships takes a dropped file as a
+    // chosen one: the next test.)
+    test("a dropped file inserts nothing and the tab does not open it, with every flag off", async ({ page, app }) => {
+        await app.open(`./?${flagState()}`);
         await app.editor.fill("SELECT 1");
         const cancelled = await app.editor.evaluate((el) => {
             const data = new DataTransfer();
@@ -588,6 +591,34 @@ test.describe("text only, as before", () => {
         await page.waitForTimeout(300);
         expect(await editorValue(page)).toBe("SELECT 1");
         await expectEditorTextOnly(page);
+        await expect(app.importDialog).toHaveCount(0);
+        await expect(app.databaseLabel).not.toHaveText("query.sql");
+    });
+
+    test("a file dropped on the editor of the page as it ships inserts no text and the tab does not open it: it is taken as a chosen file", async ({ page, app }) => {
+        await app.open(NORTHLIGHT_URL);
+        await app.editor.fill("SELECT 1");
+        const url = page.url();
+        // a CSV file: the import's dialog opens on it, and the editor keeps its text
+        expect(await app.dropFiles(csvFile("people.csv"), { target: "#editor" })).toBe(true);
+        await expect(app.importDialog).toBeVisible();
+        await expect(app.importTabs).toHaveText(["people.csv"]);
+        await app.importCancel.click();
+        await expect(app.importDialog).toBeHidden();
+        expect(await editorValue(page)).toBe("SELECT 1");
+        // a database: it is opened
+        expect(await app.dropFiles(SAMPLE_FILE, { target: "#editor" })).toBe(true);
+        await expect(app.databaseLabel).toHaveText("sample.db");
+        await app.waitReady();
+        // a SQL script: it is run, and its text is not put in the editor
+        expect(await app.dropFiles({ name: "query.sql", buffer: "SELECT 'from the file'" }, { target: "#editor" })).toBe(true);
+        await expect(app.databaseLabel).toHaveText("query.sql");
+        await app.waitReady();
+        expect(await editorValue(page)).not.toContain("from the file");
+        await expectEditorTextOnly(page);
+        // (the tab stays on the page: a file the browser opened would have left it)
+        expect(new URL(page.url()).origin).toBe(new URL(url).origin);
+        await expect(app.editor).toBeVisible();
     });
 
     test("the editor's input event comes once per change, after it, and not for the app's own text", async ({ page, app }) => {

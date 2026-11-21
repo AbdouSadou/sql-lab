@@ -6,9 +6,10 @@
 // tests/aw5-excel-dialog.spec.js.
 // Page tests reach code through the bundle only (await import("./bundle/app.js")): importDb,
 // importCells, importZip, importWorkbook and importReport are exposed by name, and so is the import
-// itself. A page opened with ?preview=import,excel-import has both flags (the flag "excel-import" does
-// nothing without "import"); the typed table and the report do not depend on them. Expected values come
-// from the owner's expected files (tests/fixtures/, never edited) or are typed in here; none is worked
+// itself. A page opened with the state flagState("import", "excel-import") has both imports on and the
+// export off, whatever the shipped defaults are (the flag "excel-import" does nothing without "import");
+// the typed table and the report do not depend on any flag, and their tests open the plain address.
+// Expected values come from the owner's expected files (tests/fixtures/, never edited) or are typed in here; none is worked
 // out by the code under test.
 //
 // 1. The typed table (js/lab/import-db.js newTypedTable): the table made at once with its types, one
@@ -53,7 +54,7 @@
 //    showing): the dialog closes and nothing of the workbook is left.
 // 12. A drop of a workbook is a choice wherever it lands; a mixed choice, a drop while a dialog is open,
 //    and a choice or a drop while a database loads.
-// 13. The flags: excel-import without import is a visit with no flag; import alone refuses a workbook
+// 13. The flags: excel-import without import is a visit with every flag off; import alone refuses a workbook
 //    and never asks for the library; the flag is read once; a first visit with both asks for nothing.
 // 14. After an import of a workbook, into a new database and into the open one: the address, the title,
 //    the names, the toast with the number of tables, the report, the log, the focus, the library asked
@@ -71,6 +72,7 @@ const {
     test,
     expect,
     NORTHLIGHT_URL,
+    flagState,
     csvFile,
     eventsOfOpen,
     expectedFor,
@@ -110,9 +112,11 @@ const {
 
 const load = (file) => import(pathToFileURL(path.join(__dirname, "..", "js", "lab", file)).href);
 
-const BOTH_URL = `${NORTHLIGHT_URL}&preview=import,excel-import`;
-const FLAGS = "./?preview=import,excel-import";
-const NORTHLIGHT_IMPORT_URL_ONLY = `${NORTHLIGHT_URL}&preview=import`;
+const BOTH_URL = `${NORTHLIGHT_URL}&${flagState("import", "excel-import")}`;
+const FLAGS = `./?${flagState("import", "excel-import")}`;
+const NORTHLIGHT_IMPORT_URL_ONLY = `${NORTHLIGHT_URL}&${flagState("import")}`;
+const BOTH_EXPORT_URL = `${NORTHLIGHT_URL}&${flagState("import", "excel-import", "export")}`;
+const NO_FLAG_URL = `${NORTHLIGHT_URL}&${flagState()}`;
 const STUDENT = "U2034567";
 
 let words;
@@ -1067,7 +1071,7 @@ test.describe("the run of a sheet, called as the dialog calls it, with a job mad
     });
 
     test("with the import alone the toast and the description are the old ones", async ({ page, app }) => {
-        await app.open(`${NORTHLIGHT_URL}&preview=import`);
+        await app.open(`${NORTHLIGHT_URL}&${flagState("import")}`);
         await app.recordToasts();
         await app.chooseFiles([{ name: "a.csv", mimeType: "text/csv", buffer: Buffer.from("id\n1\n") }, { name: "b.sql", mimeType: "text/plain", buffer: Buffer.from("SELECT 1;") }]);
         await app.expectToasts([words.IMPORT_MIXED_MESSAGE]);
@@ -1403,7 +1407,7 @@ test.describe("what the dialog hands to the import, and what it says while the i
         test(`${name}: the table before it is undone too, and nothing is left (no table, no event, no report, no open statement, the connection as it was)`, async ({ app, page }) => {
             const part = words[partName];
             expect(typeof part).toBe("string");
-            await app.open(NORTHLIGHT_URL + "&preview=import,excel-import");
+            await app.open(`${NORTHLIGHT_URL}&${flagState("import", "excel-import")}`);
             const gate = await gateTurns(page);
             await app.chooseFiles(TWO());
             await dialogReady(app);
@@ -1450,7 +1454,7 @@ test.describe("what the dialog hands to the import, and what it says while the i
 
     test("a workbook is read once, when it is chosen: the import that follows reads nothing again, and what it imports is what the dialog showed", async ({ app, page }) => {
         await noteReads(page);
-        await app.open(NORTHLIGHT_URL + "&preview=import,excel-import");
+        await app.open(`${NORTHLIGHT_URL}&${flagState("import", "excel-import")}`);
         await noteBytes(page);
         await app.chooseFiles(WORKBOOK_A());
         await dialogReady(app);
@@ -1467,7 +1471,7 @@ test.describe("what the dialog hands to the import, and what it says while the i
     // no texts behind).
     test("an .xls and a web page saved under an Excel name are each read once, and neither is followed by the read of the workbook that holds nothing", async ({ app, page }) => {
         await noteReads(page);
-        await app.open(NORTHLIGHT_URL + "&preview=import,excel-import");
+        await app.open(`${NORTHLIGHT_URL}&${flagState("import", "excel-import")}`);
         await noteBytes(page);
         const old = workbookFile("old.xls", [{ name: "ledger", rows: [["x"], [1], [2]] }], "xls");
         await app.chooseFiles([old, pageFile("prices.xls", [[["item"], ["pen"]]])]);
@@ -1484,7 +1488,7 @@ test.describe("what the dialog hands to the import, and what it says while the i
 
     test("two .xlsx workbooks chosen together are each followed by the read of the workbook that holds nothing, before the next file's bytes are read", async ({ app, page }) => {
         await noteReads(page);
-        await app.open(NORTHLIGHT_URL + "&preview=import,excel-import");
+        await app.open(`${NORTHLIGHT_URL}&${flagState("import", "excel-import")}`);
         await noteBytes(page);
         await app.chooseFiles([WORKBOOK_A(), WORKBOOK_B()]);
         await dialogReady(app);
@@ -1494,7 +1498,7 @@ test.describe("what the dialog hands to the import, and what it says while the i
 
     test("a workbook that was left while its import was cancelled is read again when it is chosen again, and imports as it did the first time", async ({ app, page }) => {
         await noteReads(page);
-        await app.open(NORTHLIGHT_URL + "&preview=import,excel-import");
+        await app.open(`${NORTHLIGHT_URL}&${flagState("import", "excel-import")}`);
         await noteBytes(page);
         const gate = await gateTurns(page);
         await app.chooseFiles(TWO());
@@ -2235,7 +2239,7 @@ test.describe("while an import of sheets runs, what could change the open databa
     });
 
     test("the export of tables is refused in a toast: no dialog opens; afterwards it lists the tables that the import made", async ({ page, app }) => {
-        await app.open(`${BOTH_URL},export`);
+        await app.open(BOTH_EXPORT_URL);
         await app.recordToasts();
         const gate = await holdSheets(page, app);
         await page.evaluate(() => {
@@ -2253,7 +2257,7 @@ test.describe("while an import of sheets runs, what could change the open databa
 
     test("picking another course database is refused, and the switcher shows what is open again", async ({ page, app }) => {
         test.skip(!OTHER_DATASET, NO_OTHER_DATASET);
-        await app.open(`./?db=${OTHER_DATASET.id}&preview=import,excel-import`);
+        await app.open(`./?db=${OTHER_DATASET.id}&${flagState("import", "excel-import")}`);
         await app.recordToasts();
         const handle = await databaseHandle(page);
         const gate = await holdSheets(page, app);
@@ -2329,7 +2333,7 @@ test.describe("while an import of sheets runs, what could change the open databa
 
     test("Back and Forward open nothing, say so in a toast, and put the address back", async ({ page, app }) => {
         test.skip(!OTHER_DATASET, NO_OTHER_DATASET);
-        await app.open(`./?db=${OTHER_DATASET.id}&preview=import,excel-import`);
+        await app.open(`./?db=${OTHER_DATASET.id}&${flagState("import", "excel-import")}`);
         // a history of the page's own: a course database that is not the default, the default one, and back to the first
         await app.pickDatabaseById(DEFAULT_DATASET.id);
         await expect(page).toHaveURL(new RegExp(`db=${DEFAULT_DATASET.id}`));
@@ -2356,7 +2360,7 @@ test.describe("while an import of sheets runs, what could change the open databa
 
     test("Check checks nothing and marks nothing, and the set picker keeps the open set", async ({ page, app }) => {
         test.skip(!SET, "no exercise set that the site can open ships");
-        await page.goto(`./?set=${SET.id}&preview=import,excel-import`);
+        await page.goto(`./?set=${SET.id}&${flagState("import", "excel-import")}`);
         await expect(app.exercisePanel).toBeVisible();
         await app.waitReady();
         await app.editor.fill(SET.exercises[0].model_query);
@@ -2600,7 +2604,7 @@ test.describe("a drop of a workbook is a choice, wherever it lands", () => {
     });
 
     test("a workbook dropped while the export's dialog is open is ignored: the export dialog stays, and no import dialog opens", async ({ page, app }) => {
-        await app.open(`${BOTH_URL},export`);
+        await app.open(BOTH_EXPORT_URL);
         await app.recordToasts();
         const handle = await databaseHandle(page);
         await app.openExportMenu();
@@ -2642,7 +2646,7 @@ test.describe("a workbook that comes while a database loads is refused in a toas
     for (const how of ["chosen", "dropped"]) {
         test(`${how} while a course database is picked and on its way: the open database is not touched, and the load goes on`, async ({ page, app }) => {
             test.skip(!OTHER_DATASET, NO_OTHER_DATASET);
-            await app.open(`./?db=${OTHER_DATASET.id}&preview=import,excel-import`);
+            await app.open(`./?db=${OTHER_DATASET.id}&${flagState("import", "excel-import")}`);
             await app.recordToasts();
             const handle = await databaseHandle(page);
             const held = await holdDataset(page);
@@ -2706,14 +2710,14 @@ test.describe("the flags: excel-import does nothing without import, and import a
     }
     const asksForLibrary = (seen) => seen.requests.some((path) => /xlsx/i.test(path));
 
-    test("excel-import without import is a visit with no flag at all: a workbook chosen or dropped is tried as a database as ever, with the same band, elements, requests and stored keys, and no library is asked for", async ({ browser, baseURL }) => {
+    test("excel-import without import is a visit with every flag off: a workbook chosen or dropped is tried as a database as ever, with the same band, elements, requests and stored keys, and no library is asked for", async ({ browser, baseURL }) => {
         const choose = async (page, app) => {
             await app.chooseFiles(fixturePath("shopping_db.xlsx"));
             await expect(app.errorBand).toBeVisible();
             expect(await app.dropFiles(fixturePath("shopping_db.xlsx"), { target: "#results-pane" })).toBe(true);
         };
-        const none = await visit(browser, baseURL, NORTHLIGHT_URL, choose);
-        const only = await visit(browser, baseURL, `${NORTHLIGHT_URL}&preview=excel-import`, choose);
+        const none = await visit(browser, baseURL, NO_FLAG_URL, choose);
+        const only = await visit(browser, baseURL, `${NORTHLIGHT_URL}&${flagState("excel-import")}`, choose);
         expect(none.band).toMatch(/not a database/i);
         expect(none.dialogs).toBe(0);
         expect(none.input).toEqual({ multiple: false, accept: null });
@@ -2755,7 +2759,7 @@ test.describe("the flags: excel-import does nothing without import, and import a
         await expect(app.importSheetStrip(words.importSheetsLabel("alpha.xlsx")).getByRole("tab")).toHaveCount(2);
         await app.importCancel.click();
         await expect(app.importDialog).toBeHidden();
-        await page.evaluate(() => history.replaceState(null, "", "./?preview=import"));
+        await page.evaluate((address) => history.replaceState(null, "", address), `./?${flagState("import")}`);
         expect(await app.dropFiles(WORKBOOK_B())).toBe(true);
         await dialogReady(app);
         await expect(app.importPanel).toContainText("only_sheet");
@@ -2765,7 +2769,7 @@ test.describe("the flags: excel-import does nothing without import, and import a
     test("the flag is read once, when the page loads: with import alone, an address that gains excel-import afterwards changes nothing, and a workbook is refused", async ({ page, app }) => {
         const asked = libraryRequests(page);
         await app.open(NORTHLIGHT_IMPORT_URL_ONLY);
-        await page.evaluate(() => history.replaceState(null, "", "./?db=northlight&preview=import,excel-import"));
+        await page.evaluate((address) => history.replaceState(null, "", address), `./?db=northlight&${flagState("import", "excel-import")}`);
         await app.chooseFiles(fixturePath("shopping_db.xlsx"));
         await dialogReady(app);
         await expect(app.importPanel.locator(".import-refusal")).toHaveText(words.IMPORT_WORKBOOK_REASON);
@@ -2773,8 +2777,8 @@ test.describe("the flags: excel-import does nothing without import, and import a
         expect(asked).toEqual([]);
     });
 
-    test("with both flags a first visit asks for neither library and stores nothing: its requests, stored keys, elements and globals are those of a visit with no flag, and the three texts that differ are the only difference", async ({ browser, baseURL }) => {
-        const none = await visit(browser, baseURL, NORTHLIGHT_URL);
+    test("with both flags a first visit asks for neither library and stores nothing: its requests, stored keys, elements and globals are those of a visit with every flag off, and the three texts that differ are the only difference", async ({ browser, baseURL }) => {
+        const none = await visit(browser, baseURL, NO_FLAG_URL);
         const alone = await visit(browser, baseURL, NORTHLIGHT_IMPORT_URL_ONLY);
         const both = await visit(browser, baseURL, BOTH_URL);
         expect(both.keys).toEqual([]);
@@ -2785,6 +2789,33 @@ test.describe("the flags: excel-import does nothing without import, and import a
         expect(both.keys).toEqual(none.keys);
         expect(both.elements).toEqual(alone.elements);
         expect(both.input).toEqual(alone.input);
+    });
+
+    // The plain address has no preview parameter, and the page that ships has both imports and the export on.
+    test("the page as it ships, at the plain address: a first visit asks for neither library and stores nothing, and is the visit with both imports and the export on", async ({ browser, baseURL }) => {
+        const shipped = await visit(browser, baseURL, NORTHLIGHT_URL);
+        const named = await visit(browser, baseURL, BOTH_EXPORT_URL);
+        expect(shipped.keys).toEqual([]);
+        expect(shipped.globals).toEqual({ Papa: "undefined", XLSX: "undefined" });
+        expect(shipped.requests.filter((path) => /papaparse|xlsx|fflate/i.test(path))).toEqual([]);
+        expect(shipped.dialogs).toBe(0);
+        expect(shipped.input).toEqual({ multiple: true, accept: null });
+        expect(shipped.menu).toContain(words.OPEN_FILE_WITH_EXCEL_DESCRIPTION);
+        expect(shipped).toEqual(named);
+    });
+
+    test("the page as it ships, at the plain address: a workbook that is chosen is read with the library, the sheets are imported as tables, and a CSV file imported after it makes its own database", async ({ page, app }) => {
+        const asked = libraryRequests(page);
+        await app.open(NORTHLIGHT_URL);
+        await page.waitForLoadState("networkidle");
+        expect(asked).toEqual([]);
+        await app.importFiles(WORKBOOK_A());
+        expect(asked).toHaveLength(1);
+        await expect(app.summary).toContainText(words.importedMessage(2, "alpha"));
+        expect(await schemaNames(app)).toEqual(["first_sheet", "second_sheet"]);
+        await app.importFiles(csvFile("people.csv"));
+        expect(await schemaNames(app)).toEqual(["people"]);
+        expect(asked).toHaveLength(1);
     });
 });
 
@@ -3385,8 +3416,8 @@ test.describe("files that gave no table are counted in the sentence and named in
 // ---- about.html credits the spreadsheet library ----------------------------------------------------------------------------------
 
 // The sentence is in about.html (not in the config), so the words that matter are typed here, as for the credits of Papa Parse
-// (tests/aw2-import-page.spec.js) and of fflate (tests/aw3-export-rules.spec.js). About says it although no flag is on, and the
-// page is opened without one: the library is in the repository whether the flag is on or off, as the other two are.
+// (tests/aw2-import-page.spec.js) and of fflate (tests/aw3-export-rules.spec.js). About reads no flag and says it whatever
+// the flags are: the library is in the repository whether the flag is on or off, as the other two are.
 test.describe("about.html", () => {
     test("its credits name SheetJS and its publisher, with the Apache License, and the line has no link", async ({ page }) => {
         await page.goto("./about.html");

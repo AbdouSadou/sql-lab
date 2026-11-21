@@ -1,8 +1,9 @@
 // Assessment plan, Phase 5 (import Excel workbooks), in the page: the proof of the owner's fixtures.
 // The modules that read a workbook are tried in Node (tests/aw5-excel-rules.spec.js); here the
 // workbooks go through the page itself, with both flags on, and the engine is asked what came out.
-// The page is opened with ?preview=import,excel-import (the flag "excel-import" does nothing without
-// "import"). Page tests reach code through the bundle only (await import("./bundle/app.js")). Expected
+// The page is opened with the state flagState("import", "excel-import"): both imports on and the
+// export off, whatever the shipped defaults are (the flag "excel-import" does nothing without "import").
+// Page tests reach code through the bundle only (await import("./bundle/app.js")). Expected
 // values come from the owner's expected files (tests/fixtures/, never edited) or are typed in here;
 // none is worked out by the code under test. The typed table, the report, the run of a sheet and the
 // libraries are in tests/aw5-excel-page.spec.js; the strip of sheets and what a tab and a panel say
@@ -28,6 +29,7 @@ const {
     test,
     expect,
     NORTHLIGHT_URL,
+    flagState,
     compareTable,
     eventsOfOpen,
     expectedFor,
@@ -45,7 +47,7 @@ const {
     escaped,
 } = require("./helpers");
 
-const FLAGS = "./?preview=import,excel-import";
+const FLAGS = `./?${flagState("import", "excel-import")}`;
 
 const load = (file) => import(pathToFileURL(path.join(__dirname, "..", "js", "lab", file)).href);
 
@@ -372,7 +374,7 @@ test.describe("workbooks under other names, and files that are refused", () => {
         test(`${name} is refused with ${reasonName}: no table, no event, no stored key, no database opened`, async ({ app, page }) => {
             expect(expectedFor(name).outcome).toBe("refuse");
             expect(typeof words[reasonName], `${reasonName} is a text of config-workflow.js`).toBe("string");
-            await app.open(`${NORTHLIGHT_URL}&preview=import,excel-import`);
+            await app.open(`${NORTHLIGHT_URL}&${flagState("import", "excel-import")}`);
             const before = await pageState(app, page);
             expect(before.tables.length).toBeGreaterThan(0);
             await app.trackConnections();
@@ -465,7 +467,7 @@ test.describe("workbooks under other names, and files that are refused", () => {
     // for text and imported as one column.
     test("with the import alone, a web page saved as .xls after 5,000 spaces is refused as a workbook is, and Import is not offered", async ({ app }) => {
         const saved = `${" ".repeat(5000)}<html><body><table><tr><td>a</td><td>b</td></tr><tr><td>1</td><td>2</td></tr></table></body></html>\n`;
-        await app.open("./?preview=import");
+        await app.open(`./?${flagState("import")}`);
         await app.chooseFiles({ name: "page.xls", mimeType: "application/vnd.ms-excel", buffer: Buffer.from(saved, "utf8") });
         await dialogReady(app);
         await expect(app.importDialog.getByRole("tab", { name: `page.xls (${words.IMPORT_REFUSED_TAB_TEXT})`, exact: true })).toBeVisible();

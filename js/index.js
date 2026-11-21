@@ -410,11 +410,11 @@ function refusedWhileBusy() {
     return true;
 }
 
-// jobInTheWay: the same, and also while the dialog of the import or of the export is open (Ctrl+O
-// and Ctrl+U reach the page under a dialog: a second set of files, or another database, would
-// start there)
+// jobInTheWay: the same, and also while a dialog is open, whichever it is (Ctrl+O and Ctrl+U reach
+// the page under a dialog: a second set of files, another database or a second dialog would start
+// there)
 function jobInTheWay() {
-    return refusedWhileBusy() || importer.dialogOpen() || tables.dialogOpen();
+    return refusedWhileBusy() || document.querySelector("dialog[open]") !== null;
 }
 
 // A− and A+ in the editor toolbar: the size of the SQL and of the results (js/lab/text-size.js)
@@ -906,6 +906,11 @@ function execute(sql, { quiet = false } = {}) {
 // openUrl asks for a database's address in a dialog (js/lab/open-url-dialog.js); the focus goes
 // back to returnFocus if the student cancels
 function openUrl(returnFocus) {
+    // asked again in its own dialog (Ctrl+U in the address field): the dialog keeps what is typed
+    if (openUrlDialog.isOpen()) {
+        openUrlDialog.open(returnFocus);
+        return;
+    }
     if (jobInTheWay()) {
         return;
     }

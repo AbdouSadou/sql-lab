@@ -9,14 +9,17 @@
 
 // ---- Preview flags (js/lab/flags.js) ----
 
-// Each new feature of the plan sits behind one of these and is off until its value here is set to
-// true: this is the one place where a feature is switched on for everyone. A single visit can
-// turn flags on for itself with PREVIEW_PARAM in the address: index.html?preview=import,export
+// Each feature of the plan has a switch here. true is on for everyone, false is off for everyone.
+// The import of CSV files, the export of tables as CSV and the import of Excel workbooks were
+// switched on on Nov 20, 2026. To switch one off again, set it to false, rebuild the bundle, commit
+// and push (the README says what does not follow the switch). A single visit can switch a flag on
+// or off for itself with PREVIEW_PARAM in the address:
+// index.html?preview=excel-export, index.html?preview=-import
 export const PREVIEW_PARAM = "preview";
 export const PREVIEW_FLAGS = {
-    import: false,
-    export: false,
-    "excel-import": false,
+    import: true,
+    export: true,
+    "excel-import": true,
     "excel-export": false,
 };
 // A flag that does nothing unless another one is on too.
@@ -112,10 +115,11 @@ export const IMPORT_SHEET_CELLS = 30_000;
 export const WORKBOOK_WATCH_MS = 250;
 
 // What the "Open a file…" entry of the database menu says under its name while the import is
-// on (js/lab/config.js has the line it says otherwise).
-export const OPEN_FILE_WITH_IMPORT_DESCRIPTION = "A SQLite database, a .sql script, or CSV files to bring in as tables";
+// on (js/lab/config.js has the line it says otherwise). These are short enough to stay on one line
+// on a phone 360 pixels wide; where the menu is narrower still, the line wraps (css/menu.css).
+export const OPEN_FILE_WITH_IMPORT_DESCRIPTION = "A SQLite, .sql or CSV file";
 // ... and while excel-import is on too (the entry takes workbooks as well).
-export const OPEN_FILE_WITH_EXCEL_DESCRIPTION = "A SQLite database, a .sql script, or CSV and Excel files to bring in as tables";
+export const OPEN_FILE_WITH_EXCEL_DESCRIPTION = "A SQLite, .sql, CSV or Excel file";
 
 // A choice or a drop that cannot be taken as it is: said in a toast, before any dialog opens.
 export const IMPORT_MIXED_MESSAGE =

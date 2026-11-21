@@ -4,8 +4,9 @@
 // sentence of its own and leaves nothing behind. The pure arithmetic of the limits is tried in Node in
 // tests/aw5-excel-rules.spec.js; the sheets' strip and the ticks are in tests/aw5-excel-dialog.spec.js;
 // the flags, the libraries and Cancel while an import runs are in tests/aw5-excel-page.spec.js.
-// A page opened with ?preview=import,excel-import has both flags (the flag "excel-import" does nothing
-// without "import"). Page tests reach code through the bundle only (await import("./bundle/app.js")).
+// A page opened with the state flagState("import", "excel-import") has both imports on and the export off
+// (the flag "excel-import" does nothing without "import"), whatever the shipped defaults are.
+// Page tests reach code through the bundle only (await import("./bundle/app.js")).
 // Every limit is read from js/lab/config-workflow.js, never typed here; the texts a student reads are
 // compared with its constants and functions, and the two questions (for a file that is its own measure,
 // and for a zip) and the two refusals for size are also typed out once, so that a changed word fails.
@@ -53,11 +54,11 @@ const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const XLSX = require("../vendor/xlsx.full.min.js");
 const fflate = require("../vendor/fflate.min.js");
-const { test, expect, NORTHLIGHT_URL, csvFile, dialogReady, eventsOfOpen, expectNothingLeft, snapshot, workbookFile, escaped, holdLine, MB, OLE2_START } = require("./helpers");
+const { test, expect, NORTHLIGHT_URL, flagState, csvFile, dialogReady, eventsOfOpen, expectNothingLeft, snapshot, workbookFile, escaped, holdLine, MB, OLE2_START } = require("./helpers");
 
 const load = (file) => import(pathToFileURL(path.join(__dirname, "..", "js", "lab", file)).href);
 
-const FLAGS = `${NORTHLIGHT_URL}&preview=import,excel-import`;
+const FLAGS = `${NORTHLIGHT_URL}&${flagState("import", "excel-import")}`;
 
 let words;
 test.beforeAll(async () => {

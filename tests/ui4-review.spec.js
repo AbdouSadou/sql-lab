@@ -18,6 +18,8 @@
 //     cell is never under the sticky header; its target is the whole cell (44 px on a touch screen)
 //   - the progress bar shows in forced colours; long unbroken text wraps; "database", not "dataset"
 //   - the phone's summary line is one row
+//   - Ctrl+O and Ctrl+U do nothing under an open dialog (found when the import and the export of
+//     tables were switched on: a file chosen under the evidence dialog opened a second dialog)
 const path = require("node:path");
 const AxeBuilder = require("@axe-core/playwright").default;
 const {
@@ -35,6 +37,7 @@ const {
     SAMPLE_ENTRY,
     editorValue,
     NORTHLIGHT_URL,
+    flagState,
 } = require("./helpers");
 
 const SAMPLE_URL = /\/datasets\/sample\.db(\?.*)?$/;
@@ -827,7 +830,7 @@ test.describe("the progress bar", () => {
             };
         });
         await page.goto(NORTHLIGHT_URL);
-        await expect(page.locator(".results-loading-size")).toHaveText(/ of /);
+        await expect(page.locator("#result .results-loading-size")).toHaveText(/ of /);
     }
 
     // the colour of one pixel of a PNG, at a fraction of its width and height
@@ -845,7 +848,7 @@ test.describe("the progress bar", () => {
     test("shows in forced colours: an edge in CanvasText, a fill in Highlight on a Canvas track, the page's own colours kept off", async ({ page }) => {
         await page.emulateMedia({ forcedColors: "active" });
         await halfWay(page);
-        const bar = page.locator("progress.results-progress");
+        const bar = page.locator("#result progress.results-progress");
         const value = Number(await bar.evaluate((b) => b.value));
         expect(value).toBeGreaterThan(0.3);
         expect(value).toBeLessThan(0.7);
@@ -906,7 +909,7 @@ test.describe("long unbroken text", () => {
         await openFromUrl(page, `datasets/${name}`);
         await expect(page.locator("#result .results-loading-title")).toHaveText(`Loading ${name}`);
         await expect(app.pane).toHaveAttribute("data-state", "loading");
-        await expectNoSideways(page, ".results-loading-title");
+        await expectNoSideways(page, "#result .results-loading-title");
         held.open();
         await expect(app.toast).toContainText("Opened aaaa");
     });
@@ -1174,6 +1177,85 @@ test.describe("Ctrl+U while Open from URL is open", () => {
         await expect(input).toHaveValue("https://example.test/partial");
         await expect(input).toBeFocused();
     });
+});
+
+// ---- Ctrl/Cmd+O and Ctrl/Cmd+U under a dialog ---------------------------------------------------
+
+// The two keys are the page's own, and they reach it under a modal dialog. Under a dialog they do
+// nothing (js/index.js, jobInTheWay): no file is asked for, no second dialog opens on top of the
+// first, and no other database is opened under it. In the Open from URL dialog itself Ctrl+U goes to
+// the address field and keeps what is typed (the group above). The import's dialog and the export of
+// tables' dialog have the same in their own specs. Held here for the three other dialogs, on the page
+// as it ships and with every flag off.
+test.describe("Ctrl+O and Ctrl+U under an open dialog", () => {
+    const DIALOGS = [
+        {
+            name: "the evidence dialog",
+            id: "evidence-dialog",
+            open: async (app) => {
+                await app.run("SELECT 1");
+                await app.openEvidence();
+            },
+        },
+        {
+            name: "the database export dialog",
+            id: "export-dialog",
+            open: async (app, page) => {
+                await app.openExportMenu();
+                await page.locator("#export-db").click();
+            },
+        },
+        {
+            name: "the Open from URL dialog",
+            id: "open-url-dialog",
+            open: async (app, page) => {
+                await page.keyboard.press("Control+u");
+            },
+        },
+    ];
+    const STATES = [
+        ["on the page as it ships", NORTHLIGHT_URL],
+        ["with every flag off", `${NORTHLIGHT_URL}&${flagState()}`],
+    ];
+
+    for (const [state, address] of STATES) {
+        for (const dialog of DIALOGS) {
+            test(`${state}, under ${dialog.name}: no file is asked for and no second dialog opens; closed, both keys work again`, async ({ page, app }) => {
+                await app.open(address);
+                // how often the page asks for a file: it clicks its hidden file input, in the key's own event
+                await page.evaluate(() => {
+                    window.__asked = 0;
+                    document.querySelector("#open-file-input").addEventListener("click", () => {
+                        window.__asked += 1;
+                    });
+                });
+                const choosers = [];
+                page.on("filechooser", (chooser) => choosers.push(chooser));
+                const openDialogs = () => page.evaluate(() => [...document.querySelectorAll("dialog[open]")].map((node) => node.id));
+
+                await dialog.open(app, page);
+                await expect(page.locator(`#${dialog.id}`)).toBeVisible();
+                // each key, and the same key as it arrives with Caps Lock on (a capital)
+                for (const key of ["Control+o", "Control+O", "Control+u", "Control+U"]) {
+                    await page.keyboard.press(key);
+                    expect(await page.evaluate(() => window.__asked), key).toBe(0);
+                    expect(await openDialogs(), key).toEqual([dialog.id]);
+                }
+                expect(await page.evaluate((id) => document.getElementById(id).contains(document.activeElement), dialog.id), "the focus is still in the dialog").toBe(true);
+                expect(choosers).toHaveLength(0);
+
+                // closed, the keys work as they did
+                await page.keyboard.press("Escape");
+                await expect(page.locator(`#${dialog.id}`)).toBeHidden();
+                await page.keyboard.press("Control+o");
+                await expect.poll(() => choosers.length).toBe(1);
+                expect(await page.evaluate(() => window.__asked)).toBe(1);
+                await page.keyboard.press("Control+u");
+                await expect(page.locator("#open-url-dialog")).toBeVisible();
+                expect(await openDialogs()).toEqual(["open-url-dialog"]);
+            });
+        }
+    }
 });
 
 // ---- a set that cannot be opened while another load is on its way -----------------------------

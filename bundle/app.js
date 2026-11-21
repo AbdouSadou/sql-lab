@@ -67,7 +67,7 @@ var init_config = __esm({
     EXPORT_RESULTS_DESCRIPTION = "The whole result on screen, for a spreadsheet";
     EXPORT_RESULTS_NONE = "Run a query that returns rows first";
     EXPORT_EVIDENCE_TEXT = "Evidence (.txt)…";
-    EXPORT_EVIDENCE_DESCRIPTION = "A text record of the queries you ran, for your assessment";
+    EXPORT_EVIDENCE_DESCRIPTION = "Your queries, imports and table exports, for your assessment";
     EXPORT_DIALOG_TITLE = "Export the database";
     EXPORT_DIALOG_TEXT = "Saves the open database, with your changes, as a file on this device.";
     EXPORT_NAME_LABEL = "File name";
@@ -282,7 +282,7 @@ var init_config = __esm({
     EVIDENCE_FAILED_MESSAGE = "The evidence file could not be saved.";
     evidenceSavedMessage = (filename, count) => `Exported ${filename} with ${count} ${count === 1 ? "query" : "queries"}`;
     EVIDENCE_DIALOG_TITLE = "Export evidence";
-    EVIDENCE_DIALOG_TEXT = "Creates a text record of the queries you ran, to attach to your assessment.";
+    EVIDENCE_DIALOG_TEXT = "Creates a text record of the queries you ran, the files you imported and the tables you exported, to attach to your assessment.";
     EVIDENCE_FILE_LABEL = "Saved as";
     EVIDENCE_LABEL = "Student number";
     EVIDENCE_HINT = "6 to 12 letters or digits, no spaces. It goes in the file and nowhere else.";
@@ -3086,9 +3086,9 @@ init_config();
 // js/lab/config-workflow.js
 var PREVIEW_PARAM = "preview";
 var PREVIEW_FLAGS = {
-  import: false,
-  export: false,
-  "excel-import": false,
+  import: true,
+  export: true,
+  "excel-import": true,
   "excel-export": false
 };
 var PREVIEW_FLAG_NEEDS = { "excel-import": "import", "excel-export": "export" };
@@ -3126,8 +3126,8 @@ var EXCEL_MAX_UNPACKED_BYTES = 1024 * 1024 * 1024;
 var MAX_COLUMNS = 2e3;
 var IMPORT_SHEET_CELLS = 3e4;
 var WORKBOOK_WATCH_MS = 250;
-var OPEN_FILE_WITH_IMPORT_DESCRIPTION = "A SQLite database, a .sql script, or CSV files to bring in as tables";
-var OPEN_FILE_WITH_EXCEL_DESCRIPTION = "A SQLite database, a .sql script, or CSV and Excel files to bring in as tables";
+var OPEN_FILE_WITH_IMPORT_DESCRIPTION = "A SQLite, .sql or CSV file";
+var OPEN_FILE_WITH_EXCEL_DESCRIPTION = "A SQLite, .sql, CSV or Excel file";
 var IMPORT_MIXED_MESSAGE = "Nothing was opened. Choose CSV files to bring in together, or one database or script on its own.";
 var IMPORT_MIXED_WITH_EXCEL_MESSAGE = "Nothing was opened. Choose CSV and Excel files to bring in together, or one database or script on its own.";
 var IMPORT_SEVERAL_DATABASES_MESSAGE = "Nothing was opened. Only one database or script can be opened at a time.";
@@ -3363,12 +3363,20 @@ function readFlags(search, defaults = PREVIEW_FLAGS, needs = PREVIEW_FLAG_NEEDS)
   } catch {
     asked = [];
   }
+  const switchedOff = [];
   for (const value of asked) {
     for (const part of value.split(",")) {
       const name = part.trim();
-      if (Object.hasOwn(on, name)) {
+      if (name.startsWith("-")) {
+        switchedOff.push(name.slice(1));
+      } else if (Object.hasOwn(on, name)) {
         on[name] = true;
       }
+    }
+  }
+  for (const name of switchedOff) {
+    if (Object.hasOwn(on, name)) {
+      on[name] = false;
     }
   }
   let changed = true;
@@ -5937,10 +5945,7 @@ ${row.saved}`;
       event.preventDefault();
     }
   });
-  return {
-    open,
-    isOpen: () => dialog.open
-  };
+  return { open };
 }
 
 // js/lab/import-db.js
@@ -6357,7 +6362,7 @@ function mountTableExport({ returnFocus, getDatabase, isLoading = () => false, o
   let running = false;
   if (!enabled) {
     return { enabled, open() {
-    }, dialogOpen: () => false };
+    } };
   }
   async function loadZipTool(library, cancelled) {
     let timer = 0;
@@ -6594,7 +6599,7 @@ function mountTableExport({ returnFocus, getDatabase, isLoading = () => false, o
       toast(EXPORT_TABLES_NONE_MESSAGE, { tone: "note" });
     }
   }
-  return { enabled, open, dialogOpen: dialog.isOpen };
+  return { enabled, open };
 }
 
 // js/lab/evidence-dialog.js
@@ -6753,6 +6758,11 @@ function mountEvidence({ runLog: runLog2, returnFocus }) {
     exportNow();
   });
   cancel.addEventListener("click", closeDialog);
+  document.addEventListener("lab:database-loaded", () => {
+    if (dialog.open) {
+      closeDialog();
+    }
+  });
   dialog.addEventListener("cancel", () => {
     input.value = "";
     exportToken++;
@@ -9780,10 +9790,7 @@ function mountImportDialog({ returnFocus, getDestination, loadReader, excel = nu
       event.preventDefault();
     }
   });
-  return {
-    open,
-    isOpen: () => dialog.open
-  };
+  return { open };
 }
 
 // js/lab/import-events.js
@@ -9962,7 +9969,7 @@ function mountImport({
   const enabled = flagOn("import");
   let running = false;
   if (!enabled) {
-    return { enabled, take: () => false, busy: () => false, dialogOpen: () => false };
+    return { enabled, take: () => false, busy: () => false };
   }
   fileInput.multiple = true;
   const excel = flagOn("excel-import");
@@ -10209,7 +10216,7 @@ function mountImport({
     dialog.open(files);
     return true;
   }
-  return { enabled, take, busy: () => running, dialogOpen: dialog.isOpen, run };
+  return { enabled, take, busy: () => running, run };
 }
 
 // js/lab/more-menu.js
@@ -10806,7 +10813,7 @@ function mountOpenUrlDialog({ onOpen }) {
       returnFocus.focus();
     }
   });
-  return { open };
+  return { open, isOpen: () => dialog.open };
 }
 
 // js/lab/results.js
@@ -12552,7 +12559,7 @@ function refusedWhileBusy() {
   return true;
 }
 function jobInTheWay() {
-  return refusedWhileBusy() || importer.dialogOpen() || tables.dialogOpen();
+  return refusedWhileBusy() || document.querySelector("dialog[open]") !== null;
 }
 mountTextSize({
   smaller: document.querySelector("#text-smaller"),
@@ -12899,6 +12906,10 @@ function execute(sql, { quiet = false } = {}) {
   });
 }
 function openUrl(returnFocus) {
+  if (openUrlDialog.isOpen()) {
+    openUrlDialog.open(returnFocus);
+    return;
+  }
   if (jobInTheWay()) {
     return;
   }

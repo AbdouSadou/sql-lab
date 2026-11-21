@@ -10,6 +10,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const XLSX = require("../vendor/xlsx.full.min.js");
+const { flagState } = require("./helpers");
 
 // a file of the owner's test files (tests/fixtures/), for the states that import one
 const fixtureFile = (name) => path.join(__dirname, "fixtures", ...name.split("/"));
@@ -307,7 +308,7 @@ shell.states = {
             };
         });
         await page.goto(NORTHLIGHT_URL);
-        await page.locator(".results-loading-size").filter({ hasText: / of / }).waitFor({ state: "attached" });
+        await page.locator("#result .results-loading-size").filter({ hasText: / of / }).waitFor({ state: "attached" });
         await shell.view(page, "result");
     },
     result: async (page) => {
@@ -461,11 +462,12 @@ shell.states = {
         }
         await page.locator("#evidence-dialog").waitFor({ state: "visible" });
     },
-    // The assessment plan's Phase 2, behind its flag (?preview=import). The import's dialog: a file
-    // that was read (the tab showing), one whose column names are on a later row, and a workbook,
-    // which it cannot import yet.
+    // The assessment plan's Phase 2. The states of the import of text files are pictured with the
+    // import alone on (every other flag named off), whatever the shipped defaults are. The import's
+    // dialog: a file that was read (the tab showing), one whose column names are on a later row, and
+    // a workbook, which the import alone cannot take.
     "import-dialog": async (page) => {
-        await shell.open(page, `${NORTHLIGHT_URL}&preview=import`);
+        await shell.open(page, `${NORTHLIGHT_URL}&${flagState("import")}`);
         await page.locator("#open-file-input").setInputFiles(["messy_sales.csv", "csv/title_rows.csv", "shopping_db.xlsx"].map(fixtureFile));
         await page.locator("#import-dialog .import-preview-table").first().waitFor({ state: "visible" });
         // every file has been looked at: the last tab says why it is not imported
@@ -473,7 +475,7 @@ shell.states = {
     },
     // and the report of an import, in the results pane, once its toast has gone
     "import-report": async (page) => {
-        await shell.open(page, `${NORTHLIGHT_URL}&preview=import`);
+        await shell.open(page, `${NORTHLIGHT_URL}&${flagState("import")}`);
         await page.locator("#open-file-input").setInputFiles(fixtureFile("messy_sales.csv"));
         await page.locator('#import-dialog button[type="submit"]:enabled').click();
         await page.locator('#results-pane[data-state="report"]').waitFor({ state: "attached" });
@@ -485,7 +487,7 @@ shell.states = {
     // a file over 50 MB asks before it is read, in its tab: read it, or leave it out (the file is
     // made in the page, of zeros, and dropped there: no bytes travel)
     "import-warning": async (page) => {
-        await shell.open(page, `${NORTHLIGHT_URL}&preview=import`);
+        await shell.open(page, `${NORTHLIGHT_URL}&${flagState("import")}`);
         await page.evaluate(() => {
             const data = new DataTransfer();
             data.items.add(new File([new Uint8Array(50 * 1024 * 1024 + 1)], "sales_2025_export.csv"));
@@ -500,7 +502,7 @@ shell.states = {
     // never answered.
     "import-progress": Object.assign(
         async (page) => {
-            await shell.open(page, `${NORTHLIGHT_URL}&preview=import`);
+            await shell.open(page, `${NORTHLIGHT_URL}&${flagState("import")}`);
             await page.locator("#open-file-input").setInputFiles(fixtureFile("messy_sales.csv"));
             const submit = page.locator('#import-dialog button[type="submit"]:enabled');
             await submit.waitFor();
@@ -513,17 +515,17 @@ shell.states = {
         },
         { busy: true }
     ),
-    // The assessment plan's Phase 5, behind its flags (?preview=import,excel-import). A workbook of
+    // The assessment plan's Phase 5, pictured with both imports on and the export off. A workbook of
     // several sheets (two of them hidden) chosen with a text file: the workbook's tab on show, with
     // its first sheet; a hidden sheet on show, beside a sheet that holds no values; the question that
     // a very large .xls adds a sentence to; and the report of two workbooks imported together.
     "import-workbook": async (page) => {
-        await shell.open(page, `${NORTHLIGHT_URL}&preview=import,excel-import`);
+        await shell.open(page, `${NORTHLIGHT_URL}&${flagState("import", "excel-import")}`);
         await page.locator("#open-file-input").setInputFiles(["excel/messy_course_workbook.xlsx", "messy_sales.csv"].map(fixtureFile));
         await workbookShown(page);
     },
     "import-workbook-sheet": async (page) => {
-        await shell.open(page, `${NORTHLIGHT_URL}&preview=import,excel-import`);
+        await shell.open(page, `${NORTHLIGHT_URL}&${flagState("import", "excel-import")}`);
         await page.locator("#open-file-input").setInputFiles({
             name: "term_marks.xlsx",
             mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -536,7 +538,7 @@ shell.states = {
     },
     "import-workbook-warning": async (page) => {
         const { EXCEL_HEAVY_BYTES } = await import(pathToFileURL(path.join(__dirname, "..", "js", "lab", "config-workflow.js")).href);
-        await shell.open(page, `${NORTHLIGHT_URL}&preview=import,excel-import`);
+        await shell.open(page, `${NORTHLIGHT_URL}&${flagState("import", "excel-import")}`);
         await page.evaluate((size) => {
             // the eight bytes that begin an old Excel file, and zeros: the question comes from the size
             const head = new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
@@ -549,7 +551,7 @@ shell.states = {
         await page.locator("#import-dialog .import-warning").waitFor({ state: "visible" });
     },
     "import-report-workbook": async (page) => {
-        await shell.open(page, `${NORTHLIGHT_URL}&preview=import,excel-import`);
+        await shell.open(page, `${NORTHLIGHT_URL}&${flagState("import", "excel-import")}`);
         await page.locator("#open-file-input").setInputFiles(["excel/formats.xlsx", "excel/formulas_uncached.xlsx"].map(fixtureFile));
         await workbookShown(page);
         await page.locator('#import-dialog button[type="submit"]:enabled').click();
@@ -566,7 +568,7 @@ shell.states = {
             pane.scrollTop = pane.scrollHeight;
         });
     },
-    // The assessment plan's Phase 3, behind its flag (?preview=export). The dialog that saves tables
+    // The assessment plan's Phase 3, pictured with the export alone on. The dialog that saves tables
     // and views as CSV, with the owner's database of edge cases (tests/fixtures/export/): the list,
     // counted, with some rows ticked (the pair whose file names collide among them: the second says
     // where it is saved); then the dialog while an export runs, held at the request for the zip tool,
@@ -701,10 +703,10 @@ function termMarksWorkbook() {
 }
 
 
-// The dialog of the export of tables (flag "export"): the owner's database of edge cases is
+// The dialog of the export of tables (the export alone on): the owner's database of edge cases is
 // opened as a file, and the Export menu's entry (the More menu's on a phone) is chosen.
 async function exportDialog(page) {
-    await shell.open(page, `${NORTHLIGHT_URL}&preview=export`);
+    await shell.open(page, `${NORTHLIGHT_URL}&${flagState("export")}`);
     await page.locator("#open-file-input").setInputFiles(fixtureFile("export/export_edge_cases.db"));
     await page.waitForFunction(() => window.app.database.name === "export_edge_cases.db");
     // (the toast that says the database opened is not in the picture: it comes a moment after the

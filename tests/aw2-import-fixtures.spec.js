@@ -5,6 +5,7 @@ const {
     test,
     expect,
     NORTHLIGHT_URL,
+    flagState,
     SAMPLE_FILE,
     compareTable,
     expectedFor,
@@ -16,7 +17,8 @@ const {
 
 // Assessment plan, Phase 2 (import CSV): what an import MAKES, judged against the owner's test
 // files (tests/fixtures/, with the result each must give in tests/fixtures/expected/), through the
-// real dialog and the real engine, with the flag on (?preview=import). Pinned here:
+// real dialog and the real engine, with the import alone on (flagState("import"): the export and the
+// import of Excel workbooks off). Pinned here:
 //   - every text fixture gives the table its expected file holds, and the dialog shows the settings
 //     that file names (delimiter, encoding, the tick box), plan section 3 and section 9
 //   - the two text files with a workbook's name, and the header row of title_rows.csv
@@ -40,8 +42,8 @@ const {
 //     not in the four) shows Comma and one column; the plan's Windows file with one lone quote in a
 //     heading gives an INTEGER column and no carriage return (the dialog's line ending is handed to
 //     Papa); a delimiter chosen by hand is the one the import reads with
-//   - ?preview=import: a workbook is refused with its words, and the files beside it still import;
-//     ?preview=import,excel-import: the same files are read (tests/aw5-excel-fixtures.spec.js
+//   - with the import alone: a workbook is refused with its words, and the files beside it still import;
+//     with the import of Excel workbooks on as well: the same files are read (tests/aw5-excel-fixtures.spec.js
 //     holds what a workbook gives)
 // Everything runs in the page, on all four projects. Node only reads the fixtures and the texts of
 // js/lab/config-workflow.js (the reasons a student is told), and checks the evidence file with
@@ -58,7 +60,7 @@ const escaped = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const refusedName = () => new RegExp(` \\(${escaped(words.IMPORT_REFUSED_TAB_TEXT)}\\)$`);
 const refusedWords = () => new RegExp(escaped(words.IMPORT_REFUSED_TAB_TEXT));
 
-const FLAG = "./?preview=import";
+const FLAG = `./?${flagState("import")}`;
 const STUDENT = "U2034567";
 
 const DELIMITERS = { comma: ",", semicolon: ";", tab: "\t", pipe: "|" };
@@ -267,7 +269,7 @@ test.describe("messy_sales.csv", () => {
     });
 
     test("the new database is opened as a file is: named after the file, at the address ./", async ({ app, page }) => {
-        await app.open(NORTHLIGHT_URL + "&preview=import");
+        await app.open(`${NORTHLIGHT_URL}&${flagState("import")}`);
         await app.importFiles(fixturePath("messy_sales.csv"));
         expect(await page.evaluate(() => window.app.database.name)).toBe("messy_sales");
         await expect(app.databaseLabel).toHaveText("messy_sales");
@@ -349,7 +351,7 @@ test.describe("files that are refused", () => {
             const reasons = await load("config-workflow.js");
             const reason = reasons[reasonName];
             expect(typeof reason, `${reasonName} is a text of config-workflow.js`).toBe("string");
-            await app.open(`${NORTHLIGHT_URL}&preview=import`);
+            await app.open(`${NORTHLIGHT_URL}&${flagState("import")}`);
             const before = await pageState(app, page);
             expect(before.tables.length).toBeGreaterThan(0);
             await app.trackConnections();
@@ -506,7 +508,7 @@ test.describe("into the open database", () => {
 
     test("never into a course database: the choice is off, and the note says why", async ({ app }) => {
         const { IMPORT_COURSE_DATABASE_NOTE } = await load("config-workflow.js");
-        await app.open(`${NORTHLIGHT_URL}&preview=import`);
+        await app.open(`${NORTHLIGHT_URL}&${flagState("import")}`);
         await app.chooseFiles(fixturePath("messy_sales.csv"));
         await dialogReady(app);
         await expect(app.importDialog.locator("#import-into-open")).toBeDisabled();
@@ -726,10 +728,10 @@ test.describe("the reason an expected file gives for a refusal", () => {
 // ---- both flags on ------------------------------------------------------------------------------------
 
 // With the import alone a workbook is never read: Phase 5 is behind the flag excel-import.
-test.describe("?preview=import with a workbook chosen", () => {
+test.describe("with the import alone, a workbook chosen", () => {
     test("a workbook is refused with the words of the import alone, and a CSV beside it still imports", async ({ app, page }) => {
         const { IMPORT_WORKBOOK_REASON } = await load("config-workflow.js");
-        await app.open("./?preview=import");
+        await app.open(`./?${flagState("import")}`);
         // (the flag excel-import is off: the test is not the one with both)
         expect(await page.evaluate(async () => (await import("./bundle/app.js")).flags.flagOn("excel-import"))).toBe(false);
         expect(await page.evaluate(async () => (await import("./bundle/app.js")).flags.flagOn("import"))).toBe(true);
@@ -751,7 +753,7 @@ test.describe("?preview=import with a workbook chosen", () => {
 
     test("a workbook alone is refused, and Close leaves the page as it was", async ({ app, page }) => {
         const { IMPORT_WORKBOOK_REASON } = await load("config-workflow.js");
-        await app.open(`${NORTHLIGHT_URL}&preview=import`);
+        await app.open(`${NORTHLIGHT_URL}&${flagState("import")}`);
         const before = await pageState(app, page);
         await app.chooseFiles(fixturePath("shopping_db.xlsx"));
         await expect(app.importDialog).toBeVisible();
@@ -765,9 +767,9 @@ test.describe("?preview=import with a workbook chosen", () => {
 });
 
 // With both flags a workbook is read: its sheets are in its tab, and the files beside it import with it.
-test.describe("?preview=import,excel-import with a workbook chosen", () => {
+test.describe("with both imports, a workbook chosen", () => {
     test("a workbook is read, not refused, and a CSV beside it imports with its sheets", async ({ app, page }) => {
-        await app.open("./?preview=import,excel-import");
+        await app.open(`./?${flagState("import", "excel-import")}`);
         // (both flags really are on: the test is not the one with the import alone)
         expect(await page.evaluate(async () => (await import("./bundle/app.js")).flags.flagOn("excel-import"))).toBe(true);
         expect(await page.evaluate(async () => (await import("./bundle/app.js")).flags.flagOn("import"))).toBe(true);
@@ -792,7 +794,7 @@ test.describe("?preview=import,excel-import with a workbook chosen", () => {
     });
 
     test("a workbook alone is read: Import is there, and Close leaves nothing behind", async ({ app, page }) => {
-        await app.open(`${NORTHLIGHT_URL}&preview=import,excel-import`);
+        await app.open(`${NORTHLIGHT_URL}&${flagState("import", "excel-import")}`);
         const before = await pageState(app, page);
         await app.chooseFiles(fixturePath("shopping_db.xlsx"));
         await dialogReady(app);
@@ -904,7 +906,7 @@ test.describe("what the plan decides and no fixture holds (plan section 9), thro
     ]) {
         test(`a file of blank lines only (${label}) is refused as empty, and nothing is left behind`, async ({ app, page }) => {
             const { IMPORT_EMPTY_REASON } = await load("config-workflow.js");
-            await app.open(`${NORTHLIGHT_URL}&preview=import`);
+            await app.open(`${NORTHLIGHT_URL}&${flagState("import")}`);
             const before = await pageState(app, page);
             await app.trackConnections();
             await app.chooseFiles(textFile("blank.csv", body));
@@ -928,7 +930,7 @@ test.describe("what the plan decides and no fixture holds (plan section 9), thro
     ]) {
         test(`UTF-16 ${label} text with no byte-order mark is refused as not text, and nothing is left behind`, async ({ app, page }) => {
             const { IMPORT_NOT_TEXT_REASON } = await load("config-workflow.js");
-            await app.open(`${NORTHLIGHT_URL}&preview=import`);
+            await app.open(`${NORTHLIGHT_URL}&${flagState("import")}`);
             const before = await pageState(app, page);
             await app.trackConnections();
             await app.chooseFiles({ name: "wide.csv", mimeType: "text/csv", buffer: encode("a,b\n1,2\n") });
