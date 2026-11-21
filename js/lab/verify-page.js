@@ -2,18 +2,26 @@
 // after the page has loaded it makes no request, and it uses no storage.
 //
 // A file is checked when it is pasted into the box, dropped anywhere on the page, or chosen
-// with the file input, and the Verify button checks what is in the box (typed text, or text
-// that is still exactly what was pasted). The result goes to #verify-result (role="status"),
-// built with textContent only: VALID with the student number, query count, export time and
-// dataset (and the event count, for a version 2 file, which lists files imported and tables
-// exported among the queries), EDITED with the reason, or (no crypto.subtle: an http address that is not
-// localhost) a message that says neither. The page scrolls just far enough to bring the
-// verdict into view.
+// with the file input. The Verify button checks again what was given last: the box (typed text,
+// or text that is still exactly what was pasted), or the file that was chosen or dropped after
+// the box was last changed. Such a file is not put in the box, and a press on Verify must not
+// turn its verdict into that of the box ("The file is empty." for a valid file, when the box is
+// empty). A paste into the box, or a change typed there, makes the box what Verify checks.
+// The result goes to #verify-result (role="status"), built with textContent only: VALID with the
+// student number, query count, export time and dataset (and the event count, for a version 2
+// file, which lists files imported and tables exported among the queries), EDITED with the
+// reason, or a message that says neither (no crypto.subtle: an http address that is not
+// localhost; or a box that can no longer be checked, below). The page scrolls just far enough
+// to bring the verdict into view.
 //
 // A textarea turns every lone CR into LF in its value, which would hide a one-character edit
 // (an LF changed to CR). So the paste handler reads the raw clipboard text, verifies that, and
-// remembers it together with the textarea value it produced; Verify uses the raw text until
-// the student types or deletes anything in the box (an input event), and the value from then on.
+// remembers it together with the textarea value it produced; Verify uses the raw text for as
+// long as the box shows exactly what the paste put there. Once the box shows anything else, the
+// page knows the box's value only. That is the whole truth unless the pasted text had a lone CR:
+// then the CR may still be in the box, shown as an LF, or may have been taken out, and the page
+// cannot tell. It gives no verdict then (a text with a hidden CR must never read VALID): it says
+// that the box can no longer be checked, until the box is emptied or a paste replaces all of it.
 // The pasted text is put in the box by the handler (setRangeText), not by the browser.
 
 import {
@@ -78,7 +86,10 @@ function render(result) {
     region.scrollIntoView?.({ block: "nearest" });
 }
 
-// Only the latest check may show its result: a big file can finish after a later paste.
+// Only the latest check may show its result: the checksum of a big text can be ready after that
+// of a later, smaller one. (The reading of a chosen file is not part of this. It takes
+// milliseconds; a file whose reading ends after a later paste shows its verdict last, and is
+// then what Verify checks.)
 let latest = 0;
 
 async function check(text) {
@@ -89,30 +100,79 @@ async function check(text) {
     }
 }
 
+// What Verify checks when it is not the box: what was given last without going through the box
+// (a file chosen, dropped or pasted as a file, or text dropped on the page), as {text}, or as
+// {refusal} for a file that was not read (too large, or unreadable). null when the box is what
+// Verify checks: at first, and after a paste into the box or a change typed there.
+let given = null;
+
+function refuse(reason) {
+    ++latest;
+    given = { refusal: reason };
+    render({ status: "edited", reason });
+}
+
+function checkGiven(text) {
+    given = { text };
+    return check(text);
+}
+
 async function checkFile(file) {
     if (file.size > EVIDENCE_MAX_BYTES) {
-        ++latest;
-        render({ status: "edited", reason: VERIFY_TOO_LARGE_REASON });
+        refuse(VERIFY_TOO_LARGE_REASON);
         return;
     }
     let text;
     try {
         text = await file.text();
     } catch {
-        ++latest;
-        render({ status: "edited", reason: VERIFY_READ_FAILED_REASON });
+        refuse(VERIFY_READ_FAILED_REASON);
         return;
     }
-    await check(text);
+    await checkGiven(text);
 }
 
 // ---- the box --------------------------------------------------------------------------
 
-// What the textarea holds, as the clipboard gave it: {raw, value} where value is what the
-// textarea showed right after the paste.
-let pasted = null;
+// What the page knows of the box beyond its value: raw is the text as the clipboard gave it, and
+// value what the textarea showed for it, when that was last known (after a paste; "" for the
+// empty box). lossy says that raw itself was built on a box whose text was no longer known
+// exactly (see boxText).
+let shadow = { raw: textarea.value, value: textarea.value, lossy: false };
+// the box's value after the last paste or change: an input event that leaves the box as it was
+// is no change (Chromium fires one for an undo that finds nothing to undo)
+let boxValue = textarea.value;
 
-const rawText = () => (pasted && textarea.value === pasted.value ? pasted.raw : textarea.value);
+// a CR that is not the first half of a CRLF: a textarea shows it as an LF
+const LONE_CR = /\r(?!\n)/;
+
+// What a marker reads when the box cannot be checked. (Here and not in js/lab/config.js with the
+// other texts: a browser can hold an older copy of that file for some minutes after a release,
+// and a name that the older copy does not export would keep this page from loading.)
+const HIDDEN_BREAK_MESSAGE =
+    "The pasted text had a line break of a kind that this box cannot keep, and the text has been changed since. It can no longer be checked here. Empty the box and paste the file again, or choose the file instead.";
+
+// What the box holds, for a check: {text}, or {unknown: true}. While the box shows what the last
+// paste put there, the text is the raw text of that paste. Once it shows anything else, the text
+// is the box's value, unless a lone CR may be hidden in it: the last paste had one (the box has
+// changed since, and the CR may or may not have gone), or that paste was itself made into a box
+// in that state.
+function boxText() {
+    if (textarea.value === shadow.value) {
+        return shadow.lossy ? { unknown: true } : { text: shadow.raw };
+    }
+    return shadow.lossy || LONE_CR.test(shadow.raw) ? { unknown: true } : { text: textarea.value };
+}
+
+function checkBox() {
+    const box = boxText();
+    if (box.unknown) {
+        ++latest;
+        render({ status: "unavailable", reason: HIDDEN_BREAK_MESSAGE });
+    } else {
+        check(box.text);
+    }
+}
 
 // the index in `raw` that corresponds to index `at` of the textarea value (CRLF counts as one
 // character there, and so does a lone CR)
@@ -137,24 +197,44 @@ textarea.addEventListener("paste", (event) => {
         return;
     }
     event.preventDefault();
-    const base = rawText();
+    const box = boxText();
+    const base = box.unknown ? textarea.value : box.text;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
+    // a paste over all of the box leaves nothing of what was there, a hidden CR included
+    const lossy = Boolean(box.unknown) && !(start === 0 && end === textarea.value.length);
     const raw = base.slice(0, rawIndex(base, start)) + incoming + base.slice(rawIndex(base, end));
     textarea.setRangeText(incoming, start, end, "end");
-    pasted = { raw, value: textarea.value };
-    check(raw);
+    shadow = { raw, value: textarea.value, lossy };
+    boxValue = textarea.value;
+    // the box is what Verify checks from now on
+    given = null;
+    checkBox();
 });
 
-// typed or deleted text makes an old result stale
+// typed or deleted text makes an old result stale, and the box what Verify checks
 textarea.addEventListener("input", () => {
-    pasted = null;
+    if (textarea.value === boxValue) {
+        return;
+    }
+    boxValue = textarea.value;
+    if (boxValue === "") {
+        // nothing is left of what was pasted
+        shadow = { raw: "", value: "", lossy: false };
+    }
+    given = null;
     latest++;
     region.replaceChildren();
 });
 
 verifyButton.addEventListener("click", () => {
-    check(rawText());
+    if (!given) {
+        checkBox();
+    } else if ("refusal" in given) {
+        refuse(given.refusal);
+    } else {
+        check(given.text);
+    }
 });
 
 fileInput.addEventListener("change", () => {
@@ -189,7 +269,7 @@ document.addEventListener("drop", (event) => {
     } else if (data) {
         const text = data.getData("text/plain");
         if (text) {
-            check(text);
+            checkGiven(text);
         }
     }
 });
