@@ -69,7 +69,7 @@ function dropText(page, text, selector = "#drop-zone") {
 
 // what the page says when the box may hold a line break that it cannot show (js/lab/verify-page.js)
 const HIDDEN_BREAK =
-    "The pasted text had a line break of a kind that this box cannot keep, and the text has been changed since. It can no longer be checked here. Empty the box and paste the file again, or choose the file instead.";
+    "This box can no longer be checked. Earlier on this visit a text was pasted into it with a line break of a kind that the box cannot keep, and the box has been changed since. Empty the box and paste the file again, or choose the file instead.";
 
 // press Verify and wait for the verdict that the press brings: the one on screen (if there is one)
 // is marked first, so that a press that did nothing, or a verdict that is only still there, cannot
@@ -414,20 +414,29 @@ test.describe("checking", () => {
         await expect(result(page).locator(".verdict-message")).toHaveText(HIDDEN_BREAK);
         await expect(result(page)).not.toContainText("VALID");
         await expect(result(page)).not.toContainText("EDITED");
-        // the box emptied: nothing of the paste is left, and text typed afterwards is checked as the
-        // box's own value
+        // the box emptied: an empty box holds nothing, and says so
         await box.fill("");
+        await pressVerify(page);
+        await expect(result(page)).toContainText("EDITED");
+        await expect(result(page)).toContainText("empty");
+        // text typed into it afterwards is still not checked: an undo could bring the paste back
         await box.fill(other);
         await pressVerify(page);
+        await expect(result(page).locator(".verdict-message")).toHaveText(HIDDEN_BREAK);
+        await expect(result(page)).not.toContainText("VALID");
+        // a paste over everything is checked as it was pasted
+        await paste(page, other);
         await expect(result(page)).toContainText("VALID");
         await expect(result(page).locator("dt:has-text('Student number') + dd")).toHaveText("U7654321");
     });
 
     // The page knows the text as it was pasted only while the box shows exactly what the paste put
-    // there. After that, a lone CR of the paste may still be in the box (shown as an LF) or may be
-    // gone, and the page cannot tell which: it gives no verdict until nothing of that paste can be
-    // left. A file whose text never had a lone CR is not touched by any of this.
-    test("after a paste with a lone CR, a box that was changed is not checked at all, until it is emptied or a paste replaces all of it", async ({ page }) => {
+    // there. After a paste with a lone CR, text from it may be in the box (shown with an LF) wherever
+    // the edits left it, and an undo brings deleted text back: the page gives no verdict of a box that
+    // shows anything else, for the rest of the visit. An empty box is empty, and a box that shows
+    // exactly what a paste put there is checked as that paste. A visit in which no text with a lone CR
+    // was pasted is not touched by any of this.
+    test("after a paste with a lone CR, a box that was changed is not checked at all: only an empty box, and a box that shows exactly what a paste put there, are", async ({ page }) => {
         await page.goto("verify.html");
         const box = page.locator("#evidence-text");
         const i = GOOD.indexOf("\n[1]");
@@ -455,7 +464,14 @@ test.describe("checking", () => {
         await expect(result(page)).toContainText("VALID");
         await pressVerify(page);
         await expect(result(page)).toContainText("VALID");
-        // the same again, ended by emptying the box: an empty box, then typed text checked as it is
+        // a text typed after it, which is not what a paste put there: not checked, although the last
+        // paste had no lone CR (an undo could bring back the text of the first)
+        await box.press("End");
+        await page.keyboard.type("x");
+        await pressVerify(page);
+        await unchecked();
+        // the same again, ended by emptying the box: the empty box is empty, text typed into it is not
+        // checked, and a paste into it is checked as it was pasted
         await paste(page, changed);
         await expect(result(page)).toContainText("checksum does not match");
         await box.press("End");
@@ -468,9 +484,173 @@ test.describe("checking", () => {
         await pressVerify(page);
         await expect(result(page)).toContainText("EDITED");
         await expect(result(page)).toContainText("empty");
-        await box.fill(GOOD);
+        await box.focus();
+        await page.keyboard.type("SQL");
+        await expect(box).toHaveValue("SQL");
+        await pressVerify(page);
+        await unchecked();
+        await box.press("Control+a");
+        await box.press("Delete");
+        await paste(page, GOOD);
+        await expect(result(page)).toContainText("VALID");
         await pressVerify(page);
         await expect(result(page)).toContainText("VALID");
+    });
+
+    // An undo brings back text that was deleted from the box. The page used to forget a paste once the
+    // box was emptied, and an undo then brought back the text of a file with one LF changed to a CR,
+    // shown with an LF, which read as VALID. After an undo or a redo, with such a text pasted on the
+    // visit, the box gets no verdict until the next paste, even when it shows exactly that paste.
+    test("an undo after the box was emptied brings back the text of a paste with a lone CR, which gets no verdict until the next paste", async ({ page }) => {
+        await page.goto("verify.html");
+        const box = page.locator("#evidence-text");
+        const i = GOOD.indexOf("\n[1]");
+        const changed = `${GOOD.slice(0, i)}\r${GOOD.slice(i + 1)}`;
+        // each way of emptying the box, then an undo: the box shows the file again, and gets no verdict
+        for (const keys of [["Control+a", "Delete"], ["Control+a", "Backspace"], ["Control+a", "Control+x"]]) {
+            const how = keys.join(" then ");
+            await paste(page, changed);
+            await expect(result(page), how).toContainText("checksum does not match");
+            for (const key of keys) {
+                await box.press(key);
+            }
+            await expect(box, how).toHaveValue("");
+            await pressVerify(page);
+            await expect(result(page), how).toContainText("empty");
+            await box.press("Control+z");
+            await expect(box, how).toHaveValue(GOOD);
+            await pressVerify(page);
+            await expect(result(page).locator(".verdict-message"), how).toHaveText(HIDDEN_BREAK);
+            await expect(result(page), how).not.toContainText("VALID");
+        }
+        // the next paste over everything is checked as it was pasted
+        await paste(page, GOOD);
+        await expect(result(page)).toContainText("VALID");
+        await pressVerify(page);
+        await expect(result(page)).toContainText("VALID");
+        // a text typed after the paste, the box emptied, then two undos
+        await paste(page, changed);
+        await box.press("Control+End");
+        await page.keyboard.type("x");
+        await expect(box).toHaveValue(`${GOOD}x`);
+        await box.press("Control+a");
+        await box.press("Delete");
+        await box.press("Control+z");
+        await expect(box).toHaveValue(`${GOOD}x`);
+        await pressVerify(page);
+        await expect(result(page).locator(".verdict-message")).toHaveText(HIDDEN_BREAK);
+        await box.press("Control+z");
+        await expect(box).toHaveValue(GOOD);
+        await pressVerify(page);
+        await expect(result(page).locator(".verdict-message")).toHaveText(HIDDEN_BREAK);
+        await expect(result(page)).not.toContainText("VALID");
+    });
+
+    // A redo is held like an undo. The browsers redo after a paste by the page in their own ways, so the
+    // redo is made here as a browser makes it: the value changed, then an input event that says so.
+    test("a redo that makes the box show exactly the last paste gets no verdict either, once a text with a lone CR was pasted", async ({ page }) => {
+        await page.goto("verify.html");
+        const box = page.locator("#evidence-text");
+        const i = GOOD.indexOf("\n[1]");
+        const changed = `${GOOD.slice(0, i)}\r${GOOD.slice(i + 1)}`;
+        const redoTo = (text) =>
+            page.evaluate((value) => {
+                const node = document.querySelector("#evidence-text");
+                node.value = value;
+                node.dispatchEvent(new InputEvent("input", { inputType: "historyRedo", bubbles: true }));
+            }, text);
+        await paste(page, changed);
+        await expect(result(page)).toContainText("checksum does not match");
+        await box.press("Control+End");
+        await page.keyboard.type("x");
+        await redoTo(GOOD);
+        await expect(result(page)).toBeEmpty();
+        await pressVerify(page);
+        await expect(result(page).locator(".verdict-message")).toHaveText(HIDDEN_BREAK);
+        await expect(result(page)).not.toContainText("VALID");
+        // the next paste is checked again, and a box typed back to it after that is checked as it
+        await paste(page, changed);
+        await expect(result(page)).toContainText("checksum does not match");
+        await box.press("Control+End");
+        await page.keyboard.type("x");
+        await box.press("Backspace");
+        await expect(box).toHaveValue(GOOD);
+        await pressVerify(page);
+        await expect(result(page)).toContainText("checksum does not match");
+    });
+
+    // With no text with a lone CR pasted on the visit, the box's value is the whole truth, and an undo
+    // changes nothing in how it is checked.
+    test("on a visit with no lone CR pasted, an undo back to the paste is checked as the paste", async ({ page }) => {
+        await page.goto("verify.html");
+        const box = page.locator("#evidence-text");
+        await paste(page, GOOD);
+        await expect(result(page)).toContainText("VALID");
+        await box.press("Control+End");
+        await page.keyboard.type("x");
+        await pressVerify(page);
+        await expect(result(page)).toContainText("EDITED");
+        await box.press("Control+z");
+        await expect(box).toHaveValue(GOOD);
+        await pressVerify(page);
+        await expect(result(page)).toContainText("VALID");
+        await expect(result(page).locator(".verdict-message")).toHaveCount(0);
+        // and the box emptied and brought back by an undo
+        await box.press("Control+a");
+        await box.press("Delete");
+        await box.press("Control+z");
+        await expect(box).toHaveValue(GOOD);
+        await pressVerify(page);
+        await expect(result(page)).toContainText("VALID");
+    });
+
+    // In Chromium an undo after a paste by the page brings back text that was deleted before that
+    // paste, beside it; Firefox's undo does nothing there. So the page cannot forget a paste with a
+    // lone CR when a later paste replaces all of the box either.
+    test("an undo after a later paste does not bring the text of a pasted file with a lone CR back as VALID", async ({ page }, testInfo) => {
+        await page.goto("verify.html");
+        const box = page.locator("#evidence-text");
+        const i = GOOD.indexOf("\n[1]");
+        const changed = `${GOOD.slice(0, i)}\r${GOOD.slice(i + 1)}`;
+        const other = evidenceFile({ entries: [{ t: "2026-11-09T13:58:12Z", outcome: "3 rows", sql: "SELECT 2;" }], student: "U7654321" });
+        const chromium = testInfo.project.name.startsWith("chromium");
+        for (const later of ["z", other]) {
+            await paste(page, changed);
+            await expect(result(page)).toContainText("checksum does not match");
+            await box.press("Control+a");
+            await box.press("Delete");
+            // a paste into the empty box is checked as it was pasted
+            await paste(page, later);
+            await expect(result(page)).toContainText(later === other ? "VALID" : "EDITED");
+            await box.press("Control+z");
+            const value = await box.inputValue();
+            if (chromium) {
+                // the deleted text is back beside the paste: no verdict
+                expect(value, "Chromium's undo").toContain(GOOD);
+                expect(value).not.toBe(later);
+                await pressVerify(page);
+                await expect(result(page).locator(".verdict-message")).toHaveText(HIDDEN_BREAK);
+                // and with the later paste taken out by hand, the box shows the file again: still none
+                const at = value.indexOf(later);
+                await page.evaluate(([start, end]) => {
+                    const node = document.querySelector("#evidence-text");
+                    node.focus();
+                    node.setSelectionRange(start, end);
+                }, [at, at + later.length]);
+                await box.press("Delete");
+                await expect(box).toHaveValue(GOOD);
+                await pressVerify(page);
+                await expect(result(page).locator(".verdict-message")).toHaveText(HIDDEN_BREAK);
+                await expect(result(page)).not.toContainText("VALID");
+            } else {
+                // the undo did nothing: the box is the later paste, and is checked as that paste
+                expect(value, "Firefox's undo").toBe(later);
+                await pressVerify(page);
+                await expect(result(page)).toContainText(later === other ? "VALID" : "EDITED");
+            }
+            await box.press("Control+a");
+            await box.press("Delete");
+        }
     });
 
     test("a paste with no lone CR is not held back: CRLF line ends, text typed after it and taken out again, are checked as ever", async ({ page }) => {
@@ -730,6 +910,99 @@ test.describe("checking", () => {
         await expect(result(page)).toContainText("VALID");
         await chooseFile(page, `${GOOD}\n`);
         await expect(result(page)).toContainText("EDITED");
+    });
+
+    // The raw text of a paste is spliced by the index in the box's value, where a CRLF is one character.
+    test("a paste into the middle of a CRLF file is spliced at the right place in its raw text", async ({ page }) => {
+        await page.goto("verify.html");
+        const crlf = GOOD.replaceAll("\n", "\r\n");
+        await paste(page, crlf);
+        await expect(result(page)).toContainText("VALID");
+        // a character pasted over itself, after many line ends and not at the end: nothing changed
+        const at = GOOD.indexOf("rows") + 1;
+        await pasteAt(page, GOOD[at], at, at + 1);
+        await expect(result(page)).toContainText("VALID");
+        // a character pasted over another one is a change
+        await pasteAt(page, "x", at, at + 1);
+        await expect(result(page)).toContainText("checksum does not match");
+        // the same character pasted back over it: the file again, as it was first pasted
+        await pasteAt(page, GOOD[at], at, at + 1);
+        await expect(result(page)).toContainText("VALID");
+        // and a paste at the start and one at the end are spliced at the right places too
+        await pasteAt(page, GOOD[0], 0, 1);
+        await expect(result(page)).toContainText("VALID");
+        await pasteAt(page, "\n", GOOD.length - 1, GOOD.length);
+        await expect(result(page)).toContainText("VALID");
+    });
+
+    // The last line break of a file is as open to a change as any other: with a lone CR there, a box that
+    // is changed afterwards is not checked either, which an undo could make wrong.
+    test("a file whose last line break is a lone CR is held back like any other: a changed box is not checked, in either browser", async ({ page }, testInfo) => {
+        await page.goto("verify.html");
+        const box = page.locator("#evidence-text");
+        const changed = `${GOOD.slice(0, -1)}\r`;
+        await paste(page, changed);
+        await expect(result(page)).toContainText("EDITED");
+        await box.press("Control+End");
+        await page.keyboard.type("x");
+        await expect(box).toHaveValue(`${GOOD}x`);
+        await pressVerify(page);
+        await expect(result(page).locator(".verdict-message")).toHaveText(HIDDEN_BREAK);
+        await box.press("Backspace");
+        await expect(box).toHaveValue(GOOD);
+        await pressVerify(page);
+        await expect(result(page)).toContainText("EDITED");
+        if (testInfo.project.name.startsWith("chromium")) {
+            // Chromium's undo brings the emptied file back beside a later paste; with that paste taken
+            // out by hand the box shows the file again, and it is not checked as the later paste
+            await box.press("Control+a");
+            await box.press("Delete");
+            await paste(page, "z");
+            await box.press("Control+z");
+            const value = await box.inputValue();
+            expect(value, "Chromium's undo").toContain(GOOD);
+            const from = value.indexOf("z");
+            await page.evaluate(([start, end]) => {
+                const node = document.querySelector("#evidence-text");
+                node.focus();
+                node.setSelectionRange(start, end);
+            }, [from, from + 1]);
+            await box.press("Delete");
+            await expect(box).toHaveValue(GOOD);
+            await pressVerify(page);
+            await expect(result(page).locator(".verdict-message")).toHaveText(HIDDEN_BREAK);
+        }
+    });
+
+    // In Chromium an undo after a paste by the page brings the emptied text back at the end of the box,
+    // beside the paste. When the file pasted later reads the same as the first (the original after an
+    // edited copy), taking the later copy out by hand leaves the first alone in the box, and the box shows
+    // exactly what the last paste put there: it was checked as that paste, and read VALID for an edited
+    // file. Once an undo or a redo has changed the box, it gets no verdict until the next paste.
+    test("an undo after a later paste of the same-looking file, and the later copy taken out by hand, is not read as the later paste", async ({ page }, testInfo) => {
+        test.skip(!testInfo.project.name.startsWith("chromium"), "Firefox's undo does nothing after a paste by the page");
+        await page.goto("verify.html");
+        const box = page.locator("#evidence-text");
+        const i = GOOD.indexOf("\n[1]");
+        const changed = `${GOOD.slice(0, i)}\r${GOOD.slice(i + 1)}`;
+        await paste(page, changed);
+        await expect(result(page)).toContainText("checksum does not match");
+        await box.press("Control+a");
+        await box.press("Delete");
+        await paste(page, GOOD);
+        await expect(result(page)).toContainText("VALID");
+        await box.press("Control+z");
+        await expect(box).toHaveValue(`${GOOD}${GOOD}`);
+        await page.evaluate((end) => {
+            const node = document.querySelector("#evidence-text");
+            node.focus();
+            node.setSelectionRange(0, end);
+        }, GOOD.length);
+        await box.press("Delete");
+        await expect(box).toHaveValue(GOOD);
+        await pressVerify(page);
+        await expect(result(page).locator(".verdict-message")).toHaveText(HIDDEN_BREAK);
+        await expect(result(page)).not.toContainText("VALID");
     });
 
     test("pasting into text that is already there is checked as one text", async ({ page }) => {
